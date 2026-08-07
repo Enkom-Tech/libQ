@@ -69,6 +69,7 @@ impl<N: ArraySize> AsRef<[u8]> for SkSeed<N> {
 }
 
 impl<N: ArraySize> From<&[u8]> for SkSeed<N> {
+    /// Panics if `slice` length differs from the secret key seed size `N`.
     fn from(slice: &[u8]) -> Self {
         Self(array_u8_try_from_exact(slice).expect("slice length must equal secret key seed size"))
     }
@@ -91,6 +92,7 @@ impl<N: ArraySize> AsRef<[u8]> for SkPrf<N> {
 }
 
 impl<N: ArraySize> From<&[u8]> for SkPrf<N> {
+    /// Panics if `slice` length differs from the secret PRF key size `N`.
     fn from(slice: &[u8]) -> Self {
         Self(array_u8_try_from_exact(slice).expect("slice length must equal secret PRF key size"))
     }
@@ -280,6 +282,7 @@ impl<P: ParameterSet> SigningKey<P> {
     /// Construct a new SigningKey from pre-chosen seeds.
     /// Implements [slh_keygen_internal] as defined in FIPS-205.
     /// Published for KAT validation purposes but not intended for general use.
+    /// All three seeds must be P::N length slices, panics otherwise.
     pub fn slh_keygen_internal(sk_seed: &[u8], sk_prf: &[u8], pk_seed: &[u8]) -> Self {
         let sk_seed = SkSeed::from(sk_seed);
         let sk_prf = SkPrf::from(sk_prf);
@@ -591,5 +594,13 @@ mod tests {
         let bytes = sk.to_bytes();
         let incorrect_bytes = &bytes[..bytes.len() - 1];
         assert!(SigningKey::<Shake128f>::try_from(incorrect_bytes).is_err());
+    }
+
+    #[test]
+    #[should_panic(expected = "slice length must equal secret key seed size")]
+    fn slh_keygen_internal_panics_on_wrong_length_seed() {
+        let short = [0u8; 15]; // Shake128f wants 16
+        let ok = [0u8; 16];
+        let _ = SigningKey::<Shake128f>::slh_keygen_internal(&short, &ok, &ok);
     }
 }

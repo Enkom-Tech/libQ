@@ -156,7 +156,12 @@ pub trait Aead {
 }
 
 // Key types
-/// KEM keypair with automatic memory zeroization
+/// KEM keypair.
+///
+/// # Zeroization
+///
+/// The contained secret key zeroizes its buffer on drop (see [`KemSecretKey`]);
+/// the public key is not wiped.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct KemKeypair {
@@ -178,8 +183,30 @@ pub struct KemPublicKey {
     pub data: &'static [u8],
 }
 
-/// KEM secret key with automatic memory zeroization
+/// KEM secret key.
+///
+/// # Zeroization
+///
+/// With the `alloc` feature, the key bytes in `data` are zeroized when the value
+/// is dropped (`#[derive(ZeroizeOnDrop)]`), and can be wiped earlier by calling
+/// [`Zeroize::zeroize`]. This is best-effort and covers **only the current
+/// allocation**:
+///
+/// - If the `Vec` has ever reallocated (growth, `shrink_to_fit`), earlier copies
+///   of its contents may remain elsewhere on the heap; the wipe cannot reach
+///   them. Construct keys with their final contents and do not grow `data`.
+/// - `data` is a public field: moving the buffer out (for example with
+///   `core::mem::take(&mut key.data)`) transfers ownership of the secret bytes
+///   — and responsibility for wiping them — to the caller.
+/// - Copies made through accessors (`as_bytes`, serialization, the wasm
+///   `bytes()` method) are outside the scope of this wipe.
+/// - Without the `alloc` feature, `data` is a borrowed `&'static [u8]` and is
+///   deliberately **not** zeroized: the borrow is not this type's to wipe.
+/// - On wasm32 (feature `wasm`), the value is dropped — and therefore wiped —
+///   when JavaScript calls `.free()` on the handle or its `FinalizationRegistry`
+///   entry runs; if neither happens, the wipe never runs.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "alloc", derive(ZeroizeOnDrop))]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct KemSecretKey {
     #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
@@ -197,10 +224,12 @@ impl Zeroize for KemSecretKey {
     }
 }
 
-#[cfg(feature = "alloc")]
-impl ZeroizeOnDrop for KemSecretKey {}
-
-/// Signature keypair with automatic memory zeroization
+/// Signature keypair.
+///
+/// # Zeroization
+///
+/// The contained secret key zeroizes its buffer on drop (see [`SigSecretKey`]);
+/// the public key is not wiped.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct SigKeypair {
@@ -223,8 +252,30 @@ pub struct SigPublicKey {
     pub data: &'static [u8],
 }
 
-/// Signature secret key with automatic memory zeroization
+/// Signature secret key.
+///
+/// # Zeroization
+///
+/// With the `alloc` feature, the key bytes in `data` are zeroized when the value
+/// is dropped (`#[derive(ZeroizeOnDrop)]`), and can be wiped earlier by calling
+/// [`Zeroize::zeroize`]. This is best-effort and covers **only the current
+/// allocation**:
+///
+/// - If the `Vec` has ever reallocated (growth, `shrink_to_fit`), earlier copies
+///   of its contents may remain elsewhere on the heap; the wipe cannot reach
+///   them. Construct keys with their final contents and do not grow `data`.
+/// - `data` is a public field: moving the buffer out (for example with
+///   `core::mem::take(&mut key.data)`) transfers ownership of the secret bytes
+///   — and responsibility for wiping them — to the caller.
+/// - Copies made through accessors (`as_bytes`, serialization, the wasm
+///   `bytes()` method) are outside the scope of this wipe.
+/// - Without the `alloc` feature, `data` is a borrowed `&'static [u8]` and is
+///   deliberately **not** zeroized: the borrow is not this type's to wipe.
+/// - On wasm32 (feature `wasm`), the value is dropped — and therefore wiped —
+///   when JavaScript calls `.free()` on the handle or its `FinalizationRegistry`
+///   entry runs; if neither happens, the wipe never runs.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "alloc", derive(ZeroizeOnDrop))]
 #[cfg_attr(feature = "wasm", wasm_bindgen)]
 pub struct SigSecretKey {
     #[cfg_attr(feature = "wasm", wasm_bindgen(skip))]
@@ -242,10 +293,26 @@ impl Zeroize for SigSecretKey {
     }
 }
 
-#[cfg(feature = "alloc")]
-impl ZeroizeOnDrop for SigSecretKey {}
-
-/// AEAD key
+/// AEAD key.
+///
+/// # Zeroization
+///
+/// With the `alloc` feature, the key bytes in `data` are zeroized when the value
+/// is dropped (`#[derive(ZeroizeOnDrop)]`), and can be wiped earlier by calling
+/// [`Zeroize::zeroize`]. This is best-effort and covers **only the current
+/// allocation**:
+///
+/// - If the `Vec` has ever reallocated (growth, `shrink_to_fit`), earlier copies
+///   of its contents may remain elsewhere on the heap; the wipe cannot reach
+///   them. Construct keys with their final contents and do not grow `data`.
+/// - `data` is a public field: moving the buffer out (for example with
+///   `core::mem::take(&mut key.data)`) transfers ownership of the secret bytes
+///   — and responsibility for wiping them — to the caller.
+/// - Copies made through accessors (for example `as_bytes`) are outside the
+///   scope of this wipe.
+/// - Without the `alloc` feature, `data` is a borrowed `&'static [u8]` and is
+///   deliberately **not** zeroized: the borrow is not this type's to wipe.
+#[cfg_attr(feature = "alloc", derive(ZeroizeOnDrop))]
 pub struct AeadKey {
     #[cfg(feature = "alloc")]
     pub data: Vec<u8>,
@@ -259,9 +326,6 @@ impl Zeroize for AeadKey {
         self.data.zeroize();
     }
 }
-
-#[cfg(feature = "alloc")]
-impl ZeroizeOnDrop for AeadKey {}
 
 /// Nonce for AEAD operations
 #[derive(Clone, Debug, PartialEq, Eq)]
