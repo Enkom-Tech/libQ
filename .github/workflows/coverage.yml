@@ -48,7 +48,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        rust: [stable, nightly]
+        # `nightly` is PINNED to 2026-08-05, the last date this job passed. Unpin it when
+        # cargo-tarpaulin can parse current nightly again -- track with card t_93dc6b27.
+        #
+        # Why: from 2026-08-06 onward every run of this job died with
+        #   ERROR cargo_tarpaulin: parser failure: Nom(Satisfy)
+        # before running a single test. Attributed, not guessed:
+        #   * `stable` passed throughout, so it is not the repo's source.
+        #   * Re-running the Aug-5 commit 6c3fcf80 -- which passed on Aug 5 -- against that day's
+        #     nightly reproduced the identical error on identical source, so it is not any change
+        #     we made.
+        #   * Both the passing Aug-5 run and the failing runs installed cargo-tarpaulin 0.37.0, so
+        #     tarpaulin did not move either. The only remaining variable is the nightly toolchain.
+        #
+        # Pinned rather than marked continue-on-error deliberately: a job that cannot fail is the
+        # exact defect this repo has spent weeks removing (see ci-guard-no-vacuous-tests.sh). A
+        # pinned nightly still runs every test and still fails on a real regression; it just stops
+        # re-reporting an upstream incompatibility as if it were ours. The cost is that this job no
+        # longer gives early warning of genuine nightly breakage, which is why it must be unpinned
+        # rather than left this way.
+        rust: [stable, nightly-2026-08-05]
     steps:
       - uses: actions/checkout@v7
 
