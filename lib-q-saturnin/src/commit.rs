@@ -122,6 +122,7 @@
 //!     a fixed `IV = 0`, so the adversary does not get to choose the chaining value — but 10/16 is
 //!     the same depth the designers' own related-key attack reaches on the block cipher, so the
 //!     "free-start is out of scope" line in item 3 below is doing real work and is not a formality.
+//!
 //!   Arguing the claim *up* (say to BHT's `2^85.33` generic floor) is possible on
 //!   paper but is a security-visible change to a designer's published number, which is precisely
 //!   what this obligation gates. Three things a cryptographer must actually sign:
