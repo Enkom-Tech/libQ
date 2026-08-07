@@ -165,13 +165,12 @@ fn test_verify_batch_rejects_invalid_second_proof() {
     assert!(result.is_err());
 }
 
+/// Regression: this and the two tests below used to fail
+/// `MerkleInclusionAir mismatch @ commit0` in `StarkVerifierAir::generate_trace`, because the
+/// inner proof's Merkle tree was compressed with a padded rate-2 sponge while the AIR
+/// constrains a single bare Poseidon permutation. See `lib_q_zkp::air::air_poseidon_mmcs`.
+/// Card t_4333e4ea. Do not re-`#[ignore]` these without a new, verified reason.
 #[test]
-// RED, not skipped for convenience: this fails with the SAME assertion as
-// `test_recursive_verifier_trace_satisfies_constraints_then_prove_verify` below --
-// `MerkleInclusionAir mismatch @ commit0` at src/air/stark_verifier.rs:1584, with identical
-// left/right field values. It was never marked ignored, and CI never ran it, because the CI step
-// selected only that other test by name. Card t_4333e4ea. Remove this attribute with the fix.
-#[ignore = "MerkleInclusionAir hash mismatch in recursive verifier (same cause as the recursive-verifier-trace test) — card t_4333e4ea"]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_single_proof_verifies() {
     let config = poseidon_test_config();
@@ -194,10 +193,21 @@ fn test_aggregate_single_proof_verifies() {
 
 /// Full batch aggregation (`aggregate`): recursive proof over `BatchStarkVerifierAir` with Poseidon inner proofs.
 ///
-/// Ignored in the default suite: outer batch recursive prove + verify can take many minutes (100 FRI queries).
+/// This is the ONLY coverage of the batch path (`aggregate` ->
+/// `verify_aggregated_proof`'s `all_inner_serialized_proofs` branch over `BatchStarkVerifierAir`),
+/// and it is `#[ignore]`d, so CI exercises that path nowhere.
+///
+/// The old reason said "many minutes"; that is no longer true. MEASURED 2026-08-07 after the
+/// `air_poseidon_mmcs` fix (card t_4333e4ea):
+/// `cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std"
+///  --test aggregation_tests test_aggregate_two_poseidon_proofs_verifies -- --ignored --test-threads=1`
+/// -> `test result: ok. 1 passed; 0 failed; ... finished in 54.20s`, exit 0.
+/// It is left ignored only because un-ignoring it puts a multi-minute prove into the 15-minute
+/// `zkp-recursive` CI job (a runner-budget call, not a correctness one) — NOT because it is red
+/// and NOT because it takes minutes locally. Re-measure before restating either number.
 /// Run: `cargo test -p lib-q-zkp --all-features --test aggregation_tests test_aggregate_two_poseidon_proofs_verifies -- --ignored`
 #[test]
-#[ignore = "slow: batch recursive STARK prove+verify (many minutes)"]
+#[ignore = "slow: batch recursive STARK prove+verify; measured 54s in release-ci on 2026-08-07 (passes) — excluded for CI runner budget, not because it fails"]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_two_poseidon_proofs_verifies() {
     let config = poseidon_config();
@@ -254,10 +264,9 @@ fn test_aggregate_rejects_invalid_second_proof() {
 
 /// Three inner Poseidon proofs: Merkle binding over serialized commitments, `aggregate_single`,
 /// and aggregated outer proof verification (same coverage as the former `test_aggregate_three_proofs_all_pass`).
+/// Also a regression test for the `MerkleInclusionAir mismatch @ commit0` defect
+/// (card t_4333e4ea) — see `test_aggregate_single_proof_verifies`.
 #[test]
-// RED for the same reason as `test_aggregate_single_proof_verifies` above: identical
-// `MerkleInclusionAir mismatch @ commit0` assertion and identical field values. Card t_4333e4ea.
-#[ignore = "MerkleInclusionAir hash mismatch in recursive verifier (same cause as the recursive-verifier-trace test) — card t_4333e4ea"]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_merkle_root_covers_all_proofs() {
     use lib_q_sha3::Shake256;
@@ -342,8 +351,10 @@ fn test_aggregate_merkle_root_covers_all_proofs() {
 
 /// Regression test: build recursive verification input, generate verifier trace,
 /// run check_constraints on it, then run full prove + verify.
+///
+/// Was `#[ignore]`d as "MerkleInclusionAir hash mismatch in recursive verifier — under
+/// investigation"; that defect is fixed (card t_4333e4ea, `lib_q_zkp::air::air_poseidon_mmcs`).
 #[test]
-#[ignore = "MerkleInclusionAir hash mismatch in recursive verifier — under investigation"]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_recursive_verifier_trace_satisfies_constraints_then_prove_verify() {
     let config = poseidon_test_config();

@@ -101,8 +101,12 @@ pub type MembershipConfig = StarkConfig<
     ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>,
 >;
 
+// NOT `lib_q_stark_merkle::PoseidonMmcs`: that MMCS compresses nodes with a padded rate-2
+// sponge (two permutations), which `MerkleInclusionAir` does not and cannot constrain — see
+// `crate::air::air_poseidon_mmcs`. Recursive verification of a proof committed with it always
+// fails with `MerkleInclusionAir mismatch @ commit0` (card t_4333e4ea).
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_stark_merkle::PoseidonMmcs as PoseidonMmcsType;
+use crate::air::air_poseidon_mmcs::AirPoseidonMmcs as PoseidonMmcsType;
 #[cfg(feature = "recursive-proofs-experimental")]
 pub type PoseidonChallengeMmcs = ExtensionMmcs<ConfigVal, ConfigVal, PoseidonMmcsType>;
 #[cfg(feature = "recursive-proofs-experimental")]
@@ -864,25 +868,27 @@ pub fn membership_fast_config() -> MembershipConfig {
     StarkConfig::new(pcs, challenger)
 }
 
-/// STARK config that uses Poseidon-based Merkle trees (PoseidonMmcs).
+/// STARK config that uses Poseidon-based Merkle trees
+/// ([`AirPoseidonMmcs`](crate::air::AirPoseidonMmcs)).
 /// Use this as the outer config when producing recursive proofs so that Merkle paths
 /// are compatible with MerkleInclusionAir (Poseidon constraints in-circuit).
 #[cfg(feature = "recursive-proofs-experimental")]
 pub fn poseidon_config() -> PoseidonConfig {
     use lib_q_stark_fri::FriParameters;
-    use lib_q_stark_merkle::{
-        PoseidonMmcs,
-        poseidon_mmcs_instance,
+
+    use crate::air::air_poseidon_mmcs::{
+        AirPoseidonMmcs,
+        air_poseidon_mmcs_instance,
     };
 
-    type ValMmcs = PoseidonMmcs;
+    type ValMmcs = AirPoseidonMmcs;
     type ChallengeMmcs = PoseidonChallengeMmcs;
     type Dft = ConfigDft;
     type Pcs = PoseidonPcs;
     type BaseChallenger = Shake256Challenger32<Mersenne31>;
     type Challenger = ComplexFieldChallenger<BaseChallenger>;
 
-    let (hash, compress) = poseidon_mmcs_instance();
+    let (hash, compress) = air_poseidon_mmcs_instance();
     let val_mmcs = ValMmcs::new(hash, compress);
     let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
     let dft = Dft::default();
@@ -907,19 +913,20 @@ pub fn poseidon_config() -> PoseidonConfig {
 #[cfg(feature = "recursive-proofs-experimental")]
 pub fn poseidon_test_config() -> PoseidonConfig {
     use lib_q_stark_fri::create_test_fri_params;
-    use lib_q_stark_merkle::{
-        PoseidonMmcs,
-        poseidon_mmcs_instance,
+
+    use crate::air::air_poseidon_mmcs::{
+        AirPoseidonMmcs,
+        air_poseidon_mmcs_instance,
     };
 
-    type ValMmcs = PoseidonMmcs;
+    type ValMmcs = AirPoseidonMmcs;
     type ChallengeMmcs = PoseidonChallengeMmcs;
     type Dft = ConfigDft;
     type Pcs = PoseidonPcs;
     type BaseChallenger = Shake256Challenger32<Mersenne31>;
     type Challenger = ComplexFieldChallenger<BaseChallenger>;
 
-    let (hash, compress) = poseidon_mmcs_instance();
+    let (hash, compress) = air_poseidon_mmcs_instance();
     let val_mmcs = ValMmcs::new(hash, compress);
     let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
     let dft = Dft::default();
