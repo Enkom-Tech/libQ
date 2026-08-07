@@ -68,14 +68,14 @@ use lib_q_stark_fri::{
 };
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-#[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_stark_merkle::PoseidonMmcs;
 use lib_q_stark_mersenne31::Mersenne31;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_symmetric::Hash;
 
 #[cfg(feature = "recursive-proofs-experimental")]
 use super::PoseidonCommitmentRoot;
+#[cfg(feature = "recursive-proofs-experimental")]
+use super::air_poseidon_mmcs::AirPoseidonMmcs;
 use super::recursive_types::{
     MAX_FRI_ROUNDS,
     MAX_QUOTIENT_CHUNKS,
@@ -137,7 +137,7 @@ impl<T> FriProofInputProofExtractor for T {
 }
 
 /// Trait for extracting a Merkle sibling from a FRI commit-phase proof step.
-/// Used when the PCS uses Poseidon (e.g. PoseidonMmcs) so siblings are compatible with MerkleInclusionAir.
+/// Used when the PCS uses Poseidon (e.g. `AirPoseidonMmcs`) so siblings are compatible with MerkleInclusionAir.
 #[cfg(feature = "recursive-proofs-experimental")]
 pub trait MerklePathExtractable {
     /// Convert the sibling value in this step to a MerkleHash for use in recursive verification.
@@ -154,7 +154,8 @@ impl<M: lib_q_stark_commit::Mmcs<PoseidonField>> MerklePathExtractable
 }
 
 /// Trait for extracting Merkle path data from a FRI query's input proof.
-/// Only sound when the inner PCS uses PoseidonMmcs so siblings are field-native.
+/// Only sound when the inner PCS uses `AirPoseidonMmcs` so siblings are field-native AND the
+/// tree's node compression is the one `MerkleInclusionAir` constrains (one bare permutation).
 #[cfg(feature = "recursive-proofs-experimental")]
 pub trait InputProofMerkleExtractable {
     /// Extract Merkle siblings for the `batch_idx`-th committed polynomial from this query's input proof.
@@ -202,7 +203,7 @@ impl PoseidonCommitmentRoot for Hash<PoseidonField, PoseidonField, 1> {
 }
 
 #[cfg(feature = "recursive-proofs-experimental")]
-impl InputProofMerkleExtractable for Vec<BatchOpening<PoseidonField, PoseidonMmcs>> {
+impl InputProofMerkleExtractable for Vec<BatchOpening<PoseidonField, AirPoseidonMmcs>> {
     fn input_proof_siblings(&self, batch_idx: usize, tree_depth: usize) -> Option<Vec<MerkleHash>> {
         let batch = self.get(batch_idx)?;
         let proof = &batch.opening_proof;
@@ -739,7 +740,7 @@ where
 }
 
 /// Builds recursive verification input using real query positions from Fiat–Shamir replay.
-/// When the PCS uses PoseidonMmcs, call `build_recursive_verification_input_from_proof_with_poseidon`
+/// When the PCS uses `AirPoseidonMmcs`, call `build_recursive_verification_input_from_proof_with_poseidon`
 /// so Merkle siblings are filled from the live proof; otherwise siblings remain stub (zero).
 #[cfg(feature = "recursive-proofs-experimental")]
 pub fn build_recursive_verification_input_from_proof<C, A>(
@@ -785,7 +786,15 @@ where
 }
 
 /// Builds recursive verification input with real Merkle siblings from the live FRI proof.
-/// Use this when the outer config uses PoseidonMmcs so in-circuit Merkle verification is sound.
+/// Use this when the outer config uses `AirPoseidonMmcs`, whose node compression is the one
+/// `MerkleInclusionAir` constrains (see [`crate::air::air_poseidon_mmcs`]).
+///
+/// Scope, precisely: only the **commitment** Merkle proofs
+/// (`commitment_inputs.merkle_proofs`) are filled from the live proof. The **opening** sub-AIR's
+/// proofs (`opening_inputs`) are still zero-sibling stubs whose `expected_roots` are derived from
+/// those same stubs (see `build_recursive_verification_input_with_real_siblings`), so that half
+/// is self-consistent by construction and asserts nothing about the inner proof. Do not read this
+/// function as making in-circuit Merkle verification sound end to end.
 #[cfg(feature = "recursive-proofs-experimental")]
 pub fn build_recursive_verification_input_from_proof_with_poseidon<C, A>(
     verifier: &StarkVerifier<C>,

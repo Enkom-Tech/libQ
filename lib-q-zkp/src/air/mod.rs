@@ -56,6 +56,8 @@ use lib_q_stark_field::{
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
+#[cfg(feature = "recursive-proofs-experimental")]
+pub mod air_poseidon_mmcs;
 pub mod anonymous_auth;
 pub mod arithmetic;
 pub mod batch_stark_verifier;
@@ -89,6 +91,12 @@ pub mod wide_merkle_path_baby_bear;
 pub mod wide_sponge;
 pub mod wide_sponge_baby_bear;
 
+#[cfg(feature = "recursive-proofs-experimental")]
+pub use air_poseidon_mmcs::{
+    AirPoseidonCompressor,
+    AirPoseidonMmcs,
+    air_poseidon_mmcs_instance,
+};
 pub use anonymous_auth::{
     AnonymousAuthAir,
     AnonymousAuthInput,
