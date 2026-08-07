@@ -1,0 +1,14 @@
+# KAT vector data in this tree is pinned by SHA-256 in the repository-root kats-manifest.toml and
+# checked by scripts/ci_guard_kat_provenance.py. Git must not rewrite these bytes per-platform.
+#
+# MEASURED 2026-08-07 (card t_71d4f79a) before this file existed: with `core.autocrlf=true`, this
+# checkout held acvp-1_1_0_36/keygen/expectedResults.json as CRLF, hashing 3a50d247ad541750... ,
+# while the stored blob and the manifest (and NIST's own published file) are LF at
+# 635a05104f40b957... . The guard normalises CRLF to LF so it passed either way -- and that is the
+# problem: a plain `sha256sum` on a Windows clone contradicted the manifest for a reason that has
+# nothing to do with drift, which is how people learn to distrust a check. Same class of defect
+# f33dd98 fixed for lib-q-saturnin / lib-q-romulus / lib-q-mayo; the root .gitattributes pins
+# `*.rsp`/`*.req` and those three trees, so nothing reached the `.json` vectors here.
+#
+# `-text` disables all conversion in both directions.
+*.json -text
