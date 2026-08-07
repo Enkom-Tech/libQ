@@ -92,12 +92,8 @@ fn measure<P: HqcParams>(iters: usize) -> (f64, f64, f64) {
         with_errors_samples.push(start.elapsed().as_secs_f64());
     }
 
-    // `timing_t_statistic` splits its input in half via `split_at(len / 2)` (see
-    // lib-q-sca-test/src/dudect.rs) and Welch-t's the two halves against each other, so the
-    // sample layout contract is: first `iters` samples are class A, next `iters` are class B.
-    let mut samples = zero_syndrome_samples.clone();
-    samples.extend(with_errors_samples.clone());
-    let t = timing_t_statistic(&samples).expect("2*ITERS samples is well above the len<4 floor");
+    let t = timing_t_statistic(&zero_syndrome_samples, &with_errors_samples)
+        .expect("ITERS samples per class is well above the len<2-per-class floor");
 
     let median_zero = median(&mut zero_syndrome_samples);
     let median_err = median(&mut with_errors_samples);
