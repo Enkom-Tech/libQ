@@ -60,6 +60,24 @@
 //! still discriminates at the boundary. For semantic decrypt without plaintext on authentication
 //! failure, see [`lib_q_core::AeadDecryptSemantic`]. See this crate’s
 //! `SECURITY.md` for Saturnin-Short specifics.
+//!
+//! ## Open obligation Q-2 — the spec's IND-qCCA claim for this mode rests on a disproved citation
+//!
+//! This mode's wire format is **frozen** and this note changes nothing about it; it exists so the
+//! "superior post-quantum security" framing above is not read as a settled result. The Saturnin
+//! LWC spec §4.3 says the modes "are intended to provide quantum security against chosen message
+//! superposition attacks and superposition verification queries (IND-qCCA security)", and §4.3.1
+//! supplies the load-bearing step: "Soukharev, Jao and Seshadri have revisited these results
+//! \[SJS16\], and proved that the encrypt-then-MAC composition offers IND-qCCA security, assuming
+//! that the encryption scheme is IND-qCPA, and the MAC is SUF-qCMA." IACR ePrint 2025/387
+//! disproves exactly that claim ("we disprove a claim made by Soukharev et al. at PQCrypto 2016";
+//! "\[SJS16, Theorem 3.6\] … is inconclusive"). The conclusion looks **repairable** — see the
+//! **Q-2** bullet in `src/aead_ctx.rs` for the full statement, the proposed replacement chain
+//! (2025/387 Thm 3 + Thm 4 + Cor 1, which need the MAC to be a *qPRF*, a hypothesis the spec
+//! argues for Cascade in §4.3.3), and what a cryptographer would have to sign. Until then, do not
+//! restate the spec's IND-qCCA claim for this mode without the footnote. Classical AE security is
+//! unaffected; this is about the Q2 claim only. **Q-2 does not apply to `SaturninQcb`**, which is
+//! an integrated TBC mode rather than a generic composition.
 
 #[cfg(feature = "alloc")]
 use alloc::{
@@ -233,8 +251,44 @@ impl SaturninAead {
         Ok(())
     }
 
-    /// CTR encryption/decryption (optimized)
-    fn ctr_encrypt(&self, key: &[u8], nonce: &[u8], data: &mut [u8]) -> Result<()> {
+    /// Compute the raw CTR-Cascade tag `T` over associated data and a ciphertext body, without
+    /// touching the ciphertext body itself (no CTR pass).
+    ///
+    /// `pub(crate)`: this is a pure extraction of the tag computation already present verbatim in
+    /// [`Self::decrypt_core`] (`cascade_init` + `cascade(2,3,ad)` + `cascade(4,5,ct_body)`) and,
+    /// interleaved with the CTR pass, in [`Self::encrypt_bytes`]. It exists so
+    /// [`crate::aead_ctx::SaturninAeadCtx`] can recompute `T` on its decrypt path without
+    /// duplicating the cascade construction. Adding this method changes no production bytes of
+    /// `SaturninAead` itself — `decrypt_core`/`encrypt_bytes` are left untouched, and
+    /// `tests/aead_kat_pin.rs` pins that `SaturninAead`'s own output is unaffected.
+    ///
+    /// Gated on `hash`: `aead_ctx` (the sole caller) is `all(aead, hash)`, and this method lives
+    /// inside the `aead`-gated module, so `#[cfg(feature = "hash")]` here is exactly
+    /// `all(aead, hash)`. Without the gate, a `--no-default-features --features std,alloc,aead`
+    /// build compiles this method with nothing calling it — OBSERVED as
+    /// `warning: method `base_tag_over` is never used`, which is a hard error under any
+    /// `-D warnings` gate. (`ctr_encrypt` below needs no such gate: `encrypt_bytes` and
+    /// `decrypt_core` in this same module call it regardless of `hash`.)
+    #[cfg(feature = "hash")]
+    pub(crate) fn base_tag_over(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        ad: &[u8],
+        ct_body: &[u8],
+    ) -> Result<Zeroizing<[u8; 32]>> {
+        let mut tag = self.cascade_init(key, nonce)?;
+        self.cascade(&mut tag, 2, 3, ad)?;
+        self.cascade(&mut tag, 4, 5, ct_body)?;
+        Ok(tag)
+    }
+
+    /// CTR encryption/decryption (optimized).
+    ///
+    /// `pub(crate)` (widened from private) so [`crate::aead_ctx::SaturninAeadCtx`]'s decrypt path
+    /// can run CTR without re-implementing it — see that module for why this stays deliberately
+    /// pure delegation rather than a refactor of `encrypt_bytes`/`decrypt_core`.
+    pub(crate) fn ctr_encrypt(&self, key: &[u8], nonce: &[u8], data: &mut [u8]) -> Result<()> {
         let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
             expected: 32,
             actual: key.len(),

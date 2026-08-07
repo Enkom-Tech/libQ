@@ -35,7 +35,9 @@
 //! - **Nonce size**: 128 bits (16 bytes)
 //! - **Throughput**: ~100-400 MB/s on modern hardware
 //! - **Memory usage**: Constant, independent of data size
-//! - **Security level**: 256-bit post-quantum security
+//! - **Security claim**: inherits the Saturnin block cipher's single-key claim via CTR-mode
+//!   keystream (LWC spec §2.1) — no classical attack with `T/p < 2^224`; no quantum attack with
+//!   `T/p < 2^112`
 //!
 //! ## Secret material handling
 //!

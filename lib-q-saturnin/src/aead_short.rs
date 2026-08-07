@@ -743,6 +743,29 @@ mod tests {
 /// structure remain, so a second key is found in ~256 tries at *any* nonce length, including the
 /// 16-byte default.
 ///
+/// # This mode will not be given a committing transform (card `t_16ddf21c`)
+///
+/// Unlike `SaturninQcb` (see `crate::commit` for its CTX fix, gated by the `qcb` feature),
+/// Saturnin-Short is **not committing and will not be made committing**. Two reasons:
+///
+/// 1. **It is not tag-based.** There is no separate tag to replace — the whole 32-byte block
+///    *is* the ciphertext, and confidentiality/integrity both come from encrypting
+///    `nonce ‖ pad(plaintext)` as one block. CTX (Chan-Rogaway, ESORICS 2022) and every other
+///    published committing transform this crate evaluated assumes a tag-based `nAE` scheme with
+///    `C ‖ T` structure; none of them applies here without changing the wire format.
+/// 2. **Any fix that adds bytes is strictly dominated by `SaturninQcb` at the same size.** A
+///    committing Short (Short's 32-byte block plus a 32-byte commitment) would cost 64 bytes of
+///    ciphertext for at most 15 bytes of plaintext and no associated data. `SaturninQcb`'s CTX
+///    output for a short (≤15-byte) message and no associated data is *also* 64 bytes — one
+///    `10*`-padded body block plus the 32-byte CTX tag — but with more function (an actual tag,
+///    associated data support) for the same size. There is no design space in which a committing
+///    Short would be worth having over just using `SaturninQcb`.
+///
+/// This is a deliberate scope decision, not an oversight: Saturnin-Short is a designer-specified
+/// mode (LWC submission §2.3), and retracting it is a different decision from declining to make
+/// it committing. Use `SaturninQcb` (default-on, CTX-committing, RED pending sign-off) instead of
+/// `SaturninShortAead` wherever key/context commitment matters.
+///
 /// These tests live in-crate because the attack needs the raw inverse permutation
 /// (`SaturninCore::decrypt_block_32`, `pub(crate)`); the *verification* of every hit goes back
 /// through the public [`SaturninShortAead::decrypt`] API.

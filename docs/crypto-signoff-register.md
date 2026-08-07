@@ -7,7 +7,7 @@
 > Self-review has repeatedly caught real defects in these constructions; that does not substitute for
 > sign-off.
 
-Three independent sign-off gates are open. Each has its own detail docs; this file states the
+Four independent sign-off gates are open. Each has its own detail docs; this file states the
 **blocking claim**, the **status**, and the **concrete open item** per gate, with load-bearing numbers.
 
 | # | Gate | Crate(s) | Detail docs | State |
@@ -15,6 +15,7 @@ Three independent sign-off gates are open. Each has its own detail docs; this fi
 | A | Anon-cred one-out-of-many membership | `lib-q-lattice-zkp` | `lib-q-lattice-zkp/docs/anon-cred-oom-signoff-brief.md` (+ 7 companions) | design + test-only oracles |
 | B | Membership AIR soundness/ZK (Arm A + Arm B) | `lib-q-zkp` | `lib-q-zkp/docs/membership-adr113-freeze-gate-review.md`, `…-arm-b-obligation-packet.md`, `…-arm-{a,b}-soundness-params.md` | built + wire-frozen v0 |
 | C | Threshold-KEM CCA closure + its ZK encryption proof | `lib-q-threshold-kem-lattice`, `lib-q-zk-encryption-proof` | those crates' `README.md` / `src/lib.rs` + `dev/conformance/…` design docs | KEM shipped (KAT v1); proof partial |
+| D | Saturnin CTX committing transform (H-1, S-2, Q-1) | `lib-q-saturnin` | `lib-q-saturnin/src/commit.rs`, `src/aead_ctx.rs`, `src/qcb.rs`, `SECURITY.md` | **shipped and reachable** — the only gate on a default-feature code path |
 
 ---
 
@@ -160,6 +161,86 @@ monotone `stream_pos` transition constraint (load-bearing beyond the lookup) pre
 rejections; (4) fixed height `H` + µ-independent LogUp balance hide the rejection count,
 `Pr[draws>H]<2⁻¹²⁸`; (5) state the *provable* STARK bound in any claim, not the conjectured 128;
 (6) non-native quotient/remainder range bounds tight, 7-limb accumulator never overflows.
+
+---
+
+## Gate D — Saturnin CTX committing transform (`lib-q-saturnin`)
+
+**Read this one first if you have limited reviewer time.** Gates A–C guard constructions that are
+either branch-only, wire-frozen-but-unwired, or partial. Gate D guards code that **ships, is
+reachable on a default feature path, and is used by real products** (GIP, uGrid, My-Grid and Bitlink
+all reach Saturnin through `SaturninAead`). It is the only gate where an unsound assumption is
+already in someone's hands.
+
+**Blocking claim.** `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` — the CTX transform (Chan and
+Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022 / ePrint 2022/1260, Fig. 2 / Thm 2) —
+gives CMT-4 committing security to `SaturninQcb` and to `SaturninAeadCtx` (CTR-Cascade), bounded by
+Saturnin-Hash's collision resistance.
+
+**Status.** Both instantiations are **built, tested and shipped**. `SaturninQcb` closes a
+*demonstrated* CMT-1 break (a ~2⁸ padding search plus a closed-form associated-data solve costing 6
+block calls; the attack is retained verbatim in `tests/key_commitment.rs` and now asserts failure).
+`SaturninAeadCtx` (commit `f7ce5e2`) is a separate opt-in type, because `SaturninAead` already
+encrypts stored data in shipped products and changing its tag would render those blobs
+undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here is proven.**
+
+**The three obligations.**
+
+- **H-1 — is the published bound the right one?** The transform inherits Saturnin-Hash's collision
+  resistance, and the designers *claim* rather than prove `2^112` classical / `~2^75` quantum. The
+  quotes are verified current: the hash claim box is byte-identical across spec v1, spec v1.1 and the
+  ToSC published version, and the `~2^75` is the designers' own derivation (ToSC line 756: "we
+  necessarily have `Mq < T`", so `T⁵·Mq < 2^448` becomes `T⁶ < 2^448`). Best published cryptanalysis
+  leaves wide margin: classical hash collision 6 of 32 rounds at `2^112`, quantum 7 of 32 at
+  `2^113.5`, free-start 8 of 32. **A cryptographer must still accept the designers' claim as a bound
+  to publish.** Not closable by citation.
+- **S-2 — does CTX's Theorem 2 apply to our base schemes?** Thm 2 assumes the base scheme's core `C`
+  has the same length as `M`. **Does not apply to `SaturninAeadCtx`**: CTR-Cascade XORs a keystream,
+  so `|C| = |M|` natively and the hypothesis holds. **Still open for `SaturninQcb`**, whose `10*`
+  padding makes `|C| ≠ |M|`; the argument that injectivity suffices has not been reviewed.
+  **CORRECTION 2026-08-07 (the papers were obtained and read): S-2 is NARROWED, and it is NOT
+  closable by citation.** The old line here — "Likely closable by citation to Bellare–Hoang
+  (ePrint 2022/268 …; 2024/875 …), whose tag-based definition carries no length relation" — is
+  false as to **2022/268**, which contains zero occurrences of "CTX", zero of "tag-based", and
+  does not cite Chan–Rogaway at all. And **2024/875's Theorem 3.3 is about CTY, not CTX** — the
+  authors explicitly "omit a statement and proof about the security of our general form of CTX
+  because we are going to improve it to CTY" (p.12). What actually narrows S-2 is proof
+  inspection of Chan–Rogaway themselves: `|C| = |M|` appears only as the premise of an inference
+  *to* bijectivity, and Theorem 2's proof consumes only injectivity ("there exists only one `M`
+  such that `E1(Ki, N, A, M) = C`", p.10; restated by the authors at p.2–3 and p.4). That is an
+  argument a cryptographer must confirm, not a citation. Full write-up, plus a *second* violated
+  Chan–Rogaway requirement (constant expansion `τ`, immaterial to Theorem 2 but **not** to
+  Theorem 3): `lib-q-saturnin/src/commit.rs`. Two further obligations opened the same day:
+  **L-1** (Theorem 3 is single-user and single-verification-query — 2024/875 p.12; both
+  instantiations) and **RK-1** (`SaturninQcb` only). A third, **Q-2**, lands on the base
+  CTR-Cascade mode and therefore on the frozen `SaturninAead` — see `lib-q-saturnin/src/aead.rs`.
+- **Q-1 — does CTX preserve Q2 security?** CTX's nAE-preservation proof (Thm 3) is in the *classical*
+  random-oracle model, and `SaturninQcb` exists specifically for superposition-query security.
+  **Expect this to get worse, not better:** ePrint 2025/387 shows Q2 security is not automatically
+  preserved under composition, and the hypothesis its counterexample breaks (plus-one unforgeability)
+  is what QCB's own integrity proof delivers. ePrint 2023/1653 proves QCB blindly unforgeable, which
+  may or may not rescue the composition.
+
+**Three things a reviewer must not miss.**
+
+1. **Any QCB security sentence we publish is an ideal-cipher claim.** QCB's TBC is tweak-rekeyable,
+   `E(K ⊕ T, x)`, and Mennink (ePrint 2017/474, CRYPTO 2017) *proves* the impossibility of a
+   standard-model optimal-security proof for that class.
+2. **QCB's usage exceeds the qualifier on the claim it relies on.** The Saturnin spec says Saturnin16
+   resists related-key attacks "involving **a small number of keys**"; QCB uses up to `2^95` tweaks,
+   each a distinct related key. The spec separately states Saturnin "**does not provide security
+   against related-key superposition attacks**" — while QCB is a related-key construction built for
+   superposition security. Both qualifiers survive verbatim into the peer-reviewed ToSC version.
+3. **The related-key margin is thinner than the hash margin.** The designers' own Note-RK-1 gives a
+   10-of-16-super-round related-key attack at `2^236`. The published trail cannot be mounted through
+   QCB's tweak interface (our tweak forces one nibble slot of every key word to zero, and every
+   nibble of the trail's four active values is nonzero), but **≥65,025 admissible alternative tuples
+   are reachable**, and a constrained optimum only 6.7 bits worse than the published one would still
+   work. That computation has not been done. See card `t_5d1460b7`.
+
+**Mitigations already taken, so a reviewer knows the blast radius.** `qcb` was removed from the
+crate's default features (`c1d27a6`) — it is nonce-catastrophic and has zero consumers. The tweak's
+byte 16 was corrected to the `10*` pad bit (`c43689d`) while the hardware was still at trace design.
 
 ---
 

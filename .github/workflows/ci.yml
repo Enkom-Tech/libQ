@@ -1356,7 +1356,19 @@ jobs:
           - name: "Saturnin"
             action: test-saturnin
             working-directory: lib-q-saturnin
-            features: "aead,aead-short,block-cipher,hash,stream,alloc,simd-avx2"
+            # `qcb`, `aead`, `hash` and `alloc` must all stay in this list — each one gates
+            # `required-features` on at least one [[test]] target in lib-q-saturnin/Cargo.toml,
+            # and Cargo SKIPS a target whose required-features are unmet SILENTLY: the tests
+            # vanish from CI with no failure, which is worse than not having them.
+            #   qcb          -> tests/{key_commitment,qcb_spec,qcb_ctx_spec}.rs (15 tests). It was
+            #                   removed from the crate's default features on 2026-08-06.
+            #   alloc+aead   -> tests/aead_kat_pin.rs, the SaturninAead wire-format freeze guard
+            #                   that stands between a refactor and undecryptable stored data
+            #                   (My-Grid vault, GIP bitlink-wrapkey).
+            #   +hash        -> tests/cascade_ctx_spec.rs, the CTX-on-CTR-Cascade layout gate.
+            # After editing this line, confirm the targets still RUN — `cargo test ... 2>&1 |
+            # grep "Running tests/<name>.rs"` — do not assume they did.
+            features: "aead,aead-short,block-cipher,hash,stream,alloc,simd-avx2,qcb"
             rust-version: "stable"
             run-benchmarks: "false"
             test-algorithms: "aead,aead-short,block-cipher,hash,stream"
