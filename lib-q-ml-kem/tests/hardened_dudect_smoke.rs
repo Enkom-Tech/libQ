@@ -28,10 +28,8 @@ fn hardened_dudect_smoke_decapsulate() {
         let _ = dk.decapsulate(&bad);
         slow_path.push(start.elapsed().as_secs_f64());
     }
-    let mut samples = fast_path;
-    samples.extend(slow_path);
     assert!(
-        timing_passes_loose(6.0, &samples),
+        timing_passes_loose(6.0, &fast_path, &slow_path),
         "hardened decapsulate timing smoke failed (loose gate)"
     );
 }

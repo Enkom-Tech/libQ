@@ -59,10 +59,8 @@ fn hardened_dudect_smoke_verify_opening() {
         let _ = verify_opening(&key, &com, &bad, ctx, profile.tau, profile.z_inf_bound);
         invalid.push(start.elapsed().as_secs_f64());
     }
-    let mut samples = valid;
-    samples.extend(invalid);
     assert!(
-        timing_passes_loose(6.0, &samples),
+        timing_passes_loose(6.0, &valid, &invalid),
         "hardened lattice-ZKP verify timing smoke failed (loose gate)"
     );
 }
@@ -122,10 +120,8 @@ fn hardened_dudect_smoke_prove_opening() {
         random_times.push(start.elapsed().as_secs_f64());
     }
 
-    let mut samples = fixed_times;
-    samples.extend(random_times);
     assert!(
-        timing_passes_loose(6.0, &samples),
+        timing_passes_loose(6.0, &fixed_times, &random_times),
         "hardened lattice-ZKP prove timing smoke failed (loose gate)"
     );
 }

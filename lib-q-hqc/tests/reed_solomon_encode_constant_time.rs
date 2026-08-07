@@ -87,12 +87,8 @@ fn measure<P: HqcParams>(iters: usize) -> (f64, f64, f64) {
         nonzero_samples.push(start.elapsed().as_secs_f64());
     }
 
-    // `timing_t_statistic` splits its input in half via `split_at(len / 2)`, so the sample
-    // layout contract is: first `iters` samples are class A, next `iters` are class B — see
-    // `reed_solomon_constant_time.rs` for the same note.
-    let mut samples = zero_samples.clone();
-    samples.extend(nonzero_samples.clone());
-    let t = timing_t_statistic(&samples).expect("2*ITERS samples is well above the len<4 floor");
+    let t = timing_t_statistic(&zero_samples, &nonzero_samples)
+        .expect("ITERS samples per class is well above the len<2-per-class floor");
 
     let median_zero = median(&mut zero_samples);
     let median_nonzero = median(&mut nonzero_samples);
