@@ -61,13 +61,23 @@ All notable changes to this workspace are documented here. Versions follow the s
   birthday bound (spec §5.4.1), and they claim below it for margin ("additional constant factors
   that these bounds do not take into account, which is why our final security claims are reduced").
   It is not a NIST-LWC floor. The
-  transform is proven but the instantiation is RED pending cryptographer sign-off on three named
+  transform is proven but the instantiation is RED pending cryptographer sign-off on named
   obligations recorded in `lib-q-saturnin/src/commit.rs` (the published bound; Theorem 2's
   length-preserving assumption versus QCB's `10*` padding; and whether CTX∘QCB preserves QCB's
   Q2 security — CTX's proof is classical-ROM). The old CMT-1 attack is retained as a regression
   test in `lib-q-saturnin/tests/key_commitment.rs` and was shown able to fail. `SaturninShortAead`
-  remains non-committing by design; `SaturninAead` (CTR-Cascade) is not covered. Details:
-  `lib-q-saturnin/CHANGELOG.md`.
+  remains non-committing by design. Details: `lib-q-saturnin/CHANGELOG.md`.
+
+  **UPDATED later in this same unreleased cycle — two statements above were true when written and
+  are not now.** (1) *"`SaturninAead` (CTR-Cascade) is not covered"* is superseded: CTX was
+  extended to CTR-Cascade as `SaturninAeadCtx`, which is the mode every product actually uses, so
+  the committing transform now sits on the reachable path and not only on opt-in QCB. (2) *"three
+  named obligations"* is superseded by **five**: the 2026-08-07 primary-source review added **L-1**
+  (Chan–Rogaway's Theorem 3 is single-user and single-verification-query) and **RK-1** (the spec
+  grants related-key resistance for "a small number of keys" while QCB uses up to `2^95`), narrowed
+  S-2 without closing it, and widened Q-1. Nothing was closed. A separate obligation, **Q-2**, lands
+  on the base CTR-Cascade mode rather than on the transform. Note also that `~2^75` is the
+  `M_q → T` corner of the designers' actual claim `T^5 × M_q < 2^448`, not a scalar bound.
 
 - **HQC-192 and HQC-256 public keys shrink by 8 bytes**, to the sizes the specification requires:
   `4522 → 4514` and `7245 → 7237`. HQC-128 is unaffected (already 2241).
