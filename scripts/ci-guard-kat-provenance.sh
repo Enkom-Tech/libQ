@@ -21,11 +21,20 @@
 # from the file silently.
 #
 # See scripts/ci_guard_kat_provenance.py for the five checks (discovery, manifest coverage in
-# both directions, content hash, the official/nist/rfc naming ban, and the header/manifest
-# cross-check -- the last of these has a narrow exemption for byte-for-byte vendored `upstream`
-# files, whose own bytes would be falsified by adding the header comment; see that check's own
-# comment) and kats-manifest.toml for the manifest itself and its current, deliberately narrow,
+# both directions, content hash, the official/nist/rfc naming ban, and the provenance-statement
+# cross-check) and kats-manifest.toml for the manifest itself and its current, deliberately narrow,
 # rollout scope.
+#
+# CHECK 5 has two routes, chosen by file format, not by the committer (added 2026-08-07):
+#   * `#`-comment-capable formats (.rsp/.req/.kat/.txt with no NUL bytes) must carry a leading
+#     `#`-comment naming their origin -- with a narrow exemption for byte-for-byte vendored
+#     `upstream` files, whose own bytes would be falsified by adding that comment.
+#   * everything else (JSON, binary containers) has no comment syntax, so the header rule is
+#     unsatisfiable by construction and used to be an absolute bar on registering such a file at
+#     all. Those must instead be named in a PROVENANCE.md sidecar in their own directory or an
+#     ancestor up to their scan root, checked in both directions. The upstream byte-identity
+#     exemption is deliberately UNREACHABLE for them: it excuses falsifying a header a text file
+#     could have carried, which is no excuse for a format that never could.
 #
 # WHAT THIS GUARD DOES NOT COVER
 # --------------------------------

@@ -44,22 +44,51 @@
 # in ci_guard_kat_provenance.py encodes an explicit, narrow exemption for exactly this case --
 # read that check's comment for why it cannot be claimed by a non-upstream entry.
 #
+# HOW A FILE THAT CANNOT CARRY A HEADER GETS REGISTERED (new 2026-08-07, card t_71d4f79a).
+# CHECK 5's header rule is satisfiable only by formats where a leading `#` line is a comment. JSON
+# has no comment syntax and binary containers have none either, so before this pass a SELF-GENERATED
+# non-text KAT file could not be registered AT ALL -- the guard could never pass for it. That was a
+# structural gap, not a judgement call, and it was why ~31 KAT-shaped files in this repo sat outside
+# the guard. It is now closed by a SIDECAR rather than by widening the upstream exemption (widening
+# it is what a reviewer previously caught as exploitable on this card): a file whose format cannot
+# carry a `#` header must instead be named, with its origin and a real description, in a
+# PROVENANCE.md in its own directory or an ancestor up to its scan root -- machine-checked in both
+# directions, so an unlisted file fails and a stale line fails. The upstream byte-identity exemption
+# is now UNREACHABLE for such files: it exists to avoid falsifying a header a text file could have
+# carried, which is no excuse for a format that could never have carried one. See CHECK 5's
+# docstring in scripts/ci_guard_kat_provenance.py.
+#
 # Still do NOT add a root below without first doing the same per-file investigation (a same-seed
 # byte diff against a genuine upstream source, or an honest admission that none exists and the
 # file is a pin). Fabricating an `origin` to satisfy this guard would be exactly the failure mode
 # it exists to catch, just moved one level up.
 
 [scan]
-roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36"]
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats"]
+# `lib-q-ml-dsa/tests/kats` REPLACED the narrower `lib-q-ml-dsa/tests/kats/acvp-1_1_0_36` root on
+# 2026-08-07. The subdirectory was registered deliberately at the time because the parent also holds
+# the six former `nistkats*.json` files, which could not then be registered (no way to satisfy
+# CHECK 5) and would have failed CHECK 2 as uncovered. Both blockers are now gone: the sidecar rule
+# lets a JSON file declare its provenance, and the files have been renamed to stop claiming NIST
+# provenance they never had. The parent root is recursive, so the six ACVP files are still covered.
+#
+# Exact repo-relative paths discovery skips. NOT globs, and every one must exist or CHECK 1 fails.
+# This is an escape hatch and should be read as one -- treat any addition with the same suspicion as
+# a fabricated `origin`. The single entry is a pip pin that happens to be a `.txt` living in a
+# directory of vector files; it contains one line, `pycryptodome==3.19.1`.
+exclude = ["lib-q-ml-dsa/tests/kats/requirements.txt"]
 # `lib-q-romulus/tests/fixtures` added 2026-08-07, only after doing the same per-file provenance
 # work the note below demands: both files were matched against a live NIST download, not assumed.
 # A repo-wide sweep the same day found 49 KAT-shaped tracked files against 10 registered entries;
 # Romulus was picked out of that backlog first because it is the identical file format from the
 # identical competition as the Saturnin fixtures, so the already-proven method applied directly.
-# The remaining unregistered files (lib-q-sha3 15, lib-q-ml-dsa 12, lib-q-keccak-digest 5,
-# lib-q-threshold-kem-lattice 4, lib-q-ml-dsa/tests/test_vectors 1) are NOT yet registered and
-# adding their roots here before establishing each file's origin would just convert an unknown
-# into a wall of CHECK 2 failures. See card t_71d4f79a.
+# The remaining unregistered files (lib-q-sha3 15, lib-q-keccak-digest 5,
+# lib-q-threshold-kem-lattice 4, lib-q-ml-dsa/tests/test_vectors 1, lib-q-ml-dsa/tests/wycheproof 6)
+# are NOT yet registered and adding their roots here before establishing each file's origin would
+# just convert an unknown into a wall of CHECK 2 failures. The lib-q-ml-dsa/tests/kats 12 that this
+# line used to count are now all registered below. See card t_71d4f79a; in particular, do NOT
+# register the .blb files on a filename match with RustCrypto -- 9 of them share a name with
+# github.com/RustCrypto/hashes and NONE matches its bytes, and that is unexplained.
 # A file is in scope if its extension (case-insensitive, without the dot) is one of these...
 # ("txt" was added in the 2026-08-06 pass: the Saturnin fixture filenames end in e.g.
 # "_saturninhashv2.txt", not "_kat.txt", so no filename_suffix below matched them. Checked at the
@@ -196,23 +225,17 @@ sha256 = "98b2ca3b1c985bfaaab1c92219f4dbf14b5e4c517f84209365ad9010b682da19"
 # at tag v1.1.0.36 -- the exact tag the directory name encodes -- and byte-for-byte identical.
 # This is real NIST conformance data and the strongest such evidence lib-q-ml-dsa has.
 #
-# WHY THE ROOT IS THIS SUBDIRECTORY AND NOT ITS PARENT. The parent, lib-q-ml-dsa/tests/kats/, also
-# holds nistkats*.json, which are NOT NIST vectors despite the name: tests/kats/README.md states
-# they come from ./generate_kats.py driving a vendored copy of github.com/GiacomoPope/dilithium-py
-# PR #1 "with some modifications". That is still an INDEPENDENT implementation, so it is a real
-# cross-check and NOT the lib-q-hqc laundering pattern (vectors from the code under test). Three
-# things block registering them, all recorded on card t_71d4f79a rather than papered over here:
-#   1. CHECK 5 requires a leading `#`-comment header naming the origin. JSON has no comment
-#      syntax, so a self-generated JSON file CANNOT satisfy that rule as written. Fixing this is a
-#      guard design change (a `_provenance` key would alter the bytes and the hash), and widening
-#      an exemption is precisely the move a reviewer previously caught as exploitable.
-#   2. The filename asserts NIST provenance the files lack. CHECK 4's ban is word-bounded, so
-#      "nistkats" slips past where "nist_kats" would not -- the regex is not the point, a human
-#      reading the name is misled. Renaming touches three ci.yml `--test nistkats` call sites.
-#   3. "with some modifications" is undisclosed in scope; any change made to agree with
-#      lib-q-ml-dsa reduces the independence these vectors are valued for.
-# Also note tests/kats/requirements.txt would be swept as a `.txt` under the parent root and is
-# not a KAT file at all.
+# These six are JSON, so they cannot carry a `#` header; they are covered by the sidecar
+# lib-q-ml-dsa/tests/kats/PROVENANCE.md, which the guard checks in both directions. They were
+# previously covered by the upstream byte-identity exemption instead; that exemption no longer
+# applies to non-text formats (see the header of this file), so the sidecar is now load-bearing.
+#
+# LINE ENDINGS. These files were CRLF in a Windows worktree while their blobs, the manifest and
+# NIST's published file are LF -- keygen/expectedResults.json hashed 3a50d247... on disk against
+# 635a0510... here. The guard normalises, so it passed either way, which is precisely the kind of
+# unexplained mismatch that teaches people to distrust the check. Fixed 2026-08-07 by adding
+# lib-q-ml-dsa/tests/kats/.gitattributes (`*.json -text`) and re-materialising; the worktree now
+# hashes exactly the values below.
 
 [[kat]]
 path = "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/keygen/prompt.json"
@@ -255,3 +278,84 @@ origin = "upstream"
 upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-DSA-sigVer-FIPS204/expectedResults.json"
 upstream_sha256 = "73196368b70a5f1b6f9f190c572dd97bb46c20a1e86786a41064a4b80d1ef2e9"
 sha256 = "73196368b70a5f1b6f9f190c572dd97bb46c20a1e86786a41064a4b80d1ef2e9"
+
+# --- lib-q-ml-dsa/tests/kats/dilithium-py-kats-*.json -- cross-implementation, NOT NIST ------
+# Registered 2026-08-07, and RENAMED in the same pass. These six were called `nistkats-{44,65,87}`
+# and `nistkats_pre_hashed-{44,65,87}` and contain no NIST data whatsoever. CHECK 4's naming ban is
+# word-bounded, so "nistkats" slipped past it where "nist_kats" would have been caught -- the regex
+# was never the point; a human reading the filename was misled. `lib-q-ml-dsa/tests/nistkats.rs`
+# (the test target) and `generate_kats.py` (which writes them) were updated with the rename. The
+# test TARGET keeps its old name for now only because renaming it would break
+# lib-q-ml-dsa/scripts/security_audit.sh, which CI runs on push; carded as a follow-up.
+#
+# WHERE THEY ACTUALLY COME FROM, and this is NOT what the crate's README said. They are not
+# generated in this repository at all. All six are byte-for-byte identical to
+# github.com/cryspen/libcrux at commit 5c3fc214252573b1383ab54528aba3d8c21486a2 ("Apply domain
+# separation in the right order", 2024-10-01), under libcrux-ml-dsa/tests/kats/ -- verified by LIVE
+# DOWNLOAD from raw.githubusercontent.com (HTTP 200 on all six), not by comparing against this
+# repo's own gitignored reference/libcrux-main copy, which would be circular. `dilithium.py` itself
+# is likewise byte-identical to libcrux's at that commit
+# (dae8399f307dc81986b4fbe2d19c9f7992533727b23386033714f5e50bbc9b5c). Hence `origin = "upstream"`
+# with a citable URL and hash, which is a strictly stronger and more honest claim than the
+# "self-generated" these files would have got from the README's account.
+#
+# HOW INDEPENDENT IS THIS CROSS-CHECK, without inflation in either direction:
+#   * The BASE is genuinely independent: dilithium.py descends from
+#     github.com/GiacomoPope/dilithium-py PR #1 (head cc1fd2adee5203fa52b87015229536892990621d), a
+#     third-party Python implementation. A diff against that exact commit shows only ONE of the
+#     eight vendored files differs in substance -- the other seven are `black` reformatting only.
+#   * The MODIFICATIONS are NOT independent of lib-q-ml-dsa, and they are the part that matters.
+#     Everything that separates FIPS 204 final from the IPD draft -- domain-separated keygen
+#     H(xi||k||l), the ctx-prefixed M', full-c_tilde SampleInBall, and the entire pre-hash path --
+#     was written by libcrux, and lib-q-ml-dsa is a libcrux-ml-dsa derivative (59 of its 63 src
+#     file names are shared with libcrux-ml-dsa; src/sha3_shim.rs exists, in its own words, "to
+#     eliminate the libcrux dependency"). For precisely those algorithm details the "independent
+#     cross-check" is same-author.
+#   * Two further measured limits, both in PROVENANCE.md next to the files: the vendored `verify`
+#     raises NameError and has never executed, so these vectors cover keygen+sign only; and the
+#     pre-hashed set uses a 256-BYTE SHAKE-128 pre-hash, the same choice src/pre_hash.rs makes, so
+#     it cannot falsify that choice.
+# None of this is the lib-q-hqc laundering pattern (vectors written by the code under test itself)
+# and it should not be filed as such -- but "independent implementation" overstates it.
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/dilithium-py-kats-44.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/cryspen/libcrux/5c3fc214252573b1383ab54528aba3d8c21486a2/libcrux-ml-dsa/tests/kats/nistkats-44.json (upstream keeps the misleading nistkats name; renamed on vendoring). Regenerable from the vendored generator: cd lib-q-ml-dsa/tests/kats && pip install -r requirements.txt && ./generate_kats.py"
+upstream_sha256 = "5714e5b39158d3979db8bacbc90ec122f8b5ce7756d686da5c5a8e5b42daaeac"
+sha256 = "5714e5b39158d3979db8bacbc90ec122f8b5ce7756d686da5c5a8e5b42daaeac"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/dilithium-py-kats-65.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/cryspen/libcrux/5c3fc214252573b1383ab54528aba3d8c21486a2/libcrux-ml-dsa/tests/kats/nistkats-65.json"
+upstream_sha256 = "168319f41878ebf75514d44b5e827f0498cc9cd17ec3e60656e6360d1c15a074"
+sha256 = "168319f41878ebf75514d44b5e827f0498cc9cd17ec3e60656e6360d1c15a074"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/dilithium-py-kats-87.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/cryspen/libcrux/5c3fc214252573b1383ab54528aba3d8c21486a2/libcrux-ml-dsa/tests/kats/nistkats-87.json"
+upstream_sha256 = "6600a720d1f742023eeb4ff07995d8c29da5e3b47b883aad51711321f8e41923"
+sha256 = "6600a720d1f742023eeb4ff07995d8c29da5e3b47b883aad51711321f8e41923"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/dilithium-py-kats-pre-hashed-44.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/cryspen/libcrux/5c3fc214252573b1383ab54528aba3d8c21486a2/libcrux-ml-dsa/tests/kats/nistkats_pre_hashed-44.json -- NOTE: the pre-hash path does not exist in dilithium-py PR #1 at all, it was added by libcrux, and it uses a 256-BYTE SHAKE-128 digest, the same choice lib-q-ml-dsa/src/pre_hash.rs makes, so these vectors cannot falsify it"
+upstream_sha256 = "f8857c1fa117c6e574936d24b7b895d0dd2e857e4c052864afdc0c6ba1ca1072"
+sha256 = "f8857c1fa117c6e574936d24b7b895d0dd2e857e4c052864afdc0c6ba1ca1072"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/dilithium-py-kats-pre-hashed-65.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/cryspen/libcrux/5c3fc214252573b1383ab54528aba3d8c21486a2/libcrux-ml-dsa/tests/kats/nistkats_pre_hashed-65.json"
+upstream_sha256 = "a61a5005c4a6de867ddd9e4669fc2192b2d6404309eb9ac9f73d9ea55b97be2d"
+sha256 = "a61a5005c4a6de867ddd9e4669fc2192b2d6404309eb9ac9f73d9ea55b97be2d"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/dilithium-py-kats-pre-hashed-87.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/cryspen/libcrux/5c3fc214252573b1383ab54528aba3d8c21486a2/libcrux-ml-dsa/tests/kats/nistkats_pre_hashed-87.json"
+upstream_sha256 = "5300d607dd885dddc6b0c52e7746ca458199c34cf81fdce8b711f5b0162e7942"
+sha256 = "5300d607dd885dddc6b0c52e7746ca458199c34cf81fdce8b711f5b0162e7942"
