@@ -50,7 +50,7 @@
 # it exists to catch, just moved one level up.
 
 [scan]
-roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures"]
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36"]
 # `lib-q-romulus/tests/fixtures` added 2026-08-07, only after doing the same per-file provenance
 # work the note below demands: both files were matched against a live NIST download, not assumed.
 # A repo-wide sweep the same day found 49 KAT-shaped tracked files against 10 registered entries;
@@ -65,7 +65,10 @@ roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/ka
 # "_saturninhashv2.txt", not "_kat.txt", so no filename_suffix below matched them. Checked at the
 # time: lib-q-hqc/kats has zero `.txt` files, so this widening does not retroactively sweep in
 # anything unexpected under the already-registered root.)
-extensions = ["rsp", "req", "kat", "txt"]
+# "json" added 2026-08-07 for the ML-DSA ACVP vectors. Scoped by [scan].roots, so it does not
+# sweep unrelated JSON. Note the root is the acvp-1_1_0_36 SUBdirectory, deliberately, not its
+# parent -- see the ML-DSA section at the bottom for why.
+extensions = ["rsp", "req", "kat", "txt", "json"]
 # ...or its filename (case-insensitive) ends with one of these suffixes.
 filename_suffixes = ["_kat.txt"]
 
@@ -187,3 +190,68 @@ origin = "upstream"
 upstream_url = "https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-submissions/romulus.zip (path inside archive: romulus/Implementations/crypto_aead/romulusn/LWC_AEAD_KAT_128_128.txt; identical content also at romulusn_romulush/)"
 upstream_sha256 = "98b2ca3b1c985bfaaab1c92219f4dbf14b5e4c517f84209365ad9010b682da19"
 sha256 = "98b2ca3b1c985bfaaab1c92219f4dbf14b5e4c517f84209365ad9010b682da19"
+
+# --- lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/ -- genuine NIST ACVP vectors ---------------------
+# Registered 2026-08-07. All six verified by LIVE DOWNLOAD against github.com/usnistgov/ACVP-Server
+# at tag v1.1.0.36 -- the exact tag the directory name encodes -- and byte-for-byte identical.
+# This is real NIST conformance data and the strongest such evidence lib-q-ml-dsa has.
+#
+# WHY THE ROOT IS THIS SUBDIRECTORY AND NOT ITS PARENT. The parent, lib-q-ml-dsa/tests/kats/, also
+# holds nistkats*.json, which are NOT NIST vectors despite the name: tests/kats/README.md states
+# they come from ./generate_kats.py driving a vendored copy of github.com/GiacomoPope/dilithium-py
+# PR #1 "with some modifications". That is still an INDEPENDENT implementation, so it is a real
+# cross-check and NOT the lib-q-hqc laundering pattern (vectors from the code under test). Three
+# things block registering them, all recorded on card t_71d4f79a rather than papered over here:
+#   1. CHECK 5 requires a leading `#`-comment header naming the origin. JSON has no comment
+#      syntax, so a self-generated JSON file CANNOT satisfy that rule as written. Fixing this is a
+#      guard design change (a `_provenance` key would alter the bytes and the hash), and widening
+#      an exemption is precisely the move a reviewer previously caught as exploitable.
+#   2. The filename asserts NIST provenance the files lack. CHECK 4's ban is word-bounded, so
+#      "nistkats" slips past where "nist_kats" would not -- the regex is not the point, a human
+#      reading the name is misled. Renaming touches three ci.yml `--test nistkats` call sites.
+#   3. "with some modifications" is undisclosed in scope; any change made to agree with
+#      lib-q-ml-dsa reduces the independence these vectors are valued for.
+# Also note tests/kats/requirements.txt would be swept as a `.txt` under the parent root and is
+# not a KAT file at all.
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/keygen/prompt.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-DSA-keyGen-FIPS204/prompt.json"
+upstream_sha256 = "c90cd9411b567a17a1e2755693ccd4fa48eeb6875be4ef463ed33e9a23103f25"
+sha256 = "c90cd9411b567a17a1e2755693ccd4fa48eeb6875be4ef463ed33e9a23103f25"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/keygen/expectedResults.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-DSA-keyGen-FIPS204/expectedResults.json"
+upstream_sha256 = "635a05104f40b9578d4618a4b05308a742d706362655344f22a12d491a58a87f"
+sha256 = "635a05104f40b9578d4618a4b05308a742d706362655344f22a12d491a58a87f"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/siggen/prompt.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-DSA-sigGen-FIPS204/prompt.json"
+upstream_sha256 = "da759fd966f267a59327e9597a2a6ecb61d02a2e83584c9f6690d48419448287"
+sha256 = "da759fd966f267a59327e9597a2a6ecb61d02a2e83584c9f6690d48419448287"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/siggen/expectedResults.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-DSA-sigGen-FIPS204/expectedResults.json"
+upstream_sha256 = "1b78baf274be78c76dfefb46362e5fe58bb3a6859db86b3bd126e4cbc7ef3eb8"
+sha256 = "1b78baf274be78c76dfefb46362e5fe58bb3a6859db86b3bd126e4cbc7ef3eb8"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/sigver/prompt.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-DSA-sigVer-FIPS204/prompt.json"
+upstream_sha256 = "69f5327f0525fe9bc085d090214691f97c8cd45ff1d66afbf8263c322fe2602d"
+sha256 = "69f5327f0525fe9bc085d090214691f97c8cd45ff1d66afbf8263c322fe2602d"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/kats/acvp-1_1_0_36/sigver/expectedResults.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-DSA-sigVer-FIPS204/expectedResults.json"
+upstream_sha256 = "73196368b70a5f1b6f9f190c572dd97bb46c20a1e86786a41064a4b80d1ef2e9"
+sha256 = "73196368b70a5f1b6f9f190c572dd97bb46c20a1e86786a41064a4b80d1ef2e9"
