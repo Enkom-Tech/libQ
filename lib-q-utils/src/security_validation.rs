@@ -191,44 +191,201 @@ impl SecurityCheck {
     }
 }
 
+/// One entry per crate allowed to contain reviewed `unsafe` code.
+///
+/// `allowed_file_scope`: empty = whole-crate exemption, reserved for crates independently
+/// verified (2026-08 allowlist audit) to ship real arch-dispatch SIMD/intrinsics code spanning
+/// many files — see `tests::empty_scope_entries_are_exactly_the_reviewed_simd_set` for the
+/// pinned set. Non-empty = the exemption is narrowed to exactly these crate-relative,
+/// forward-slash file suffixes (e.g. `"src/foo.rs"`, matched against the end of the real path
+/// with `\` normalized to `/`); real `unsafe` anywhere else in that crate is a violation.
+#[cfg(feature = "std")]
+struct UnsafeAllowlistEntry {
+    crate_name: &'static str,
+    justification: &'static str,
+    allowed_file_scope: &'static [&'static str],
+}
+
 /// Crates in which `unsafe` code is reviewed and permitted, with the reason it is there.
 /// This is a per-crate allowlist, not a count: `unsafe` usage totals ~1000+ sites across the
 /// workspace (AVX2/ARMv8 SIMD is load-bearing for performance), so "unsafe count == 0" fails
 /// every real build and "unsafe count > 0" passes trivially. The allowlist is the actual policy.
+///
+/// Every entry below was re-verified against the crate's real `src/` during the 2026-08
+/// allowlist audit (grep for genuine `unsafe` constructs + arch-dispatch markers, plus a manual
+/// read of every non-SIMD site). 10 entries ship real, multi-file arch-dispatch SIMD and keep a
+/// whole-crate exemption (`allowed_file_scope: &[]`); the other 13 do not — their `unsafe` is
+/// something else entirely (zeroization fallbacks, unchecked-bounds fast paths, raw-pointer
+/// transmutes, FFI callback registration, hardware-RNG intrinsics) and their exemption is now
+/// narrowed to exactly the files that actually contain it. `lib-q-mayo`'s prior justification —
+/// "AVX2 matrix/vector arithmetic" — was fabricated: the crate ships zero SIMD; its only
+/// `unsafe` is two `write_volatile` zeroization-fallback calls. That single fabricated entry was
+/// load-bearing on a whole-crate scan skip, and it was not alone. Of the 13 now-scoped entries:
+/// 10 (including `lib-q-mayo`) claimed SIMD/AVX/AES-NI/ARMv8/NEON/intrinsics while their crate's
+/// `src/` contains no arch-dispatch marker at all — that exact set is enumerated by
+/// `tests::allowlist_simd_justifications_have_a_matching_arch_dispatch_marker`, which fails and
+/// names them if the claim is reintroduced; 2 more (`lib-q-slh-dsa`, `lib-q-stark-util`) claimed
+/// SIMD while their only arch marker is non-vectorized (an `is_x86_feature_detected` batching
+/// heuristic, and a `core::arch::asm!` optimizer barrier respectively); and 1 (`lib-q-random`)
+/// had a non-SIMD justification that was merely incomplete. Each replacement justification below
+/// names the construct actually present at the scoped path.
 #[cfg(feature = "std")]
-const ALLOWED_UNSAFE_CRATES: &[(&str, &str)] = &[
-    (
-        "lib-q-intrinsics",
-        "runtime CPU-feature dispatch / raw SIMD intrinsics wrappers",
-    ),
-    ("lib-q-keccak", "AVX2/ARMv8 SIMD Keccak-f[1600] permutation"),
-    ("lib-q-aead", "SIMD fast paths for AEAD encryption"),
-    ("lib-q-rocca-s", "AES-NI/SIMD ROCCA-S permutation"),
-    ("lib-q-saturnin", "SIMD SATURNIN block-cipher paths"),
-    ("lib-q-tweak-aead", "SIMD tweakable-block-cipher paths"),
-    ("lib-q-ml-dsa", "AVX2 NTT / rejection-sampling fast paths"),
-    ("lib-q-ml-kem", "AVX2 NTT fast paths"),
-    ("lib-q-mayo", "AVX2 matrix/vector arithmetic"),
-    ("lib-q-slh-dsa", "AVX2 SHA2/SHAKE fast paths"),
-    ("lib-q-hqc", "AVX2 polynomial arithmetic"),
-    ("lib-q-random", "OS entropy source FFI"),
-    ("lib-q-stark", "SIMD field-arithmetic fast paths"),
-    ("lib-q-stark-challenger", "SIMD field-arithmetic fast paths"),
-    ("lib-q-stark-commit", "SIMD Merkle-commitment fast paths"),
-    ("lib-q-stark-dft", "SIMD NTT/DFT fast paths"),
-    (
-        "lib-q-stark-field",
-        "SIMD Montgomery field-arithmetic fast paths",
-    ),
-    (
-        "lib-q-stark-field-testing",
-        "shared SIMD field-arithmetic test harness",
-    ),
-    ("lib-q-stark-matrix", "SIMD matrix-arithmetic fast paths"),
-    ("lib-q-stark-merkle", "SIMD Merkle-tree fast paths"),
-    ("lib-q-stark-mersenne31", "SIMD Mersenne31 field fast paths"),
-    ("lib-q-stark-monty31", "SIMD Montgomery31 field fast paths"),
-    ("lib-q-stark-util", "shared SIMD arithmetic utilities"),
+const ALLOWED_UNSAFE_CRATES: &[UnsafeAllowlistEntry] = &[
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-intrinsics",
+        justification: "runtime CPU-feature dispatch / raw SIMD intrinsics wrappers",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-keccak",
+        justification: "AVX2/ARMv8 SIMD Keccak-f[1600] permutation",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-aead",
+        justification: "raw-pointer secure-memory zeroization/allocation and a MaybeUninit \
+                        stack-buffer transmute; scalar code, not vectorized",
+        allowed_file_scope: &["src/security/memory.rs", "src/security/stack_buffer.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-rocca-s",
+        justification: "AES-NI/SIMD ROCCA-S permutation",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-saturnin",
+        justification: "SIMD SATURNIN block-cipher paths",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-tweak-aead",
+        justification: "SIMD tweakable-block-cipher paths",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-ml-dsa",
+        justification: "AVX2 NTT / rejection-sampling fast paths",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-ml-kem",
+        justification: "raw-pointer array-splitting transmutes in array utilities; scalar \
+                        code, not vectorized",
+        allowed_file_scope: &["src/util.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-mayo",
+        justification: "write_volatile zeroization fallback (2 sites); scalar code, not \
+                        vectorized",
+        allowed_file_scope: &["src/mayo_core.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-slh-dsa",
+        justification: "repr(C) pointer-cast for an address-word byte view (1 site); a \
+                        runtime x86-feature-detection call elsewhere (wots.rs) is only a \
+                        chunked-vs-scalar batching heuristic and does not itself gate any \
+                        unsafe vectorized code",
+        allowed_file_scope: &["src/address.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-hqc",
+        justification: "AVX2 polynomial arithmetic",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-random",
+        justification: "x86 RDRAND hardware-RNG intrinsics (hardware_rng.rs), \
+                        custom-entropy-callback FFI registration (custom_entropy.rs, and its \
+                        public re-export in lib.rs), and a raw-pointer byte-to-numeric-type \
+                        copy in provider.rs; the OS entropy source itself is reached through \
+                        the safe `getrandom` crate",
+        allowed_file_scope: &[
+            "src/hardware_rng.rs",
+            "src/custom_entropy.rs",
+            "src/lib.rs",
+            "src/provider.rs",
+        ],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark",
+        justification: "unchecked-bounds row-slice access in the one function the crate's \
+                        otherwise-`#![deny(unsafe_code)]` lib.rs locally allows it for; \
+                        scalar code, not vectorized",
+        allowed_file_scope: &["src/check_constraints.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-challenger",
+        justification: "unchecked-precondition field-element construction \
+                        (`from_canonical_unchecked`) in PoW witness search and rejection \
+                        sampling; scalar code, not vectorized",
+        allowed_file_scope: &[
+            "src/grinding_challenger.rs",
+            "src/serializing_challenger.rs",
+        ],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-commit",
+        justification: "unchecked-bounds row-slice access (1 site); scalar code, not \
+                        vectorized",
+        allowed_file_scope: &["src/domain.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-dft",
+        justification: "repr(transparent) slice reinterpretation and raw-pointer buffer \
+                        splitting for radix-2 DFT butterflies; scalar code, not vectorized",
+        allowed_file_scope: &[
+            "src/radix_2_bowers.rs",
+            "src/radix_2_dit_parallel.rs",
+            "src/radix_2_small_batch.rs",
+        ],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-field",
+        justification: "SIMD Montgomery field-arithmetic fast paths",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-field-testing",
+        justification: "unchecked-precondition field construction (`from_canonical_unchecked`) \
+                        in a shared test harness; scalar code, not vectorized",
+        allowed_file_scope: &["src/from_integer_tests.rs", "src/lib.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-matrix",
+        justification: "unchecked-bounds matrix indexing and a raw-pointer row swap \
+                        (`util.rs`); scalar code, not vectorized",
+        allowed_file_scope: &[
+            "src/dense.rs",
+            "src/extension.rs",
+            "src/horizontally_truncated.rs",
+            "src/lib.rs",
+            "src/row_index_mapped.rs",
+            "src/stack.rs",
+            "src/util.rs",
+        ],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-merkle",
+        justification: "unchecked-bounds row access in the leftover (non-batch) tail of \
+                        Merkle leaf hashing; this crate's own code is scalar, not vectorized",
+        allowed_file_scope: &["src/merkle_tree.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-mersenne31",
+        justification: "SIMD Mersenne31 field fast paths",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-monty31",
+        justification: "SIMD Montgomery31 field fast paths",
+        allowed_file_scope: &[],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-stark-util",
+        justification: "raw-pointer/transmute slice reinterpretation, uninitialized-memory \
+                        helpers, and an `asm!` optimizer-barrier; scalar code, not vectorized",
+        allowed_file_scope: &["src/lib.rs", "src/transpose.rs"],
+    },
 ];
 
 /// Classical/legacy crypto crate names that are permitted, with the NIST mandate that requires
@@ -700,22 +857,36 @@ impl SecurityValidator {
             let name = Self::dir_name(dir);
             let files = self.rs_files_in(dir);
             total_files += files.len();
-            let is_allowed = ALLOWED_UNSAFE_CRATES.iter().any(|(n, _)| *n == name);
-            if is_allowed {
+            let entry = ALLOWED_UNSAFE_CRATES.iter().find(|e| e.crate_name == name);
+            // A whole-crate exemption (empty scope) skips the crate entirely, exactly as
+            // before. A *scoped* entry (non-empty `allowed_file_scope`) does NOT skip the
+            // crate: every file is still scanned, and real `unsafe` is only permitted inside
+            // the reviewed files — anywhere else in that same crate it is a violation, same as
+            // if the crate were not on the allowlist at all.
+            if entry.is_some_and(|e| e.allowed_file_scope.is_empty()) {
                 continue;
             }
+            let scope: &[&str] = entry.map(|e| e.allowed_file_scope).unwrap_or(&[]);
             for (path, content) in &files {
                 if Self::is_checker_implementation_file(path) {
                     continue;
                 }
-                if Self::contains_real_unsafe(content) {
-                    violations.push(format!(
-                        "{}: unsafe code in crate `{}`, which is not on the reviewed \
-                         SIMD/FFI allowlist",
-                        path.display(),
-                        name
-                    ));
+                if !Self::contains_real_unsafe(content) {
+                    continue;
                 }
+                if Self::path_in_scope(path, scope) {
+                    continue;
+                }
+                let reviewed_elsewhere = entry.map_or(
+                    "this crate has no allowlist entry at all".to_string(),
+                    |e| format!("its reviewed unsafe here is: {}", e.justification),
+                );
+                violations.push(format!(
+                    "{}: unsafe code in crate `{}` outside its reviewed allowlist file scope \
+                     {scope:?} ({reviewed_elsewhere})",
+                    path.display(),
+                    name
+                ));
             }
         }
 
@@ -732,6 +903,16 @@ impl SecurityValidator {
         } else {
             SecurityValidationResult::Fail(violations.join("; "))
         }
+    }
+
+    /// `true` if `path` ends with one of `scope`'s crate-relative file suffixes (e.g.
+    /// `"src/mayo_core.rs"`), after normalizing Windows `\` separators to `/` so the same scope
+    /// literal matches on every platform this checker runs on. An empty `scope` never matches
+    /// anything (callers use an empty scope to mean "no per-file exemption").
+    #[cfg(feature = "std")]
+    fn path_in_scope(path: &Path, scope: &[&str]) -> bool {
+        let normalized = path.to_string_lossy().replace('\\', "/");
+        scope.iter().any(|s| normalized.ends_with(s))
     }
 
     /// `true` if `content` contains a genuine `unsafe` construct (`fn`/`impl`/`trait`/`extern`/
@@ -1492,6 +1673,180 @@ mod tests {
             report.results[SecurityCheck::RandomGeneration.name()],
             SecurityValidationResult::Pass
         );
+    }
+
+    // ---- allowlist audit (2026-08): justification-vs-contents + scope enforcement ---------
+
+    /// Substrings that make an allowlist justification an *arch-dispatch* claim (SIMD, AES-NI,
+    /// AVX2, ARMv8/NEON, "intrinsics"). Case-insensitive.
+    const SIMD_JUSTIFICATION_TERMS: [&str; 6] =
+        ["simd", "avx", "aes-ni", "armv8", "neon", "intrinsics"];
+
+    /// Literal markers that indicate real arch-conditional dispatch code somewhere in a crate's
+    /// shipped source (as opposed to a comment merely using the word "SIMD").
+    fn has_arch_dispatch_marker(content: &str) -> bool {
+        content.contains("core::arch") ||
+            content.contains("std::arch") ||
+            content.contains("target_feature") ||
+            content.contains("is_x86_feature_detected") ||
+            content.contains("is_aarch64_feature_detected")
+    }
+
+    /// Mechanical check: any allowlist entry whose justification claims SIMD/AVX/AES-NI/ARMv8/
+    /// NEON/intrinsics must be backed by an actual arch-dispatch marker somewhere in that
+    /// crate's real `src/` on disk. This is deliberately run against the *real* workspace (not a
+    /// synthetic fixture) — it is exactly the mechanism that should have caught the 2026-08
+    /// allowlist audit's fabricated-SIMD entries (`lib-q-mayo` claimed "AVX2 matrix/vector
+    /// arithmetic" while shipping zero SIMD) before they ever landed.
+    #[test]
+    fn allowlist_simd_justifications_have_a_matching_arch_dispatch_marker() {
+        let validator = SecurityValidator::new();
+        let dirs = validator.crate_dirs();
+
+        let mut failing: Vec<&str> = Vec::new();
+        for entry in ALLOWED_UNSAFE_CRATES {
+            let lower = entry.justification.to_lowercase();
+            let claims_simd = SIMD_JUSTIFICATION_TERMS.iter().any(|t| lower.contains(t));
+            if !claims_simd {
+                continue;
+            }
+            let dir = dirs
+                .iter()
+                .find(|d| SecurityValidator::dir_name(d) == entry.crate_name);
+            let has_marker = match dir {
+                Some(dir) => validator
+                    .rs_files_in(dir)
+                    .iter()
+                    .any(|(_, content)| has_arch_dispatch_marker(content)),
+                None => false,
+            };
+            if !has_marker {
+                failing.push(entry.crate_name);
+            }
+        }
+
+        assert!(
+            failing.is_empty(),
+            "allowlist entries claim a SIMD/AVX/AES-NI/ARMv8/NEON/intrinsics justification but \
+             their crate's src/ has no arch-dispatch marker anywhere (core::arch / std::arch / \
+             target_feature / is_{{x86,aarch64}}_feature_detected): {failing:?}"
+        );
+    }
+
+    /// A crate on the allowlist with a *non-empty* `allowed_file_scope` must not get a
+    /// whole-crate bypass: real `unsafe` planted in a file outside that scope must still fail.
+    /// Run BEFORE `check_unsafe_code` had scope enforcement, this fails (the crate is skipped
+    /// wholesale on name match alone) — that Pass-when-it-should-Fail is exactly the defect
+    /// class this test exists to close.
+    #[test]
+    fn unsafe_code_usage_denies_unsafe_outside_an_allowlisted_crates_reviewed_scope() {
+        let ws = TempWorkspace::new();
+        // "lib-q-mayo" matches a real allowlist entry name (scope = ["src/mayo_core.rs"]).
+        // Plant real unsafe in a *different* file inside that same crate name.
+        let dir = ws.crate_dir(
+            "lib-q-mayo",
+            "[package]\nname = \"lib-q-mayo\"\n",
+            "pub fn f() {}\n",
+        );
+        fs::write(
+            dir.join("src").join("unrelated.rs"),
+            "pub fn g() { unsafe { core::ptr::null::<u8>(); } }\n",
+        )
+        .expect("write unrelated.rs");
+
+        let validator = SecurityValidator::new().with_source_paths(vec![ws.path_string(&dir)]);
+        let report = validator.validate_only(&[SecurityCheck::UnsafeCodeUsage]);
+        assert!(
+            matches!(
+                report.results[SecurityCheck::UnsafeCodeUsage.name()],
+                SecurityValidationResult::Fail(_)
+            ),
+            "unsafe planted outside lib-q-mayo's reviewed file scope (src/mayo_core.rs) must \
+             fail the check, not be silently skipped because the crate NAME matches an \
+             allowlist entry"
+        );
+    }
+
+    /// Pins the exact set of crates that get a *whole-crate* unsafe-scan exemption (empty
+    /// `allowed_file_scope`). A silent new whole-crate exemption — the same failure mode as the
+    /// fabricated `lib-q-mayo` entry, just via an empty scope instead of a wrong justification —
+    /// must show up here as a test diff, not slip in unnoticed.
+    #[test]
+    fn empty_scope_entries_are_exactly_the_reviewed_simd_set() {
+        let mut whole_crate: Vec<&str> = ALLOWED_UNSAFE_CRATES
+            .iter()
+            .filter(|e| e.allowed_file_scope.is_empty())
+            .map(|e| e.crate_name)
+            .collect();
+        whole_crate.sort_unstable();
+
+        let mut expected = vec![
+            "lib-q-hqc",
+            "lib-q-intrinsics",
+            "lib-q-keccak",
+            "lib-q-ml-dsa",
+            "lib-q-rocca-s",
+            "lib-q-saturnin",
+            "lib-q-stark-field",
+            "lib-q-stark-mersenne31",
+            "lib-q-stark-monty31",
+            "lib-q-tweak-aead",
+        ];
+        expected.sort_unstable();
+
+        assert_eq!(
+            whole_crate, expected,
+            "the set of crates with a whole-crate unsafe-scan exemption changed; each of these \
+             10 was independently re-verified (2026-08 audit) to ship real arch-dispatch SIMD \
+             across many files — any addition/removal must be a deliberate, reviewed edit to \
+             this test, not a silent table change"
+        );
+    }
+
+    /// Every scoped file listed in the allowlist must still exist and still contain real
+    /// `unsafe` — a scope entry that has gone stale (file deleted, or the unsafe removed) is
+    /// dead weight that should be noticed, not silently carried forward forever.
+    #[test]
+    fn scoped_allowlist_files_exist_and_still_contain_real_unsafe() {
+        let validator = SecurityValidator::new();
+        let dirs = validator.crate_dirs();
+        let mut stale: Vec<String> = Vec::new();
+
+        for entry in ALLOWED_UNSAFE_CRATES {
+            if entry.allowed_file_scope.is_empty() {
+                continue;
+            }
+            let Some(dir) = dirs
+                .iter()
+                .find(|d| SecurityValidator::dir_name(d) == entry.crate_name)
+            else {
+                stale.push(format!("{}: crate directory not found", entry.crate_name));
+                continue;
+            };
+            let files = validator.rs_files_in(dir);
+            for scoped in entry.allowed_file_scope {
+                let found = files
+                    .iter()
+                    .find(|(path, _)| path.to_string_lossy().replace('\\', "/").ends_with(scoped));
+                match found {
+                    None => stale.push(format!(
+                        "{}: scoped file `{}` does not exist under src/",
+                        entry.crate_name, scoped
+                    )),
+                    Some((_, content)) => {
+                        if !SecurityValidator::contains_real_unsafe(content) {
+                            stale.push(format!(
+                                "{}: scoped file `{}` no longer contains real unsafe code — \
+                                 scope entry is stale",
+                                entry.crate_name, scoped
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+
+        assert!(stale.is_empty(), "stale allowlist file scopes: {stale:?}");
     }
 
     // ---- live-repo smoke test (real workspace, not a fixture) -------------------------------

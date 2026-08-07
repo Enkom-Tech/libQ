@@ -4,7 +4,26 @@ set -euo pipefail
 ROOT="${1:-$(git rev-parse --show-toplevel)}"
 cd "$ROOT"
 
-python3 - <<'PY'
+# Probe by RUNNING each candidate, the same workaround ci-guard-coverage-honesty.sh,
+# ci-guard-kat-provenance.sh and ci-guard-vacuous-test-shapes.sh already use: on Windows a
+# `python3` App Execution Alias sits on PATH and satisfies `command -v` while refusing to execute.
+# This script was the last one still hardcoding bare `python3`, so it aborted with exit 49 and
+# "Python was not found; run without arguments to install from the Microsoft Store" for anyone
+# running the guard suite locally on Windows -- a guard that cannot be run locally is a guard that
+# only ever gets exercised after a push.
+PY_BIN=""
+for candidate in python3 python py; do
+  if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
+    PY_BIN="$candidate"
+    break
+  fi
+done
+if [[ -z "$PY_BIN" ]]; then
+  echo "ci-guard-new-crates-and-npm: a working python3 interpreter is required" >&2
+  exit 1
+fi
+
+"$PY_BIN" - <<'PY'
 import pathlib
 import re
 import sys
@@ -56,7 +75,7 @@ if untracked:
 print("Workspace crate membership guard: OK")
 PY
 
-python3 - <<'PY'
+"$PY_BIN" - <<'PY'
 import pathlib
 import re
 import sys
@@ -159,7 +178,7 @@ done
 echo "npm package guard: OK"
 fi
 
-python3 - <<'PY'
+"$PY_BIN" - <<'PY'
 import pathlib
 import re
 import sys
@@ -215,7 +234,7 @@ if missing:
 print("WASM npm coverage guard: OK")
 PY
 
-python3 - <<'PY'
+"$PY_BIN" - <<'PY'
 import pathlib
 import re
 import sys

@@ -85,13 +85,24 @@ fn test_small_degree_optimization_correctness() -> TestResult {
     Ok(())
 }
 
+/// Catastrophic-regression tripwire, NOT a constant-time gate.
+///
+/// This performs exactly one `sign()` call per input class and compares wall-clock elapsed time
+/// against a 500ms bound. A single-sample wall-clock comparison has no statistical power to
+/// detect a timing side channel -- it can only catch a livelock-class regression (e.g. an
+/// accidental infinite/near-infinite loop on one input class) gross enough to blow past 500ms on
+/// a debug build. It was previously named `test_constant_time_properties`, which claimed
+/// evidence this test cannot provide; renamed for card t_9d1766f3.
+///
+/// A real statistical timing check (paired-input Welch t-test, release build, n=1000 per class)
+/// lives in `tests/constant_time.rs` -- see that file's module doc for what it actually measures
+/// and its own honestly-scoped limitations.
 #[test]
-fn test_constant_time_properties() -> TestResult {
+fn test_signing_latency_smoke() -> TestResult {
     let fn_dsa = FnDsa512::new();
     let keypair = fn_dsa.generate_keypair()?;
 
-    // Same length so work is comparable; different bytes. Wall-clock is only a weak smoke
-    // check—real constant-time is verified by analysis, not this test.
+    // Same length so work is comparable; different bytes.
     let msg_a = [0x4Au8; 64];
     let msg_b = [0xB3u8; 64];
 
@@ -105,15 +116,71 @@ fn test_constant_time_properties() -> TestResult {
 
     let time_diff = time_a.abs_diff(time_b);
 
-    // CI hosts can be noisy; 500ms is still a broad smoke bound for two equal-length calls.
+    // CI hosts can be noisy; 500ms is a broad livelock-only bound for two equal-length calls,
+    // not a timing-leak threshold.
     let max_allowed_diff = std::time::Duration::from_millis(500);
     assert!(
         time_diff < max_allowed_diff,
-        "Timing difference too large: {:?} vs {:?}",
+        "Signing latency smoke check failed (possible livelock, not a timing-leak signal): {:?} vs {:?}",
         time_a,
         time_b
     );
     Ok(())
+}
+
+/// Welch-t math self-test: proves the statistic used by `tests/constant_time.rs` (inlined there,
+/// duplicated here in miniature so this proof runs in every build including debug, unlike the
+/// timing tests it backs) can actually distinguish a real mean shift from noise. A statistic that
+/// passes on every possible input proves nothing; this is the check that it does not.
+#[test]
+fn welch_t_detects_synthetic_shift() {
+    fn welch_t(a: &[f64], b: &[f64]) -> Option<f64> {
+        let na = a.len() as f64;
+        let nb = b.len() as f64;
+        if na < 2.0 || nb < 2.0 {
+            return None;
+        }
+        let mean_a = a.iter().sum::<f64>() / na;
+        let mean_b = b.iter().sum::<f64>() / nb;
+        let var_a = a.iter().map(|x| (x - mean_a).powi(2)).sum::<f64>() / (na - 1.0);
+        let var_b = b.iter().map(|x| (x - mean_b).powi(2)).sum::<f64>() / (nb - 1.0);
+        let se = (var_a / na + var_b / nb).sqrt();
+        if se == 0.0 {
+            return None;
+        }
+        Some((mean_a - mean_b) / se)
+    }
+
+    const T_THRESHOLD: f64 = 15.0;
+
+    // Synthetic shifted classes: class A ~= 1.0 +/- eps, class B ~= 1.5 +/- eps. A real 0.5-unit
+    // mean shift against ~1e-3-scale noise must blow well past the pinned threshold.
+    // `unwrap_or(0.0)`, not `.expect()`/`.unwrap()`: this crate's CI clippy step denies both
+    // (action.yml unwrap_used/expect_used). Both classes below have >=2 samples and nonzero
+    // variance, so `welch_t` always returns `Some`; if it ever didn't, falling back to 0.0 still
+    // fails the assertion below loudly rather than hiding the problem behind a different panic.
+    let a: Vec<f64> = (0..200).map(|i| 1.0 + (i % 5) as f64 * 1e-3).collect();
+    let b: Vec<f64> = (0..200).map(|i| 1.5 + (i % 5) as f64 * 1e-3).collect();
+    let t = welch_t(&a, &b).unwrap_or(0.0);
+    assert!(
+        t.abs() > T_THRESHOLD,
+        "welch_t failed to detect a synthetic 0.5-unit mean shift: |t|={:.2} (want > {})",
+        t.abs(),
+        T_THRESHOLD
+    );
+
+    // Symmetric same-distribution classes: no real shift, so |t| must stay well under threshold.
+    let c: Vec<f64> = (0..200).map(|i| 1.0 + (i % 5) as f64 * 1e-3).collect();
+    let d: Vec<f64> = (0..200)
+        .map(|i| 1.0 + ((i + 2) % 5) as f64 * 1e-3)
+        .collect();
+    let t2 = welch_t(&c, &d).unwrap_or(0.0);
+    assert!(
+        t2.abs() < T_THRESHOLD,
+        "welch_t false-positived on two same-distribution classes: |t|={:.2} (want < {})",
+        t2.abs(),
+        T_THRESHOLD
+    );
 }
 
 #[test]

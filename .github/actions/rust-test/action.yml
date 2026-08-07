@@ -328,11 +328,12 @@ runs:
           elif [[ -n "$PACKAGE" && "$PACKAGE" != "" ]]; then
             if [[ "$PACKAGE" == "lib-q-fn-dsa" ]]; then
               echo "Running quick FN-DSA smoke tests (release-ci). Full keygen KAT: cargo test -p lib-q-fn-dsa-kgen test_keygen --release -- --test-threads=1"
+              GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
               cd "${GITHUB_WORKSPACE:-.}"
               FN_FEAT="${FEATURES:-std,rand}"
-              cargo test -p lib-q-fn-dsa-alg self_test --profile release-ci -- --test-threads=1
-              cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "$FN_FEAT"
-              cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "$FN_FEAT"
+              bash "$GUARD" -- cargo test -p lib-q-fn-dsa-alg self_test --profile release-ci -- --test-threads=1
+              bash "$GUARD" -- cargo test -p lib-q-fn-dsa keypair_generation --profile release-ci --features "$FN_FEAT"
+              bash "$GUARD" -- cargo test -p lib-q-fn-dsa test_basic_fn_dsa_functionality --profile release-ci --features "$FN_FEAT"
             else
               cargo test -p $PACKAGE "${FEAT_ARGS[@]}" --profile release-ci --verbose
             fi

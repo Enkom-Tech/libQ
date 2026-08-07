@@ -136,8 +136,14 @@ runs:
       shell: bash
       run: |
         echo "Testing lib-q-hash (provider + create_hash smoke)..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" create_hash_smoke_all_variants
+        # OBSERVED 2026-08: `create_hash_smoke_all_variants` lives in lib-q-hash/src/lib.rs, not
+        # in this step's `working-directory` (lib-q-sha3) -- the bare filter (no `-p`) matched 0
+        # of every test binary here and reported green regardless (same wrong-crate class as the
+        # test-k12 `test_length_encode` finding). `-p lib-q-hash` resolves it from the workspace
+        # graph regardless of cwd (verified: 1 passed).
+        bash "$GUARD" -- cargo test -p lib-q-hash --features "${{ inputs.features }}" create_hash_smoke_all_variants
         echo "lib-q-hash create_hash tests completed"
     
     - name: Cross-compilation test (ARM64)

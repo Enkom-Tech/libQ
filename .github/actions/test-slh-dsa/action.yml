@@ -133,13 +133,14 @@ runs:
       shell: bash
       run: |
         echo "Running ACVP (NIST test vector) tests..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         rm -rf target/release-ci
         cd ${{ inputs.working-directory }}
-        cargo test --features "${{ inputs.features }}" --test acvp_keygen
-        cargo test --features "${{ inputs.features }}" --test acvp_sig
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test acvp_keygen
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --test acvp_sig
         if [ "${{ inputs.run-extended-kats }}" = "true" ]; then
           echo "ACVP sigGen (full signing KATs): release + ignored — too slow for debug"
-          cargo test --features "${{ inputs.features }}" --profile release-ci --test acvp_sig test_sign_cvp -- --ignored --test-threads=1
+          bash "$GUARD" -- cargo test --features "${{ inputs.features }}" --profile release-ci --test acvp_sig test_sign_cvp -- --ignored --test-threads=1
         else
           echo "Skipping ACVP sigGen release-ci KATs (run-extended-kats=false)"
         fi
@@ -221,9 +222,10 @@ runs:
       shell: bash
       run: |
         echo "Testing no_std compatibility..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
         # The no_std LIBRARY surface is compile-verified on bare-metal in the no_std build step above.
         # This integration test exercises the keygen path; `std` only links the libtest harness (an
         # integration-test binary cannot run on a hosted target without it).
-        cargo test --no-default-features --features "alloc,std" --test lib_q_integration_tests test_slh_dsa_key_generation_no_std
+        bash "$GUARD" -- cargo test --no-default-features --features "alloc,std" --test lib_q_integration_tests test_slh_dsa_key_generation_no_std
         echo "no_std compatibility test completed"
