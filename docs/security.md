@@ -319,6 +319,34 @@ pub fn secure_random_bytes(buffer: &mut [u8]) -> Result<(), Error> {
 - **Cargo Audit**: Dependency vulnerability scanning
 - **CodeQL**: Advanced static analysis for security vulnerabilities
 
+#### Standing triage: `rust/hard-coded-cryptographic-value`
+
+This rule is the dominant source of code-scanning alerts in this repo (66 dismissed as of
+2026-08-07) and it will keep firing. Before dismissing another one, read this — and then still
+check the individual alert, because the whole point is that the *next* one might be real.
+
+**Why it recurs.** The rule flags literal keys, nonces and salts. Rust convention puts unit tests
+in a `#[cfg(test)] mod tests` block **inside the production source file**, and cryptographic tests
+necessarily use fixed inputs — a KAT with a random nonce is not a KAT. CodeQL analyses the file as
+a whole and does not exclude `#[cfg(test)]`, so every new test fixture becomes a new critical
+alert.
+
+**Why it cannot be configured away.** Code scanning here is GitHub *default setup*, which accepts
+no config file, no `paths-ignore` and no query filters. Switching to advanced setup would not help
+either: the offending lines are in the same files as production code, so path exclusion cannot
+separate them, and suppressing the rule outright would discard genuine findings.
+
+**How to triage one.** Establish which side of the `#[cfg(test)]` boundary the flagged line falls
+on — find the nearest preceding `#[cfg(test)]` and confirm the line is inside that module, by
+reading it, not by a line-number heuristic. If it is test-only, dismiss as **"used in tests"** with
+a comment naming the file, the line, the line the `cfg(test)` opens on, and why the value must be
+fixed. GitHub caps that comment at **280 characters**. If the value is reachable from a non-test
+build, it is a real finding: do not dismiss it, file it.
+
+A hard-coded value in a `*_with_seed` / `*_with_m_salt` style API is expected — those entry points
+exist precisely so tests can drive the algorithm deterministically. Confirm the production path
+(e.g. `encapsulate()`) draws from the RNG, and say so in the dismissal.
+
 ### Dynamic Analysis
 - **Fuzzing**: Automated input testing for edge cases
 - **Memory testing**: AddressSanitizer and MemorySanitizer
