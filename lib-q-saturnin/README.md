@@ -161,9 +161,44 @@ Example: `cargo build --target wasm32-unknown-unknown --features wasm`
     attack meeting the `2^224` bound of the respective claim box. The submission states verbatim:
     "None of the AE schemes in Saturnin provides security in nonce-misuse, nonce repetition or
     nonce-superposition scenarios."
-  - Saturnin-Hash (§2.4): no classical collision attack with `T < 2^112` and no classical preimage
-    attack with `T < 2^224`; no quantum collision attack with `T < ~2^75` and no quantum preimage
-    attack with `T < 2^112`.
+  - **The spec's IND-qCCA claim for CTR-Cascade rests on a citation that has since been disproved
+    — open obligation Q-2** (opened 2026-08-07; applies to plain `SaturninAead`, the frozen mode
+    every consumer uses, and to `SaturninAeadCtx`). Spec §4.3 says the modes "are intended to
+    provide quantum security against chosen message superposition attacks and superposition
+    verification queries (IND-qCCA security)", and §4.3.1 supplies the load-bearing step:
+    "Soukharev, Jao and Seshadri have revisited these results [SJS16], and proved that the
+    encrypt-then-MAC composition offers IND-qCCA security, assuming that the encryption scheme is
+    IND-qCPA, and the MAC is SUF-qCMA." IACR ePrint 2025/387 disproves exactly that: "we disprove
+    a claim made by Soukharev et al. at PQCrypto 2016"; "[SJS16, Theorem 3.6] … is inconclusive".
+    The conclusion looks **repairable** — 2025/387's own Theorem 3 (EatM of an IND-qCPA scheme
+    and a qPRF *is* IND-qCCA), carried to EtM by its Theorem 4 and Corollary 1, needs the MAC to
+    be a *qPRF*, and the spec argues precisely that for Cascade via "Theorem 5.1 in [SY17]"
+    (§4.3.3), a *stronger* hypothesis than the plus-one one the counterexample defeats — but the
+    citation swap is unratified, with the spec's own caveats (constant block count; "This proof
+    seems not tight"). **Do not restate the spec's IND-qCCA claim for CTR-Cascade without this
+    footnote.** It does not apply to `SaturninQcb`, which is an integrated TBC mode rather than a
+    generic composition. Full statement: `src/aead_ctx.rs`; a pointer also sits on the frozen
+    mode's own module docs, `src/aead.rs`.
+  - Saturnin-Hash (§2.4): no classical collision attack with `T < 2^112`, no classical preimage
+    attack with `T < 2^224`, no quantum preimage attack with `T < 2^112`. The quantum *collision*
+    claim is not a flat number — verbatim it is "There exists no quantum collision attack
+    verifying `T^5 × M_q < 2^448`", where `M_q` is the quantum memory measured in 256-qubit
+    registers. `~2^75` is the designers' own worst-corner corollary of that inequality ("In
+    particular, the claim for quantum collision attack implies that there is no such attack with
+    `T < 2^75`, because we necessarily have `M_q < T`"); at the other corner a memoryless quantum
+    attacker (`M_q = 1`) is claimed secure to `T < 2^(448/5) = 2^89.6`. Quote `~2^75` as the
+    conservative corner it is, never as the whole claim.
+- **Saturnin-QCB's security is an ideal-cipher-model claim, with classical tweaks.** It is not a
+  standard-model result and must not be reported as one — Saturnin update note §5: "*In the
+  ideal-cipher model*, we can prove the indistinguishability and unforgeability of QCB under
+  quantum chosen-plaintext attacks"; QCB paper §6.3: "the first statement holds in the standard
+  model, the second in the ideal cipher model", where the second is the one covering a
+  block-cipher instantiation like this one. The quantum claim covers superposition *messages*
+  only: superposition *tweak* or nonce queries recover the key in `O(256)` queries via Simon's
+  algorithm, because in this construction the tweak is the key offset (Rötteler–Steinwandt, IACR
+  ePrint 2013/378). And the whole thing assumes Saturnin16 is related-key secure, where the best
+  published attack already reaches 10 of its 16 super-rounds. Full statement, quotes and scope:
+  `src/qcb.rs` (*Security model*) and [SECURITY.md](SECURITY.md).
 - Constant-time operations; AEAD tag verification uses constant-time comparison (see [SECURITY.md](SECURITY.md)).
 - **No masked or threshold implementation.** Saturnin has no published DPA- or fault-resistant
   implementation and this crate does not provide one. Do not read "constant-time" as covering
@@ -300,7 +335,17 @@ or authorization signal without binding the key externally** — e.g. put `H(key
 associated data, or carry an explicit key commitment beside the ciphertext (`lib-q-mve` does the
 latter: see `MVE_COMMIT_LABEL`). Even for `SaturninQcb`/`SaturninAeadCtx`, treat this as **claimed,
 not proven**: see the table rows and the sign-off obligations in `lib-q-saturnin/src/commit.rs`
-(shared H-1) and `lib-q-saturnin/src/aead_ctx.rs` (Q-1′, and why S-2 does not apply there).
+(shared H-1) and `lib-q-saturnin/src/aead_ctx.rs` (Q-1′ and Q-2, and why S-2 does not apply
+there). **On 2026-08-07 the primary sources were read and the register moved in both directions,
+but nothing closed**: S-2 narrowed (Chan–Rogaway's Theorem 2 consumes only injectivity, not the
+length-preserving bijectivity their §4 prose asserts), Q-1/Q-1′ *widened* (CTX's nAE-preservation
+proof is not merely *stated* classically — its authenticity reduction recovers the base tag by
+replaying a recorded table of the adversary's hash queries, which superposition queries forbid,
+and no QROM treatment of CTX exists in the committing-AE literature through 2026), and three new
+obligations were opened: **L-1** (Chan–Rogaway's Theorem 3 is single-user and
+single-verification-query — Bellare–Hoang, IACR ePrint 2024/875 p.12; applies to both types),
+**RK-1** (`SaturninQcb` only), and **Q-2** (CTR-Cascade's own IND-qCCA claim; applies to the
+frozen `SaturninAead` too). Read none of Q-1/Q-1′ as a formality.
 
 One mode, `SaturninShortAead`, has a **demonstrated** break: a test produces one ciphertext that
 decrypts successfully under two distinct keys. `SaturninQcb` had a break of the same class; it is
@@ -311,10 +356,10 @@ table before quoting any row of it.
 
 | Mode | Key / tag | CMT-1 status |
 |---|---|---|
-| `SaturninQcb` | 256 / 256-bit | **CTX applied** (Chan and Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: the transmitted tag is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, replacing the raw, XOR-decomposable `T`. **Claimed** CMT-4, bounded by Saturnin-Hash's own designer-claimed collision resistance — **2^112 classical, ~2^75 quantum** — the designers' claimed floor; best-known generic classical cost is 2^128 by the birthday bound (spec §5.4.1), claimed below that for margin ("additional constant factors that these bounds do not take into account, which is why our final security claims are reduced"), not a NIST-LWC floor; the claim sits below all three generic quantum collision costs at n = 256: 2^85.3 = 2^(n/3) with 2^85.3 qRAM (Brassard–Høyer–Tapp, LATIN '98), 2^102.4 = 2^(2n/5) with no qRAM but 2^51.2 classical memory (Chailloux–Naya-Plasencia–Schrottenloher, 2017), and 2^128 memoryless — and marked **RED**, pending human cryptographer sign-off on three named obligations (`lib-q-saturnin/src/commit.rs`). The closed-form attack below (mean **270** padding-search tries ≈ **~546 Saturnin block calls**, median 191, min 2, max 2492, **0** tag searches, over 200 independent key pairs, all of which broke pre-CTX) is retained as a regression test and now fails on every instance. |
+| `SaturninQcb` | 256 / 256-bit | **CTX applied** (Chan and Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: the transmitted tag is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, replacing the raw, XOR-decomposable `T`. **Claimed** CMT-4, bounded by Saturnin-Hash's own designer-claimed collision resistance — **2^112 classical, ~2^75 quantum** — the designers' claimed floor. The quantum figure is not a flat claim but the worst corner of a time–memory one, verbatim "There exists no quantum collision attack verifying `T^5 × M_q < 2^448`" with `M_q` the quantum memory in 256-qubit registers; `~2^75` is the designers' own `M_q → T` corollary, and a memoryless attacker (`M_q = 1`) gets 2^89.6 from the same inequality — quote 2^75 as the conservative corner, never as the whole claim. Best-known generic classical cost is 2^128 by the birthday bound (spec §5.4.1), claimed below that for margin ("additional constant factors that these bounds do not take into account, which is why our final security claims are reduced"), not a NIST-LWC floor; the claim sits below all three generic quantum collision costs at n = 256: 2^85.3 = 2^(n/3) with 2^85.3 qRAM (Brassard–Høyer–Tapp, LATIN '98), 2^102.4 = 2^(2n/5) with no qRAM but 2^51.2 classical memory (Chailloux–Naya-Plasencia–Schrottenloher, 2017), and 2^128 memoryless — and marked **RED**, pending human cryptographer sign-off on **five** named obligations, H-1, S-2, Q-1, L-1 and RK-1 (`lib-q-saturnin/src/commit.rs`). The 2026-08-07 primary-source review narrowed **S-2** (Chan–Rogaway's Theorem 2 consumes only injectivity, not the length-preserving bijectivity their §4 prose asserts; the residual is a reviewer confirmation, and it also surfaced a *second* violated syntactic requirement, Chan–Rogaway's constant expansion `τ`, which our padding breaks by 33–64 bytes), widened **Q-1** (Theorem 3's authenticity reduction is classical transcript replay, not merely a classically-stated proof — see the row note above), and opened **L-1** (Theorem 3 is single-user and single-verification-query) and **RK-1** (QCB's key-tweak insertion uses `Φ_⊕` over up to 2^95 related keys, while the designers claim Saturnin16 related-key security only "against related-key attacks involving a small number of keys"). Nothing closed. The closed-form attack below (mean **270** padding-search tries ≈ **~546 Saturnin block calls**, median 191, min 2, max 2492, **0** tag searches, over 200 independent key pairs, all of which broke pre-CTX) is retained as a regression test and now fails on every instance. |
 | `SaturninShortAead` | 256-bit / no tag | **BROKEN.** ~2^8 random keys at any nonce length, including the 16-byte default — the nonce *is* the redundancy and CMT-1 lets the adversary choose it. Measured acceptance **78 / 20 000** random keys (0.0039, predicted 2^-8). **Not committing and will not be made so:** any fix adds bytes, and a committing Short is size-dominated by `SaturninQcb` at the same ciphertext length with strictly more payload room (see `lib-q-saturnin/src/aead_short.rs`). |
-| `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit**; wire format is **frozen** (data-at-rest: My-Grid vault, My-Grid recovery, GIP `bitlink-wrapkey-argon2id-v1` all decrypt through this type) and left unmodified. Its committing sibling is the opt-in `SaturninAeadCtx` (below), a *separate, wire-incompatible type* — never a flag on this one. |
-| `SaturninAeadCtx` (CTX on CTR-Cascade) | 256 / 256-bit | **CTX applied** (Chan and Rogaway, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` over CTR-Cascade's own tag `T`. **Claimed** CMT-4, bounded by the same Saturnin-Hash collision-resistance claim as `SaturninQcb` (2^112 classical, ~2^75 quantum) — **RED**, pending sign-off on **H-1** (shared with `SaturninQcb`) and **Q-1′** (CTX's nAE-preservation proof is classical-ROM; whether it preserves CTR-Cascade's own quantum-adversary claims is open). **S-2 does not apply to this instantiation**: CTR-Cascade is a stream mode (`|C| == |M|` exactly, no message padding), which satisfies Chan–Rogaway Theorem 2's length/bijectivity hypothesis natively — on that axis this instantiation rests on *firmer* ground than CTX-on-QCB. Ciphertext from this type is never interchangeable with plain `SaturninAead`'s (see `tests/cascade_ctx_spec.rs::cross_mode_ciphertexts_rejected`); adopting it for stored data means minting a new format tag, not switching the AEAD under an existing one. **The two types are wire-incompatible but not keystream-independent:** only the tag differs, and CTR-Cascade's keystream depends on `(K, N)` alone, so encrypting different plaintexts under the same key and nonce with the two types is a two-time pad. A migration re-encrypt MUST draw a **fresh nonce**. See `src/aead_ctx.rs` for the full argument. |
+| `SaturninAead` (CTR-Cascade) | 256 / 256-bit | no cheap break found — **not shown to commit**; wire format is **frozen** (data-at-rest: My-Grid vault, My-Grid recovery, GIP `bitlink-wrapkey-argon2id-v1` all decrypt through this type) and left unmodified. Its committing sibling is the opt-in `SaturninAeadCtx` (below), a *separate, wire-incompatible type* — never a flag on this one. Separately from commitment, and new on 2026-08-07: the Saturnin spec's **IND-qCCA** claim for this mode rests on the Soukharev–Jao–Seshadri composition theorem, which IACR ePrint 2025/387 disproves — open obligation **Q-2**, see the Security section above. |
+| `SaturninAeadCtx` (CTX on CTR-Cascade) | 256 / 256-bit | **CTX applied** (Chan and Rogaway, ESORICS 2022; IACR ePrint 2022/1260), instantiated with Saturnin-Hash: `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` over CTR-Cascade's own tag `T`. **Claimed** CMT-4, bounded by the same Saturnin-Hash collision-resistance claim as `SaturninQcb` (2^112 classical, ~2^75 quantum) — **RED**, pending sign-off on **H-1** (shared with `SaturninQcb`), **Q-1′** (CTX's nAE-preservation proof is classical-ROM — *structurally*, not just notationally: its authenticity reduction replays a recorded table of the adversary's hash queries, which no-cloning forbids under superposition; whether it preserves CTR-Cascade's own quantum-adversary claims is open), **L-1** (Chan–Rogaway's Theorem 3 is single-user and single-verification-query — "Chan and Rogaway [16] only consider a restricted setting where the adversary attacks just a single user, and it can only make a single verification query", Bellare–Hoang, IACR ePrint 2024/875 p.12; shared with `SaturninQcb`) and **Q-2** (the Saturnin spec's IND-qCCA claim for CTR-Cascade cites Soukharev–Jao–Seshadri [SJS16], whose EtM composition theorem was *disproved* in IACR ePrint 2025/387; the conclusion looks repairable via that paper's Theorem 3, carried to EtM by its Theorem 4 and Corollary 1, since the spec argues the stronger qPRF hypothesis for Cascade rather than mere plus-one unforgeability — but that citation swap is unratified, and Q-2 lands on the frozen `SaturninAead` too). **S-2 does not apply to this instantiation**: CTR-Cascade is a stream mode (`|C| == |M|` exactly, no message padding), which satisfies Chan–Rogaway Theorem 2's length/bijectivity hypothesis natively — on that axis this instantiation rests on *firmer* ground than CTX-on-QCB. Ciphertext from this type is never interchangeable with plain `SaturninAead`'s (see `tests/cascade_ctx_spec.rs::cross_mode_ciphertexts_rejected`); adopting it for stored data means minting a new format tag, not switching the AEAD under an existing one. **The two types are wire-incompatible but not keystream-independent:** only the tag differs, and CTR-Cascade's keystream depends on `(K, N)` alone, so encrypting different plaintexts under the same key and nonce with the two types is a two-time pad. A migration re-encrypt MUST draw a **fresh nonce**. See `src/aead_ctx.rs` for the full argument. |
 | `Shake256Aead` | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `DuplexSpongeAead` | 256 / 256-bit | no cheap break found — **not shown to commit** |
 | `TweakAead` | 256 / 256-bit | no cheap break found — **not shown to commit**. Its tag is a sponge hash of `key ‖ nonce ‖ ad ‖ ct`, which is the *shape* a committing mode has; that is an argument for looking here first, not a result. |

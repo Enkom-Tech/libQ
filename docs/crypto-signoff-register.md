@@ -198,8 +198,22 @@ undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here i
   has the same length as `M`. **Does not apply to `SaturninAeadCtx`**: CTR-Cascade XORs a keystream,
   so `|C| = |M|` natively and the hypothesis holds. **Still open for `SaturninQcb`**, whose `10*`
   padding makes `|C| ≠ |M|`; the argument that injectivity suffices has not been reviewed.
-  Likely closable by citation to Bellare–Hoang (ePrint 2022/268, EUROCRYPT 2022; ePrint 2024/875,
-  CRYPTO 2024), whose tag-based definition carries no length relation.
+  **CORRECTION 2026-08-07 (the papers were obtained and read): S-2 is NARROWED, and it is NOT
+  closable by citation.** The old line here — "Likely closable by citation to Bellare–Hoang
+  (ePrint 2022/268 …; 2024/875 …), whose tag-based definition carries no length relation" — is
+  false as to **2022/268**, which contains zero occurrences of "CTX", zero of "tag-based", and
+  does not cite Chan–Rogaway at all. And **2024/875's Theorem 3.3 is about CTY, not CTX** — the
+  authors explicitly "omit a statement and proof about the security of our general form of CTX
+  because we are going to improve it to CTY" (p.12). What actually narrows S-2 is proof
+  inspection of Chan–Rogaway themselves: `|C| = |M|` appears only as the premise of an inference
+  *to* bijectivity, and Theorem 2's proof consumes only injectivity ("there exists only one `M`
+  such that `E1(Ki, N, A, M) = C`", p.10; restated by the authors at p.2–3 and p.4). That is an
+  argument a cryptographer must confirm, not a citation. Full write-up, plus a *second* violated
+  Chan–Rogaway requirement (constant expansion `τ`, immaterial to Theorem 2 but **not** to
+  Theorem 3): `lib-q-saturnin/src/commit.rs`. Two further obligations opened the same day:
+  **L-1** (Theorem 3 is single-user and single-verification-query — 2024/875 p.12; both
+  instantiations) and **RK-1** (`SaturninQcb` only). A third, **Q-2**, lands on the base
+  CTR-Cascade mode and therefore on the frozen `SaturninAead` — see `lib-q-saturnin/src/aead.rs`.
 - **Q-1 — does CTX preserve Q2 security?** CTX's nAE-preservation proof (Thm 3) is in the *classical*
   random-oracle model, and `SaturninQcb` exists specifically for superposition-query security.
   **Expect this to get worse, not better:** ePrint 2025/387 shows Q2 security is not automatically

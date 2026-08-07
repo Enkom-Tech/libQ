@@ -309,7 +309,10 @@ fn ad_contribution_to_the_tag_depends_on_the_nonce() {
 /// a pass here no longer isolates D1 specifically; that isolation is `matches_algorithm_1_of_the_
 /// qcb_paper`'s job (see module docs). Whether CTX-of-QCB retains Q2 unforgeability in its own
 /// right is open obligation **Q-1** in `crate::commit`'s docs — this harness has no quantum
-/// oracle and cannot resolve it either way.
+/// oracle and cannot resolve it either way. As of the 2026-08-07 primary-source review that
+/// obligation got *wider*: CTX's authenticity reduction recovers the base tag only by replaying a
+/// recorded table of the adversary's hash queries, which superposition queries forbid. Never read
+/// a pass here as evidence of any Q2 property.
 #[test]
 fn ad_difference_does_not_transfer_across_nonces() {
     let aead = SaturninQcb::new();
