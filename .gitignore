@@ -242,5 +242,11 @@ llnw16.txt
 .mcp.json
 # Generated umbrella agent file (regenerated from .agents/; not published)
 AGENTS.md
+# Per-lane agent progress logs. These are working notes for a single fan-out run:
+# they let an interrupted lane resume, and they are the recovery source if a lane's
+# uncommitted work is lost. They are scratch, not deliverables — three were committed
+# by mistake on 2026-08-03 and removed on 2026-08-06. Write them to the session
+# scratchpad instead; if one must live in-tree, it gets deleted when the lane lands.
+AGENT-*-progress.md
 hooks.json
 .rust-pre-push-health-last.json
