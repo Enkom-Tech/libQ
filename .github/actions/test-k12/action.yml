@@ -92,36 +92,32 @@ runs:
         cargo test --features "${{ inputs.features }}"
         echo "All tests completed"
     
-    - name: Test K12 implementations
+    # OBSERVED 2026-08: `test_k12_implementations` and `test_create_hash_by_name` do not exist
+    # anywhere in this repo (`grep -rln` over every tracked .rs file: no hits). Both filters
+    # matched 0 of 64 tests in lib-q-hash and reported green regardless -- one of the two was
+    # additionally piped into `grep ... || true`, which also would have hidden a real cargo
+    # failure. Replaced with the crate's real, unfiltered suite (verified 64 passed) run under
+    # the runtime vacuity guard, and the "with customization" duplicate step (which ran the same
+    # dead filter a second time) is dropped rather than repurposed onto an unverified filter.
+    - name: Test K12 implementations (lib-q-hash suite, incl. KT128/KT256 registration)
       shell: bash
       run: |
         echo "Testing K12 implementations..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        cargo test test_k12_implementations --features "${{ inputs.features }}"
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}"
         echo "K12 implementation tests completed"
-    
-    - name: Test K12 with customization
-      shell: bash
-      run: |
-        echo "Testing K12 with customization..."
-        cd ${{ inputs.working-directory }}
-        cargo test test_k12_implementations --features "${{ inputs.features }}" -- --nocapture
-        echo "K12 customization tests completed"
-    
-    - name: Test K12 hash creation
-      shell: bash
-      run: |
-        echo "Testing K12 hash creation..."
-        cd ${{ inputs.working-directory }}
-        cargo test test_create_hash_by_name --features "${{ inputs.features }}" -- --nocapture | grep -i k12 || true
-        echo "K12 hash creation tests completed"
-    
+
     - name: Test K12 length encoding
       shell: bash
       run: |
         echo "Testing K12 length encoding..."
-        cd ${{ inputs.working-directory }}
-        cargo test test_length_encode --features "${{ inputs.features }}"
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+        # `test_length_encode` exists in lib-q-k12/src/block_api.rs, not in this step's
+        # `working-directory` (default lib-q-hash) -- the filter matched 0 of 64 tests here.
+        # Run it where the test actually lives (verified: 1 passed).
+        cd "${{ github.workspace }}"
+        bash "$GUARD" -- cargo test -p lib-q-k12 length_encode
         echo "K12 length encoding tests completed"
     
     - name: Cross-compilation test (ARM64)
@@ -200,7 +196,10 @@ runs:
       shell: bash
       run: |
         echo "Testing K12 integration..."
+        GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
         cd ${{ inputs.working-directory }}
-        # Test that K12 is properly integrated with the main hash system
-        cargo test --features "${{ inputs.features }}" -- --nocapture | grep -i "kangaroo\|k12" || true
+        # Test that K12 is properly integrated with the main hash system. Previously piped into
+        # `grep -i "kangaroo|k12" || true`: the pipe hid the `test result:` summary line from any
+        # guard, and `|| true` after a pipefail pipeline would have masked a real cargo failure.
+        bash "$GUARD" -- cargo test --features "${{ inputs.features }}" -- --nocapture
         echo "K12 integration tests completed"

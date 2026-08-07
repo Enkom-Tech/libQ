@@ -160,12 +160,25 @@ impl_k12!(
     "KT256",
 );
 
+/// 128-bit collision resistance per [RFC 9861 §7.7][rfc], conditional on output length: this
+/// figure applies at an output of at least `2 * CollisionResistance` = 32 bytes, per the
+/// [`digest::CollisionResistance`] trait contract. `Kt128` is a XOF with no fixed output size,
+/// so that length is the caller's choice: at a shorter output, the same contract gives
+/// `min(CollisionResistance, OutputSize / 2)` bytes.
+///
+/// [rfc]: https://www.rfc-editor.org/rfc/rfc9861.html#section-7-7
 impl CollisionResistance for Kt128<'_> {
-    // https://www.rfc-editor.org/rfc/rfc9861.html#section-7-7
     type CollisionResistance = U16;
 }
 
+/// 256-bit collision resistance per [RFC 9861 §7.8][rfc], conditional on output length: this
+/// figure applies at an output of at least `2 * CollisionResistance` = **64 bytes**, per the
+/// [`digest::CollisionResistance`] trait contract. `Kt256` is a XOF with no fixed output size,
+/// so that length is the caller's choice: at a shorter output, the same contract gives
+/// `min(CollisionResistance, OutputSize / 2)` bytes — e.g. **128-bit**, not 256-bit, at the
+/// 32-byte output used in this crate's examples.
+///
+/// [rfc]: https://www.rfc-editor.org/rfc/rfc9861.html#section-7-8
 impl CollisionResistance for Kt256<'_> {
-    // https://www.rfc-editor.org/rfc/rfc9861.html#section-7-8
     type CollisionResistance = U32;
 }

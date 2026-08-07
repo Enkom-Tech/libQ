@@ -19,19 +19,44 @@
 #                        template) but not independently re-verified against a pinned upstream
 #                        URL/hash this session. Requires `source`.
 #
-# Initial rollout scope: lib-q-hqc only. Other crates ship KAT-shaped vector files too --
-# lib-q-mayo/tests/kats/PQCsignKAT_24_MAYO_2.rsp is the one already known, `git ls-files | grep
-# -iE '\.(rsp|req)$'` finds no others -- but their provenance was NOT investigated by the lane
-# that wrote this guard (card t_71d4f79a, lane e-kat-provenance). Do NOT add a root below without
-# first doing the same per-file investigation performed for lib-q-hqc (a same-seed byte diff
-# against a genuine upstream source, or an honest admission that none exists and the file is a
-# pin). Fabricating an `origin` to satisfy this guard would be exactly the failure mode it exists
-# to catch, just moved one level up.
+# Rollout scope, updated 2026-08-06 (card t_71d4f79a, lane e-kat-provenance, second pass): the
+# original rollout covered lib-q-hqc only. This pass investigated the two other KAT-shaped trees
+# named in that original comment and registers both:
+#
+#   * lib-q-saturnin/tests/fixtures/ -- three NIST LWC round-2 Saturnin submission vector files.
+#     Verified by downloading the actual NIST CSRC submission zip
+#     (https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/round-2/
+#     submissions-rnd2/saturnin.zip, confirmed live: `curl -sI` -> HTTP 200) and hashing the three
+#     KAT files inside it directly -- all three match the vendored copies byte-for-byte once CRLF
+#     is normalised to LF (see CHECK 3's `sha256_of`; two of the three already have no CRLF on
+#     this checkout and match at the raw-byte level too). `LWC_AEAD_KAT_256_128_saturninshortv2.txt`
+#     had no upstream hash documented anywhere in the repo before this pass -- the `upstream_sha256`
+#     below was derived directly from that download, not carried over from an existing claim.
+#   * lib-q-mayo/tests/kats/PQCsignKAT_24_MAYO_2.rsp -- verified by fetching
+#     https://raw.githubusercontent.com/PQCMayo/MAYO-C/main/KAT/PQCsignKAT_24_MAYO_2.rsp (the MAYO
+#     team's own reference implementation) live and hashing it: byte-for-byte identical to the
+#     vendored copy.
+#
+# These vector files are vendored BYTE-FOR-BYTE from their designers' own distributions -- that is
+# precisely what gives them evidentiary value. They therefore do NOT carry a leading `#`-comment
+# header the way self-generated/third-party entries must: adding one would edit their bytes and
+# falsify the very "sha256 == upstream_sha256" equality that IS their provenance evidence. CHECK 5
+# in ci_guard_kat_provenance.py encodes an explicit, narrow exemption for exactly this case --
+# read that check's comment for why it cannot be claimed by a non-upstream entry.
+#
+# Still do NOT add a root below without first doing the same per-file investigation (a same-seed
+# byte diff against a genuine upstream source, or an honest admission that none exists and the
+# file is a pin). Fabricating an `origin` to satisfy this guard would be exactly the failure mode
+# it exists to catch, just moved one level up.
 
 [scan]
-roots = ["lib-q-hqc/kats"]
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats"]
 # A file is in scope if its extension (case-insensitive, without the dot) is one of these...
-extensions = ["rsp", "req", "kat"]
+# ("txt" was added in the 2026-08-06 pass: the Saturnin fixture filenames end in e.g.
+# "_saturninhashv2.txt", not "_kat.txt", so no filename_suffix below matched them. Checked at the
+# time: lib-q-hqc/kats has zero `.txt` files, so this widening does not retroactively sweep in
+# anything unexpected under the already-registered root.)
+extensions = ["rsp", "req", "kat", "txt"]
 # ...or its filename (case-insensitive) ends with one of these suffixes.
 filename_suffixes = ["_kat.txt"]
 
@@ -70,3 +95,55 @@ path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
 sha256 = "248e0b460ee61fed0a748a8d23d6bfb6ca8fae06015a1b97595e01bacde12904"
+
+# --- lib-q-saturnin/tests/fixtures/ -- NIST LWC round-2 Saturnin submission KAT files ---------
+# All three verified 2026-08-06 by downloading the live NIST CSRC submission zip and hashing the
+# KAT files inside it directly (see [scan]'s comment above). None of the three carry a leading
+# `#`-comment header -- they are vendored byte-for-byte, exactly as NIST/the designers shipped
+# them (the Mayo `.rsp` file below is the same shape: a `# MAYO_2` line, but that is the
+# algorithm-name marker from the designers' own `PQCgenKAT_sign.c` output format, not a provenance
+# statement, and it is likewise part of the byte-for-byte content, not something we added).
+# CHECK 5's upstream/no-header exemption applies to all three (sha256 == upstream_sha256).
+
+[[kat]]
+path = "lib-q-saturnin/tests/fixtures/LWC_AEAD_KAT_256_128_saturninctrcascadev2.txt"
+origin = "upstream"
+upstream_url = "https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/round-2/submissions-rnd2/saturnin.zip (path inside archive: saturnin/Implementations/crypto_aead/saturninctrcascadev2/LWC_AEAD_KAT_256_128.txt); also documented in lib-q-saturnin/tests/kat_tests.rs rustdoc above SATURNIN_AEAD_LWC_KAT"
+upstream_sha256 = "1bda041286ecb3e8f6356034d878f135a86361a15275b77bc93a530cc6c96aec"
+sha256 = "1bda041286ecb3e8f6356034d878f135a86361a15275b77bc93a530cc6c96aec"
+
+[[kat]]
+path = "lib-q-saturnin/tests/fixtures/LWC_AEAD_KAT_256_128_saturninshortv2.txt"
+origin = "upstream"
+upstream_url = "https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/round-2/submissions-rnd2/saturnin.zip (path inside archive: saturnin/Implementations/crypto_aead/saturninshortv2/LWC_AEAD_KAT_256_128.txt)"
+# NOTE: unlike the other two Saturnin entries, this hash was NOT previously documented anywhere in
+# the repo (this file predates commit bae2717's provenance rustdoc and its own kat_tests.rs
+# comment carries no sha256). Derived directly from the 2026-08-06 zip download, confirmed against
+# the file's byte content (CRLF-normalised) here on disk. Not carried over from any prior claim.
+upstream_sha256 = "9936c724fd0e19f5fc5c417b71a48b41cc2c6494eb05525b1740c9c41b21af6a"
+# This file currently has CRLF line endings on this checkout (core.autocrlf=true; unlike the other
+# two, it has never been re-checked-out since .gitattributes started pinning KAT paths to `-text`
+# in a later commit, and its own path is not yet covered by that pin -- see this manifest's git
+# history / the lane's progress notes for the suggested .gitattributes fix, out of this lane's
+# ownership). CHECK 3 hashes with CRLF normalised to LF, so this value is what it will compute
+# regardless of which line-ending form is currently checked out.
+sha256 = "9936c724fd0e19f5fc5c417b71a48b41cc2c6494eb05525b1740c9c41b21af6a"
+
+[[kat]]
+path = "lib-q-saturnin/tests/fixtures/LWC_HASH_KAT_256_saturninhashv2.txt"
+origin = "upstream"
+upstream_url = "https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/round-2/submissions-rnd2/saturnin.zip (path inside archive: saturnin/Implementations/crypto_hash/saturninhashv2/LWC_HASH_KAT_256.txt); also documented in lib-q-saturnin/tests/kat_tests.rs rustdoc above SATURNIN_HASH_LWC_KAT"
+upstream_sha256 = "c5d45e76325766f330070434cc24fb6ca7bab151df9707f2327247806acc7e52"
+sha256 = "c5d45e76325766f330070434cc24fb6ca7bab151df9707f2327247806acc7e52"
+
+# --- lib-q-mayo/tests/kats/ -- MAYO team's own reference-implementation KAT file --------------
+# Verified 2026-08-06 by fetching the live upstream file from github.com/PQCMayo/MAYO-C and
+# hashing it directly; also byte-identical to the repo's own gitignored reference/MAYO/MAYO-C-main
+# copy (reference/MAYO/SOURCES.md: vendored 2026-07-15, card t_02643c8d). No CRLF in either copy.
+
+[[kat]]
+path = "lib-q-mayo/tests/kats/PQCsignKAT_24_MAYO_2.rsp"
+origin = "upstream"
+upstream_url = "https://github.com/PQCMayo/MAYO-C (path: KAT/PQCsignKAT_24_MAYO_2.rsp), the MAYO team's own C reference implementation"
+upstream_sha256 = "a68435c4f30e4b0ed64ce8c82eb1d732fbad91399accf3416409542e57bdc966"
+sha256 = "a68435c4f30e4b0ed64ce8c82eb1d732fbad91399accf3416409542e57bdc966"

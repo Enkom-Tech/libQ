@@ -23,14 +23,33 @@ each fails CLOSED (an unparseable or missing input is an error, not a pass):
            own header still calls itself authoritative (or the reverse). `origin = "upstream"`
            entries must also carry `upstream_url` and `upstream_sha256`.
 
+           EXEMPTION (added 2026-08-06, card t_71d4f79a second pass): an `origin = "upstream"`
+           entry whose manifest `sha256` equals its own `upstream_sha256` is exempt from the
+           header-comment requirement. Vector files vendored byte-for-byte from a designers'/
+           NIST's own distribution get their evidentiary value FROM being byte-identical to that
+           distribution; splicing in a header comment would edit their bytes and falsify the very
+           equality that is the evidence. The exemption cannot be reached by a non-upstream entry
+           no matter what fields it also carries (e.g. a copied `upstream_sha256`), because it is
+           lexically nested inside the `origin == "upstream"` branch in `check_headers` below --
+           see that function's comment for the full reasoning and a pointer to the abuse-attempt
+           test that exercises this. The exemption is ALSO refused (added in review, same day) for
+           any path CHECK 4's naming ban would otherwise catch: without that refusal, an entry
+           that simply lies `origin = "upstream"` at a `kats/official/`-shaped path skipped CHECK
+           4's naming ban (which by design does not apply to declared-upstream entries) AND, via
+           this exemption, CHECK 5's header requirement, with nothing but two copy-pasted hex
+           strings -- reproduced and confirmed exploitable before this refusal was added. This
+           does not make the exemption sound against an `origin = "upstream"` lie at a
+           non-banned path; that residual trust-the-declared-origin gap is the same one this
+           docstring already discloses and is not newly introduced or newly closed here.
+
 WHAT THIS GUARD DOES NOT COVER
 -------------------------------
-  * Discovery is scoped to `[scan].roots` -- NOT the whole repository. At least one other
-    KAT-shaped file exists outside that scope (lib-q-mayo/tests/kats/PQCsignKAT_24_MAYO_2.rsp);
-    its provenance was not investigated when this guard was written, so it is deliberately not
-    in scope. Widening `roots` without first doing that investigation would either fabricate an
-    `origin` or immediately fail CI for an unrelated crate for the wrong reason; see
-    kats-manifest.toml's own comment.
+  * Discovery is scoped to `[scan].roots` -- NOT the whole repository. Three roots are registered
+    as of 2026-08-06: lib-q-hqc/kats, lib-q-saturnin/tests/fixtures, lib-q-mayo/tests/kats (the
+    latter two investigated and added in the card's second pass -- see kats-manifest.toml's
+    comment for how). Widening `roots` further without first doing that same per-file
+    investigation would either fabricate an `origin` or immediately fail CI for an unrelated crate
+    for the wrong reason; see kats-manifest.toml's own comment.
   * CHECK 4's naming regex is applied ONLY to paths that are already KAT-manifest entries (i.e.
     files matching [scan].extensions/filename_suffixes under a registered root) -- never to the
     whole repository. A repo-wide unscoped version of this check would flag `nist_kem_kat.rs`,
@@ -328,6 +347,7 @@ HEADER_LINES_SCANNED = 20
 
 def check_headers(by_path: dict[str, dict]) -> None:
     checked = 0
+    exempted = 0
     for rel, e in sorted(by_path.items()):
         origin = e.get("origin", "")
         token = ORIGIN_HEADER_TOKEN.get(origin)
@@ -336,6 +356,71 @@ def check_headers(by_path: dict[str, dict]) -> None:
         p = ROOT / rel
         if not p.is_file():
             continue  # already reported by CHECK 2
+
+        if origin == "upstream":
+            upstream_url = e.get("upstream_url")
+            upstream_sha256 = e.get("upstream_sha256")
+            if not upstream_url or not upstream_sha256:
+                fail(
+                    "CHECK 5",
+                    f"{rel}: origin=upstream requires both 'upstream_url' and 'upstream_sha256' "
+                    "in the manifest entry",
+                )
+                continue
+            # EXEMPTION -- a file vendored byte-for-byte from upstream cannot ALSO carry a
+            # header comment declaring that fact: adding one would edit its bytes and falsify
+            # the very equality (recorded `sha256` == claimed `upstream_sha256`) that makes the
+            # claim checkable in the first place. An entry that satisfies this equality already
+            # carries STRONGER, machine-verified provenance than a free-text header comment ever
+            # could: CHECK 3 re-derives `sha256` from the file's actual bytes on every run (so it
+            # cannot silently drift), and `upstream_sha256` is a citable, reviewable claim tied to
+            # `upstream_url` that any reader can independently re-fetch and re-hash.
+            #
+            # This branch is reachable ONLY when `origin == "upstream"` literally. It cannot be
+            # reached by a "self-generated" or "third-party" entry regardless of what other
+            # fields such an entry also carries (e.g. a copied `upstream_sha256` equal to its own
+            # `sha256`, attempting to mimic this condition) -- for those origins `token` is
+            # "self-generated" / "third-party", not "upstream", so control never enters this `if
+            # origin == "upstream":` block at all and falls straight through to the ordinary
+            # header check below, which still demands the matching token in the file's own
+            # comment. See the sandbox test in the lane's verification notes (card t_71d4f79a)
+            # that plants exactly this abuse attempt and confirms it still fails.
+            #
+            # SECOND GUARD (added in review, 2026-08-06): `origin` itself is a self-declared
+            # manifest field this script cannot verify (no network, no ground truth -- see the
+            # module docstring). `sha256 == upstream_sha256` alone is NOT independent evidence of
+            # genuine upstream provenance: for a self-generated file, both fields are just "the
+            # hash of my own file", copied twice by whoever writes the entry. Nothing before this
+            # line stops a contributor from mislabelling a self-generated file `origin =
+            # "upstream"` specifically to reach this branch. CHECK 4 already skips its
+            # official/nist/rfc naming ban entirely for `origin == "upstream"` entries (by design,
+            # so a genuinely-vendored file is free to keep an upstream-given name) -- which means
+            # that BEFORE this guard, an entry claiming `origin = "upstream"` at a path containing
+            # "official"/"nist"/"rfc" could reach this exemption and skip BOTH the naming ban and
+            # the header requirement with nothing but two copy-pasted hex strings and a fabricated
+            # `upstream_url`, landing exactly the failure mode card t_71d4f79a exists to prevent
+            # (self-generated content at a `kats/official/`-shaped path, presented as
+            # authoritative) -- reproduced and confirmed exploitable in review before this fix
+            # (see the lane's progress notes for the exact reproduction). Refusing the exemption
+            # whenever the path itself is still naming-banned closes that specific compounding: an
+            # entry at such a path must fall through to the ordinary header check below and
+            # physically say "upstream" in its own text, restoring the one text-based speed bump
+            # that existed before this exemption was added. This does NOT make the exemption fully
+            # sound for an `origin = "upstream"` lie at an innocuous (non-banned) path -- that
+            # residual gap is the same "we trust the declared origin, CI has no network" limitation
+            # already disclosed in this module's docstring, not something introduced or claimed
+            # fixed here.
+            recorded_sha256 = str(e.get("sha256", "")).strip().lower()
+            claimed_upstream_sha256 = str(upstream_sha256).strip().lower()
+            if (
+                recorded_sha256
+                and recorded_sha256 == claimed_upstream_sha256
+                and not name_is_banned(rel)
+            ):
+                exempted += 1
+                checked += 1
+                continue
+
         try:
             head_lines: list[str] = []
             with p.open("r", encoding="utf-8", errors="replace") as f:
@@ -357,15 +442,12 @@ def check_headers(by_path: dict[str, dict]) -> None:
                 "itself.",
             )
             continue
-        if origin == "upstream" and (not e.get("upstream_url") or not e.get("upstream_sha256")):
-            fail(
-                "CHECK 5",
-                f"{rel}: origin=upstream requires both 'upstream_url' and 'upstream_sha256' in "
-                "the manifest entry",
-            )
-            continue
         checked += 1
-    notes.append(f"CHECK 5: {checked} file header(s) cross-checked against their manifest origin")
+    notes.append(
+        f"CHECK 5: {checked} file header(s) cross-checked against their manifest origin "
+        f"({exempted} exempted: origin=upstream with sha256 == upstream_sha256, i.e. byte-for-byte "
+        "vendored files that would be falsified by adding a header comment)"
+    )
 
 
 def main() -> int:
