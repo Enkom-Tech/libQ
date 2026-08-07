@@ -28,7 +28,12 @@ import re
 import sys
 
 REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent
-EXCLUDE_PARTS = {"reference", "node_modules", "target", "vendor", "pkg-build"}
+# "pkg" is where wasm-pack writes its generated package, including a README.md copied from the
+# crate. It is gitignored (`**/pkg/` in .gitignore), so CI never sees it on a fresh checkout -- but
+# a developer who has run a wasm build locally and then runs this check gets up to 5 spurious
+# "out of sync" failures for files that are build output and are not in the repo. "pkg-build" was
+# already excluded; "pkg" is the directory wasm-pack actually uses.
+EXCLUDE_PARTS = {"reference", "node_modules", "target", "vendor", "pkg-build", "pkg"}
 
 
 def read_workspace_meta() -> tuple[str, str]:
