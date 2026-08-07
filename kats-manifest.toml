@@ -50,7 +50,16 @@
 # it exists to catch, just moved one level up.
 
 [scan]
-roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats"]
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures"]
+# `lib-q-romulus/tests/fixtures` added 2026-08-07, only after doing the same per-file provenance
+# work the note below demands: both files were matched against a live NIST download, not assumed.
+# A repo-wide sweep the same day found 49 KAT-shaped tracked files against 10 registered entries;
+# Romulus was picked out of that backlog first because it is the identical file format from the
+# identical competition as the Saturnin fixtures, so the already-proven method applied directly.
+# The remaining unregistered files (lib-q-sha3 15, lib-q-ml-dsa 12, lib-q-keccak-digest 5,
+# lib-q-threshold-kem-lattice 4, lib-q-ml-dsa/tests/test_vectors 1) are NOT yet registered and
+# adding their roots here before establishing each file's origin would just convert an unknown
+# into a wall of CHECK 2 failures. See card t_71d4f79a.
 # A file is in scope if its extension (case-insensitive, without the dot) is one of these...
 # ("txt" was added in the 2026-08-06 pass: the Saturnin fixture filenames end in e.g.
 # "_saturninhashv2.txt", not "_kat.txt", so no filename_suffix below matched them. Checked at the
@@ -121,12 +130,13 @@ upstream_url = "https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptograp
 # comment carries no sha256). Derived directly from the 2026-08-06 zip download, confirmed against
 # the file's byte content (CRLF-normalised) here on disk. Not carried over from any prior claim.
 upstream_sha256 = "9936c724fd0e19f5fc5c417b71a48b41cc2c6494eb05525b1740c9c41b21af6a"
-# This file currently has CRLF line endings on this checkout (core.autocrlf=true; unlike the other
-# two, it has never been re-checked-out since .gitattributes started pinning KAT paths to `-text`
-# in a later commit, and its own path is not yet covered by that pin -- see this manifest's git
-# history / the lane's progress notes for the suggested .gitattributes fix, out of this lane's
-# ownership). CHECK 3 hashes with CRLF normalised to LF, so this value is what it will compute
-# regardless of which line-ending form is currently checked out.
+# RESOLVED 2026-08-07 (f33dd98). This entry used to record that the file was CRLF on a Windows
+# checkout and not covered by any `-text` pin. `.gitattributes` now pins
+# `lib-q-saturnin/tests/fixtures/**`, and after re-materialising, the file on disk hashes to
+# 9936c724... -- i.e. the same value as `upstream_sha256` below, so a plain `sha256sum` on a fresh
+# clone now agrees with this manifest instead of contradicting it. CHECK 3 still normalises CRLF to
+# LF, so this value holds regardless of checkout form; the difference is that the un-normalised
+# hash no longer disagrees.
 sha256 = "9936c724fd0e19f5fc5c417b71a48b41cc2c6494eb05525b1740c9c41b21af6a"
 
 [[kat]]
@@ -147,3 +157,33 @@ origin = "upstream"
 upstream_url = "https://github.com/PQCMayo/MAYO-C (path: KAT/PQCsignKAT_24_MAYO_2.rsp), the MAYO team's own C reference implementation"
 upstream_sha256 = "a68435c4f30e4b0ed64ce8c82eb1d732fbad91399accf3416409542e57bdc966"
 sha256 = "a68435c4f30e4b0ed64ce8c82eb1d732fbad91399accf3416409542e57bdc966"
+
+# --- lib-q-romulus/tests/fixtures/ -- NIST LWC finalist-round (v1.3) reference KATs -----------
+# Registered 2026-08-07. Provenance established by LIVE DOWNLOAD, not from any vendored copy.
+#
+# The version matters and nearly produced a false alarm. The round-2 archive
+# (documents/round-2/submissions-rnd2/romulus.zip, HTTP 200, 2757627 bytes) ships Romulus v1.2
+# under paths named `romulusm1v12`/`romulusn1v12`, and BOTH vendored files MISMATCH it:
+#   romulus-m  upstream(v1.2) 155ea4aa...  vs vendored 611a190f...
+#   romulus-n  upstream(v1.2) 1c166126...  vs vendored 98b2ca3b...
+# That is not laundering. lib-q-romulus/src/lib.rs implements "Romulus v1.3", and the finalist
+# archive (documents/finalist-round/updated-submissions/romulus.zip, HTTP 200, 1665550 bytes) is
+# where v1.3 lives. Against that archive both files match byte-for-byte (LF-normalised).
+#
+# Each file appears twice in the finalist archive under equivalent paths (`romulusm` and
+# `romulusm_romulush`), with identical content; the plain path is cited below. A third variant,
+# `romulust` (b8a2584f...), matches neither vendored file and is not implemented here.
+
+[[kat]]
+path = "lib-q-romulus/tests/fixtures/romulus-m/LWC_AEAD_KAT_128_128.txt"
+origin = "upstream"
+upstream_url = "https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-submissions/romulus.zip (path inside archive: romulus/Implementations/crypto_aead/romulusm/LWC_AEAD_KAT_128_128.txt; identical content also at romulusm_romulush/)"
+upstream_sha256 = "611a190ffe24b5ff91d396e8e5b14f85bd0d4bbcb043bd9a21938072df1f4f88"
+sha256 = "611a190ffe24b5ff91d396e8e5b14f85bd0d4bbcb043bd9a21938072df1f4f88"
+
+[[kat]]
+path = "lib-q-romulus/tests/fixtures/romulus-n/LWC_AEAD_KAT_128_128.txt"
+origin = "upstream"
+upstream_url = "https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/finalist-round/updated-submissions/romulus.zip (path inside archive: romulus/Implementations/crypto_aead/romulusn/LWC_AEAD_KAT_128_128.txt; identical content also at romulusn_romulush/)"
+upstream_sha256 = "98b2ca3b1c985bfaaab1c92219f4dbf14b5e4c517f84209365ad9010b682da19"
+sha256 = "98b2ca3b1c985bfaaab1c92219f4dbf14b5e4c517f84209365ad9010b682da19"
