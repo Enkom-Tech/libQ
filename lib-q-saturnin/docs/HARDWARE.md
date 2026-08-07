@@ -495,10 +495,30 @@ counts):
 
 | variant | Enc 1536,0 | Enc 0,1536 | Enc 16,0 | Hash 1536 | Hash 16 |
 |---|---|---|---|---|---|
-| power (mW) v1 | 91 | 90 | 88 | 90 | 87 |
-| power (mW) v2 | 784 | 764 | 551 | 801 | 425 |
-| energy (pJ/bit) v1 | 1934 | 988 | 7868 | 1463 | 3066 |
-| energy (pJ/bit) v2 | 2348 | 1201 | 10 237 | 1435 | 2935 |
+| power (mW) v1 | 91 | 68 | 68 | 115 | 114 |
+| power (mW) v2 | 784 | 90 | 88 | 158 | 160 |
+| energy (pJ/bit) v1 | 1934 | 988 | 7868 | not recovered | not recovered |
+| energy (pJ/bit) v2 | 2348 | 1201 | 10 237 | not recovered | not recovered |
+
+> **CORRECTION 2026-08-07.** The power row as first written here was wrong in 4 of its 5
+> columns per variant, and the energy row's two hash columns were wrong. The figures were not
+> approximations, they were **other submissions' numbers**: `764` and `551` are SCHWAEMM-v1's
+> `Enc 0,1536` and `Enc 16,0`, and `801`/`425` are Pyjamask-v1's hash power. The energy hash
+> pair `1463`/`3066` is likewise Pyjamask-v1's. Cause: Table 20 and Table 21 extract with the
+> label column offset from the number column, so a row read positionally picks up its
+> neighbours. Saturnin's own rows carry a full complement of 8 numbers matching the 8 headed
+> columns (`91 68 68 68 88 88 115 114` and `784 90 91 88 476 590 158 160`), which is what the
+> corrected table above uses; the *broken* rows in that table are the short ones, such as
+> Pyjamask-v1 with only 5. The Saturnin rows in **Table 21 carry only 6 numbers and no hash
+> pair at all**, so those two cells are marked not recovered rather than guessed. Do not fill
+> them from the orphan `1,435 2,935` line floating between the Pyjamask rows: it is unassigned
+> in the extraction, and an energy-equals-power-times-time estimate from the corrected
+> `115 mW` and 305 cycles/block gives roughly 1830 pJ/bit for v1, which matches neither
+> candidate closely enough to identify one. Read them from the PDF or leave them empty.
+>
+> The three conclusions drawn below this table are unaffected, because each rests on the
+> `Enc 1536,0` column, which was correct: 791.7/139.7 = 5.7x throughput, 2321/1725 = 1.35x
+> LUTs, 784/91 = 8.6x power.
 
 **Read the area and power columns with this caveat attached, every time:**
 
@@ -523,6 +543,11 @@ Two shape findings worth more than the absolute numbers:
   Saturnin"; "For 16-byte ADs, Elephant drops to position 14 and Saturnin to position 19"; and
   for hashing, "The ranking of Saturnin gets significantly worse … for 16-byte inputs." The
   rate-1/2 mode plus a 256-bit block means a short message pays for a whole block either way.
+  **The corrected power table now says the same thing independently, and the erroneous one hid
+  it:** on v2, associated data costs `90 mW` against plaintext's `784 mW`, and hashing `158 mW`,
+  so the AD and hash paths are roughly an order of magnitude cheaper in power, not merely faster.
+  The original row gave AD as `764 mW` (SCHWAEMM's number), which made the two paths look
+  comparable and destroyed the corroboration.
 - **Folded versus unrolled is a real fork, not a tuning knob.** v2 is 5.7× v1's plaintext
   throughput for 35% more LUTs — but at roughly 8× the power.
 
