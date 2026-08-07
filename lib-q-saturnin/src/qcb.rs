@@ -5,9 +5,96 @@
 //! block of plaintext is encrypted by one TBC call whose tweak binds a domain separator, the
 //! nonce, and the block number; the tag is produced by encrypting a checksum of the (padded)
 //! message under a distinct domain. Because nonce + block-number give every TBC call a unique
-//! tweak (when nonces are not reused), the mode achieves rate-one encryption with a tighter
-//! quantum-security proof than Saturnin-CTR-Cascade, and every block can be processed
-//! independently (parallelized).
+//! tweak (when nonces are not reused), the mode achieves rate-one encryption, and every block
+//! can be processed independently (parallelized). Unlike Saturnin-CTR-Cascade — for which the
+//! designers state a quantum security *claim* and no proof — QCB carries an actual quantum
+//! security *proof*. That proof is an **ideal-cipher-model** proof and it holds only against
+//! adversaries whose nonces and tweaks are classical and pre-declared. See *Security model*
+//! below; do not paraphrase this as "QCB is quantum-secure" without both qualifiers.
+//!
+//! # Security model — an ideal-cipher claim, with classical tweaks
+//!
+//! **This is not a standard-model construction and must never be described as one.** The
+//! Saturnin designers say so in the very note this module cites as its normative source ("An
+//! Update on Saturnin", Section 5): "*In the ideal-cipher model*, we can prove the
+//! indistinguishability and unforgeability of QCB under quantum chosen-plaintext attacks as
+//! defined in the specification of Saturnin. The proof assumes that nonces are not controlled by
+//! the adversary and not reused." The QCB paper is equally explicit — Section 4: "we will
+//! construct a TBC from a block cipher, and prove security in the ideal cipher model";
+//! Section 6.3: "the first statement holds in the standard model, the second in the ideal cipher
+//! model"; conclusion: "a construction based on a block cipher, in the ideal cipher model: the
+//! key-tweak insertion of Section 4."
+//!
+//! Concretely: QCB's Theorem 4 and Theorem 5 (first statement) are standard-model results **about
+//! an abstract TBC** assumed (S)TPRP-secure. They do not reach this crate on their own, because
+//! here the TBC is not abstract — it is [`crate::tbc`]'s key-tweak insertion `E(K ⊕ T, ·)`, and
+//! the only result covering *that* is QCB's Proposition 1, proved in the ideal cipher model;
+//! Corollary 2 and Theorem 5's second statement inherit that model.
+//!
+//! This is not the QCB authors declining to work harder. Mennink (*Insuperability of the Standard
+//! Versus Ideal Model Gap for Tweakable Blockcipher Security*, CRYPTO 2017; IACR ePrint 2017/474)
+//! argues the gap is structural for exactly this shape of TBC — Corollary 1: "If `2^{nl/(l+1)}` is
+//! the best one can get without tweak-rekeying, optimal `2^n` provable security with
+//! tweak-rekeying via the generic standard-to-ideal reduction is impossible." Mennink does not
+//! discuss QCB; the mapping is ours, and it is a *reading*, not a quoted result: key-tweak
+//! insertion looks like a tweak-rekeyable scheme of his Section 6 class (`σ = 0`, `ℓ = 1`,
+//! `B₁(k,t) = k ⊕ t`) with related-key-deriving set `Φ_⊕`, which is the case his Proposition 1
+//! discussion singles out as worst ("for `Φ = Φ_⊕` … can be pulled up to `q'r'/|K|`"; he also
+//! notes Bellare–Kohno's attack for `Φ_⊕` beats Proposition 1's). **Read the scope before
+//! quoting it**: Section 7 is explicitly "a heuristic argument", it rests on his Assumption 1, it
+//! rules out only *optimal* `2^n` security, and Mennink himself writes that "the result does not
+//! imply that the generic standard-to-ideal reduction is unavoidable, nor that optimal security
+//! cannot be achieved". It is a reason the ideal-cipher caveat is load-bearing, not an attack.
+//!
+//! ## Where the quantum (Q2) claim stops
+//!
+//! QCB's quantum results let the adversary put the **message** in superposition. They do **not**
+//! let it put the **tweak** in superposition: the proof's model (QCB Section 4.1) opens with a
+//! "Pre-Declaration Phase" fixing a set of *classical* tweaks, and the bound depends on the size
+//! `m` of that set. That restriction is not a proof convenience — it is the only thing between
+//! this mode and a polynomial-time total key recovery. Because the tweak here *is* the key
+//! offset, a superposition over tweaks is literally a superposition over related keys, and
+//! Rötteler and Steinwandt (*A note on quantum related-key attacks*, IACR ePrint 2013/378)
+//! recover `K` with Simon's algorithm in `O(k)` queries. The QCB paper names this in Section 4.2:
+//! "It admits a simple distinguisher based on Simon's algorithm if the tweaks are queried in
+//! superposition: this is the quantum related-key attack of \[31\]. Indeed, the function
+//! `f(δ) = E_K(0) ⊕ E_{K⊕δ}(0)` admits `K` as a period". The Saturnin claim box concedes the same
+//! for the bare cipher: "Saturnin does not provide security against related-key superposition
+//! attacks (as is the case of all known block ciphers)." This is generic to every block cipher,
+//! not a Saturnin defect — but it is where the claim ends, and any caller that could expose a
+//! nonce-choosing oracle to a quantum adversary has to know it.
+//!
+//! Separately, and further out: whether the **CTX tag** `T'` this mode actually transmits (see
+//! *Key commitment* below) preserves *any* of QCB's Q2 properties is open obligation **Q-1**, and
+//! the 2026-08-07 source review made it wider rather than narrower. Claim no Q2 property for
+//! `T'`; the results quoted here are QCB's own and cover the raw tag `T`.
+//!
+//! ## The underlying assumption is the thin one
+//!
+//! Even in the ideal-cipher model the instantiation needs the *real* Saturnin16 to be related-key
+//! secure. The QCB paper says so in *Instantiation with Saturnin*: "This construction motivates
+//! further inquiry of related-key attacks, as it needs Saturnin16 to be related-key secure." The
+//! designers' own follow-up (*A note on related-key attacks on Saturnin*, Note-RK-1) gives a
+//! classical related-key key recovery on **10 of Saturnin16's 16 super-rounds** — "The total
+//! complexity will be about `2 × γ × 2^128 = 2^236`" with `γ = 2^107` structures of `2^128`
+//! plaintexts — and Dong et al. (IACR ePrint 2021/703 §5.3) reach the same 10-super-round
+//! boundary with a quantum multi-collision distinguisher ("we successfully mount QMC
+//! distinguishing attack on 10-round Saturnin. It does not directly violate designers' claim
+//! above since ours are not key-recovery attack, however reaches the 10-round boundary"). Neither
+//! violates the `2^224` claim, but the related-key margin behind QCB is **6 super-rounds of 16**
+//! (10 attacked). Compare like with like — the Saturnin-Hash literature also counts in
+//! super-rounds of 16, and an earlier draft of this paragraph mis-stated it as "6 of 32 rounds":
+//! the best *in-model* attack on Saturnin-Hash is 6 of 16 super-rounds, i.e. a **10**-super-round
+//! margin, so QCB's related-key margin is the thinner of the two — but only in-model. Free-start
+//! collision attacks on the Saturnin-Hash compression function already reach 10 of 16 super-rounds
+//! (Chen et al., IACR ePrint 2022/731 §5.2), exactly QCB's depth; they are out of scope for
+//! Saturnin-Hash because MMO fixes `IV = 0`, and no analogous escape applies here. See
+//! [`crate::commit`], obligation H-1, for the full round-count table. Note also that the designers
+//! claim related-key security only "against
+//! related-key attacks involving a small number of keys", footnoted "with related-key deriving
+//! functions satisfying the conditions of \[BK03\]", while this mode's 95-bit block index admits
+//! up to `2^95` related keys under `Φ_⊕`. Whether `2^95` is "a small number of keys" is an open
+//! cryptographer question — obligation **RK-1**, tracked alongside H-1 in [`crate::commit`].
 //!
 //! # Domain separators and tweak encoding — normative source
 //!
@@ -30,9 +117,11 @@
 //!   - **12** — final, padded associated-data block `pad(A_*)` (line 12)
 //!   - **13** — tag / message checksum (line 13)
 //! - **Tweak encoding** (QCB paper: `E~_{k,(D,IV,i)}(x) = Saturnin^D_16(k XOR (IV||i), x)`; "The
-//!   IV and the block number are simply concatenated"): `T = N (16 bytes) ‖ 0x00·8 ‖
+//!   IV and the block number are simply concatenated"): `T = N (16 bytes) ‖ 0x80 ‖ 0x00·7 ‖
 //!   block_index_be_u64 (8 bytes)`, a 256-bit value, used **identically for message and
-//!   associated-data tweaks** — the nonce is never zeroed. The QCB paper is explicit that omitting
+//!   associated-data tweaks** — the nonce is never zeroed. Byte 16 is the `10*` pad bit closing the
+//!   161-bit IV field; see the note below for why, and for what is still unconfirmed about it. The
+//!   QCB paper is explicit that omitting
 //!   it from the AD tweak breaks the mode (Section 5, *Avoiding Quantum Attacks*: "It is important
 //!   to include the IV in the tweak when processing the AD. Otherwise, there is a quantum forgery
 //!   attack based on Deutsch's algorithm.").
@@ -54,17 +143,71 @@
 //! vectors below remain **self-consistency** vectors derived from this implementation, not
 //! third-party KATs.
 //!
+//! # Key commitment — CTX transform (default-on)
+//!
+//! The tag emitted by [`Aead::encrypt`] and checked by [`Aead::decrypt`] / [`AeadDecryptSemantic`]
+//! is **not** Algorithm 1's raw tag `T`. It is `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` — the
+//! **CTX** committing-AEAD transform (Chan and Rogaway, *On Committing Authenticated-Encryption*,
+//! ESORICS 2022; IACR ePrint 2022/1260, Fig. 2 / Theorem 2), instantiated with
+//! [`SaturninHash`]. See `crate::commit` for the exact byte layout, the injectivity
+//! argument for why no length prefix is needed, and the five open cryptographer-sign-off
+//! obligations (H-1, S-2, Q-1, L-1, RK-1) that keep this **RED** — claimed, not proven, CMT-4.
+//! Of those, the 2026-08-07 primary-source review **narrowed S-2** (Chan–Rogaway's Theorem 2
+//! consumes only injectivity, not the length-preserving bijectivity their §4 prose asserts) and
+//! **widened Q-1** (Theorem 3's authenticity reduction is classical transcript replay, not merely
+//! a classically-stated proof); **L-1** (Theorem 3 is single-user, single-verification-query) and
+//! **RK-1** (`Φ_⊕` over `2^95` tweaks vs the designers' "small number of keys" related-key claim)
+//! were added by it. Nothing was closed.
+//!
+//! This closes the CMT-1 break demonstrated in `tests/key_commitment.rs`: that test file retains
+//! the full attack (padding search + closed-form associated-data solve) as a regression test that
+//! now asserts the attack **fails**, and would go red again if this transform were removed.
+//! `T'` occupies the same 32-byte offset as the old `T`, so ciphertext length and the raw-body
+//! layout are unchanged; only the last 32 bytes carry a different value, and old ciphertexts
+//! (pre-CTX, and pre-`bae2717`) do not decrypt under this code.
+//!
 //! ## Note on the IV/index split inside the 256-bit tweak
 //!
-//! The paper says only that "the IV and the block number are simply concatenated", and its stated
-//! limits ("IVs of at most 160 bits", "up to `2^95` blocks of data") are simultaneously tight only
-//! under a 160/96 split, whereas this module splits 128/128. That difference is **not observable
-//! here**: with the 16-byte nonce this mode fixes, right-zero-padding the IV to 160 bits (Algorithm
-//! 1 line 1, "Pad the initialization vector if necessary") and writing a big-endian index into the
-//! low 96 bits gives `N ‖ 0x00·4 ‖ be96(i)`, which for every `i < 2^64` is byte-for-byte the
-//! `N ‖ 0x00·8 ‖ be64(i)` built below. The two readings only diverge if an implementation
-//! *left*-pads the IV or orders the index little-endian. Absent designer KATs this cannot be
-//! settled, but the layout used here is the one both readings agree on.
+//! The paper says only that "the IV and the block number are simply concatenated", and Algorithm 1
+//! line 1 says only "Pad the initialization vector if necessary" — with no padding direction, no
+//! field widths, and no endianness. (`endian` appears zero times in the whole paper; the counter's
+//! big-endian order is fixed instead by the Saturnin submission, which does state it.) There are no
+//! designer KATs: the round-2 NIST-LWC package ships ctr-cascade, short and hash, and no QCB at all.
+//!
+//! Two readings follow, and **they do not agree**:
+//!
+//! - **zero-pad** the IV to 160 bits, big-endian index in the low 96 → byte 16 is `0x00`.
+//! - **`10*`-pad** the IV to 161 bits, 95-bit index → byte 16 is `0x80`. Differs from the first in
+//!   exactly that one byte, on every TBC call of every message.
+//!
+//! **This module implements the second**, as of 2026-08-06. It is the better-supported reading. The
+//! Saturnin submission states `10*` as the *general* rule for padding anything under 256 bits into a
+//! 256-bit block — "whenever our proposed modes … require padding a value of less than 256 bits into
+//! a 256-bit block" — and then works this exact shape byte by byte: "with a 128-bit nonce, the input
+//! … will consist in the 16 bytes of the nonce, followed by a byte of value `0x80` (first padding
+//! byte for the nonce), followed by 14 bytes of value `0x00`, followed by one byte of value `0x01`".
+//! That is a 161-bit padded nonce plus a 95-bit big-endian counter — the same 256-bit budget QCB
+//! restates as "IVs of at most 160 bits" and "up to `2^95` blocks".
+//!
+//! An earlier version of this note claimed those two limits "are simultaneously tight only under a
+//! 160/96 split". **That was backwards.** A 96-bit index field addresses `2^96`, so against a stated
+//! `2^95` bound it is slack by a factor of two; the split under which both published numbers are
+//! exactly tight is 161/95. The paper's own accounting for TRAX-QCB shows the pattern — "3 bits …
+//! for domain separation, 80 bits of IV and 45 bits of block numbering … at most `2^45 - 1` blocks",
+//! fields summing exactly to the tweak width with the bound's exponent equal to the index width.
+//! Applied here, `160 + 95 = 255` leaves one bit unaccounted for, and `10*` is exactly that bit.
+//!
+//! **This is still a reading, not a confirmed fact** — the designers have not been asked yet (card
+//! `t_7123c738`), and one sentence or one KAT from them could overturn it. It was changed now, at
+//! `0x80`, because the Saturnin hardware was at trace design: the switch costs nothing while QCB
+//! has no consumers and is opt-in, and cannot be made at all once silicon exists. Decision and its
+//! full evidence: card `t_5d1460b7`. The private `tweak` fn has its own unit test pinning the byte.
+//!
+//! Nothing else changed with it. **No interop impact** — this mode emits `T'`, not Algorithm 1's
+//! `T`, so it is wire-incompatible with paper-QCB by construction regardless (see above). **No
+//! security impact** — byte 16 is a constant under both readings and the tweak is XORed into the
+//! key, so the two differ by a fixed key offset, which is a bijection on the related-key family.
+//! Ciphertexts produced before this change do not decrypt under it; nothing had produced any.
 //!
 //! ## Usage Example
 //!
@@ -112,6 +255,11 @@ use zeroize::{
     Zeroizing,
 };
 
+use crate::commit::{
+    QCB_CTX_LABEL_V0,
+    ctx_tag,
+};
+use crate::hash::SaturninHash;
 use crate::tbc::{
     SaturninTbc,
     TBC_BLOCK_BYTES,
@@ -131,16 +279,26 @@ const DOMAIN_TAG: u8 = 13;
 /// Block size in bytes (256-bit Saturnin block).
 const BLOCK: usize = TBC_BLOCK_BYTES;
 
+/// Result of [`SaturninQcb::open_core`]: `(padded plaintext, raw Algorithm-1 tag T, received
+/// tag bytes)`. Named to satisfy `clippy::type_complexity`; see `open_core`'s own doc comment
+/// for what each field means and who is responsible for comparing the tags.
+type OpenCoreResult = (Zeroizing<Vec<u8>>, Zeroizing<[u8; BLOCK]>, [u8; BLOCK]);
+
 /// Saturnin-QCB AEAD.
 ///
-/// Holds pre-built tweakable block ciphers for the five domains used by the mode so that
-/// per-message work allocates no round constants.
+/// Holds pre-built tweakable block ciphers for the five domains used by the mode, plus a
+/// pre-built [`SaturninHash`] for the CTX commitment tag (`crate::commit`), so that per-message
+/// work allocates no round constants. Building a `SaturninHash` clocks the round-constant LFSR
+/// for both of its domains (see its own field docs) — hoisting it here, rather than inside
+/// `commit::ctx_tag`, is what keeps CTX's per-message overhead down to the permutation-call cost
+/// the design predicts instead of paying that setup on every `encrypt`/`decrypt` call.
 pub struct SaturninQcb {
     msg: SaturninTbc,
     msg_final: SaturninTbc,
     ad: SaturninTbc,
     ad_final: SaturninTbc,
     tag: SaturninTbc,
+    committer: SaturninHash,
 }
 
 impl SaturninQcb {
@@ -151,6 +309,7 @@ impl SaturninQcb {
             msg_final: SaturninTbc::new(DOMAIN_MESSAGE_FINAL).expect("domain 10 is valid"),
             ad: SaturninTbc::new(DOMAIN_AD).expect("domain 11 is valid"),
             ad_final: SaturninTbc::new(DOMAIN_AD_FINAL).expect("domain 12 is valid"),
+            committer: SaturninHash::new(),
             tag: SaturninTbc::new(DOMAIN_TAG).expect("domain 13 is valid"),
         }
     }
@@ -176,6 +335,15 @@ impl SaturninQcb {
     fn tweak(nonce16: &[u8; 16], block_index: u64) -> [u8; BLOCK] {
         let mut t = [0u8; BLOCK];
         t[0..16].copy_from_slice(nonce16);
+        // `10*` padding of the 128-bit IV up to the 161-bit IV field, per the Saturnin
+        // submission's general rule for padding a sub-256-bit value into a 256-bit block. Its own
+        // worked example for exactly this shape — a 128-bit nonce and a counter in one 256-bit
+        // block — reads "the 16 bytes of the nonce, followed by a byte of value 0x80 (first
+        // padding byte for the nonce), followed by 14 bytes of value 0x00, followed by one byte
+        // of value 0x01". This byte is that 0x80. See the module docs for why this reading beats
+        // zero-padding (161 + 95 = 256 makes both of QCB's published limits exactly tight;
+        // 160 + 96 leaves the 2^95 bound slack by a factor of two).
+        t[16] = 0x80;
         t[24..32].copy_from_slice(&block_index.to_be_bytes());
         t
     }
@@ -262,16 +430,21 @@ impl SaturninQcb {
         Ok(())
     }
 
-    /// Shared decrypt core for Layer A ([`Aead::decrypt`]) and Layer B
-    /// ([`AeadDecryptSemantic::decrypt_semantic`]). Always decrypts the full ciphertext body
-    /// before the authentication outcome is allowed to influence the returned plaintext.
-    fn decrypt_core(
+    /// Core message-decryption path, shared by [`decrypt_core`](Self::decrypt_core) and the
+    /// bench-only `__bench_only_decrypt_uncommitted` affordance below: validates ciphertext
+    /// shape, decrypts every block (full work, no early exit), and recomputes the raw
+    /// Algorithm-1 tag `T` — but does **not** check it against anything. Callers own the
+    /// comparison: production decrypt checks the received bytes against a freshly recomputed
+    /// CTX tag `T'`; the bench-only path checks them directly against `T`.
+    ///
+    /// This extraction changes no production bytes — `pinned_kat_vectors` below is the guard.
+    fn open_core(
         &self,
         key: &AeadKey,
         nonce: &Nonce,
         ciphertext: &[u8],
-        associated_data: Option<&[u8]>,
-    ) -> Result<DecryptSemanticOutcome> {
+        ad: &[u8],
+    ) -> Result<OpenCoreResult> {
         Self::validate_lengths(key, nonce)?;
 
         // Need at least one message block plus the tag.
@@ -291,7 +464,8 @@ impl SaturninQcb {
 
         let body_len = ciphertext.len() - BLOCK;
         let body = &ciphertext[..body_len];
-        let received_tag = &ciphertext[body_len..];
+        let mut received_tag = [0u8; BLOCK];
+        received_tag.copy_from_slice(&ciphertext[body_len..]);
         let m = body_len / BLOCK;
         // The body is `mf` full message blocks (domain 9) plus exactly one final padded block
         // (domain 10); `mf` is `m - 1` since the final block is always present.
@@ -302,7 +476,6 @@ impl SaturninQcb {
         key_staged.copy_from_slice(key.as_bytes());
         let mut nonce16 = Zeroizing::new([0u8; 16]);
         nonce16.copy_from_slice(nonce.as_bytes());
-        let ad = associated_data.unwrap_or(&[]);
 
         // Decrypt every block and accumulate the checksum (full work, no early exit).
         let mut plain = Zeroizing::new(Vec::with_capacity(body_len));
@@ -328,9 +501,42 @@ impl SaturninQcb {
         final_block.zeroize();
 
         let ad_auth = self.absorb_ad(&key_staged, &nonce16, ad)?;
-        let expected_tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
+        let base_tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
 
-        let tag_valid = lib_q_core::Utils::constant_time_compare(&*expected_tag, received_tag);
+        Ok((plain, base_tag, received_tag))
+    }
+
+    /// Shared decrypt core for Layer A ([`Aead::decrypt`]) and Layer B
+    /// ([`AeadDecryptSemantic::decrypt_semantic`]). Always decrypts the full ciphertext body
+    /// before the authentication outcome is allowed to influence the returned plaintext.
+    fn decrypt_core(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<DecryptSemanticOutcome> {
+        let ad = associated_data.unwrap_or(&[]);
+        let (plain, base_tag, received_tag) = self.open_core(key, nonce, ciphertext, ad)?;
+
+        let mut key_staged = Zeroizing::new([0u8; 32]);
+        key_staged.copy_from_slice(key.as_bytes());
+        let mut nonce16 = Zeroizing::new([0u8; 16]);
+        nonce16.copy_from_slice(nonce.as_bytes());
+
+        // CTX verification: recompute T' from the base tag and compare against what was
+        // received. Computed unconditionally (before any comparison) so encrypt/decrypt cost
+        // stays symmetric and no early exit leaks well-formedness ahead of the tag check.
+        let expected_tag = ctx_tag(
+            &self.committer,
+            QCB_CTX_LABEL_V0,
+            &key_staged,
+            &nonce16[..],
+            &base_tag,
+            ad,
+        )?;
+
+        let tag_valid = lib_q_core::Utils::constant_time_compare(&*expected_tag, &received_tag);
 
         if !tag_valid {
             return Ok(DecryptSemanticOutcome::AuthenticationFailed);
@@ -361,6 +567,115 @@ fn unpad_len(padded: &[u8]) -> Option<usize> {
     Some(idx - 1)
 }
 
+impl SaturninQcb {
+    /// Core message-encryption path (QCB Algorithm 1 message/AD lines), producing the
+    /// ciphertext body and the raw Algorithm-1 tag `T` — *before* CTX replaces it with `T'`.
+    /// Shared by [`Aead::encrypt`] and the bench-only `__bench_only_encrypt_uncommitted`
+    /// affordance below. This extraction changes no production bytes — `pinned_kat_vectors`
+    /// below is the guard.
+    fn seal_core(
+        &self,
+        key_staged: &[u8; 32],
+        nonce16: &[u8; 16],
+        plaintext: &[u8],
+        ad: &[u8],
+    ) -> Result<(Vec<u8>, Zeroizing<[u8; BLOCK]>)> {
+        let (full_blocks, tail) = plaintext.as_chunks::<BLOCK>();
+        let output_len = (full_blocks.len() + 2) * BLOCK;
+
+        let mut output = Vec::with_capacity(output_len);
+        let mut checksum = Zeroizing::new([0u8; BLOCK]);
+        for (i, chunk) in full_blocks.iter().enumerate() {
+            for k in 0..BLOCK {
+                checksum[k] ^= chunk[k];
+            }
+            let tweak = Self::tweak(nonce16, i as u64);
+            let mut block = *chunk;
+            self.msg.encrypt_block(key_staged, &tweak, &mut block)?;
+            output.extend_from_slice(&block);
+            block.zeroize();
+        }
+        let l = Self::last_full_index(full_blocks.len());
+        let mut final_block = Self::pad_tail(tail);
+        for k in 0..BLOCK {
+            checksum[k] ^= final_block[k];
+        }
+        self.msg_final
+            .encrypt_block(key_staged, &Self::tweak(nonce16, l), &mut final_block)?;
+        output.extend_from_slice(&final_block);
+        final_block.zeroize();
+
+        let ad_auth = self.absorb_ad(key_staged, nonce16, ad)?;
+        let base_tag = self.compute_tag(key_staged, nonce16, &checksum, l, &ad_auth)?;
+        Ok((output, base_tag))
+    }
+
+    /// **Bench-only measurement affordance — not part of the public security API.**
+    ///
+    /// Produces a ciphertext with the raw QCB Algorithm-1 tag `T` in place of the CTX-committed
+    /// tag `T'`. It exists solely so the `qcb_ctx_overhead` criterion bench can measure the CTX
+    /// transform's cost by comparing this path against [`Aead::encrypt`] in the same process.
+    ///
+    /// This is deliberately **not** a Cargo feature: any feature is public, enumerable, and
+    /// enableable by any downstream `Cargo.toml` — exactly the "ship with the security property
+    /// switched off" footgun a published crate must not offer. It is also not `cfg(test)`,
+    /// which is invisible to external bench targets (they compile against the public API, not
+    /// the crate's own test cfg). `#[doc(hidden)]` plus the `__bench_only_` name is the
+    /// minimal-exposure alternative that still links from `benches/`, and it is safe to leave
+    /// reachable because [`Aead::decrypt`] **rejects** the ciphertext this produces — see
+    /// `production_decrypt_rejects_uncommitted_ciphertext` below — so the raw-tag output cannot
+    /// be silently shipped as an interoperable peer of the committed AEAD. No semver guarantee.
+    #[doc(hidden)]
+    pub fn __bench_only_encrypt_uncommitted(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        plaintext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        Self::validate_lengths(key, nonce)?;
+        let mut key_staged = Zeroizing::new([0u8; 32]);
+        key_staged.copy_from_slice(key.as_bytes());
+        let mut nonce16 = Zeroizing::new([0u8; 16]);
+        nonce16.copy_from_slice(nonce.as_bytes());
+        let ad = associated_data.unwrap_or(&[]);
+
+        let (mut output, base_tag) = self.seal_core(&key_staged, &nonce16, plaintext, ad)?;
+        output.extend_from_slice(&*base_tag);
+        Ok(output)
+    }
+
+    /// **Bench-only measurement affordance — not part of the public security API.**
+    ///
+    /// Counterpart to [`Self::__bench_only_encrypt_uncommitted`]: verifies the raw tag `T`
+    /// directly instead of recomputing and checking `T'`. Needed because decrypt-side CTX cost
+    /// is otherwise unmeasured anywhere in this repo. Same non-guarantees as the encrypt-side
+    /// affordance above — `#[doc(hidden)]`, no semver guarantee, bench-only.
+    #[doc(hidden)]
+    pub fn __bench_only_decrypt_uncommitted(
+        &self,
+        key: &AeadKey,
+        nonce: &Nonce,
+        ciphertext: &[u8],
+        associated_data: Option<&[u8]>,
+    ) -> Result<Vec<u8>> {
+        let ad = associated_data.unwrap_or(&[]);
+        let (plain, base_tag, received_tag) = self.open_core(key, nonce, ciphertext, ad)?;
+        let tag_valid = lib_q_core::Utils::constant_time_compare(&*base_tag, &received_tag);
+        if !tag_valid {
+            return Err(Error::VerificationFailed {
+                operation: "Saturnin-QCB bench-only tag verification".to_string(),
+            });
+        }
+        let plaintext_len = unpad_len(&plain).ok_or_else(|| Error::VerificationFailed {
+            operation: "Saturnin-QCB bench-only tag verification".to_string(),
+        })?;
+        let mut out = Vec::with_capacity(plaintext_len);
+        out.extend_from_slice(&plain[..plaintext_len]);
+        Ok(out)
+    }
+}
+
 impl Aead for SaturninQcb {
     fn encrypt(
         &self,
@@ -377,34 +692,19 @@ impl Aead for SaturninQcb {
         nonce16.copy_from_slice(nonce.as_bytes());
         let ad = associated_data.unwrap_or(&[]);
 
-        let (full_blocks, tail) = plaintext.as_chunks::<BLOCK>();
-        let output_len = (full_blocks.len() + 2) * BLOCK;
-
-        let mut output = Vec::with_capacity(output_len);
-        let mut checksum = Zeroizing::new([0u8; BLOCK]);
-        for (i, chunk) in full_blocks.iter().enumerate() {
-            for k in 0..BLOCK {
-                checksum[k] ^= chunk[k];
-            }
-            let tweak = Self::tweak(&nonce16, i as u64);
-            let mut block = *chunk;
-            self.msg.encrypt_block(&key_staged, &tweak, &mut block)?;
-            output.extend_from_slice(&block);
-            block.zeroize();
-        }
-        let l = Self::last_full_index(full_blocks.len());
-        let mut final_block = Self::pad_tail(tail);
-        for k in 0..BLOCK {
-            checksum[k] ^= final_block[k];
-        }
-        self.msg_final
-            .encrypt_block(&key_staged, &Self::tweak(&nonce16, l), &mut final_block)?;
-        output.extend_from_slice(&final_block);
-        final_block.zeroize();
-
-        let ad_auth = self.absorb_ad(&key_staged, &nonce16, ad)?;
-        let tag = self.compute_tag(&key_staged, &nonce16, &checksum, l, &ad_auth)?;
-        output.extend_from_slice(&*tag);
+        let (mut output, base_tag) = self.seal_core(&key_staged, &nonce16, plaintext, ad)?;
+        // CTX (Chan-Rogaway, ESORICS 2022): replace the base tag with
+        // T' = SaturninHash(label || K || N || T || A) at the same offset and width. See
+        // `crate::commit` for the byte layout and the open sign-off obligations.
+        let committed_tag = ctx_tag(
+            &self.committer,
+            QCB_CTX_LABEL_V0,
+            &key_staged,
+            &nonce16[..],
+            &base_tag,
+            ad,
+        )?;
+        output.extend_from_slice(&*committed_tag);
         Ok(output)
     }
 
@@ -450,6 +750,27 @@ mod tests {
 
     fn key() -> AeadKey {
         AeadKey::new((0..32u8).collect::<Vec<_>>())
+    }
+
+    /// Pins the `10*` pad byte that closes the 161-bit IV field. This is the decision recorded on
+    /// card `t_5d1460b7`, taken on 2026-08-06 while the Saturnin hardware was still at trace
+    /// design — silicon that bakes the wrong byte here cannot be corrected later. The three
+    /// independent transcription gates in `tests/` would also catch a change (verified: flipping
+    /// this byte in production alone turned 3 of them red), but they check all of Algorithm 1 at
+    /// once; this states the one byte outright so the reason survives.
+    #[test]
+    fn tweak_carries_the_pad_bit_at_byte_16() {
+        let n: [u8; 16] = core::array::from_fn(|i| i as u8);
+        let t = SaturninQcb::tweak(&n, 1);
+
+        assert_eq!(&t[0..16], &n, "IV occupies the high 16 bytes");
+        assert_eq!(t[16], 0x80, "byte 16 is the 10* pad bit, not zero");
+        assert_eq!(&t[17..24], &[0u8; 7], "rest of the IV field is zero");
+        assert_eq!(
+            &t[24..32],
+            &1u64.to_be_bytes(),
+            "block index is big-endian, right-aligned in the counter field"
+        );
     }
 
     fn nonce() -> Nonce {
@@ -547,9 +868,18 @@ mod tests {
     /// Pinned self-consistency vectors for this instantiation (key = 00..1f, nonce = 00..0f).
     ///
     /// These are **derived** from the construction in this module (Saturnin TBC + the documented
-    /// QCB instantiation), not official designer KATs — see the module-level instantiation note.
-    /// They lock the byte-level behavior so any accidental change to padding, tweak encoding,
-    /// domains, or AD folding is caught.
+    /// QCB instantiation + the CTX committing transform, `crate::commit`), not official designer
+    /// KATs — see the module-level instantiation note. They lock the byte-level behavior so any
+    /// accidental change to padding, tweak encoding, domains, AD folding, or the CTX tag is
+    /// caught.
+    ///
+    /// Regenerated twice. First **for CTX** (card `t_16ddf21c`), which changed only the last 32
+    /// bytes — the tag became `T'` instead of `T` and the message path was untouched. Then **for
+    /// the tweak's `10*` pad byte** on 2026-08-06 (card `t_5d1460b7`), which changed *every* byte:
+    /// the tweak feeds the key of every TBC call, so the message body moves too, not just the tag.
+    /// If both regenerations are ever in doubt, the independent transcription in
+    /// `tests/qcb_spec.rs` is the oracle — these vectors are downstream of this module, that file
+    /// is not.
     #[test]
     fn pinned_kat_vectors() -> Result<()> {
         let aead = SaturninQcb::new();
@@ -557,27 +887,27 @@ mod tests {
             (
                 "",
                 "",
-                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a133118296df4f9f7b16675856fc24eb3be7a8de774704a90c3381b3c52575d16",
+                "b81b8de9119ed53bc6421ea5823ec80a7b81055c5873a8748b0caace528137767d797203c38ca8a2093a015cdba753c7fb14db5e99e5511c189efed9b54e3395",
             ),
             (
                 "",
                 "6173736f636961746564",
-                "718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29ab173cda4ef86237d60db72575e8d881e3e31d1f7f7628569d82266487c47738a",
+                "b81b8de9119ed53bc6421ea5823ec80a7b81055c5873a8748b0caace52813776599241e4e5492fe0398a3b2bb7fc7295857a79fb5b13e9a5e22c3a3ac5d2eac0",
             ),
             (
                 "616263",
                 "",
-                "f4620482177e4946c61ae01ff424a467ab76d31a63e75d045d3daaad64909edf08b6b6e38147a4ba2b1c3c9f55283cf5c685e414fdfb6d8c4422932934c2a453",
+                "c0b62eebea0ed4a1ef69709725eb6dde0c0937cdc194c106857aaee75f1a8a8d6132069166ec9b024ad79dbb00812c3dbdf81285e4a9091bb40c4dd6c411c4dc",
             ),
             (
                 "0000000000000000000000000000000000000000000000000000000000000000",
                 "686472",
-                "16e51991ae3cb7cb92f3847c326188cb007267ece8153d03aeb98d4f161c84a7718cd938614ad4c64e971ae1df9a657e290f3d862e5429088a7066642b07b29a1a1d20b6f06c939cf3b4dbdb64c0535e213daefb93bcdcd0c1eadd7b99ed7752",
+                "73bbb5998dd8c577c84316aa339af10a5fab5b7c6b14ce5a24fa9aa57930bbd8b81b8de9119ed53bc6421ea5823ec80a7b81055c5873a8748b0caace528137769a0f550b4266ee02a3211a523c57f7690ef00326e6dc0d3981d80ea64e1705c9",
             ),
             (
                 "54686520717569636b2062726f776e20666f78206a756d7073206f76657220746865206c617a7920646f672121",
                 "61642d31",
-                "fe81caa8f1ee16e54fd7b3df31247e7ccd4295382cff4f9f7efefb5e970c68809248800e70f51a3ba933d3332dbe0d0b4f49c2eab471f2bf9370c582289efeb0129c8ff26116dc713af5af4b745237e3bd266afa22cf1d122f9afee189d7082d",
+                "a74a684111f42d07b62934a5b427939dca6103c3f0e4fcb00c98f69a4423b9adb6b5f207fafc1db281b338d60ed0b9ea93d81ffc3d5e91f82ef49d4f784f480e84f613c130c4a84ecec60cebf1d979d5cfb411ac5ad51787b64d76a82b08e354",
             ),
         ];
         for (pt_hex, ad_hex, ct_hex) in cases {
@@ -658,5 +988,69 @@ mod tests {
         assert!(aead.decrypt(&key(), &nonce(), &[0u8; 40], None).is_err());
         // Non block-aligned body.
         assert!(aead.decrypt(&key(), &nonce(), &[0u8; 65], None).is_err());
+    }
+
+    // --- Bench-only affordance tests (measurement lane) -----------------------------------
+    //
+    // These pin the property the `qcb_ctx_overhead` bench and the safety argument in the doc
+    // comments above both depend on: the bench-only path takes a genuinely different tag route
+    // (RED phase below proves that, not just that the two names happen to alias one code path),
+    // and production `decrypt` refuses to accept what it produces.
+
+    #[test]
+    fn uncommitted_shares_body_but_not_tag() -> Result<()> {
+        let aead = SaturninQcb::new();
+        let committed = aead.encrypt(&key(), &nonce(), b"hello world", Some(b"ad"))?;
+        let uncommitted =
+            aead.__bench_only_encrypt_uncommitted(&key(), &nonce(), b"hello world", Some(b"ad"))?;
+        assert_eq!(committed.len(), uncommitted.len());
+        let body_len = committed.len() - 32;
+        // Same message/AD path (seal_core) produces the same body bytes...
+        assert_eq!(committed[..body_len], uncommitted[..body_len]);
+        // ...but the last 32 bytes (the tag) differ: committed carries T', uncommitted carries
+        // the raw Algorithm-1 tag T. (RED phase: asserting these EQUAL fails — see progress
+        // file r3-measurement-impl.md for the verbatim failure — proving this is a genuinely
+        // different tag path, not an alias of the committed one.)
+        assert_ne!(committed[body_len..], uncommitted[body_len..]);
+        Ok(())
+    }
+
+    #[test]
+    fn production_decrypt_rejects_uncommitted_ciphertext() -> Result<()> {
+        let aead = SaturninQcb::new();
+        let uncommitted =
+            aead.__bench_only_encrypt_uncommitted(&key(), &nonce(), b"hello world", Some(b"ad"))?;
+        // The production decryptor recomputes CTX's T' and compares against the received bytes;
+        // a raw-tag ciphertext must be rejected, not silently accepted as if it were committed.
+        // (RED phase: asserting `.is_ok()` here fails — see progress file
+        // r3-measurement-impl.md for the verbatim failure.)
+        assert!(matches!(
+            aead.decrypt(&key(), &nonce(), &uncommitted, Some(b"ad")),
+            Err(Error::VerificationFailed { .. })
+        ));
+        assert_eq!(
+            aead.decrypt_semantic(&key(), &nonce(), &uncommitted, Some(b"ad"))?,
+            DecryptSemanticOutcome::AuthenticationFailed
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn uncommitted_round_trip() -> Result<()> {
+        let aead = SaturninQcb::new();
+        for len in [0usize, 1, 31, 32, 100] {
+            let pt: Vec<u8> = (0..len).map(|i| i as u8).collect();
+            let ct = aead.__bench_only_encrypt_uncommitted(&key(), &nonce(), &pt, Some(b"hdr"))?;
+            let dec = aead.__bench_only_decrypt_uncommitted(&key(), &nonce(), &ct, Some(b"hdr"))?;
+            assert_eq!(dec, pt, "len={len}");
+        }
+        // A flipped tag bit must be rejected.
+        let mut bad = aead.__bench_only_encrypt_uncommitted(&key(), &nonce(), b"msg", None)?;
+        *bad.last_mut().unwrap() ^= 0x01;
+        assert!(
+            aead.__bench_only_decrypt_uncommitted(&key(), &nonce(), &bad, None)
+                .is_err()
+        );
+        Ok(())
     }
 }

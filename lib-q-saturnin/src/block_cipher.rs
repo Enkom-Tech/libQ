@@ -35,7 +35,8 @@
 //! - **Block size**: 256 bits (32 bytes)
 //! - **Throughput**: ~50-200 MB/s for single blocks
 //! - **Memory usage**: Constant, independent of number of blocks
-//! - **Security level**: 256-bit post-quantum security
+//! - **Security claim** (LWC spec §2.1, single-key setting): no classical attack with
+//!   `T/p < 2^224`; no quantum attack with `T/p < 2^112`
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;

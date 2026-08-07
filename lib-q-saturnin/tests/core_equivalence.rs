@@ -131,8 +131,10 @@ fn core_constants_are_derived_not_hand_written() {
                 // Name the transposition explicitly when that is what it is — it is the failure
                 // mode this test was written for, and it is invisible in a raw hex diff.
                 let transposed = got.len() == want.len() &&
-                    got.chunks_exact(2)
-                        .zip(want.chunks_exact(2))
+                    got.as_chunks::<2>()
+                        .0
+                        .iter()
+                        .zip(want.as_chunks::<2>().0.iter())
                         .all(|(g, w)| g[0] == w[1] && g[1] == w[0]);
                 wrong.push(format!(
                     "  (rounds={rounds}, domain={domain}){}\n     got  {:04X?}…\n     want {:04X?}…",
