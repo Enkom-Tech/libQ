@@ -116,7 +116,9 @@ pub fn decode_round1_commitments(wire: &[u8]) -> Result<CoeffCommitments, DkgErr
         return Err(DkgError::WireTruncated);
     }
     let commitments = body
-        .chunks_exact(COMMITMENT_WIRE_BYTES)
+        .as_chunks::<COMMITMENT_WIRE_BYTES>()
+        .0
+        .iter()
         .map(|chunk| {
             let mut inner = 0usize;
             read_commitment(chunk, &mut inner)
@@ -280,7 +282,9 @@ fn read_rq_vec(wire: &[u8], cur: &mut usize, max_len: usize) -> Result<Vec<Rq>, 
         return Err(DkgError::Encoding);
     }
     let body = read_bytes(wire, cur, n.saturating_mul(RQ_BYTES))?;
-    body.chunks_exact(RQ_BYTES)
+    body.as_chunks::<RQ_BYTES>()
+        .0
+        .iter()
         .map(|chunk| rq_from_le_bytes(chunk).ok_or(DkgError::Encoding))
         .collect()
 }
