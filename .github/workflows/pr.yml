@@ -162,7 +162,7 @@ jobs:
             # CI, with a different denominator), which left floors that passed while protecting
             # nothing. ci_guard_coverage_floors.py fails if these drift from coverage.yml.
             lib-q-transcript) echo "coverage-threshold=92" >> $GITHUB_OUTPUT ;;     # CI 97.96%
-            lib-q-saturnin) echo "coverage-threshold=89" >> $GITHUB_OUTPUT ;;     # CI 94.43%
+            lib-q-saturnin) echo "coverage-threshold=92" >> $GITHUB_OUTPUT ;;     # CI 97.25%
             lib-q-fn-dsa-kgen) echo "coverage-threshold=87" >> $GITHUB_OUTPUT ;;     # CI 92.65%
             lib-q-blind-pcs) echo "coverage-threshold=95" >> $GITHUB_OUTPUT ;;     # CI 100.00%
             lib-q-ring) echo "coverage-threshold=83" >> $GITHUB_OUTPUT ;;     # CI 88.87%

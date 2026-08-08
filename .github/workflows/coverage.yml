@@ -334,7 +334,7 @@ jobs:
           for crate in ${{ matrix.crates }}; do
             # Measured 2026-08-08 (left of the arrow), floor (right). See docs/coverage-scope.md.
             case "$crate" in
-              lib-q-saturnin)     THRESH=89 ;;  # CI 94.43%
+              lib-q-saturnin)     THRESH=92 ;;  # CI 97.25%
               lib-q-transcript)   THRESH=92 ;;  # CI 97.96%
               lib-q-fn-dsa-kgen)  THRESH=87 ;;  # CI 92.65%
               lib-q-blind-pcs)    THRESH=95 ;;  # CI 100.00%
