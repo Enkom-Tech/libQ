@@ -5,6 +5,29 @@ assumption-free closure of the malformed-ciphertext insider probe (the last open
 `THRESHOLD_SECURITY.md`). Nothing here changes the frozen v1 wire; the proof system is an
 *additive*, optional gate on the partial-decapsulation path.
 
+> ## ⚠ SUPERSEDED IN PART — the R3 relation design described below was UNSOUND (card `t_a73aaed2`)
+>
+> **Everything this document says about the evaluation-at-`ζ` relation, the quotient folds
+> (`H_k`/`H_b`, `r3a_quotient_poly`/`r3b_quotient_poly`), `HornerFoldAir`, `derive_zetas`,
+> `horner_public_values` and the `((2N−2)/q)^m` soundness figure is obsolete, and the soundness
+> claims attached to them were WRONG.** The quotient was a free prover-chosen column committed after
+> `ζ` was already fixed by the statement, so `H(ζ) := D(ζ)/(ζ^N+1)` satisfied the relation for ANY
+> ciphertext. The check was vacuous, not merely grindable. Confirmed by exploit at every tier,
+> including the "complete closure" tier at production FRI parameters with both `m = 1` and `m = 3`.
+>
+> Two further operands of the same class were also free and are also closed: tier 1's `g` fold, and
+> `EncodeMuFoldAir`'s 256 μ-bits (which allowed an arbitrary malformed `v` via a subset-sum, because
+> `⟨encode(μ), κ⟩` is linear with public coefficients and `κ` is known before μ is chosen).
+>
+> The shipped design now tests the already-reduced residual with a public random linear functional
+> `⟨D, κ⟩ = 0` — no quotient, no free operand. The authority is the crate source, not this file:
+> `lib-q-zk-encryption-proof/src/relation_assembly.rs` (`corr_negacyclic`),
+> `src/zq.rs` (`DotFoldAir`), `src/mu_bits.rs` (the μ binding), and the soundness section of
+> `src/encryption_proof.rs`.
+>
+> The byte-provenance half of this document (sponge, squeeze bridge, samplers, COEFF joins) is
+> unchanged and still accurate. **The crate remains RED/unsigned.**
+
 Date: 2026-07-10. Crate under construction: **`lib-q-zk-encryption-proof`**.
 
 ---
