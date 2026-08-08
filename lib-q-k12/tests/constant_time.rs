@@ -24,26 +24,46 @@ const ITERATIONS: usize = 1000;
 /// How many times each measurement is repeated before a timing is accepted.
 const REPS: usize = 5;
 
-/// Time `iterations` runs of `op`, repeated [`REPS`] times, and keep the MINIMUM.
+/// Time `iterations` runs of `op` for EACH item, INTERLEAVING the repetitions, and keep each
+/// item's minimum.
 ///
-/// A single wall-clock sample on a shared CI runner is not a measurement of the
-/// code under test — it is that plus whatever the scheduler, another tenant, or a
-/// frequency transition did during the sample. Those perturbations are strictly
-/// *additive*: they can only ever make an observation slower, never faster. The
-/// minimum over repetitions is therefore the maximum-likelihood estimate of the
-/// true cost, and taking it makes these assertions STRICTER, not looser — the
-/// bands below now have to be cleared by the code's actual timing rather than by
+/// Why the MINIMUM: a single wall-clock sample on a shared CI runner is not a measurement of the
+/// code under test — it is that plus whatever the scheduler, another tenant, or a frequency
+/// transition did during the sample. Those perturbations are strictly *additive*: they can only
+/// ever make an observation slower, never faster. The minimum over repetitions is therefore the
+/// maximum-likelihood estimate of the true cost, and taking it makes the assertions below
+/// STRICTER, not looser — the bands have to be cleared by the code's actual timing rather than by
 /// noise that happened to inflate every sample together.
-fn min_time(iterations: usize, mut op: impl FnMut()) -> Duration {
-    let mut best = Duration::MAX;
+///
+/// Why INTERLEAVED: the minimum only helps if each operand gets at least one clean repetition.
+/// The previous helper measured one operand at a time, running all [`REPS`] repetitions of
+/// operand 0 to completion before operand 1 began, so any perturbation lasting longer than a
+/// single repetition — a frequency ramp at the start of the test, a co-tenant burst, a migration
+/// to a busier core — landed entirely on whichever operand held the CPU and inflated *every*
+/// repetition of it, minimum included. The comparison downstream cannot tell that apart from a
+/// content-dependent difference, which is precisely what these tests claim to measure.
+///
+/// OBSERVED 2026-08-08, CI run 31259969377: `test_hash_constant_time` failed with input pattern 0
+/// at 12_964_479 ns against an 8_593_306 ns average (the other three clustered near 7_140_000).
+/// Pattern 0 is both the first operand measured and the one the warm-up loop had specifically
+/// primed, so a cold cache does not explain it — the schedule does.
+///
+/// Interleaving spreads each operand's repetitions across the whole measurement window, so a
+/// transient can spoil at most one repetition per operand and every operand keeps clean
+/// repetitions for its minimum. This does not widen any tolerance band: it removes a measurement
+/// bias that was being charged to the code under test.
+fn min_time_each<T>(iterations: usize, items: &[T], mut op: impl FnMut(&T)) -> Vec<Duration> {
+    let mut best = vec![Duration::MAX; items.len()];
     for _ in 0..REPS {
-        let start = Instant::now();
-        for _ in 0..iterations {
-            op();
-        }
-        let elapsed = start.elapsed();
-        if elapsed < best {
-            best = elapsed;
+        for (i, item) in items.iter().enumerate() {
+            let start = Instant::now();
+            for _ in 0..iterations {
+                op(item);
+            }
+            let elapsed = start.elapsed();
+            if elapsed < best[i] {
+                best[i] = elapsed;
+            }
         }
     }
     best
@@ -63,24 +83,24 @@ fn test_hash_constant_time() {
     let random_pattern: Vec<u8> = (0..size).map(|i| (i * 251) as u8).collect();
 
     let inputs = [&zeros, &ones, &alternating, &random_pattern];
-    let mut times = Vec::new();
 
-    // Warm up
+    // Warm up over EVERY pattern, not just the first. Priming one operand and then measuring it
+    // first is the shape that produced the 2026-08-08 failure described on `min_time_each`.
     for _ in 0..100 {
-        let mut hasher = Kt128::default();
-        hasher.update(&zeros);
-        let _ = hasher.finalize_boxed(32);
-    }
-
-    // Measure timing for each input pattern
-    for input in &inputs {
-        times.push(min_time(ITERATIONS, || {
+        for input in &inputs {
             let mut hasher = Kt128::default();
             hasher.update(input);
-            let result = hasher.finalize_boxed(32);
-            std::hint::black_box(result);
-        }));
+            let _ = hasher.finalize_boxed(32);
+        }
     }
+
+    // Measure timing for each input pattern, interleaved.
+    let times = min_time_each(ITERATIONS, &inputs, |input| {
+        let mut hasher = Kt128::default();
+        hasher.update(input);
+        let result = hasher.finalize_boxed(32);
+        std::hint::black_box(result);
+    });
 
     // Calculate average and check variance
     let avg_time = times.iter().sum::<Duration>() / times.len() as u32;
@@ -148,24 +168,22 @@ fn test_customization_constant_time() {
 
     let customizations: [&[u8]; 4] = [zeros.as_slice(), ones.as_slice(), &alternating, &counter];
 
-    let mut times = Vec::new();
-
-    // Warm up
+    // Warm up over every customization, for the reason on `min_time_each`.
     for _ in 0..100 {
-        let mut hasher = Kt128::new(&zeros);
-        hasher.update(&data);
-        let _ = hasher.finalize_boxed(32);
-    }
-
-    // Measure timing for each customization
-    for custom in &customizations {
-        times.push(min_time(ITERATIONS, || {
+        for custom in &customizations {
             let mut hasher = Kt128::new(custom);
             hasher.update(&data);
-            let result = hasher.finalize_boxed(32);
-            std::hint::black_box(result);
-        }));
+            let _ = hasher.finalize_boxed(32);
+        }
     }
+
+    // Measure timing for each customization, interleaved.
+    let times = min_time_each(ITERATIONS, &customizations, |custom| {
+        let mut hasher = Kt128::new(custom);
+        hasher.update(&data);
+        let result = hasher.finalize_boxed(32);
+        std::hint::black_box(result);
+    });
 
     // Check timing consistency. The band stays at 60% rather than being tightened:
     // all four inputs now do provably identical work, so the only thing left for the
@@ -202,8 +220,6 @@ fn test_chunk_boundary_constant_time() {
         10000, // Very large input
     ];
 
-    let mut times = Vec::new();
-
     // Warm up
     let test_data = vec![0x55u8; 10000];
     for _ in 0..100 {
@@ -212,17 +228,17 @@ fn test_chunk_boundary_constant_time() {
         let _ = hasher.finalize_boxed(32);
     }
 
-    // Measure timing for each size
-    for &size in &sizes {
-        let data = vec![0x55u8; size];
-        // Fewer iterations for larger data
-        times.push(min_time(ITERATIONS / 2, || {
-            let mut hasher = Kt128::default();
-            hasher.update(&data);
-            let result = hasher.finalize_boxed(32);
-            std::hint::black_box(result);
-        }));
-    }
+    // Measure timing for each size, interleaved. The buffers move up front because the operands
+    // must all exist before the interleaved schedule starts; allocation was already outside the
+    // timed region before this change, so nothing about what is measured has moved.
+    let datasets: Vec<Vec<u8>> = sizes.iter().map(|&size| vec![0x55u8; size]).collect();
+    // Fewer iterations for larger data
+    let times = min_time_each(ITERATIONS / 2, &datasets, |data| {
+        let mut hasher = Kt128::default();
+        hasher.update(data);
+        let result = hasher.finalize_boxed(32);
+        std::hint::black_box(result);
+    });
 
     // Check that timing scales reasonably with data size
     // Larger inputs should take more time, but the ratio should be consistent
@@ -246,7 +262,6 @@ fn test_chunk_boundary_constant_time() {
 fn test_xof_output_constant_time() {
     let data = vec![0x33u8; 1000];
     let output_sizes = [32, 64, 128, 256, 1000];
-    let mut times = Vec::new();
 
     // Warm up
     for _ in 0..100 {
@@ -255,15 +270,13 @@ fn test_xof_output_constant_time() {
         let _ = hasher.finalize_boxed(64);
     }
 
-    // Measure timing for different output sizes
-    for &size in &output_sizes {
-        times.push(min_time(ITERATIONS, || {
-            let mut hasher = Kt128::default();
-            hasher.update(&data);
-            let result = hasher.finalize_boxed(size);
-            std::hint::black_box(result);
-        }));
-    }
+    // Measure timing for different output sizes, interleaved.
+    let times = min_time_each(ITERATIONS, &output_sizes, |&size| {
+        let mut hasher = Kt128::default();
+        hasher.update(&data);
+        let result = hasher.finalize_boxed(size);
+        std::hint::black_box(result);
+    });
 
     // Check that timing scales linearly with output size
     for i in 1..times.len() {
@@ -289,24 +302,23 @@ fn test_reset_constant_time() {
     let data3 = vec![0x33u8; 500];
 
     let datasets = [&data1, &data2, &data3];
-    let mut times = Vec::new();
 
-    // Warm up
+    // Warm up over every dataset, for the reason on `min_time_each`.
     for _ in 0..100 {
-        let mut hasher = Kt128::default();
-        hasher.update(&data1);
-        hasher.reset();
-    }
-
-    // Measure reset timing after processing different amounts of data
-    for data in &datasets {
-        times.push(min_time(ITERATIONS, || {
+        for data in &datasets {
             let mut hasher = Kt128::default();
             hasher.update(data);
             hasher.reset();
-            std::hint::black_box(&hasher);
-        }));
+        }
     }
+
+    // Measure reset timing after processing different amounts of data, interleaved.
+    let times = min_time_each(ITERATIONS, &datasets, |data| {
+        let mut hasher = Kt128::default();
+        hasher.update(data);
+        hasher.reset();
+        std::hint::black_box(&hasher);
+    });
 
     // Reset should take consistent time regardless of previous state
     let avg_time = times.iter().sum::<Duration>() / times.len() as u32;
@@ -356,7 +368,6 @@ fn test_reset_constant_time() {
 #[test]
 fn test_memory_access_constant_time() {
     let sizes = [100, 500, 1000, 2000];
-    let mut times = Vec::new();
 
     // Warm up
     let test_data = vec![0x77u8; 2000];
@@ -366,16 +377,19 @@ fn test_memory_access_constant_time() {
         let _ = hasher.finalize_boxed(32);
     }
 
-    // Test different input sizes with same content pattern
-    for &size in &sizes {
-        let data: Vec<u8> = (0..size).map(|i| (i * 17) as u8).collect();
-        times.push(min_time(ITERATIONS, || {
-            let mut hasher = Kt128::default();
-            hasher.update(&data);
-            let result = hasher.finalize_boxed(32);
-            std::hint::black_box(result);
-        }));
-    }
+    // Test different input sizes with same content pattern, interleaved. Buffers move up front
+    // because the interleaved schedule needs every operand to exist before it starts; allocation
+    // was already outside the timed region.
+    let datasets: Vec<Vec<u8>> = sizes
+        .iter()
+        .map(|&size| (0..size).map(|i| (i * 17) as u8).collect())
+        .collect();
+    let times = min_time_each(ITERATIONS, &datasets, |data| {
+        let mut hasher = Kt128::default();
+        hasher.update(data);
+        let result = hasher.finalize_boxed(32);
+        std::hint::black_box(result);
+    });
 
     // Verify timing scales reasonably with input size
     let avg_time = times.iter().sum::<Duration>() / times.len() as u32;
