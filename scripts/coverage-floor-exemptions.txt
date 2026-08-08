@@ -5,63 +5,42 @@
 # Format:  <crate> | <reason>
 #
 # This file is a RECORD OF A GAP, not a set of approvals. Every line is a published crate
-# that no workflow measures against a coverage threshold -- so its coverage can go to zero
-# without any CI run noticing. Baseline taken 2026-08-08: 77 published crates, 46 gated
-# names, 31 unmeasured.
+# that no workflow measures against a coverage threshold, so its coverage can fall to zero
+# without any CI run noticing.
 #
-# The guard exists to stop that number growing silently. A newly published crate fails
-# until someone puts it in a *_CRATES list or writes a line here; a line for a crate that
-# has since been gated also fails, so this file cannot drift out of date.
+# History: the 2026-08-08 baseline was 77 published crates, 46 gated names, 31 unmeasured.
+# 23 of those 31 were then measured and gated in coverage.yml's `extended-coverage` job, at
+# floors set ~5 points below their measured coverage. These 8 are what is left.
 #
-# Removing a line -- by gating the crate -- is the point. Adding one should feel like debt.
+# The guard exists to stop the number growing silently. A newly published crate fails until
+# someone puts it in a gated list or writes a line here; a line for a crate that has since
+# been gated ALSO fails, so this file cannot drift out of date.
 #
-# Why not simply gate all 31: the per-crate coverage step already runs ~65 minutes for 18
-# crates under debug tarpaulin. Tripling that has its own cost, and for the heavy lattice
-# crates coverage.yml already records that instrumented keygen is impractically slow. That
-# is a CI-budget decision, made deliberately, not by a script edit.
+# Removing a line -- by measuring the crate and gating it -- is the point. Adding one should
+# feel like debt.
 
 # --- Documented as impractical to instrument -------------------------------------------
-# coverage.yml (comment above CORE_CRATES) states these are excluded because their keygen
-# is far too slow under debug tarpaulin, which is what that step builds.
+# coverage.yml (comment above CORE_CRATES) states these are excluded because their keygen is
+# far too slow under debug tarpaulin, which is what that step builds. Not re-litigated here.
 lib-q-dkg | coverage.yml: keygen far too slow to instrument under debug tarpaulin
 lib-q-threshold-raccoon | coverage.yml: keygen far too slow to instrument under debug tarpaulin
 lib-q-threshold-kem-lattice | coverage.yml: keygen far too slow to instrument under debug tarpaulin
 lib-q-blind-token | coverage.yml: keygen far too slow to instrument under debug tarpaulin; debug keygen measured at ~7 min
 
-# --- Internal split of a gated parent ----------------------------------------------------
-# lib-q-fn-dsa IS gated. These five are the sub-crates it is composed of, published so the
-# facade can depend on them by version. Exercised through the parent's tests, but NOT
-# measured by its threshold, which reads only the parent's own coverage report.
-lib-q-fn-dsa-alg | sub-crate of the gated lib-q-fn-dsa facade; not separately measured
-lib-q-fn-dsa-comm | sub-crate of the gated lib-q-fn-dsa facade; not separately measured
-lib-q-fn-dsa-kgen | sub-crate of the gated lib-q-fn-dsa facade; not separately measured
-lib-q-fn-dsa-sign | sub-crate of the gated lib-q-fn-dsa facade; not separately measured
-lib-q-fn-dsa-vrfy | sub-crate of the gated lib-q-fn-dsa facade; not separately measured
-lib-q-hqc-traits | trait definitions split out of lib-q-hqc; little executable code
+# --- No coverable lines: a floor would be meaningless, not merely low --------------------
+# tarpaulin reports "No coverable lines found" for these under its llvm engine, so every
+# possible threshold above 0 fails and 0 enforces nothing. Their tests DO run and pass
+# (lib-q-stark-baby-bear: 33 tests) -- this is a measurement property, generic code that is
+# instantiated and inlined in its callers rather than an absence of testing. Do not read
+# these as untested crates.
+lib-q-fn-dsa-alg | tarpaulin reports "No coverable lines found"; 2 tests run and pass
+lib-q-stark-baby-bear | tarpaulin reports "No coverable lines found"; 33 tests run and pass
 
-# --- Untriaged --------------------------------------------------------------------------
-# No decision has been recorded for these. They are not justified; they are simply not
-# gated, and were not noticed until the 2026-08-08 sweep, because a crate absent from the
-# lists cannot lower a number that is never computed for it. Several implement shipped
-# primitives and are the ones to gate first when the runtime budget is settled.
-lib-q-saturnin | UNTRIAGED: core GIP cipher, shipped, unmeasured
-lib-q-hqc | UNTRIAGED: shipped KEM, unmeasured
-lib-q-slh-dsa | UNTRIAGED: FIPS 205 signature scheme, shipped, unmeasured
-lib-q-mayo | UNTRIAGED: shipped signature scheme, unmeasured
-lib-q-mac | UNTRIAGED: shipped primitive, unmeasured
-lib-q-prf | UNTRIAGED: shipped primitive, unmeasured
-lib-q-random | UNTRIAGED: shipped RNG, unmeasured
-lib-q-duplex-aead | UNTRIAGED: shipped AEAD, unmeasured
-lib-q-tweak-aead | UNTRIAGED: shipped AEAD, unmeasured
-lib-q-rocca-s | UNTRIAGED: shipped cipher, unmeasured
-lib-q-romulus | UNTRIAGED: shipped cipher, unmeasured
-lib-q-ring | UNTRIAGED: unmeasured
-lib-q-ring-sig | UNTRIAGED: unmeasured
-lib-q-mve | UNTRIAGED: unmeasured
-lib-q-lattice-zkp | UNTRIAGED: unmeasured
-lib-q-stark-baby-bear | UNTRIAGED: unmeasured; sibling lib-q-stark-* crates are gated
-lib-q-transcript | UNTRIAGED: new Fiat-Shamir transcript crate, unmeasured
-lib-q-types | UNTRIAGED: unmeasured
-lib-q-sca-test | UNTRIAGED: side-channel test harness, unmeasured
-lib-q-blind-pcs | UNTRIAGED: 36-line experimental sketch; see also its TODO in classical-crypto-allowlist.txt
-lib-q-zk-encryption-proof | UNTRIAGED: RED crate awaiting cryptographer sign-off; a green "Test Coverage" run says nothing about it
+# --- Genuinely untested -------------------------------------------------------------------
+# Measured 0.00%, 0/11 lines, and `running 0 tests`. Unlike the two above this is real: the
+# crate holds trait definitions in lib.rs and sign.rs and has no test of any kind. A floor of
+# 0 would enforce nothing, so the honest fix is tests, not a threshold.
+lib-q-hqc-traits | 0.00% (0/11), zero tests exist; needs tests before a floor can mean anything
+
+# --- Deferred -----------------------------------------------------------------------------
+lib-q-zk-encryption-proof | RED crate awaiting cryptographer sign-off; instrumented build exceeds 10 min locally, so no measured floor yet

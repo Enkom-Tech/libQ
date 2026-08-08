@@ -94,32 +94,71 @@ none of them is never measured against any floor.
 Nothing surfaces this. A crate absent from every list cannot lower a percentage that is never
 computed for it, so the Test Coverage workflow is green whether its coverage is 90% or 0%.
 
-**Measured 2026-08-08: 77 published crates, 46 gated names, 31 published crates outside all of
-them** — including `lib-q-saturnin`, `lib-q-hqc`, `lib-q-slh-dsa`, `lib-q-mayo` and
-`lib-q-zk-encryption-proof`.
+**Baseline 2026-08-08: 77 published crates, 46 gated names, 31 published crates outside all of
+them** — including `lib-q-saturnin`, `lib-q-hqc`, `lib-q-slh-dsa` and `lib-q-mayo`.
 
-Two consequences worth stating plainly:
+**Now: 69 gated names, 8 unmeasured**, all 8 recorded with a reason in
+`scripts/coverage-floor-exemptions.txt`. 23 of the 31 were measured and gated in
+`coverage.yml`'s `extended-coverage` job.
 
-- **A green "Test Coverage" run says nothing about a crate on that list.** It is not weak
-  evidence about them; it is no evidence.
+Two consequences of the gap that remain worth stating plainly:
+
+- **A green "Test Coverage" run says nothing about a crate that is not gated.** It is not weak
+  evidence about it; it is no evidence.
 - `pr.yml` `break`s at the first affected crate, so even among gated crates a PR touching two of
-  them measures only one.
+  them measures only one. Still true.
 
-`scripts/ci_guard_coverage_floors.py` (run in `ci.yml`'s `core-validation`) freezes this rather
-than fixing it. Every published crate must be gated somewhere or listed in
-`scripts/coverage-floor-exemptions.txt` with a reason; a newly published crate fails until
-someone decides which, and an exemption for a crate that has since been gated also fails so the
-file cannot rot.
+### How the 23 were gated
 
-It is deliberately not fixed by the guard. Gating 31 more crates under debug tarpaulin is a
-CI-runtime decision — the per-crate step already runs ~65 minutes for 18 crates — and four of the
-absentees (`lib-q-dkg`, `lib-q-threshold-raccoon`, `lib-q-threshold-kem-lattice`,
-`lib-q-blind-token`) are excluded because instrumented keygen is impractically slow, which
-`coverage.yml` already records. The exemptions file distinguishes those from the ones marked
-`UNTRIAGED`, which are simply unmeasured and are where to start.
+`extended-coverage` is a separate, sharded job rather than more crates appended to the job above,
+because that one already runs ~65 min per-crate plus a ~40 min workspace pass against a 150 min
+timeout. It runs `stable` only: these floors are regression backstops, and re-measuring the same
+lines under a second toolchain buys little for the runner time.
 
-The route in is the same measure-then-gate the FN-DSA section describes: add `--threshold 0`
-rows, read what CI prints, then set floors from it.
+Every floor is **measured, then set ~5 points under** — a backstop, not an aspiration. The
+measurement is recorded beside each threshold in both workflows so a reader can see the headroom
+without re-running anything. Raise them as coverage improves; that is the ratchet.
+
+### The measurement itself was blind for feature-gated crates
+
+Worth understanding before trusting any coverage number here. `run-coverage.sh` built each crate
+with **default features**, so code behind a non-default feature was never compiled and therefore
+never counted — while still looking like a clean run:
+
+- `lib-q-blind-pcs` keeps its whole implementation behind `blind-pcs`. Its coverage run
+  instrumented an empty crate and reported *"No coverable lines found"*, i.e. 0%, which any
+  `--threshold 0` accepts happily. It measures **88.89%** once the feature is on.
+- `lib-q-saturnin` shipped four modules the run never saw. `aead_short.rs` (110/115),
+  `qcb.rs` (138/140), `tbc.rs` (18/19) and `commit.rs` (9/9) were all well tested and all
+  invisible. `simd/avx2.rs` read **0/39 despite having a dedicated `simd_equivalence.rs` suite**;
+  with `simd-avx2` on it is 257/263.
+
+Both now have explicit feature sets in `run-coverage.sh`. The general lesson: **a floor set from a
+default-features run on a feature-gated crate is calibrated against a fiction.** Check what the
+run actually compiles before trusting the percentage.
+
+`simd-neon` is deliberately *not* enabled for Saturnin: it is `aarch64`-gated, so on x86_64 it
+would sit in the denominator at 0 however good the tests are — the same argument as the
+`lib-q-keccak` / `lib-q-ml-dsa` / `lib-q-stark-monty31` entries in that script.
+
+### What is still unmeasured, and why
+
+`scripts/ci_guard_coverage_floors.py` (run in `ci.yml`'s `core-validation`) keeps the remaining
+gap from growing: every published crate must be gated or listed with a reason; a newly published
+crate fails until someone decides which, and an exemption for a crate that has since been gated
+also fails, so the file cannot rot. It also checks that a crate gated in both `pr.yml` and
+`coverage.yml` carries the **same** floor in both — two hand-maintained copies of one set of
+measurements otherwise drift silently, and the dangerous direction is quiet: lower the `pr.yml`
+number and PRs stop catching a regression the scheduled job would only find days later.
+
+The 8 remaining split three ways, and they are not the same kind of thing:
+
+| | crates | why |
+|---|---|---|
+| Impractical to instrument | `lib-q-dkg`, `lib-q-threshold-raccoon`, `lib-q-threshold-kem-lattice`, `lib-q-blind-token` | keygen far too slow under debug tarpaulin; already recorded in `coverage.yml` |
+| No coverable lines | `lib-q-fn-dsa-alg`, `lib-q-stark-baby-bear` | tarpaulin reports *"No coverable lines found"* so every threshold above 0 fails and 0 enforces nothing. Their tests **do** run and pass (33 for stark-baby-bear) — generic code inlined into callers, **not** untested crates |
+| Genuinely untested | `lib-q-hqc-traits` | 0.00%, 0/11 lines, `running 0 tests`. The honest fix is tests, not a threshold |
+| Deferred | `lib-q-zk-encryption-proof` | RED, awaiting cryptographer sign-off; instrumented build exceeds 10 min locally so it has no measured floor yet |
 
 ## Security-critical paths (line targets)
 

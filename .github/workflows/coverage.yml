@@ -242,3 +242,131 @@ jobs:
           MSG=$(python3 -c "import os, urllib.parse; print(urllib.parse.quote(os.environ['COVERAGE_PCT'] + '%', safe=''))")
           curl -fsSL "https://img.shields.io/static/v1?label=coverage&message=${MSG}&color=${COVERAGE_COLOR}" \
             -o .github/badges/coverage.svg
+
+  # ---------------------------------------------------------------------------------------
+  # Crates that had NO coverage floor anywhere until 2026-08-08.
+  #
+  # Coverage here is gated by name: pr.yml walks a hardcoded ALL_CRATES, the job above walks
+  # CORE/CRYPTO/UTIL. 31 published crates were in none of those lists, so nothing measured
+  # them and no run could go red however far their coverage fell -- a crate whose percentage
+  # is never computed cannot lower one.
+  #
+  # This is a SEPARATE job, not more crates appended to the job above, for a concrete reason:
+  # that job's per-crate step already runs ~65 minutes and its workspace pass another ~40,
+  # against a 150-minute timeout. Adding ~23 crates to it would blow that budget. Sharded and
+  # parallel, each shard is independent and the existing gate is untouched.
+  #
+  # stable only, deliberately. The job above runs a stable + pinned-nightly matrix; these
+  # floors are regression backstops, and doubling 23 crates of debug tarpaulin to re-measure
+  # the same lines under a second toolchain buys little for the runner time it costs.
+  #
+  # THRESHOLDS ARE MEASURED, NOT GUESSED. Every number below was produced by
+  # scripts/run-coverage.sh on 2026-08-08 and set ~5 points under the measurement, so it is a
+  # regression backstop rather than an aspiration. Raise them as coverage improves; that is
+  # the ratchet. The measured value is recorded next to each so a future reader can tell how
+  # much headroom a floor has without re-running anything.
+  extended-coverage:
+    name: Test Coverage (previously ungated crates)
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Shards are balanced by measured wall clock, not by crate count.
+          - shard: aead-and-primitives
+            crates: "lib-q-saturnin lib-q-rocca-s lib-q-romulus lib-q-duplex-aead lib-q-tweak-aead lib-q-mac lib-q-prf"
+          - shard: signatures-and-kem
+            crates: "lib-q-slh-dsa lib-q-mayo lib-q-hqc lib-q-random"
+          - shard: zk-and-misc
+            crates: "lib-q-mve lib-q-lattice-zkp lib-q-ring lib-q-ring-sig lib-q-transcript lib-q-blind-pcs lib-q-types lib-q-sca-test"
+          - shard: fn-dsa-nested
+            crates: "lib-q-fn-dsa-comm lib-q-fn-dsa-kgen lib-q-fn-dsa-sign lib-q-fn-dsa-vrfy"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master @ 2026-07-16
+        with:
+          toolchain: stable
+          components: rustfmt, clippy, llvm-tools-preview
+
+      - name: Toolchain fingerprint (cache)
+        id: toolchain-fp
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          # Shard-scoped: the shards build disjoint crate sets in parallel, and a shared key
+          # would have them racing to save mutually incomplete caches under one name.
+          key: ${{ runner.os }}-cargo-extcov-${{ matrix.shard }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+
+      - name: Install tarpaulin
+        uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
+        with:
+          tool: cargo-tarpaulin@0.37.0
+
+      - name: Run coverage against measured floors
+        shell: bash
+        run: |
+          set -euo pipefail
+          FAILED=""
+          for crate in ${{ matrix.crates }}; do
+            # Measured 2026-08-08 (left of the arrow), floor (right). See docs/coverage-scope.md.
+            case "$crate" in
+              lib-q-saturnin)     THRESH=88 ;;  # 94.06%
+              lib-q-transcript)   THRESH=92 ;;  # 97.96%
+              lib-q-fn-dsa-kgen)  THRESH=83 ;;  # 88.93%
+              lib-q-blind-pcs)    THRESH=83 ;;  # 88.89%
+              lib-q-ring)         THRESH=77 ;;  # 82.46%
+              lib-q-romulus)      THRESH=76 ;;  # 81.70%
+              lib-q-slh-dsa)      THRESH=74 ;;  # 79.04%
+              lib-q-hqc)          THRESH=65 ;;  # 70.51%
+              lib-q-mve)          THRESH=65 ;;  # 70.30%
+              lib-q-sca-test)     THRESH=62 ;;  # 67.55%
+              lib-q-mayo)         THRESH=60 ;;  # 65.56%
+              lib-q-duplex-aead)  THRESH=60 ;;  # 65.09%
+              lib-q-fn-dsa-vrfy)  THRESH=58 ;;  # 63.79%
+              lib-q-fn-dsa-sign)  THRESH=56 ;;  # 61.70%
+              lib-q-lattice-zkp)  THRESH=55 ;;  # 60.77%
+              lib-q-random)       THRESH=49 ;;  # 54.33%
+              lib-q-ring-sig)     THRESH=49 ;;  # 54.20%
+              lib-q-rocca-s)      THRESH=43 ;;  # 48.32%
+              lib-q-prf)          THRESH=42 ;;  # 47.98%
+              lib-q-mac)          THRESH=40 ;;  # 45.65%
+              lib-q-tweak-aead)   THRESH=35 ;;  # 40.83%
+              lib-q-fn-dsa-comm)  THRESH=35 ;;  # 40.15%
+              lib-q-types)        THRESH=3  ;;  # 3.52% -- low, but a floor of 3 still catches
+                                                # a drop to zero, which is the regression that
+                                                # matters on a crate this small.
+              *)
+                echo "::error::$crate has no measured floor in this job. Measure it with"
+                echo "::error::scripts/run-coverage.sh and add a case, or record it in"
+                echo "::error::scripts/coverage-floor-exemptions.txt. Refusing to invent one."
+                exit 1
+                ;;
+            esac
+            echo "::group::$crate (floor ${THRESH}%)"
+            # Do not let the first failure hide the rest: collect and fail at the end, so one
+            # run tells you every crate that regressed rather than only the alphabetically
+            # unlucky one.
+            if bash scripts/run-coverage.sh --crate "$crate" --threshold "$THRESH" \
+                 --output-dir "coverage-$crate" --toolchain stable; then
+              echo "$crate OK"
+            else
+              FAILED="$FAILED $crate"
+            fi
+            echo "::endgroup::"
+          done
+          if [[ -n "$FAILED" ]]; then
+            echo "::error::below their coverage floor:$FAILED"
+            exit 1
+          fi

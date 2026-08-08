@@ -67,6 +67,13 @@ CRATE_ARG_RE = re.compile(r'--crate\s+"?([A-Za-z0-9_-]+)"?')
 # so a guard that only reads the lists reports them as unprotected. It did, on the first
 # run here, naming lib-q as ungated when a root-file change measures it at 70.
 AFFECTED_RE = re.compile(r'AFFECTED\s*=\s*"([A-Za-z0-9_-]+)"')
+# coverage.yml's `extended-coverage` job carries its crate lists in a build matrix rather
+# than a shell variable:
+#     - shard: aead-and-primitives
+#       crates: "lib-q-saturnin lib-q-rocca-s ..."
+# and then loops `--crate "$crate"`, which is a shell expansion this guard deliberately
+# ignores. Without this pattern all 23 crates that job gates would read as ungated.
+MATRIX_CRATES_RE = re.compile(r'^\s*crates\s*:\s*"([^"]*)"', re.M)
 PUBLISH_FALSE_RE = re.compile(r'^\s*publish\s*=\s*false', re.M)
 
 
@@ -81,6 +88,8 @@ def gated_names(workflows_dir: Path) -> set[str]:
             names.add(match.group(1))
         for match in AFFECTED_RE.finditer(text):
             names.add(match.group(1))
+        for match in MATRIX_CRATES_RE.finditer(text):
+            names.update(match.group(1).split())
     # Shell expansions like `--crate "$crate"` are captured by the list branch already.
     return {n for n in names if n.startswith("lib-q") and "$" not in n}
 
@@ -171,6 +180,56 @@ def evaluate(published: set[str], gated: set[str], exempt: set[str]):
     return sorted(ungated - exempt), sorted(exempt & gated)
 
 
+PR_THRESH_RE = re.compile(r'^\s*(lib-q[\w-]*)\)\s*echo "coverage-threshold=(\d+)"', re.M)
+COV_THRESH_RE = re.compile(r'^\s*(lib-q[\w-]*)\)\s*THRESH=(\d+)', re.M)
+
+
+def threshold_drift(workflows: Path) -> list[str]:
+    """The same crate gated in two workflows must carry the same floor in both.
+
+    coverage.yml's extended-coverage job and pr.yml's per-crate `case` are two hand-written
+    copies of one set of measurements. Nothing but this check stops them drifting, and the
+    drift is silent in the direction that matters: lower the pr.yml number and PRs stop
+    catching a regression that the slower scheduled job would still catch days later.
+
+    A crate the matrix gates but pr.yml does not name is also reported. pr.yml falls through
+    to `*) 70`, which for the several crates measured below 70 is not a lenient default --
+    it fails every PR that touches them.
+    """
+    pr_path = workflows / "pr.yml"
+    cov_path = workflows / "coverage.yml"
+    if not pr_path.exists() or not cov_path.exists():
+        return []
+    pr_text = pr_path.read_text(encoding="utf-8", errors="replace")
+    cov_text = cov_path.read_text(encoding="utf-8", errors="replace")
+
+    pr_thresholds = {m.group(1): int(m.group(2)) for m in PR_THRESH_RE.finditer(pr_text)}
+    cov_thresholds = {m.group(1): int(m.group(2)) for m in COV_THRESH_RE.finditer(cov_text)}
+
+    matrix_crates: list[str] = []
+    for match in MATRIX_CRATES_RE.finditer(cov_text):
+        matrix_crates.extend(match.group(1).split())
+
+    problems = []
+    for crate in sorted(set(matrix_crates)):
+        in_cov = cov_thresholds.get(crate)
+        in_pr = pr_thresholds.get(crate)
+        if in_cov is None:
+            problems.append(
+                f"coverage.yml gates {crate} in its matrix but sets no THRESH for it"
+            )
+        if in_pr is None:
+            problems.append(
+                f"{crate} is gated in coverage.yml but has no pr.yml threshold; it would "
+                f"fall through to the `*)` default of 70"
+            )
+        elif in_cov is not None and in_pr != in_cov:
+            problems.append(
+                f"{crate} floor differs: pr.yml={in_pr}%, coverage.yml={in_cov}%"
+            )
+    return problems
+
+
 def run(root: Path, exemptions_path: Path) -> int:
     published = published_crates(root)
     gated = gated_names(root / ".github" / "workflows")
@@ -189,12 +248,16 @@ def run(root: Path, exemptions_path: Path) -> int:
     for name in stale:
         print(f"  FAIL: {EXEMPTIONS_NAME} exempts {name}, which is now gated. Remove the line.")
 
+    drift = threshold_drift(root / ".github" / "workflows")
+    for problem in drift:
+        print(f"  FAIL: {problem}")
+
     ungated_total = len(set(published) - gated)
     print(
         f"  {len(published)} published crates, {len(gated)} gated names, "
         f"{ungated_total} without a floor ({len(exempt)} recorded, {len(unrecorded)} unrecorded)."
     )
-    return 1 if (errors or unrecorded or stale) else 0
+    return 1 if (errors or unrecorded or stale or drift) else 0
 
 
 def self_test() -> int:
@@ -205,8 +268,11 @@ def self_test() -> int:
       gated-by-list   a crate named in a *_CRATES list must NOT fire
       gated-by-arg    a crate named via `--crate <name>` must NOT fire
       gated-by-affected  a crate assigned to $AFFECTED must NOT fire
+      gated-by-matrix    crates in a build-matrix `crates:` key must NOT fire
       recorded        an exempted, ungated crate must NOT fire
       malformed line  an exemptions line without a reason must FAIL
+      drift           pr.yml and coverage.yml floors must agree, and a matrix-gated crate
+                      must appear in both (see threshold_drift)
     """
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
@@ -217,7 +283,12 @@ def self_test() -> int:
             '          CORE_CRATES="lib-q-gated-by-list lib-q-was-exempt"\n'
             '          bash scripts/run-coverage.sh --crate lib-q-gated-by-arg --threshold 70\n'
             '          bash scripts/run-coverage.sh --crate "$crate" --threshold 70\n'
-            '          AFFECTED="lib-q-gated-by-affected"\n',
+            '          AFFECTED="lib-q-gated-by-affected"\n'
+            '    strategy:\n'
+            '      matrix:\n'
+            '        include:\n'
+            '          - shard: one\n'
+            '            crates: "lib-q-gated-by-matrix lib-q-also-by-matrix"\n',
             encoding="utf-8",
         )
         exemptions = root / EXEMPTIONS_NAME
@@ -233,6 +304,7 @@ def self_test() -> int:
         exempt, errors = parse_exemptions(exemptions)
         published = {
             "lib-q-gated-by-list", "lib-q-gated-by-arg", "lib-q-gated-by-affected",
+            "lib-q-gated-by-matrix", "lib-q-also-by-matrix",
             "lib-q-was-exempt", "lib-q-recorded", "lib-q-new-unrecorded",
         }
         unrecorded, stale = evaluate(published, gated, set(exempt))
@@ -241,7 +313,8 @@ def self_test() -> int:
         if "$crate" in gated or any("$" in g for g in gated):
             problems.append(f"shell expansions must not be treated as crate names: {sorted(gated)}")
         if gated != {"lib-q-gated-by-list", "lib-q-was-exempt", "lib-q-gated-by-arg",
-                     "lib-q-gated-by-affected"}:
+                     "lib-q-gated-by-affected", "lib-q-gated-by-matrix",
+                     "lib-q-also-by-matrix"}:
             problems.append(f"gated-set mismatch: {sorted(gated)}")
         if unrecorded != ["lib-q-new-unrecorded"]:
             problems.append(f"unrecorded mismatch: {unrecorded}")
@@ -249,6 +322,49 @@ def self_test() -> int:
             problems.append(f"stale mismatch: {stale}")
         if not errors:
             problems.append("a malformed exemptions line must be reported")
+
+        # --- threshold_drift: three fixtures, each must be caught -------------------
+        drift_dir = root / ".github" / "workflows"
+        drift_dir.mkdir(parents=True, exist_ok=True)
+        (drift_dir / "coverage.yml").write_text(
+            "jobs:\n"
+            "  x:\n"
+            "    strategy:\n"
+            "      matrix:\n"
+            "        include:\n"
+            "          - shard: s\n"
+            '            crates: "lib-q-agree lib-q-differs lib-q-missing-in-pr lib-q-no-cov-thresh"\n'
+            "    steps:\n"
+            "      - run: |\n"
+            '          case "$crate" in\n'
+            "            lib-q-agree) THRESH=80 ;;\n"
+            "            lib-q-differs) THRESH=80 ;;\n"
+            "            lib-q-missing-in-pr) THRESH=50 ;;\n"
+            "          esac\n",
+            encoding="utf-8",
+        )
+        (drift_dir / "pr.yml").write_text(
+            "jobs:\n"
+            "  y:\n"
+            "    steps:\n"
+            "      - run: |\n"
+            '          case "$AFFECTED" in\n'
+            '            lib-q-agree) echo "coverage-threshold=80" >> $GITHUB_OUTPUT ;;\n'
+            '            lib-q-differs) echo "coverage-threshold=61" >> $GITHUB_OUTPUT ;;\n'
+            '            lib-q-no-cov-thresh) echo "coverage-threshold=10" >> $GITHUB_OUTPUT ;;\n'
+            "          esac\n",
+            encoding="utf-8",
+        )
+        found = threshold_drift(drift_dir)
+        joined = " | ".join(found)
+        if "lib-q-agree" in joined:
+            problems.append("a crate whose floors AGREE must not be reported as drift")
+        if "lib-q-differs" not in joined:
+            problems.append("a differing floor (pr 61 vs coverage 80) must be reported")
+        if "lib-q-missing-in-pr" not in joined:
+            problems.append("a matrix-gated crate absent from pr.yml must be reported")
+        if "lib-q-no-cov-thresh" not in joined:
+            problems.append("a matrix-gated crate with no coverage.yml THRESH must be reported")
 
         if problems:
             print("SELF-TEST FAILED -- the coverage-floor guard is not detecting what it claims:")
