@@ -101,7 +101,13 @@ jobs:
       - name: Install tarpaulin
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
-          tool: cargo-tarpaulin
+          # Pinned. Previously `cargo-tarpaulin` (i.e. @latest), which meant an upstream release
+          # could break this job with no change on our side -- the same failure shape as the
+          # nightly incompatibility documented on the matrix above, just from the other
+          # unpinned input. 0.37.0 (2026-07-04) is both the newest release and the version the
+          # last passing run used, so this pins the status quo rather than rolling anything back.
+          # Bump deliberately, together with the nightly unpin (card t_93dc6b27).
+          tool: cargo-tarpaulin@0.37.0
           
       # First run coverage for individual critical crates
       - name: Run coverage for core cryptographic crates
