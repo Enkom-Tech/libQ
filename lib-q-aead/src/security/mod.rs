@@ -87,35 +87,63 @@ impl SecurityConfig {
     }
 }
 
-/// Global security configuration
-///
-/// Guarded by a lock (`std::sync::RwLock` behind an `Arc`/`OnceLock` when `std` is
-/// available, `spin::Mutex` otherwise) so concurrent readers and writers from any thread
-/// (including bare-metal `no_std` cores) observe a consistent value — mirrors the
-/// `GLOBAL_VALIDATOR` pattern in `security::validation`. A `static mut` here would be
-/// undefined behaviour under concurrent access, which is exactly what this replaces.
 #[cfg(feature = "std")]
 use std::sync::{
-    Arc,
+    LazyLock,
     RwLock,
 };
 
+/// Global security configuration.
+///
+/// Guarded by a lock (`std::sync::RwLock` when `std` is available, `spin::Mutex` otherwise)
+/// so concurrent readers and writers from any thread (including bare-metal `no_std` cores)
+/// observe a consistent value. A `static mut` here would be undefined behaviour under
+/// concurrent access, which is exactly what this replaces.
+///
+/// `GLOBAL_VALIDATOR` in `security::validation` and `GLOBAL_TIMING_PROTECTION` in
+/// `security::timing` are deliberately kept in this same shape and carry the same invariant;
+/// all three moved off `OnceLock<Arc<RwLock<..>>>` together. Do not "restore consistency" by
+/// reverting any one of them.
+///
+/// # Invariant (both `cfg` branches — any edit must preserve this on BOTH)
+///
+/// After `set_security_config(c)` returns, `get_security_config()` returns `c` until the next
+/// `set_security_config` call, on every target and regardless of any prior panic in any
+/// thread.
+///
+/// - **std**: `LazyLock` makes initialisation race-free, so there is no window in which a
+///   writer's value can be discarded by a concurrent first reader; poisoned guards are
+///   recovered with `PoisonError::into_inner`, so no code path can silently drop a write or
+///   invent a value in place of the stored one.
+/// - **`no_std`**: `spin` locks cannot poison and `spin::LazyLock` is race-free, so the same
+///   contract holds for free.
+///
+/// Both functions below are therefore total: neither has a branch that returns without having
+/// read (respectively written) the one global cell, and neither can panic on the poison path.
+/// This was not always so — see `lib-q-aead/CHANGELOG.md` and card `t_8f408920`.
 #[cfg(feature = "std")]
-static GLOBAL_SECURITY_CONFIG: std::sync::OnceLock<Arc<RwLock<SecurityConfig>>> =
-    std::sync::OnceLock::new();
+static GLOBAL_SECURITY_CONFIG: LazyLock<RwLock<SecurityConfig>> =
+    LazyLock::new(|| RwLock::new(SecurityConfig::default()));
 #[cfg(not(feature = "std"))]
 static GLOBAL_SECURITY_CONFIG: spin::LazyLock<spin::Mutex<SecurityConfig>> =
     spin::LazyLock::new(|| spin::Mutex::new(SecurityConfig::default()));
 
-/// Get the current security configuration
+/// Get the current process-wide security configuration.
+///
+/// Returns the value most recently passed to [`set_security_config`], or
+/// [`SecurityConfig::default`] if it has never been called. This read is infallible: a
+/// poisoned lock (a panic in another thread while writing) is recovered and the stored value
+/// is returned — never a fallback.
+///
+/// This value is **process-global** (see [`set_security_config`]). It is read by
+/// [`SecurityContext::new`]; prefer [`SecurityContext::with_config`] when you need a posture
+/// that other code in the process cannot change under you.
 pub fn get_security_config() -> SecurityConfig {
     #[cfg(feature = "std")]
     {
-        GLOBAL_SECURITY_CONFIG
-            .get_or_init(|| Arc::new(RwLock::new(SecurityConfig::default())))
+        *GLOBAL_SECURITY_CONFIG
             .read()
-            .map(|guard| *guard)
-            .unwrap_or_else(|_| SecurityConfig::default())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
     #[cfg(not(feature = "std"))]
     {
@@ -123,22 +151,60 @@ pub fn get_security_config() -> SecurityConfig {
     }
 }
 
-/// Set the security configuration
+/// Set the process-wide security configuration.
+///
+/// # Scope and precedence
+///
+/// There is exactly one configuration per process, shared by every crate that links
+/// `lib-q-aead`, and the last writer wins. A library should not call this to protect its own
+/// operations — another dependency may overwrite it at any time. Libraries should use
+/// [`SecurityContext::with_config`] instead; this function is for the *application* to set a
+/// process-wide default consumed by [`SecurityContext::new`].
+///
+/// # This write is infallible
+///
+/// It always takes effect: initialisation races cannot drop it, and a poisoned lock (a panic
+/// in another thread) is recovered rather than skipped. After this returns,
+/// [`get_security_config`] returns exactly `config` until the next call.
 pub fn set_security_config(config: SecurityConfig) {
     #[cfg(feature = "std")]
     {
-        if let Some(global_config) = GLOBAL_SECURITY_CONFIG.get() {
-            if let Ok(mut global) = global_config.write() {
-                *global = config;
-            }
-        } else {
-            let _ = GLOBAL_SECURITY_CONFIG.set(Arc::new(RwLock::new(config)));
-        }
+        *GLOBAL_SECURITY_CONFIG
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = config;
     }
     #[cfg(not(feature = "std"))]
     {
         *GLOBAL_SECURITY_CONFIG.lock() = config;
     }
+}
+
+/// Serialises the unit tests in this crate that touch process-global security state.
+///
+/// Covers all three of them — [`GLOBAL_SECURITY_CONFIG`], `validation::GLOBAL_VALIDATOR` and
+/// `timing::GLOBAL_TIMING_PROTECTION` — with one lock rather than three. They are only ever
+/// contended by tests, so the cost of over-serialising is nil, and one lock cannot be
+/// acquired in two different orders.
+///
+/// Same rationale and same poison-tolerant shape as the `lock_security_config()` helper in
+/// `tests/security_tests.rs`: each getter/setter pair operates on one process-wide singleton,
+/// so tests that do `set(x); assert(get() == x)` — or that merely *read* a global and assert
+/// on it — race each other under `cargo test`'s default in-binary parallelism. `cargo test` runs test *binaries* sequentially, so a per-binary
+/// mutex is sufficient (this one for the `--lib` binary, the one in `security_tests.rs` for
+/// that integration binary).
+///
+/// Poisoning is tolerated deliberately: if one test panics while holding this guard, the
+/// others should still report their own results rather than all failing with a poison error
+/// and hiding the original failure.
+#[cfg(all(test, feature = "std"))]
+pub(crate) static TEST_CONFIG_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+/// Acquire [`TEST_CONFIG_LOCK`]; see its documentation.
+#[cfg(all(test, feature = "std"))]
+pub(crate) fn lock_for_test() -> std::sync::MutexGuard<'static, ()> {
+    TEST_CONFIG_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
 }
 
 /// Security context for cryptographic operations
@@ -150,6 +216,9 @@ pub struct SecurityContext {
 
 impl SecurityContext {
     /// Create a new security context
+    ///
+    /// Uses the process-wide configuration from [`get_security_config`]; use
+    /// [`with_config`](Self::with_config) to pin a posture other code cannot change.
     pub fn new() -> Self {
         Self {
             config: get_security_config(),
@@ -315,6 +384,11 @@ mod tests {
 
     #[test]
     fn test_security_context_creation() {
+        // Reads the process-global config (via `SecurityContext::new`) and asserts on it, so
+        // it must not run while another test has the global set to `permissive()`. Measured:
+        // without this guard, 10 of 60 runs of this binary at `--test-threads=64` fail here.
+        #[cfg(feature = "std")]
+        let _guard = lock_for_test();
         let ctx = SecurityContext::new();
         assert!(ctx.operation_id() > 0);
         // Note: elapsed_time() returns u64, so it's always >= 0
@@ -337,6 +411,9 @@ mod tests {
 
     #[test]
     fn test_global_security_config() {
+        #[cfg(feature = "std")]
+        let _guard = lock_for_test();
+
         let original_config = get_security_config();
 
         let new_config = SecurityConfig::permissive();
@@ -347,5 +424,74 @@ mod tests {
 
         // Restore original config
         set_security_config(original_config);
+    }
+
+    /// Poison `GLOBAL_SECURITY_CONFIG` from another thread, deliberately.
+    ///
+    /// A `RwLock` is poisoned only by a panic while a **write** guard is held, so this takes
+    /// the write guard and panics. It joins the thread before returning, so the lock is
+    /// guaranteed poisoned (and the panic guaranteed to have happened) by the time the caller
+    /// continues.
+    #[cfg(feature = "std")]
+    fn poison_global_config_lock() {
+        let poisoner = std::thread::spawn(|| {
+            let _write_guard = GLOBAL_SECURITY_CONFIG
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            panic!("deliberately poisoning GLOBAL_SECURITY_CONFIG");
+        });
+        assert!(
+            poisoner.join().is_err(),
+            "the poisoning thread did not panic, so the lock is not poisoned and this test \
+             would prove nothing"
+        );
+    }
+
+    /// D1, poison half: a poisoned lock must not turn `set_security_config` into a silent
+    /// no-op. Encodes the invariant "after `set(c)` returns, `get()` returns `c`".
+    ///
+    /// Poisoning is std-only: the `no_std` branch uses `spin::Mutex`, which has no poison
+    /// state at all, so there is nothing to test there.
+    #[cfg(feature = "std")]
+    #[test]
+    fn set_applies_even_after_poison() {
+        let _guard = lock_for_test();
+
+        poison_global_config_lock();
+
+        set_security_config(SecurityConfig::permissive());
+        assert_eq!(
+            get_security_config(),
+            SecurityConfig::permissive(),
+            "set_security_config silently did not apply after the lock was poisoned"
+        );
+
+        set_security_config(SecurityConfig::default());
+    }
+
+    /// D1, getter half: after a poisoning panic, `get_security_config` must return the value
+    /// that was actually stored, not a fabricated fallback.
+    #[cfg(feature = "std")]
+    #[test]
+    fn get_returns_last_set_even_after_poison() {
+        let _guard = lock_for_test();
+
+        set_security_config(SecurityConfig::permissive());
+        assert_eq!(
+            get_security_config(),
+            SecurityConfig::permissive(),
+            "set_security_config did not apply before any poisoning happened"
+        );
+
+        poison_global_config_lock();
+
+        assert_eq!(
+            get_security_config(),
+            SecurityConfig::permissive(),
+            "get_security_config invented a value instead of returning the stored one"
+        );
+
+        set_security_config(SecurityConfig::default());
+        assert_eq!(get_security_config(), SecurityConfig::default());
     }
 }

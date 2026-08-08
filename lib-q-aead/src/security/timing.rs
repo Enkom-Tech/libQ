@@ -271,26 +271,42 @@ impl TimingProtection {
 
 #[cfg(feature = "std")]
 use std::sync::{
-    Arc,
+    LazyLock,
     RwLock,
 };
 
+/// The process-wide timing-protection configuration.
+///
+/// # Invariant (both `cfg` branches — any edit must preserve this on BOTH)
+///
+/// After `set_timing_protection(p)` returns, `get_timing_protection()` returns `p` until the
+/// next `set_timing_protection` call, on every target and regardless of any prior panic in
+/// any thread.
+///
+/// `LazyLock` makes initialisation race-free, so no writer's value can be discarded by a
+/// concurrent first reader, and poisoned guards are recovered with `PoisonError::into_inner`
+/// so no path can silently drop a write or substitute a value for the stored one. The
+/// `no_std` branch gets the same contract for free: `spin` locks cannot poison. Matches
+/// `GLOBAL_SECURITY_CONFIG` in `security::mod`; see card `t_8f408920` for why the previous
+/// shape was replaced.
 #[cfg(feature = "std")]
-static GLOBAL_TIMING_PROTECTION: std::sync::OnceLock<Arc<RwLock<TimingProtection>>> =
-    std::sync::OnceLock::new();
+static GLOBAL_TIMING_PROTECTION: LazyLock<RwLock<TimingProtection>> =
+    LazyLock::new(|| RwLock::new(TimingProtection::default()));
 #[cfg(not(feature = "std"))]
 static GLOBAL_TIMING_PROTECTION: spin::LazyLock<spin::Mutex<TimingProtection>> =
     spin::LazyLock::new(|| spin::Mutex::new(TimingProtection::default()));
 
 /// Get the global timing protection configuration.
+///
+/// This read is infallible: a poisoned lock is recovered and the stored configuration
+/// returned, never a fallback. The value is process-global and last-writer-wins — see
+/// [`set_timing_protection`].
 pub fn get_timing_protection() -> TimingProtection {
     #[cfg(feature = "std")]
     {
-        GLOBAL_TIMING_PROTECTION
-            .get_or_init(|| Arc::new(RwLock::new(TimingProtection::default())))
+        *GLOBAL_TIMING_PROTECTION
             .read()
-            .map(|guard| *guard)
-            .unwrap_or_else(|_| TimingProtection::default())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
     }
     #[cfg(not(feature = "std"))]
     {
@@ -299,16 +315,17 @@ pub fn get_timing_protection() -> TimingProtection {
 }
 
 /// Set the global timing protection configuration.
+///
+/// There is exactly one configuration per process, shared by every crate that links
+/// `lib-q-aead`, and the last writer wins. The write is infallible: it always takes effect,
+/// because initialisation races cannot drop it and a poisoned lock is recovered rather than
+/// skipped.
 pub fn set_timing_protection(protection: TimingProtection) {
     #[cfg(feature = "std")]
     {
-        if let Some(global_protection) = GLOBAL_TIMING_PROTECTION.get() {
-            if let Ok(mut global) = global_protection.write() {
-                *global = protection;
-            }
-        } else {
-            let _ = GLOBAL_TIMING_PROTECTION.set(Arc::new(RwLock::new(protection)));
-        }
+        *GLOBAL_TIMING_PROTECTION
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = protection;
     }
     #[cfg(not(feature = "std"))]
     {
@@ -416,6 +433,11 @@ mod tests {
 
     #[test]
     fn test_global_timing_protection_config() {
+        // Asserts on the process-global value, so it must not run while another test has it
+        // set; see `security::TEST_CONFIG_LOCK`.
+        #[cfg(feature = "std")]
+        let _guard = super::super::lock_for_test();
+
         let config = get_timing_protection();
         assert_eq!(config, TimingProtection::default());
 
@@ -424,5 +446,48 @@ mod tests {
 
         let _result = protect_timing(|| 42);
         let (_result, _elapsed) = protect_timing_with_timing(|| 42);
+
+        // Restore, so the assertion above still holds however tests are ordered.
+        set_timing_protection(TimingProtection::default());
+    }
+
+    /// A poisoned lock must not turn `set_timing_protection` into a silent no-op, nor make
+    /// `get_timing_protection` invent a value. Encodes the invariant on
+    /// `GLOBAL_TIMING_PROTECTION`; same defect class as card `t_8f408920`.
+    ///
+    /// Poisoning is std-only: the `no_std` branch uses `spin::Mutex`, which has no poison
+    /// state, so there is nothing to test there.
+    #[cfg(feature = "std")]
+    #[test]
+    fn timing_protection_survives_a_poisoned_lock() {
+        let _guard = super::super::lock_for_test();
+
+        // A `RwLock` is poisoned only by a panic while a *write* guard is held. Joining the
+        // thread guarantees the panic has happened before the assertions below.
+        let poisoner = std::thread::spawn(|| {
+            let _write_guard = GLOBAL_TIMING_PROTECTION
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            panic!("deliberately poisoning GLOBAL_TIMING_PROTECTION");
+        });
+        assert!(
+            poisoner.join().is_err(),
+            "the poisoning thread did not panic, so the lock is not poisoned and this test \
+             would prove nothing"
+        );
+
+        set_timing_protection(TimingProtection::strict());
+        assert_eq!(
+            get_timing_protection(),
+            TimingProtection::strict(),
+            "set_timing_protection silently did not apply after the lock was poisoned"
+        );
+
+        set_timing_protection(TimingProtection::default());
+        assert_eq!(
+            get_timing_protection(),
+            TimingProtection::default(),
+            "get_timing_protection invented a value instead of returning the stored one"
+        );
     }
 }

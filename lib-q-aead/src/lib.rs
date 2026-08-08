@@ -355,6 +355,10 @@ mod tests {
 
     #[test]
     fn test_security_config_roundtrip() {
+        // Touches the process-global config; see `security::TEST_CONFIG_LOCK`.
+        #[cfg(feature = "std")]
+        let _guard = security::lock_for_test();
+
         let orig = get_security_config();
         set_security_config(orig);
         assert_eq!(get_security_config(), orig);
