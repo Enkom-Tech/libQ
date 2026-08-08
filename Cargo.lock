@@ -939,9 +939,10 @@ version = "0.0.10"
 dependencies = [
  "js-sys",
  "lib-q-core",
+ "lib-q-sha3",
  "serde-wasm-bindgen",
  "serde_json",
- "sha2 0.11.0",
+ "subtle",
  "wasm-bindgen",
  "wasm-bindgen-test",
 ]

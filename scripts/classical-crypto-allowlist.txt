@@ -47,10 +47,3 @@ lib-q-fn-dsa/fn-dsa-kgen | sha2 | JUSTIFIED | dev-only; upstream test vectors ar
 lib-q-prf                | sha2 | JUSTIFIED | dev-only; accept_reference_vectors.rs checks published reference vectors
 lib-q-slh-dsa            | aes  | JUSTIFIED | dev-only; KAT harness DRBG
 
-# --- Debt ---------------------------------------------------------------------------------
-# Not required by any specification. lib-q-blind-pcs is a 36-line experimental sketch whose
-# commitment is a bare SHA-256 hash, in a library whose premise is post-quantum primitives.
-# It has no publish=false, so it is publishable, and changing the hash changes the
-# commitment wire format -- which is why this is recorded as debt rather than silently
-# swapped here. See also its `verify`, which compares with a short-circuiting iterator.
-lib-q-blind-pcs | sha2 | TODO | experimental sketch commits with bare SHA-256; should use SHA-3/K12. Changing it is a wire-format break, so it needs a deliberate decision
