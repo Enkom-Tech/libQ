@@ -495,6 +495,37 @@ mod tests {
     }
 
     #[test]
+    fn test_generate_keystream_matches_ctr_encrypt_of_zeros_across_avx2_batch_and_tail()
+    -> Result<()> {
+        // `generate_keystream`'s 8-lane AVX2 batch path only triggers once the remaining
+        // length is >= 32*8 = 256 bytes; no other test in this module asks for a keystream
+        // that long, so that path (and the tail loop's continuation past one batch) is
+        // otherwise never exercised. Cross-check it against the independently coded
+        // `ctr_mode`-based `encrypt`, which for an all-zero plaintext is byte-for-byte the
+        // keystream (`0 XOR keystream == keystream`). This exercises two separately
+        // implemented batch/tail loops against each other rather than a fabricated vector.
+        let stream = SaturninStream::new();
+        let key = vec![0x24u8; 32];
+        let nonce = vec![0x99u8; 16];
+
+        // 600 bytes: two full 256-byte AVX2 batches, then a 88-byte tail handled one block
+        // (and one partial block) at a time.
+        let length = 600usize;
+        let keystream = stream.generate_keystream(&key, &nonce, length)?;
+        assert_eq!(keystream.len(), length);
+
+        let zero_plaintext = vec![0u8; length];
+        let ciphertext = stream.encrypt(&key, &nonce, &zero_plaintext)?;
+        assert_eq!(
+            keystream.as_slice(),
+            ciphertext.as_slice(),
+            "generate_keystream must match CTR-encrypting an all-zero plaintext"
+        );
+
+        Ok(())
+    }
+
+    #[test]
     fn test_generate_keystream_rejects_invalid_key_size() {
         let stream = SaturninStream::new();
         let key = vec![0u8; 10]; // wrong size

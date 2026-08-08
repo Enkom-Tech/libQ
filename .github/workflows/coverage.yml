@@ -260,11 +260,23 @@ jobs:
   # floors are regression backstops, and doubling 23 crates of debug tarpaulin to re-measure
   # the same lines under a second toolchain buys little for the runner time it costs.
   #
-  # THRESHOLDS ARE MEASURED, NOT GUESSED. Every number below was produced by
-  # scripts/run-coverage.sh on 2026-08-08 and set ~5 points under the measurement, so it is a
-  # regression backstop rather than an aspiration. Raise them as coverage improves; that is
-  # the ratchet. The measured value is recorded next to each so a future reader can tell how
-  # much headroom a floor has without re-running anything.
+  # THRESHOLDS ARE MEASURED, NOT GUESSED, AND MEASURED *HERE*. Every number below is set ~5
+  # points under what THIS job measured on 2026-08-08, and the CI figure is recorded beside it
+  # so a reader can see the headroom without re-running anything. Raise them as coverage
+  # improves; that is the ratchet.
+  #
+  # "Measured here" is load-bearing. The first version of these floors was calibrated on a
+  # Windows dev box, and that turned out to describe a different build entirely:
+  #   * Linux read HIGHER on 20 of 23 crates -- lib-q-rocca-s 48.32% on Windows vs 98.21% here
+  #   * the DENOMINATOR differed on 17 of 23, because Linux compiles more code
+  #     (lib-q-fn-dsa-kgen 2186 lines -> 3672, lib-q-rocca-s 387 -> 224)
+  # Every floor still passed, which was the problem: lib-q-rocca-s sat 55 points above its
+  # floor, so any regression short of catastrophic would have gone unnoticed. Retuning against
+  # this job's own numbers removed ~369 points of accumulated slack across the 23.
+  #
+  # A local WSL run is NOT a substitute for these numbers either -- it disagreed with CI by up
+  # to 44 points (lib-q-rocca-s again: 53.92% under cargo-tarpaulin 0.35.2 vs 98.21% under the
+  # 0.37.0 pinned here). Retune from a CI log, not from a laptop.
   extended-coverage:
     name: Test Coverage (previously ungated crates)
     runs-on: ubuntu-latest
@@ -322,29 +334,29 @@ jobs:
           for crate in ${{ matrix.crates }}; do
             # Measured 2026-08-08 (left of the arrow), floor (right). See docs/coverage-scope.md.
             case "$crate" in
-              lib-q-saturnin)     THRESH=88 ;;  # 94.06%
-              lib-q-transcript)   THRESH=92 ;;  # 97.96%
-              lib-q-fn-dsa-kgen)  THRESH=83 ;;  # 88.93%
-              lib-q-blind-pcs)    THRESH=83 ;;  # 88.89%
-              lib-q-ring)         THRESH=77 ;;  # 82.46%
-              lib-q-romulus)      THRESH=76 ;;  # 81.70%
-              lib-q-slh-dsa)      THRESH=74 ;;  # 79.04%
-              lib-q-hqc)          THRESH=65 ;;  # 70.51%
-              lib-q-mve)          THRESH=65 ;;  # 70.30%
-              lib-q-sca-test)     THRESH=62 ;;  # 67.55%
-              lib-q-mayo)         THRESH=60 ;;  # 65.56%
-              lib-q-duplex-aead)  THRESH=60 ;;  # 65.09%
-              lib-q-fn-dsa-vrfy)  THRESH=58 ;;  # 63.79%
-              lib-q-fn-dsa-sign)  THRESH=56 ;;  # 61.70%
-              lib-q-lattice-zkp)  THRESH=55 ;;  # 60.77%
-              lib-q-random)       THRESH=49 ;;  # 54.33%
-              lib-q-ring-sig)     THRESH=49 ;;  # 54.20%
-              lib-q-rocca-s)      THRESH=43 ;;  # 48.32%
-              lib-q-prf)          THRESH=42 ;;  # 47.98%
-              lib-q-mac)          THRESH=40 ;;  # 45.65%
-              lib-q-tweak-aead)   THRESH=35 ;;  # 40.83%
-              lib-q-fn-dsa-comm)  THRESH=35 ;;  # 40.15%
-              lib-q-types)        THRESH=3  ;;  # 3.52% -- low, but a floor of 3 still catches
+              lib-q-saturnin)     THRESH=89 ;;  # CI 94.43%
+              lib-q-transcript)   THRESH=92 ;;  # CI 97.96%
+              lib-q-fn-dsa-kgen)  THRESH=87 ;;  # CI 92.65%
+              lib-q-blind-pcs)    THRESH=95 ;;  # CI 100.00%
+              lib-q-ring)         THRESH=83 ;;  # CI 88.87%
+              lib-q-romulus)      THRESH=85 ;;  # CI 90.35%
+              lib-q-slh-dsa)      THRESH=90 ;;  # CI 95.49%
+              lib-q-hqc)          THRESH=85 ;;  # CI 90.91%
+              lib-q-mve)          THRESH=83 ;;  # CI 88.52%
+              lib-q-sca-test)     THRESH=63 ;;  # CI 68.22%
+              lib-q-mayo)         THRESH=89 ;;  # CI 94.83%
+              lib-q-duplex-aead)  THRESH=84 ;;  # CI 89.58%
+              lib-q-fn-dsa-vrfy)  THRESH=63 ;;  # CI 68.15%
+              lib-q-fn-dsa-sign)  THRESH=67 ;;  # CI 72.11%
+              lib-q-lattice-zkp)  THRESH=79 ;;  # CI 84.08%
+              lib-q-random)       THRESH=54 ;;  # CI 59.11%
+              lib-q-ring-sig)     THRESH=85 ;;  # CI 90.18%
+              lib-q-rocca-s)      THRESH=93 ;;  # CI 98.21%
+              lib-q-prf)          THRESH=55 ;;  # CI 60.20%
+              lib-q-mac)          THRESH=72 ;;  # CI 77.27%
+              lib-q-tweak-aead)   THRESH=67 ;;  # CI 72.20%
+              lib-q-fn-dsa-comm)  THRESH=56 ;;  # CI 61.00%
+              lib-q-types)        THRESH=3  ;;  # CI 3.52%
                                                 # a drop to zero, which is the regression that
                                                 # matters on a crate this small.
               *)

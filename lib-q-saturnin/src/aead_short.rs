@@ -453,6 +453,23 @@ mod tests {
     }
 
     #[test]
+    fn test_saturnin_short_default_matches_new_round_trip() -> Result<()> {
+        // `Default for SaturninShortAead` (`fn default() -> Self { Self::new() }`) was never
+        // called anywhere; exercise it directly and confirm it behaves like `::new()`.
+        let aead = SaturninShortAead::default();
+        assert_eq!(aead.nonce_size(), 16);
+
+        let key = AeadKey::new(vec![0x33u8; 32]);
+        let nonce = Nonce::new(vec![0x44u8; 16]);
+        let plaintext = vec![0x55u8; 15];
+
+        let ct = aead.encrypt(&key, &nonce, &plaintext, None)?;
+        let pt = aead.decrypt(&key, &nonce, &ct, None)?;
+        assert_eq!(pt, plaintext);
+        Ok(())
+    }
+
+    #[test]
     fn test_saturnin_short_shorter_nonce_tweak() -> Result<()> {
         // 8-byte nonce frees 8 extra plaintext bytes: max = 31 - 8 = 23.
         let aead = SaturninShortAead::with_nonce_len(8)?;
