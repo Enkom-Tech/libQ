@@ -1,14 +1,18 @@
 # Expected output of scripts/ci_guard_nonexistent_feature_gates.py against this fixture.
 # Regenerate deliberately, never to silence a failure: a MISSED line means detection
 # regressed, and the fix belongs in the guard rather than in this file.
-# 8 planted gates; every other construct in the fixture is a control that must not appear.
-# Every planted gate and every control is load-bearing -- README.md names the guard
-# mutation each one detects, and records the battery that proved it.
-crate-a/build.rs:3: feature 'ghost_buildrs' is not defined by crate-a
-crate-a/src/lib.rs:12: feature 'ghost_macro' is not defined by crate-a
-crate-a/src/lib.rs:16: feature 'ghost_nested' is not defined by crate-a
-crate-a/src/lib.rs:20: feature 'serde' is not defined by crate-a
-crate-a/src/lib.rs:5: feature 'ghost_multiline' is not defined by crate-a
-crate-a/src/lib.rs:61: feature 'ghost_after_char_literal' is not defined by crate-a
-crate-a/tests/t.rs:2: feature 'ghost_testdir' is not defined by crate-a
-nested/inner/src/lib.rs:3: feature 'ghost_nonlibq' is not defined by inner
+# Planted gates span three verdict classes; every other construct is a control that must
+# not appear. The verdict TEXT is asserted too -- reporting a not()-gated undefined feature
+# as ALWAYS-FALSE is the shipped bug this fixture exists to keep from returning.
+crate-a/build.rs:3: feature 'ghost_buildrs' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/src/lib.rs:12: feature 'ghost_macro' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/src/lib.rs:16: feature 'ghost_nested' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/src/lib.rs:20: feature 'serde' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/src/lib.rs:28: feature 'ghost_negated' is not defined by crate-a -- ALWAYS-TRUE (the gate is a no-op; the item is unconditionally live)
+crate-a/src/lib.rs:34: feature 'ghost_dead_arm' is not defined by crate-a -- DEAD-ARM (this arm can never contribute to the condition)
+crate-a/src/lib.rs:39: feature 'ghost_in_all' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/src/lib.rs:5: feature 'ghost_multiline' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/src/lib.rs:80: feature 'ghost_after_char_literal' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/src/lib.rs:87: feature 'ghost_cfg_attr_condition' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+crate-a/tests/t.rs:2: feature 'ghost_testdir' is not defined by crate-a -- ALWAYS-FALSE (the gated item compiles in no configuration)
+nested/inner/src/lib.rs:3: feature 'ghost_nonlibq' is not defined by inner -- ALWAYS-FALSE (the gated item compiles in no configuration)

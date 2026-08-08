@@ -15,11 +15,37 @@
 #      this guard -- that is a different, harder-to-detect shape and not what this guard claims
 #      to catch."
 #
+# HOW MUCH OF THAT IS ACTUALLY NEW COVERAGE -- READ THIS BEFORE CITING THE GUARD
+# -------------------------------------------------------------------------------
+# Most of it is NOT new. rustc's `unexpected_cfgs` lint is warn-by-default, cargo passes
+# `--check-cfg` for declared features automatically, and `.github/workflows/ci.yml:148` (plus
+# `cd.yml:78`) runs `cargo clippy --all-targets --all-features -- -D warnings` unscoped over the
+# whole workspace with no `--cap-lints` downgrade. OBSERVED on a scratch crate carrying three
+# undefined-feature gates: clippy exits 101 and names all three, including the multi-line form.
+# So the plain case already fails CI without this guard.
+#
+# The incremental coverage is the places rustc is silenced or imprecise:
+#   1. Gates inside a module the CI arch strips -- `#[cfg(target_arch = "...")]` -- are never
+#      parsed for cfg checking on that runner. 913 such sites in this tree.
+#   2. Gates under an `#[allow(unexpected_cfgs)]`.
+#   3. A stale `[lints.rust] unexpected_cfgs.check-cfg` allowlist, which tells rustc the feature
+#      is expected when the manifest never defines it. OBSERVED: exactly one crate today --
+#      lib-q-keccak-digest declares values("alloc","default","zeroize","oid","asm") while its
+#      [features] is only alloc/default, so `zeroize`, `oid` and `asm` are pre-silenced.
+#   4. POLARITY, which rustc does not report at all. It says "unexpected cfg condition value" for
+#      `feature = "X"` and for `not(feature = "X")` alike; this guard distinguishes ALWAYS-FALSE
+#      (dead code) from ALWAYS-TRUE (fail-OPEN: the gated item is unconditionally live, which is
+#      what a renamed-away feature does to a `not()`-gated fallback -- 588 such sites here) and
+#      DEAD-ARM.
+#   5. Its own `// feature-gate-ok:` waiver, which silences this guard but not rustc.
+#
+# An earlier version of this header claimed the guard "closes" the blind spot outright. That
+# overstated it, and the correction is kept visible rather than edited away.
+#
 # It is the same family as the two vacuity guards, one level further in: `ci-guard-no-vacuous-
 # tests.sh` catches "the step ran but 0 tests executed" at run time, `ci-guard-vacuous-test-
 # shapes.sh` catches a CI call site that cannot fail, `ci-guard-no-disabled-test-modules.sh`
-# catches `cfg(any())` in source -- and this one catches the always-false gate that none of them
-# can see, because a crate with a dead gate still compiles clean and still reports "N passed".
+# catches `cfg(any())` in source.
 #
 # WHAT IT SCANS
 # --------------
@@ -36,14 +62,21 @@
 # THIS GUARD HAS BEEN SEEN TO FAIL
 # ---------------------------------
 # Landing it green would prove nothing (see the card contract's register rule: "a check you have
-# not seen fail is not evidence"). It was developed against an adversarial fixture carrying seven
-# planted always-false gates -- multi-line attribute, `cfg!` macro, nested `all(unix, feature=)`,
-# an optional dependency suppressed by `dep:` syntax, a gate under `tests/`, one in `build.rs`,
-# and a crate outside the `lib-q-*` naming convention -- alongside controls that must NOT trip
-# (`target_feature`, a real feature, an implicit optional-dep feature, and the exemption comment).
-# OBSERVED: the guard reports all 7 and none of the controls. Two of the seven -- both `cfg!`
-# macro spellings -- passed clean on the first implementation and were the reason the token regex
-# gained its `!?`; the fixture is what caught that, not review.
+# not seen fail is not evidence"). `--self-test` runs before every real scan and replays an
+# adversarial fixture of planted gates across all three verdict classes plus controls that must
+# not trip; scripts/fixtures/nonexistent-feature-gates/README.md tabulates which guard mutation
+# each construct detects.
+#
+# The fixture has already earned its keep three times, each catching something review did not:
+#   * The first implementation never matched `cfg!(...)` at all -- the token regex wanted `(`
+#     immediately after `cfg` and the macro has a `!` in between. Two planted gates passed clean.
+#   * Two controls were dead on arrival. One had a `"` in its own explanatory comment, which
+#     re-synchronised the very scanner it was meant to desynchronise; the other escaped its
+#     payload quotes so it could not match under any implementation.
+#   * The FIRST SHIPPED VERSION reported `not(feature = "undefined")` as always-false. It is
+#     always TRUE. That verdict was inverted and shipped green -- the tree happens to contain no
+#     undefined features, so the real scan could not expose it. Fixed by evaluating the cfg tree
+#     in three-valued logic; the fixture now asserts verdict TEXT, not just which lines fire.
 #
 # Reproduce with any tree of your own:  bash scripts/ci-guard-nonexistent-feature-gates.sh /path/to/fixture
 #
