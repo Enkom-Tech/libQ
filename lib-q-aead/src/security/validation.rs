@@ -349,26 +349,43 @@ impl Default for InputValidator {
 /// Global input validator with thread-safe access
 #[cfg(feature = "std")]
 use std::sync::{
-    Arc,
+    LazyLock,
     RwLock,
 };
 
+/// The process-wide input validator.
+///
+/// # Invariant (both `cfg` branches — any edit must preserve this on BOTH)
+///
+/// After `set_input_validator(v)` returns, `get_input_validator()` returns `v` until the next
+/// `set_input_validator` call, on every target and regardless of any prior panic in any
+/// thread.
+///
+/// `LazyLock` makes initialisation race-free, so no writer's value can be discarded by a
+/// concurrent first reader, and poisoned guards are recovered with `PoisonError::into_inner`
+/// so no path can silently drop a write or substitute a value for the stored one. The
+/// `no_std` branch gets the same contract for free: `spin` locks cannot poison. Matches
+/// `GLOBAL_SECURITY_CONFIG` in `security::mod`; see card `t_8f408920` for why the previous
+/// shape was replaced.
 #[cfg(feature = "std")]
-static GLOBAL_VALIDATOR: std::sync::OnceLock<Arc<RwLock<InputValidator>>> =
-    std::sync::OnceLock::new();
+static GLOBAL_VALIDATOR: LazyLock<RwLock<InputValidator>> =
+    LazyLock::new(|| RwLock::new(InputValidator::new()));
 #[cfg(not(feature = "std"))]
 static GLOBAL_VALIDATOR: spin::LazyLock<spin::Mutex<InputValidator>> =
     spin::LazyLock::new(|| spin::Mutex::new(InputValidator::new()));
 
-/// Get the global input validator
+/// Get the global input validator.
+///
+/// This read is infallible: a poisoned lock is recovered and the stored validator returned,
+/// never a fallback. The value is process-global and last-writer-wins — see
+/// [`set_input_validator`].
 pub fn get_input_validator() -> InputValidator {
     #[cfg(feature = "std")]
     {
         GLOBAL_VALIDATOR
-            .get_or_init(|| Arc::new(RwLock::new(InputValidator::new())))
             .read()
-            .map(|guard| (*guard).clone())
-            .unwrap_or_else(|_| InputValidator::new())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone()
     }
     #[cfg(not(feature = "std"))]
     {
@@ -376,17 +393,18 @@ pub fn get_input_validator() -> InputValidator {
     }
 }
 
-/// Set the global input validator
+/// Set the global input validator.
+///
+/// There is exactly one validator per process, shared by every crate that links
+/// `lib-q-aead`, and the last writer wins. The write is infallible: it always takes effect,
+/// because initialisation races cannot drop it and a poisoned lock is recovered rather than
+/// skipped.
 pub fn set_input_validator(validator: InputValidator) {
     #[cfg(feature = "std")]
     {
-        if let Some(global_validator) = GLOBAL_VALIDATOR.get() {
-            if let Ok(mut global) = global_validator.write() {
-                *global = validator;
-            }
-        } else {
-            let _ = GLOBAL_VALIDATOR.set(Arc::new(RwLock::new(validator)));
-        }
+        *GLOBAL_VALIDATOR
+            .write()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = validator;
     }
     #[cfg(not(feature = "std"))]
     {
@@ -604,5 +622,51 @@ mod tests {
         assert!(validate_associated_data(associated_data).is_ok());
         assert!(validate_key_size(32, 32).is_ok());
         assert!(validate_nonce_size(16, 16).is_ok());
+    }
+
+    /// A poisoned lock must not turn `set_input_validator` into a silent no-op, nor make
+    /// `get_input_validator` invent a validator. Encodes the invariant on `GLOBAL_VALIDATOR`;
+    /// same defect class as card `t_8f408920`.
+    ///
+    /// This one is the load-bearing case of the three: every AEAD module reaches the global
+    /// validator through `validate_key`/`validate_nonce`/... on the encrypt and decrypt paths,
+    /// and unlike `SecurityConfig`, `ValidationConfig::default()` is *not* `::strict()` — so a
+    /// getter that substituted a default for the stored value would loosen validation rather
+    /// than tighten it.
+    ///
+    /// Poisoning is std-only: the `no_std` branch uses `spin::Mutex`, which has no poison
+    /// state, so there is nothing to test there.
+    #[cfg(feature = "std")]
+    #[test]
+    fn validator_survives_a_poisoned_lock() {
+        let _guard = super::super::lock_for_test();
+
+        // A `RwLock` is poisoned only by a panic while a *write* guard is held. Joining the
+        // thread guarantees the panic has happened before the assertions below.
+        let poisoner = std::thread::spawn(|| {
+            let _write_guard = GLOBAL_VALIDATOR
+                .write()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            panic!("deliberately poisoning GLOBAL_VALIDATOR");
+        });
+        assert!(
+            poisoner.join().is_err(),
+            "the poisoning thread did not panic, so the lock is not poisoned and this test \
+             would prove nothing"
+        );
+
+        set_input_validator(InputValidator::with_config(ValidationConfig::strict()));
+        assert_eq!(
+            get_input_validator().config.max_key_size,
+            ValidationConfig::strict().max_key_size,
+            "set_input_validator silently did not apply after the lock was poisoned"
+        );
+
+        set_input_validator(InputValidator::new());
+        assert_eq!(
+            get_input_validator().config.max_key_size,
+            ValidationConfig::default().max_key_size,
+            "get_input_validator invented a validator instead of returning the stored one"
+        );
     }
 }
