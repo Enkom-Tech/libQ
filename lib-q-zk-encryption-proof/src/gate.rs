@@ -19,15 +19,15 @@
 //! witness to the ciphertext's public key and message. Only such a closure actually rejects a
 //! malformed ciphertext.
 //!
-//! ## `# WARNING` — do NOT gate on the relation layer alone
-//! [`crate::prove::verify_relation_layer`] (paired with [`crate::prove::prove_relation_layer`]) proves
-//! **ONLY** the R3 linear relations (`p = B0ᵀe + f`, `v = ⟨t0,e⟩ + g + encode(μ)`) with `(e, f, g)`
-//! as **free, prover-chosen** values. There is no sponge AIR, no ternary/bounded sampler AIR, and no
-//! join binding `(e, f, g)` to `XOF(pk ‖ μ)` or to any range in that path. A malformed ciphertext
-//! (e.g. the `f = δ·unitₖ` spike) therefore produces a **fully-verifying** relation-layer proof.
+//! ## `# WARNING` — the gate is only as strong as the closure
+//! A relation-layer-only entry point (`crate::prove::verify_relation_layer`) used to exist and was
+//! documented here as unsafe to gate on: it proved **ONLY** the R3 linear relations with `(e, f, g)`
+//! free and prover-chosen, so a malformed ciphertext (e.g. the `f = δ·unitₖ` spike) produced a
+//! fully-verifying proof. It has since been **removed** rather than kept with a warning.
 //!
-//! **Using `verify_relation_layer` alone as the production `proof_verifies` yields a gate that admits
-//! malformed ciphertexts — it blocks nothing of the insider-probe class.**
+//! The rule it existed to state still holds: a closure that does not include the sponge + sampler +
+//! byte-provenance joins does not reject malformed ciphertexts, and a gate built on one blocks nothing
+//! of the insider-probe class.
 //!
 //! ## The sound closure — [`crate::encryption_proof`] (COMPLETE)
 //! [`crate::encryption_proof::assemble_full_provenance_prover`] / `..._verifier` compose the sponge +
@@ -64,8 +64,9 @@
 //! the crate does not re-export, so a config-generic gate cannot name the bound. Instead the gate takes
 //! a `proof_verifies: FnOnce() -> bool` that the caller wires to `verify_batch` over the ciphertext's
 //! encryption proof at its chosen config (rebuilt from public inputs via
-//! [`crate::prove::verify_relation_layer`], which recomputes ζ and the public coefficients — never
-//! trusting the prover). The gate **calls it before touching the share** and returns
+//! [`crate::encryption_proof::assemble_full_provenance_verifier`], which recomputes the challenges and
+//! every public coefficient — never trusting the prover). The gate **calls it before touching the
+//! share** and returns
 //! [`EncProofError::ProofRejected`] on failure, so a caller structurally cannot decapsulate an
 //! unverified ciphertext.
 
@@ -97,11 +98,11 @@ use crate::error::EncProofError;
 /// nothing more (see the module docs). A sound closure MUST verify knowledge of `μ` with
 /// `(e, f, g) = XOF(pk ‖ μ)` and `e` ternary / `f, g` bounded — the sponge + sampler + joins layer.
 ///
-/// **Do NOT** pass [`crate::prove::verify_relation_layer`] alone as `proof_verifies`: it checks only
-/// the R3 linear relations over free `(e, f, g)`, so a malformed ciphertext passes it and the gate
-/// would admit it. Use the COMPLETE composed byte-provenance closure from
-/// [`crate::encryption_proof::assemble_full_provenance_verifier`] instead (binds `e`, all `f`, and `g`
-/// across all R3a + R3b at production params over `m` challenges — see module docs).
+/// **Do NOT** pass a relation-layer-only verifier as `proof_verifies`: checking the R3 relations over
+/// free `(e, f, g)` lets a malformed ciphertext through and the gate would admit it. Use the COMPLETE
+/// composed byte-provenance closure from
+/// [`crate::encryption_proof::assemble_full_provenance_verifier`] (binds `e`, all `f`, and `g` across
+/// all R3a + R3b at production params over `m` challenges — see module docs).
 pub fn gated_partial_decap_masked<R, V>(
     proof_verifies: V,
     share: &SecretShare,

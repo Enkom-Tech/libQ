@@ -71,7 +71,7 @@ pub const XOF_STREAM_BUS: &str = "libq.enc.xof-stream.v0";
 
 /// Shared cross-table buses for **join 2** (design §5, coefficient binding): each sampler *Sends* the
 /// mod-q lift of every coefficient it emits — as four 12-bit limbs at position `4·global_coeff_idx +
-/// limb` — and the corresponding per-ring-element Horner fold ([`crate::zq::HornerFoldAir`]) *Receives*
+/// limb` — and the corresponding per-ring-element Horner fold ([`crate::zq::DotFoldAir`]) *Receives*
 /// them into its `w` limbs at position `4·(r·N) + 4·idx + limb` (`r` = which ring element, `idx` =
 /// ζ-power). One bus per component keeps the `e` / `f` / `g` coefficient axes disjoint without base
 /// bookkeeping; the fold's own canonicity + `w < q` checks back-propagate through the multiset
@@ -83,7 +83,7 @@ pub const COEFF_F_BUS: &str = "libq.enc.coeff-f.v0";
 pub const COEFF_G_BUS: &str = "libq.enc.coeff-g.v0";
 
 /// Shared cross-table bus for **join 3** (design §4.1, the boundary opening): each Horner fold
-/// ([`crate::zq::HornerFoldAir`] / [`crate::zq::EncodeMuFoldAir`]) *Sends* its result `E` (the last
+/// ([`crate::zq::DotFoldAir`] / [`crate::zq::EncodeMuFoldAir`]) *Sends* its result `E` (the last
 /// row's `r`, four limbs) gated by its last-row indicator, at position `base + 4·term + limb`; the
 /// [`crate::zq::RelationCheckAir`] *Receives* it into its witness term `w_term` (gated by the first-row
 /// indicator). `term` is the fold's index among the relation's witness terms; `base` distinguishes
@@ -93,7 +93,7 @@ pub const COEFF_G_BUS: &str = "libq.enc.coeff-g.v0";
 /// **Composition obligation (disjoint bases — adversarial review 2026-07-11):** distinct
 /// `RelationCheckAir` instances sharing this bus MUST use non-overlapping position ranges
 /// `[base, base + 4·L)` (`L` = the instance's term count), and each fold's `term` argument to
-/// [`crate::zq::horner_e_send_lookups_at`] must equal the `j` its target relation Receives at. This is
+/// [`crate::zq::fold_result_send_lookups_at`] must equal the `j` its target relation Receives at. This is
 /// NOT enforced in code; a caller that aliases two instances' ranges could let one instance's Send
 /// match another's Receive. Assign bases as a running offset `Σ 4·L_prev` per relation instance.
 pub const FOLD_E_BUS: &str = "libq.enc.fold-e.v0";
@@ -104,6 +104,17 @@ pub const FOLD_E_BUS: &str = "libq.enc.fold-e.v0";
 /// sponge output. Distinct from [`XOF_STREAM_BUS`] (which carries individual bytes to the samplers).
 /// Versioned (`.v0`) as a wire-relevant identifier.
 pub const SQUEEZE_LIMB_BUS: &str = "libq.enc.squeeze-limb.v0";
+
+/// Bus carrying the sponge preimage's 16 `μ` rate limbs to the [`crate::mu_bits`] bridge (card
+/// `t_a73aaed2`, GAP 2). The sponge Sends each limb once, gated on its first row — the only row whose
+/// preimage is the FO seed.
+pub const MU_LIMB_BUS: &str = "libq.enc.mu-limb.v0";
+
+/// Bus carrying `μ`'s 256 individual bits from the [`crate::mu_bits`] bridge to
+/// [`crate::zq::EncodeMuFoldAir`], keyed by absolute bit index. This is what makes `encode(μ)` mean
+/// the SAME `μ` the sponge absorbed; without it the encode fold's bits are a free operand chosen
+/// after the challenge, and an arbitrary malformed `v` can be made to verify.
+pub const MU_BIT_BUS: &str = "libq.enc.mu-bit.v0";
 
 /// A main-trace column reference (current row) as a lookup-tuple `SymbolicExpression`.
 pub(crate) fn mcol(col: usize) -> SymbolicExpression<ConfigVal> {
@@ -527,8 +538,8 @@ mod tests {
         };
         use crate::zq::{
             Q,
-            generate_horner_trace,
-            horner_coeff_receive_lookups_at,
+            fold_coeff_receive_lookups_at,
+            generate_dot_trace,
         };
 
         let bytes = xof_bytes(b"libq/join2/ternary", 4096);
@@ -552,11 +563,11 @@ mod tests {
             .map(|&c| c.rem_euclid(Q as i64) as u64)
             .collect();
 
-        let zeta = 123_456_789u64;
-        let (fold, _e) = generate_horner_trace(&lifts, zeta).expect("horner trace");
+        let psi = alloc::vec![123_456_789u64; lifts.len()];
+        let (fold, _e) = generate_dot_trace(&lifts, &psi).expect("dot fold trace");
 
         let send = ternary_coeff_send_lookups_at(0, 0);
-        let recv = horner_coeff_receive_lookups_at(COEFF_E_BUS, 0);
+        let recv = fold_coeff_receive_lookups_at(COEFF_E_BUS, 0);
 
         assert!(
             join2_balances(&sampler, &send, &fold, &recv),
@@ -566,7 +577,7 @@ mod tests {
         // Fold a *different* coefficient at degree 0: its `w` limb no longer matches the sampler's Send.
         let mut bad = lifts.clone();
         bad[0] = if lifts[0] == 1 { 0 } else { 1 };
-        let (bad_fold, _) = generate_horner_trace(&bad, zeta).expect("horner trace");
+        let (bad_fold, _) = generate_dot_trace(&bad, &psi).expect("dot fold trace");
         assert!(
             !join2_balances(&sampler, &send, &bad_fold, &recv),
             "a fold over a tampered coefficient must unbalance the coeff bus"
@@ -585,8 +596,8 @@ mod tests {
         };
         use crate::zq::{
             Q,
-            generate_horner_trace,
-            horner_coeff_receive_lookups_at,
+            fold_coeff_receive_lookups_at,
+            generate_dot_trace,
         };
 
         const BND: u64 = 1 << 20;
@@ -612,11 +623,11 @@ mod tests {
             }
         }
 
-        let zeta = 987_654_321u64;
-        let (fold, _e) = generate_horner_trace(&lifts, zeta).expect("horner trace");
+        let psi = alloc::vec![987_654_321u64; lifts.len()];
+        let (fold, _e) = generate_dot_trace(&lifts, &psi).expect("dot fold trace");
 
         let send = bounded_coeff_send_lookups_at(COEFF_F_BUS, 0);
-        let recv = horner_coeff_receive_lookups_at(COEFF_F_BUS, 0);
+        let recv = fold_coeff_receive_lookups_at(COEFF_F_BUS, 0);
 
         assert!(
             join2_balances(&sampler, &send, &fold, &recv),
@@ -625,7 +636,7 @@ mod tests {
 
         let mut bad = lifts.clone();
         bad[0] = (bad[0] + 1) % Q; // a different (still valid) coefficient at degree 0
-        let (bad_fold, _) = generate_horner_trace(&bad, zeta).expect("horner trace");
+        let (bad_fold, _) = generate_dot_trace(&bad, &psi).expect("dot fold trace");
         assert!(
             !join2_balances(&sampler, &send, &bad_fold, &recv),
             "a fold over a tampered bounded coefficient must unbalance the coeff bus"
@@ -642,22 +653,22 @@ mod tests {
         use crate::zq::{
             Q,
             RelationCheckAir,
-            generate_horner_trace,
+            fold_result_send_lookups_at,
+            generate_dot_trace,
             generate_relation_trace,
-            horner_e_send_lookups_at,
         };
 
         // A fold computing E = Σ cᵢ·ζⁱ (mod q) (height 4).
         let coeffs = [3u64, 5, 7, 11];
-        let zeta = 424_242u64;
-        let (fold, e) = generate_horner_trace(&coeffs, zeta).expect("horner trace");
+        let psi = alloc::vec![424_242u64; coeffs.len()];
+        let (fold, e) = generate_dot_trace(&coeffs, &psi).expect("dot fold trace");
 
         // A relation with one witness term w_0 = E: a_0 = 1, c = (Q − E) mod Q ⇒ 1·E + (Q−E) ≡ 0 (mod Q).
         let air = RelationCheckAir { num_terms: 1 };
         let (relation, _pubs) =
             generate_relation_trace(&[1], &[e], (Q - e) % Q).expect("relation trace");
 
-        let send = horner_e_send_lookups_at(FOLD_E_BUS, 0, 0, 0); // term 0
+        let send = fold_result_send_lookups_at(FOLD_E_BUS, 0, 0, 0); // term 0
         let recv = air.relation_w_receive_lookups_at(FOLD_E_BUS, 0);
 
         assert!(

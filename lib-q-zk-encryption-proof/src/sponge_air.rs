@@ -44,6 +44,7 @@ use lib_q_plonky_keccak_air::{
     NUM_ROUNDS,
     U64_LIMBS,
     generate_trace_rows,
+    input_limb,
     output_limb,
 };
 use lib_q_plonky_lookup::{
@@ -66,11 +67,13 @@ use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::ConfigVal;
 
 use crate::logup_join::{
+    MU_LIMB_BUS,
     SQUEEZE_LIMB_BUS,
     mcol,
     pcol,
     sconst,
 };
+use crate::mu_bits::MU_LIMBS;
 use crate::sponge::{
     RATE_BYTES,
     RATE_LANES,
@@ -184,19 +187,31 @@ impl BaseAir<ConfigVal> for ShakeSpongeAir {
         PK_DIGEST_LIMBS
     }
 
-    /// One preprocessed column: the absolute byte offset of squeeze-block `perm = row / NUM_ROUNDS`,
-    /// i.e. `RATE_BYTES · perm`. The limb-Send lookups read it only on final-step rows (where
-    /// `row / NUM_ROUNDS = perm` exactly); other rows are don't-care (Send multiplicity is 0). It is
-    /// a fixed function of the row index, so the verifier commits it independently of the prover
-    /// (sound). Returns `None` when `height == 0` (no join).
+    /// Two preprocessed columns, both fixed functions of the row index (so the verifier commits them
+    /// independently of the prover — that is what makes them sound to key lookups on):
+    /// * col 0 — the absolute byte offset of squeeze-block `perm = row / NUM_ROUNDS`, i.e.
+    ///   `RATE_BYTES · perm`. The limb-Send lookups read it only on final-step rows (where
+    ///   `row / NUM_ROUNDS = perm` exactly); other rows are don't-care (Send multiplicity is 0).
+    /// * col 1 — a first-row indicator, `1` on row 0 and `0` elsewhere. Row 0 is the only row whose
+    ///   `preimage` columns hold the FO seed (later permutations carry squeeze chaining), so this
+    ///   gates the μ-limb Sends of [`sponge_mu_limb_send_lookups`]. A round flag would NOT do: it is
+    ///   `1` once per permutation, which would Send garbage limbs from every later block.
+    ///
+    /// Returns `None` when `height == 0` (no join).
     fn preprocessed_trace(&self) -> Option<RowMajorMatrix<ConfigVal>> {
         if self.height == 0 {
             return None;
         }
-        let col: Vec<ConfigVal> = (0..self.height)
-            .map(|r| ConfigVal::from_usize(RATE_BYTES * (r / NUM_ROUNDS)))
-            .collect();
-        Some(RowMajorMatrix::new(col, 1))
+        let mut vals: Vec<ConfigVal> = Vec::with_capacity(self.height * 2);
+        for r in 0..self.height {
+            vals.push(ConfigVal::from_usize(RATE_BYTES * (r / NUM_ROUNDS)));
+            vals.push(if r == 0 {
+                ConfigVal::ONE
+            } else {
+                ConfigVal::ZERO
+            });
+        }
+        Some(RowMajorMatrix::new(vals, 2))
     }
 }
 
@@ -290,6 +305,36 @@ impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for ShakeSpongeAir {
 /// [`crate::squeeze_byte::squeeze_byte_limb_receive_lookup`] is the matching Receive side; the two
 /// balance iff the squeeze-byte table's reconstructed limbs equal the sponge's true squeezed output
 /// at each byte position.
+/// The 16 **Send** lookups exporting the sponge preimage's `μ` rate limbs on
+/// [`MU_LIMB_BUS`] — the binding that closes card `t_a73aaed2`'s GAP 2.
+///
+/// `μ` occupies preimage rate limbs `MU_LIMB_LO..MU_LIMB_LO+MU_LIMBS`, and those columns hold the FO
+/// seed on **row 0 only** (later permutations carry squeeze chaining, so their preimage is the
+/// previous output). The multiplicity is therefore the preprocessed first-row indicator, column 1 —
+/// NOT a Keccak round flag, which is `1` once per permutation and would export garbage from every
+/// later block.
+///
+/// The matching Receive is [`crate::mu_bits::mu_bits_lookups`]; the two balance iff the bridge — and
+/// through it [`crate::zq::EncodeMuFoldAir`] — is decomposing the μ the sponge actually absorbed.
+///
+/// Aux columns `RATE_LIMBS..RATE_LIMBS+MU_LIMBS`, past [`sponge_limb_send_lookups`]'s block.
+pub fn sponge_mu_limb_send_lookups() -> Vec<Lookup<ConfigVal>> {
+    let first_row = pcol(1);
+    (0..MU_LIMBS)
+        .map(|j| {
+            Lookup::new(
+                Kind::Global(MU_LIMB_BUS.into()),
+                Vec::from([Vec::from([
+                    sconst(j as u64),
+                    mcol(input_limb(MU_LIMB_LO + j)),
+                ])]),
+                Vec::from([Direction::Send.multiplicity(first_row.clone())]),
+                Vec::from([RATE_LIMBS + j]),
+            )
+        })
+        .collect()
+}
+
 pub fn sponge_limb_send_lookups() -> Vec<Lookup<ConfigVal>> {
     let step_last = mcol(STEP_LAST_COL);
     (0..RATE_LIMBS)
@@ -544,7 +589,7 @@ mod tests {
         let pubs = sponge_public_values(&pk);
         // Corrupt rate limb 51 (should be 0x1F) on row 0's preimage — breaks pad (A) (and the Keccak
         // first_step/constancy). `input_limb(51)` is the flat column index of that limb.
-        let col = lib_q_plonky_keccak_air::input_limb(51);
+        let col = input_limb(51);
         trace.values[col] += ConfigVal::ONE;
 
         assert!(

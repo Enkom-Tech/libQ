@@ -34,17 +34,16 @@ use crate::sponge_air::{
     sponge_public_values,
 };
 use crate::zq::{
+    DotFoldAir,
     EncodeMuFoldAir,
-    HornerFoldAir,
+    MSG_BITS,
     ModReduceAir,
     Q,
     RelationCheckAir,
-    encode_mu_public_values,
+    generate_dot_trace,
     generate_encode_mu_trace,
-    generate_horner_trace,
     generate_modreduce_trace,
     generate_relation_trace,
-    horner_public_values,
 };
 
 // ---------------------------------------------------------------------------
@@ -241,25 +240,26 @@ fn fuzz_modreduce_air() {
 #[test]
 fn fuzz_horner_fold_air() {
     let mut rng = Rng::new(0xFEED_FACE_DEAD_C0DE);
-    let air = HornerFoldAir;
 
     for inst in 0..N {
         let seed = rng.next_u64();
         let mut inst_rng = Rng::new(seed ^ (inst as u64).wrapping_mul(0x517CC1B727220A95));
 
-        // coeffs: length 4..12, each < q
+        // coeffs: length 4..12, each < q; ψ: one random public multiplier per coefficient (rides
+        // this instance's preprocessed trace — see DotFoldAir's doc comment).
         let len = (inst_rng.below(9) as usize) + 4; // 4..12
         let coeffs: Vec<u64> = (0..len).map(|_| inst_rng.next_u64() % Q).collect();
-        let zeta = inst_rng.next_u64() % Q;
+        let psi: Vec<u64> = (0..len).map(|_| inst_rng.next_u64() % Q).collect();
+        let air = DotFoldAir::new(psi.clone());
 
-        let (trace, _e) = generate_horner_trace(&coeffs, zeta)
-            .unwrap_or_else(|e| panic!("HornerFoldAir inst {inst}: trace gen failed: {e:?}"));
-        let pubs = horner_public_values(zeta);
+        let (trace, _e) = generate_dot_trace(&coeffs, &psi)
+            .unwrap_or_else(|e| panic!("DotFoldAir inst {inst}: trace gen failed: {e:?}"));
+        let pubs: Vec<ConfigVal> = Vec::new(); // ψ is preprocessed, not a public value
 
         // Completeness.
         assert!(
             accepts(&air, &trace, &pubs),
-            "HornerFoldAir inst {inst}: valid trace rejected. coeffs={coeffs:?} zeta={zeta}"
+            "DotFoldAir inst {inst}: valid trace rejected. coeffs={coeffs:?} psi={psi:?}"
         );
 
         // Census.
@@ -268,8 +268,8 @@ fn fuzz_horner_fold_air() {
 
         assert!(
             survivors.is_empty(),
-            "HornerFoldAir POTENTIAL SOUNDNESS FINDING at inst {inst}:\n\
-             coeffs={coeffs:?} zeta={zeta}\n\
+            "DotFoldAir POTENTIAL SOUNDNESS FINDING at inst {inst}:\n\
+             coeffs={coeffs:?} psi={psi:?}\n\
              First survivors (row, col): {:?}",
             survivors
                 .iter()
@@ -338,27 +338,28 @@ fn fuzz_encode_mu_fold_air() {
     const EM_N: usize = 16; // instances
     const EM_M: usize = 200; // mutations per instance
     let mut rng = Rng::new(0x0EA7_C0DE_F00D_1234);
-    let air = EncodeMuFoldAir;
 
     for inst in 0..EM_N {
         let seed = rng.next_u64();
         let mut inst_rng = Rng::new(seed ^ (inst as u64).wrapping_mul(0x2545_F491_4F6C_DD1D));
 
-        // Random 32-byte message and random ζ < q.
+        // Random 32-byte message and a random public ψ (κ's first MSG_BITS entries, in the real
+        // relation — here just an arbitrary length-MSG_BITS multiplier vector).
         let mut mu = [0u8; 32];
         for b in mu.iter_mut() {
             *b = (inst_rng.next_u64() & 0xFF) as u8;
         }
-        let zeta = inst_rng.next_u64() % Q;
+        let psi: Vec<u64> = (0..MSG_BITS).map(|_| inst_rng.next_u64() % Q).collect();
+        let air = EncodeMuFoldAir::new(psi.clone());
 
-        let (trace, _e) = generate_encode_mu_trace(&mu, zeta)
+        let (trace, _e) = generate_encode_mu_trace(&mu, &psi)
             .unwrap_or_else(|e| panic!("EncodeMuFoldAir inst {inst}: trace gen failed: {e:?}"));
-        let pubs = encode_mu_public_values(zeta);
+        let pubs: Vec<ConfigVal> = Vec::new(); // ψ is preprocessed, not a public value
 
         // Completeness.
         assert!(
             accepts(&air, &trace, &pubs),
-            "EncodeMuFoldAir inst {inst}: valid trace rejected. mu={mu:?} zeta={zeta}"
+            "EncodeMuFoldAir inst {inst}: valid trace rejected. mu={mu:?}"
         );
 
         // Census.
@@ -368,7 +369,6 @@ fn fuzz_encode_mu_fold_air() {
         assert!(
             survivors.is_empty(),
             "EncodeMuFoldAir POTENTIAL SOUNDNESS FINDING at inst {inst}:\n\
-             zeta={zeta}\n\
              First survivors (row, col): {:?}",
             survivors
                 .iter()

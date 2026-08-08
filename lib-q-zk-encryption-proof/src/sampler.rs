@@ -579,7 +579,7 @@ impl<AB: AirBuilder> Air<AB> for BoundedSamplerAir {
         // `lift ≥ 0` (kills `neg = 0` when `R < BOUND`, whose `lift` would be negative) and by
         // **`lift < Q`** — a composition obligation supplied by the fold's own `w < Q` check,
         // back-propagated through join 2's multiset equality. (A standalone bounded proof does NOT
-        // enforce `lift < Q`; the composed sampler+fold proof does. See module note + `zq::HornerFoldAir`.)
+        // enforce `lift < Q`; the composed sampler+fold proof does. See module note + `zq::DotFoldAir`.)
         let neg = loc[W_NEG].clone();
         builder.assert_bool(neg.clone());
         // lift limbs: value == Horner of its 12 boolean bits (⇒ each limb ∈ [0, 2^12), lift ∈ [0, 2^48)).
@@ -903,7 +903,7 @@ pub fn ternary_receive_lookup_at(offset: u64) -> Lookup<ConfigVal> {
 ///
 /// Gated by `C_EMIT` (the first `num_coeffs` accepts only), so rejected, drained and padding rows
 /// Send nothing. The four limbs Receive into the
-/// matching [`crate::zq::HornerFoldAir`] fold's `w` limbs ([`crate::zq::horner_coeff_receive_lookups_at`]);
+/// matching [`crate::zq::DotFoldAir`] fold's `w` limbs ([`crate::zq::fold_coeff_receive_lookups_at`]);
 /// the fold's canonicity + `w < q` checks make the binding sound (the lift is `−1 ↦ q−1`, `0 ↦ 0`,
 /// `+1 ↦ 1`, each `< q`). One single-tuple lookup per limb (degree-3 constraint) to keep the quotient
 /// domain small, mirroring the sponge limb Sends.
@@ -969,7 +969,7 @@ pub fn bounded_receive_lookup_at(offset: u64) -> Vec<Lookup<ConfigVal>> {
 /// axis (`4·k·N` for `f_k`; `0` for a lone `g`); `coeff_idx` (`W_CIDX`) is the coefficient's global
 /// index. Gated by `W_EMIT` (the first `num_coeffs` accepts only). The lift value and `neg` are pinned by the in-AIR
 /// `lift + BOUND = R + neg·Q` chain; the `lift < Q` bound (hence the correct `neg`) is the matching
-/// [`crate::zq::HornerFoldAir`] fold's `w < Q`, back-propagated through the multiset equality. Four
+/// [`crate::zq::DotFoldAir`] fold's `w < Q`, back-propagated through the multiset equality. Four
 /// single-tuple lookups (degree-3 each), mirroring the ternary and sponge-limb Sends.
 pub fn bounded_coeff_send_lookups_at(bus: &str, base: u64) -> Vec<Lookup<ConfigVal>> {
     bounded_coeff_send_lookups_col(bus, base, 0)

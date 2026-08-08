@@ -33,7 +33,7 @@ pub mod encryption_proof;
 pub mod error;
 pub mod gate;
 pub mod logup_join;
-pub mod prove;
+pub mod mu_bits;
 pub mod relation_assembly;
 pub mod sampler;
 pub mod sponge;
