@@ -265,7 +265,7 @@ cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
 
 ### Useful Scripts
 
-- `./scripts/security-check.sh`: Security validation
+- `./scripts/security-check.sh`: Classical-crypto ratchet + `cargo audit` (see below)
 - `./scripts/rust-pre-push-health.sh`: Pre-push fmt/clippy/audit and hygiene checks
 - `./scripts/pre-git-push.sh`: Git pre-push orchestrator (auto-detects Cargo workspaces)
 - `cargo audit`: Dependency vulnerability scanning
@@ -305,10 +305,27 @@ cargo install cargo-audit cargo-tarpaulin wasm-pack cargo-outdated
    ```
 
 2. **Security Check Failures**
+
+   `scripts/security-check.sh` runs two things: a ratchet on the classical-cryptography
+   surface, and `cargo audit`. It does **not** check coverage, docs, WASM or lints — CI owns
+   those, and the versions that used to live here scanned a `src/` directory that no longer
+   exists, so they could only ever report PASS.
+
+   The ratchet fails in three ways:
+
+   | Message | Meaning | Fix |
+   |---|---|---|
+   | `declares classical dependency '<dep>', not in ...` | a crate gained a pre-quantum dependency | if it is genuinely required (a spec mandates it, or a NIST KAT vector needs it), add a line to `scripts/classical-crypto-allowlist.txt` with the reason; otherwise remove the dependency |
+   | `still allows '<dep>' for <crate>, which no longer declares it` | the allowlist has a stale entry | delete the line — a stale entry silently re-permits the dependency later |
+   | `SELF-TEST FAILED` | the check itself stopped detecting things | fix the checker, **not** the allowlist |
+
+   `WARN` lines are allowlist entries marked `TODO`: accepted for now, not justified. They
+   do not fail the run, and they are debt.
+
    ```bash
-   # The script has no --verbose flag; trace shell steps if needed:
-   bash -x ./scripts/security-check.sh
-   # Or run individual checks (cargo audit, wasm-pack, tarpaulin) from the script body.
+   bash -x ./scripts/security-check.sh                          # trace shell steps
+   python scripts/security_check_classical_crypto.py .          # the check on its own
+   python scripts/security_check_classical_crypto.py --self-test  # prove it can still fail
    ```
 
 3. **Test Failures**

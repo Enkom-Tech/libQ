@@ -1,0 +1,56 @@
+# Reviewed classical-cryptography dependencies
+# ============================================
+# Enforced by scripts/security_check_classical_crypto.py (run via scripts/security-check.sh).
+#
+# Format:  <crate dir> | <dependency> | JUSTIFIED|TODO | <reason>
+#
+# JUSTIFIED  the dependency is required by a specification or by byte-exact vector
+#            reproduction, and removing it would mean not implementing the thing.
+# TODO       accepted for now but NOT justified. Reported as a warning on every run.
+#            A TODO is a debt, not a decision.
+#
+# Adding a line is the reviewable act. Do not add one to make the gate quiet -- the point
+# of the gate is that new classical crypto gets looked at. Removing a dependency means
+# removing its line too: an entry matching nothing FAILS as stale, because an allowlist
+# nobody prunes silently re-permits the dependency later.
+#
+# The workspace root's [workspace.dependencies] is deliberately not listed. It pins
+# versions for members that opt in with `workspace = true`; the opt-in is what grants use,
+# and it happens on the member's own manifest, which is where these lines live.
+
+# --- Standardised parameter sets that are defined over classical primitives --------------
+# FIPS 205 specifies SLH-DSA in two hash families, SHAKE and SHA-2. Implementing the SHA-2
+# parameter sets requires SHA-2; it is the standard, not a fallback.
+lib-q-slh-dsa | sha2 | JUSTIFIED | FIPS 205 SLH-DSA-SHA2 parameter sets (src/hashes/sha2.rs, const_oid::db::fips205)
+lib-q-sig     | sha2 | JUSTIFIED | optional, enabled only by the `slh-dsa` feature which forwards to lib-q-slh-dsa's SHA-2 parameter sets
+
+# MAYO expands its public matrices with AES-128-CTR (zero IV, big-endian block counter),
+# matching aes128ctr.c in the reference implementation. Substituting a PQ primitive would
+# produce a different, non-interoperable scheme.
+lib-q-mayo | aes | JUSTIFIED | MAYO public matrix expansion per spec / aes128ctr.c (src/expand.rs)
+
+# --- NIST KAT harnesses, which are defined in terms of an AES-CTR-DRBG -------------------
+# Reproducing published vectors byte for byte means running the DRBG the vectors were
+# generated with. These are seeded deterministically for tests, never used as a live CSPRNG.
+lib-q-cb-kem | aes | JUSTIFIED | NIST SP 800-90A CTR_DRBG (AES-256, no df) for KAT reproduction (src/nist_aes_rng.rs)
+lib-q-hqc    | aes | JUSTIFIED | NIST SP 800-90A AES-256-CTR-DRBG, optional, for KAT reproduction (src/aes_ctr_drbg.rs)
+lib-q-random | aes | JUSTIFIED | optional AES-256-CTR-DRBG used for deterministic KAT seeding (src/entropy.rs)
+
+# --- Deliberate interoperability surface -------------------------------------------------
+# lib-q-hash exports the SHA-2 family alongside SHA-3/Keccak so callers can interoperate
+# with existing systems. Documented as such at the top of the module.
+lib-q-hash | sha2 | JUSTIFIED | FIPS 180-4 SHA-2 wrappers exported for interoperability (src/sha2_hashes.rs)
+
+# --- Test-only: comparing against upstream / reference vectors ---------------------------
+# dev-dependencies do not ship to users.
+lib-q-fn-dsa/fn-dsa-kgen | sha2 | JUSTIFIED | dev-only; upstream test vectors are checksummed with SHA-2
+lib-q-prf                | sha2 | JUSTIFIED | dev-only; accept_reference_vectors.rs checks published reference vectors
+lib-q-slh-dsa            | aes  | JUSTIFIED | dev-only; KAT harness DRBG
+
+# --- Debt ---------------------------------------------------------------------------------
+# Not required by any specification. lib-q-blind-pcs is a 36-line experimental sketch whose
+# commitment is a bare SHA-256 hash, in a library whose premise is post-quantum primitives.
+# It has no publish=false, so it is publishable, and changing the hash changes the
+# commitment wire format -- which is why this is recorded as debt rather than silently
+# swapped here. See also its `verify`, which compares with a short-circuiting iterator.
+lib-q-blind-pcs | sha2 | TODO | experimental sketch commits with bare SHA-256; should use SHA-3/K12. Changing it is a wire-format break, so it needs a deliberate decision

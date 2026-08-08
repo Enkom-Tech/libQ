@@ -1,179 +1,177 @@
-#!/bin/bash
-
-# lib-Q Security Check Script
-# This script validates the codebase for security compliance
+#!/usr/bin/env bash
+# lib-Q security check -- run from a pre-commit hook and by hand (see DEVELOPMENT.md).
+#
+# WHAT THIS SCRIPT USED TO BE, AND WHY IT WAS REPLACED
+# =====================================================
+# Every source-scanning check here was of the form
+#
+#     if grep -r "use.*aes\|use.*sha256\|use.*rsa\|use.*ecdsa" src/ 2>/dev/null; then
+#         print_status "FAIL" ...; exit 1
+#     else
+#         print_status "PASS" "No classical cryptographic algorithms found"
+#     fi
+#
+# and there were eight of them. They all scanned a repo-root `src/` directory, which
+# stopped existing when libQ split into `lib-q-*` crates. `grep` matched nothing,
+# `2>/dev/null` swallowed the "No such file or directory" that would have revealed it, and
+# so five checks always printed PASS and three (written `if ! grep`) always printed WARN.
+# The FAIL branch was unreachable on this layout: the script could not fail.
+#
+# It then printed a Summary section of PASS/WARN marks that were hardcoded string
+# literals, unrelated to anything the run had observed. A green result from this script
+# was evidence of nothing at all.
+#
+# WHAT REPLACED IT
+# =================
+# One check that can fail, plus the audit. The eight grep checks were not repointed,
+# because most of them could not be made meaningful:
+#
+#   * "No classical cryptographic algorithms" -- premise is false. 21 tracked files use
+#     one, nearly all because a standard says to (FIPS 205 SLH-DSA-SHA2, MAYO's AES-CTR
+#     matrix expansion, NIST KAT AES-CTR-DRBGs). Repointed as written it would fail on
+#     correct code. It is now a RATCHET over a reviewed allowlist -- see below.
+#   * "SHA-3 family compliance" (`use.*sha[0-9]` minus shake/cshake) -- would match this
+#     repo's own `use lib_q_sha3::...`, i.e. flag the compliant crate as a violation.
+#   * unsafe / zeroize / "if.*secret" / unwrap / assert / rand presence greps -- each was
+#     a WARN whichever way it went, on a codebase where every one of them is present in
+#     quantity. A check with one possible outcome carries no information.
+#   * `cargo doc` missing-docs count, tarpaulin coverage, and a full wasm-pack build --
+#     minutes of work per commit, and CI already gates all three properly
+#     (.github/workflows/ci.yml, coverage.yml, and the wasm-build action).
+#
+# Deleting a check that cannot fail is not a loss of coverage. It never had any.
+#
+# THE CHECK THAT REMAINS
+# =======================
+# A post-quantum library cannot ban classical crypto outright -- see above. What it can do
+# is ensure no NEW classical dependency appears without someone looking at it. Every
+# classical dependency declared by any tracked crate must appear in
+# scripts/classical-crypto-allowlist.txt with a reason. A new one fails; an allowlist entry
+# that no longer matches anything also fails, so the list cannot rot into a blanket permit.
+#
+# Implementation and full rationale: scripts/security_check_classical_crypto.py.
+#
+# THIS SCRIPT HAS BEEN SEEN TO FAIL
+# ==================================
+# The predecessor's whole problem was that it never could, so a clean run here is only
+# meaningful if the check is known to reject something. `--self-test` runs first and
+# replays a fixture covering a new shipped dependency, a new dev-only one, one hidden
+# behind a `package = "..."` rename, one in a `[target.'cfg(...)'.dependencies]` table, and
+# a stale allowlist entry -- plus controls that must NOT fire (a covered dependency, a
+# clean crate, and workspace-root version pins).
+#
+# Usage: bash scripts/security-check.sh [REPO_ROOT]
 
 set -euo pipefail
 
-echo "🔒 Running lib-Q Security Checks..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="${1:-$(git rev-parse --show-toplevel)}"
 
-# Colors for output
-RED='\033[0;31m'
 GREEN='\033[0;32m'
+RED='\033[0;31m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Function to print colored output
-print_status() {
-    local status=$1
-    local message=$2
-    case $status in
-        "PASS")
-            echo -e "${GREEN}PASS${NC}: $message"
-            ;;
-        "FAIL")
-            echo -e "${RED}❌ FAIL${NC}: $message"
-            ;;
-        "WARN")
-            echo -e "${YELLOW}⚠️  WARN${NC}: $message"
-            ;;
-    esac
+# Every check appends its outcome here, and the summary is printed FROM this array. The
+# predecessor's summary was a block of hardcoded marks; deriving it is the whole point.
+declare -a RESULTS=()
+FAILED=0
+
+record() { # record <PASS|WARN|FAIL> <name>
+    RESULTS+=("$1|$2")
+    [[ "$1" == "FAIL" ]] && FAILED=1
+    return 0
 }
 
-# Check for classical cryptographic algorithms
-echo "Checking for classical cryptographic algorithms..."
-if grep -r "use.*aes\|use.*sha256\|use.*rsa\|use.*ecdsa" src/ 2>/dev/null; then
-    print_status "FAIL" "Classical cryptographic algorithms detected!"
-    exit 1
+echo "Running lib-Q security checks..."
+echo ""
+
+# Probe by RUNNING each candidate: on Windows a `python3` App Execution Alias sits on PATH
+# and satisfies `command -v` while refusing to execute (the same trap the ci-guard-*
+# scripts work around).
+PY_BIN=""
+for candidate in python3 python py; do
+    if command -v "$candidate" >/dev/null 2>&1 && "$candidate" -c "import sys" >/dev/null 2>&1; then
+        PY_BIN="$candidate"
+        break
+    fi
+done
+
+RATCHET="$SCRIPT_DIR/security_check_classical_crypto.py"
+
+if [[ -z "$PY_BIN" ]]; then
+    # Do not silently skip: a missing interpreter must not read as a pass.
+    echo -e "${RED}FAIL${NC}: no working python3 interpreter; cannot run the classical-crypto ratchet"
+    record FAIL "classical-crypto ratchet (interpreter missing)"
+elif [[ ! -f "$RATCHET" ]]; then
+    echo -e "${RED}FAIL${NC}: $RATCHET is missing"
+    record FAIL "classical-crypto ratchet (script missing)"
 else
-    print_status "PASS" "No classical cryptographic algorithms found"
+    echo "Proving the ratchet can fail (self-test)..."
+    if "$PY_BIN" "$RATCHET" --self-test; then
+        echo -e "${GREEN}PASS${NC}: ratchet self-test -- detection verified against known-bad input"
+        record PASS "ratchet self-test"
+    else
+        echo -e "${RED}FAIL${NC}: ratchet self-test -- the check is not detecting what it claims"
+        record FAIL "ratchet self-test"
+    fi
+
+    echo ""
+    echo "Checking the classical-cryptography surface..."
+    ratchet_out=""
+    ratchet_rc=0
+    ratchet_out="$("$PY_BIN" "$RATCHET" "$ROOT" 2>&1)" || ratchet_rc=$?
+    echo "$ratchet_out"
+    if [[ $ratchet_rc -eq 0 ]]; then
+        if echo "$ratchet_out" | grep -q "WARN:"; then
+            echo -e "${YELLOW}WARN${NC}: classical-crypto surface unchanged, with unjustified entries outstanding"
+            record WARN "classical-crypto ratchet"
+        else
+            echo -e "${GREEN}PASS${NC}: classical-crypto surface matches the reviewed allowlist"
+            record PASS "classical-crypto ratchet"
+        fi
+    else
+        echo -e "${RED}FAIL${NC}: classical-crypto surface differs from the reviewed allowlist"
+        record FAIL "classical-crypto ratchet"
+    fi
 fi
 
-# Check for SHA-3 family compliance
-echo "Checking for SHA-3 family compliance..."
-if grep -r "use.*sha[0-9]" src/ 2>/dev/null | grep -v "shake\|cshake"; then
-    print_status "FAIL" "Non-SHA-3 hash functions detected!"
-    exit 1
-else
-    print_status "PASS" "SHA-3 family compliance verified"
-fi
-
-# Check for unsafe code usage
-echo "Checking for unsafe code usage..."
-UNSAFE_COUNT=$(grep -r "unsafe" src/ 2>/dev/null | wc -l || echo "0")
-if [ "$UNSAFE_COUNT" -gt 0 ]; then
-    print_status "WARN" "Found $UNSAFE_COUNT unsafe blocks - review required"
-    grep -r "unsafe" src/ 2>/dev/null || true
-else
-    print_status "PASS" "No unsafe code found"
-fi
-
-# Check for zeroize usage
-echo "Checking for memory zeroization..."
-if ! grep -r "use.*zeroize" src/ 2>/dev/null; then
-    print_status "WARN" "zeroize crate not used for sensitive data"
-else
-    print_status "PASS" "zeroize crate usage detected"
-fi
-
-# Check for potential timing vulnerabilities
-echo "Checking for potential timing vulnerabilities..."
-if grep -r "if.*secret\|match.*secret" src/ 2>/dev/null; then
-    print_status "WARN" "Potential branching on secret data detected"
-else
-    print_status "PASS" "No obvious timing vulnerabilities detected"
-fi
-
-# Check for proper error handling
-echo "Checking for proper error handling..."
-if grep -r "unwrap()\|expect(" src/ 2>/dev/null | grep -v "test\|example"; then
-    print_status "WARN" "Potential unwrap/expect usage in production code"
-else
-    print_status "PASS" "Proper error handling detected"
-fi
-
-# Check for input validation
-echo "Checking for input validation..."
-if ! grep -r "assert\|debug_assert\|if.*len\|if.*size" src/ 2>/dev/null; then
-    print_status "WARN" "Limited input validation detected"
-else
-    print_status "PASS" "Input validation patterns detected"
-fi
-
-# Check for proper random number generation
-echo "Checking for random number generation..."
-if ! grep -r "getrandom\|rand" src/ 2>/dev/null; then
-    print_status "WARN" "No random number generation detected"
-else
-    print_status "PASS" "Random number generation detected"
-fi
-
-# Check for documentation
-echo "Checking for documentation..."
-MISSING_DOCS=$(cargo doc --all-features --no-deps 2>&1 | grep -c "missing documentation" || echo "0")
-if [ "$MISSING_DOCS" -gt 0 ]; then
-    print_status "WARN" "$MISSING_DOCS items missing documentation"
-else
-    print_status "PASS" "All public APIs documented"
-fi
-
-# Check for security-related dependencies
-echo "Checking for security-related dependencies..."
-if ! grep -q "zeroize" Cargo.toml; then
-    print_status "WARN" "zeroize dependency not found"
-else
-    print_status "PASS" "zeroize dependency found"
-fi
-
-# Run cargo audit
+echo ""
 echo "Running cargo audit..."
-if command -v cargo-audit &> /dev/null; then
+if command -v cargo-audit >/dev/null 2>&1; then
     if cargo audit --deny warnings; then
-        print_status "PASS" "Cargo audit passed"
+        echo -e "${GREEN}PASS${NC}: cargo audit"
+        record PASS "cargo audit"
     else
-        print_status "FAIL" "Cargo audit failed"
-        exit 1
+        echo -e "${RED}FAIL${NC}: cargo audit reported advisories"
+        record FAIL "cargo audit"
     fi
 else
-    print_status "WARN" "cargo-audit not installed"
-fi
-
-# Check for test coverage
-echo "Checking for test coverage..."
-if command -v cargo-tarpaulin &> /dev/null; then
-    # Unscoped workspace tarpaulin mixes in dependency lines; for meaningful % use scripts/run-coverage.sh --crate <pkg>.
-    COVERAGE=$(cargo tarpaulin --features "all-algorithms" --out Xml 2>/dev/null | grep -o 'coverage="[^"]*"' | cut -d'"' -f2 || echo "0")
-    if (( $(echo "$COVERAGE >= 95" | bc -l 2>/dev/null || echo "0") )); then
-        print_status "PASS" "Test coverage: ${COVERAGE}%"
-    else
-        print_status "WARN" "Test coverage below 95%: ${COVERAGE}%"
-    fi
-else
-    print_status "WARN" "cargo-tarpaulin not installed"
-fi
-
-# Check for WASM compatibility
-echo "Checking for WASM compatibility..."
-if command -v wasm-pack &> /dev/null; then
-    if wasm-pack build --target nodejs --features "wasm,all-algorithms" --no-typescript 2>/dev/null; then
-        print_status "PASS" "WASM compilation successful"
-    else
-        print_status "FAIL" "WASM compilation failed"
-        exit 1
-    fi
-else
-    print_status "WARN" "wasm-pack not installed"
+    echo -e "${YELLOW}WARN${NC}: cargo-audit not installed (cargo install cargo-audit); CI runs it regardless"
+    record WARN "cargo audit (not installed)"
 fi
 
 echo ""
-echo "🔒 Security check completed!"
-echo ""
+echo "Summary"
+echo "--------------------------------------------------"
+for entry in "${RESULTS[@]}"; do
+    status="${entry%%|*}"
+    name="${entry#*|}"
+    case "$status" in
+        PASS) echo -e "  ${GREEN}PASS${NC}  $name" ;;
+        WARN) echo -e "  ${YELLOW}WARN${NC}  $name" ;;
+        FAIL) echo -e "  ${RED}FAIL${NC}  $name" ;;
+    esac
+done
+echo "--------------------------------------------------"
 
-# Summary
-echo "Summary:"
-echo "- Classical crypto check: ✅"
-echo "- SHA-3 compliance: ✅"
-echo "- Unsafe code review: ⚠️"
-echo "- Memory zeroization: ⚠️"
-echo "- Timing vulnerabilities: ⚠️"
-echo "- Error handling: ⚠️"
-echo "- Input validation: ⚠️"
-echo "- Random number generation: ⚠️"
-echo "- Documentation: ⚠️"
-echo "- Dependencies: ⚠️"
-echo "- Cargo audit: ✅"
-echo "- Test coverage: ⚠️"
-echo "- WASM compatibility: ⚠️"
+if [[ $FAILED -ne 0 ]]; then
+    echo ""
+    echo -e "${RED}Security check FAILED.${NC}"
+    exit 1
+fi
 
 echo ""
-echo "⚠️  Please review all warnings and address security concerns before proceeding."
+echo "Security check passed."
+echo "Note: this covers the classical-crypto surface and the advisory audit only."
+echo "Coverage, docs, WASM and lints are gated in CI, not here."
