@@ -223,6 +223,105 @@ def _first_argument(group: str) -> str:
     return group
 
 
+def _split_args(group: str) -> list[str]:
+    """Top-level comma-separated arguments of a cfg combinator."""
+    args, depth, start = [], 0, 0
+    for i, c in enumerate(group):
+        if c == "(":
+            depth += 1
+        elif c == ")":
+            depth -= 1
+        elif c == "," and depth == 0:
+            args.append(group[start:i])
+            start = i + 1
+    tail = group[start:]
+    if tail.strip():
+        args.append(tail)
+    return args
+
+
+PRED = re.compile(r'^\s*([A-Za-z_][A-Za-z0-9_]*)\s*(?:=\s*"([^"]*)")?\s*$')
+COMBINATOR = re.compile(r'^\s*(all|any|not)\s*\(')
+
+
+def parse_cfg(text: str):
+    """Parse a cfg condition into ('all'|'any'|'not', [...]) / ('pred', key, value|None) / None.
+
+    None means "did not parse" and is treated as UNKNOWN downstream, so an exotic or malformed
+    condition can never be reported as dead.
+    """
+    text = text.strip()
+    m = COMBINATOR.match(text)
+    if m:
+        open_idx = text.index("(", m.start(1))
+        inner, end = _balanced(text, open_idx)
+        if text[end + 1 :].strip():
+            return None  # trailing junk -- refuse to guess
+        kind = m.group(1)
+        parts = [parse_cfg(a) for a in _split_args(inner)]
+        if kind == "not":
+            return ("not", parts) if len(parts) == 1 else None
+        return (kind, parts)
+    m = PRED.match(text)
+    if m:
+        return ("pred", m.group(1), m.group(2))
+    return None
+
+
+def evaluate(node, defined: set[str]):
+    """Three-valued evaluation. True / False / None(=unknown).
+
+    An undefined feature is FALSE (no feature set can turn it on). A DEFINED feature is UNKNOWN,
+    not True -- whether it is enabled depends on the build. Every non-feature predicate
+    (`unix`, `target_os = "..."`, ...) is UNKNOWN.
+    """
+    if node is None:
+        return None
+    kind = node[0]
+    if kind == "pred":
+        key, value = node[1], node[2]
+        if key == "feature" and value is not None:
+            return False if value not in defined else None
+        return None
+    if kind == "not":
+        inner = evaluate(node[1][0], defined)
+        return None if inner is None else (not inner)
+    values = [evaluate(child, defined) for child in node[1]]
+    if kind == "all":
+        if any(v is False for v in values):
+            return False
+        return True if values and all(v is True for v in values) else None
+    if kind == "any":
+        if any(v is True for v in values):
+            return True
+        return False if values and all(v is False for v in values) else None
+    return None
+
+
+def undefined_features(node, defined: set[str]) -> list[str]:
+    if node is None:
+        return []
+    if node[0] == "pred":
+        key, value = node[1], node[2]
+        if key == "feature" and value is not None and value not in defined:
+            return [value]
+        return []
+    children = node[1] if isinstance(node[1], list) else [node[1]]
+    return [f for child in children for f in undefined_features(child, defined)]
+
+
+# What an undefined feature reference actually does to the gate, given the whole condition.
+# Reporting all three as the same "always-false" verdict is what the first version of this guard
+# got wrong: `not(feature = "undefined")` is always TRUE, and the item it guards is unconditionally
+# live -- the opposite failure direction, and arguably the worse one, since renaming a feature out
+# of existence silently turns a fail-closed path fail-open.
+VERDICT = {
+    False: "ALWAYS-FALSE (the gated item compiles in no configuration)",
+    True: "ALWAYS-TRUE (the gate is a no-op; the item is unconditionally live)",
+    None: "DEAD-ARM (this arm can never contribute to the condition)",
+}
+
+
 def scan_file(path: pathlib.Path, defined: set[str], crate: str, root: pathlib.Path) -> list[str]:
     raw = path.read_text(encoding="utf-8", errors="replace")
     text = _strip_comments(raw)
@@ -240,6 +339,16 @@ def scan_file(path: pathlib.Path, defined: set[str], crate: str, root: pathlib.P
         if not names:
             continue
 
+        # Classify by evaluating the whole condition, not by the presence of a feature string.
+        # A condition this parser does not understand yields UNKNOWN everywhere, so it can never
+        # be reported as dead -- the guard fails safe toward silence rather than toward a wrong
+        # verdict on code someone then deletes.
+        node = parse_cfg(group)
+        undefined = undefined_features(node, defined)
+        if not undefined:
+            continue
+        verdict = VERDICT[evaluate(node, defined)]
+
         lineno = text.count("\n", 0, match.start()) + 1
         # The exemption is read from the ORIGINAL text: _strip_comments blanks it out. For a
         # multi-line cfg the comment may sit on any line the group spans, so check them all.
@@ -250,9 +359,8 @@ def scan_file(path: pathlib.Path, defined: set[str], crate: str, root: pathlib.P
             continue
 
         rel = path.relative_to(root).as_posix()
-        for feat in names:
-            if feat not in defined:
-                findings.append(f"{rel}:{lineno}: feature {feat!r} is not defined by {crate}")
+        for feat in sorted(set(undefined)):
+            findings.append(f"{rel}:{lineno}: feature {feat!r} is not defined by {crate} -- {verdict}")
     return findings
 
 

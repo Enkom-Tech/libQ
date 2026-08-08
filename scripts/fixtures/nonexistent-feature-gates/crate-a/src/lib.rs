@@ -20,6 +20,25 @@ pub fn planted_nested() {}
 #[cfg(feature = "serde")]
 pub fn planted_dep_syntax() {}
 
+// PLANTED 5: `not()` of an undefined feature. This is NOT always-false -- it is always TRUE, and
+// the item below is unconditionally live. The first version of this guard reported it with the
+// always-false message, which is the verdict exactly inverted. Worse, this is the fail-OPEN
+// direction: rename a feature out of existence and a `not()`-gated fallback silently becomes
+// permanent. There are 588 `cfg(not(feature` sites in this repo.
+#[cfg(not(feature = "ghost_negated"))]
+pub fn planted_negated_is_always_true() {}
+
+// PLANTED 6: one undefined arm of an `any()` whose other arm is real. The condition is satisfiable
+// (whenever `real` is on), so the item is not dead -- but the undefined arm can never contribute,
+// which is still a bug and still worth reporting, just not as dead code.
+#[cfg(any(feature = "real", feature = "ghost_dead_arm"))]
+pub fn planted_dead_arm() {}
+
+// CONTROL: `all()` containing an undefined feature IS genuinely always-false -- polarity handling
+// must not over-correct and start excusing these.
+#[cfg(all(unix, feature = "ghost_in_all"))]
+pub fn planted_all_still_dead() {}
+
 // CONTROL: a real feature.
 #[cfg(feature = "real")]
 pub fn control_real() {}
@@ -60,6 +79,13 @@ pub fn control_quote_char() -> char {
 // PLANTED 7: after all of the above, to confirm scanning still reaches end-of-file.
 #[cfg(feature = "ghost_after_char_literal")]
 pub fn planted_after_char_literal() {}
+
+// PLANTED 8: cfg_attr's FIRST argument IS a condition, and this one is always-false, so the
+// derive never applies. Distinct from the control below, which plants a feature string in the
+// payload: this one makes the first-argument split load-bearing in the other direction -- if the
+// split stops happening, the whole cfg_attr group becomes unparseable and this gate is missed.
+#[cfg_attr(feature = "ghost_cfg_attr_condition", derive(Debug))]
+pub struct PlantedCfgAttrCondition;
 
 // CONTROL: cfg_attr's SECOND argument is an attribute, not a condition, so a `feature = ` string
 // appearing there must NOT be reported -- only the first argument is a cfg condition.
