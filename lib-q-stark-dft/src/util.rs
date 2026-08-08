@@ -42,7 +42,7 @@ pub(crate) fn coset_shift_cols<F: Field>(mat: &mut RowMajorMatrix<F>, shift: F) 
         });
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use alloc::vec;
 

@@ -512,7 +512,7 @@ pub trait Matrix<T: Send + Sync + Clone>: Send + Sync {
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use alloc::vec::Vec;
     use alloc::{

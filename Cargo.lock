@@ -1780,6 +1780,7 @@ dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-field",
  "lib-q-stark-matrix",
+ "lib-q-stark-mersenne31",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
  "rand 0.10.2",
@@ -1849,8 +1850,10 @@ dependencies = [
 name = "lib-q-stark-interpolation"
 version = "0.0.10"
 dependencies = [
+ "lib-q-stark-baby-bear",
  "lib-q-stark-field",
  "lib-q-stark-matrix",
+ "lib-q-stark-mersenne31",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
 ]
@@ -1863,6 +1866,7 @@ dependencies = [
  "itertools 0.15.0",
  "lib-q-random",
  "lib-q-stark-field",
+ "lib-q-stark-mersenne31",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
  "rand 0.10.2",
@@ -1878,6 +1882,7 @@ version = "0.0.10"
 dependencies = [
  "criterion",
  "lib-q-random",
+ "lib-q-stark-baby-bear",
  "lib-q-stark-dft",
  "lib-q-stark-field",
  "lib-q-stark-symmetric",

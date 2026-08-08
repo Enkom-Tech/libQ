@@ -31,6 +31,17 @@ no_std = []
 # RNG instances for tests come from lib-q-random (the regular `rand` dep above is only the no_std
 # `Distribution`/`StandardUniform` sampling framework used by `DenseMatrix::rand`).
 lib-q-random = { path = "../lib-q-random", version = "0.0.10" }
+# Concrete field for the tests. This is a dev-dependency CYCLE -- lib-q-stark-mersenne31 depends
+# on lib-q-stark-matrix -- which Cargo permits, because dev-dependencies are only built for this
+# crate's own test targets and so cannot form a real build cycle.
+#
+# PATH-ONLY, NO `version`, DELIBERATELY. A versioned dev-dependency is kept in the published
+# manifest and must resolve on crates.io; a path-only one is stripped, so it imposes no publish
+# ordering at all. lib-q-stark-mersenne31 publishes in a LATER cd.yml tier than this crate, so a
+# versioned form here would make this crate unpublishable until that tier existed. Same
+# convention as lib-q-stark-commit's dev-dependencies, and the escape hatch
+# scripts/ci_guard_publish_dependency_order.py documents for exactly this case.
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }

@@ -152,7 +152,7 @@ impl<T: Send + Sync + Clone, IndexMap: RowIndexMap, Inner: Matrix<T>> Matrix<T>
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use alloc::vec;
     use alloc::vec::Vec;

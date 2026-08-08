@@ -92,9 +92,10 @@ fn bowers_g_t<F: Field, A: Algebra<F>, const N: usize>(values: &mut [A; N], twid
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use lib_q_random::new_deterministic_rng;
+    use lib_q_stark_baby_bear::BabyBear;
     use lib_q_stark_dft::{
         NaiveDft,
         TwoAdicSubgroupDft,
@@ -103,16 +104,14 @@ mod tests {
         Field,
         PrimeCharacteristicRing,
     };
-    use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_symmetric::Permutation;
     use rand::RngExt;
 
     use crate::coset_mds::CosetMds;
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for N=8 (log_size=3). Requires field with higher two-adicity.
     fn matches_naive() {
-        type F = Mersenne31;
+        type F = BabyBear;
         const N: usize = 8;
 
         let mut rng = new_deterministic_rng([1u8; 32]);

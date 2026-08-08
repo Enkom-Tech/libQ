@@ -77,9 +77,10 @@ impl<F: Field, A: Algebra<F>, const N: usize> Permutation<[A; N]> for Integrated
 
 impl<F: Field, A: Algebra<F>, const N: usize> MdsPermutation<A, N> for IntegratedCosetMds<F, N> {}
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use lib_q_random::new_deterministic_rng;
+    use lib_q_stark_baby_bear::BabyBear;
     use lib_q_stark_dft::{
         NaiveDft,
         TwoAdicSubgroupDft,
@@ -88,18 +89,16 @@ mod tests {
         Field,
         PrimeCharacteristicRing,
     };
-    use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_symmetric::Permutation;
     use lib_q_stark_util::reverse_slice_index_bits;
     use rand::RngExt;
 
     use crate::integrated_coset_mds::IntegratedCosetMds;
 
-    type F = Mersenne31;
+    type F = BabyBear;
     const N: usize = 16;
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for N=16 (log_size=4). Requires field with higher two-adicity.
     fn matches_naive() {
         let mut rng = new_deterministic_rng([1u8; 32]);
         let mut arr: [F; N] = rng.random();

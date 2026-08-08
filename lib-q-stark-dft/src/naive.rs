@@ -35,7 +35,7 @@ impl<F: TwoAdicField> TwoAdicSubgroupDft<F> for NaiveDft {
     }
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use alloc::vec;
 
