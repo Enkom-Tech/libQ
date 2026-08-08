@@ -50,9 +50,7 @@ Usage:
 
 from __future__ import annotations
 
-import json
 import re
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -87,19 +85,66 @@ def gated_names(workflows_dir: Path) -> set[str]:
     return {n for n in names if n.startswith("lib-q") and "$" not in n}
 
 
+def workspace_members(root: Path) -> list[Path]:
+    """Member directories from the root manifest's `[workspace] members` array.
+
+    Parsed rather than obtained from `cargo metadata` ON PURPOSE. This guard runs in
+    ci.yml's core-validation, which has no Setup Rust step -- it is a job of static checks
+    that never needs a toolchain. Invoking cargo there would make rust-toolchain.toml's
+    pinned nightly-2026-07-24 (plus four cross targets) download on a job that currently
+    needs none of it, to answer a question that is written down in a TOML array.
+    """
+    text = (root / "Cargo.toml").read_text(encoding="utf-8", errors="replace")
+    match = re.search(r'^\s*members\s*=\s*\[(.*?)\]', text, re.S | re.M)
+    if not match:
+        return []
+    members: list[Path] = []
+    for entry in re.findall(r'"([^"]+)"', match.group(1)):
+        if "*" in entry:
+            # Globs are legal in members; expand so a future one is not silently dropped.
+            members.extend(p for p in sorted(root.glob(entry)) if (p / "Cargo.toml").exists())
+        else:
+            members.append(root / entry)
+
+    # A path dependency nested inside a member is pulled into the workspace by cargo even
+    # though it is never named in `members`. That is not an edge case here: the five
+    # lib-q-fn-dsa/fn-dsa-* crates are all published and all arrive this way, and an
+    # earlier version of this function missed every one of them (72 crates found against
+    # cargo metadata's 77). Walk each member for nested manifests.
+    nested: list[Path] = []
+    for member in members:
+        if not member.is_dir():
+            continue
+        for manifest in sorted(member.rglob("Cargo.toml")):
+            if manifest.parent == member:
+                continue
+            if "target" in manifest.relative_to(member).parts:
+                continue
+            nested.append(manifest.parent)
+
+    seen = set()
+    ordered = []
+    for path in members + nested:
+        key = path.resolve()
+        if key not in seen:
+            seen.add(key)
+            ordered.append(path)
+    return ordered
+
+
 def published_crates(root: Path) -> dict[str, Path]:
     """Workspace members without `publish = false`, mapped to their manifest."""
-    out = subprocess.run(
-        ["cargo", "metadata", "--no-deps", "--format-version", "1"],
-        cwd=root, capture_output=True, text=True, check=True,
-    ).stdout
     result: dict[str, Path] = {}
-    for package in json.loads(out)["packages"]:
-        manifest = Path(package["manifest_path"])
+    for member in workspace_members(root):
+        manifest = member / "Cargo.toml"
+        if not manifest.exists():
+            continue
         text = manifest.read_text(encoding="utf-8", errors="replace")
         if PUBLISH_FALSE_RE.search(text):
             continue
-        result[package["name"]] = manifest
+        name = re.search(r'^\s*name\s*=\s*"([^"]+)"', text, re.M)
+        if name:
+            result[name.group(1)] = manifest
     return result
 
 
