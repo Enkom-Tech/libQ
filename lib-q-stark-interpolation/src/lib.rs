@@ -129,11 +129,12 @@ where
     evals
 }
 
-#[cfg(any())]
+#[cfg(test)]
 mod tests {
     use alloc::vec;
     use alloc::vec::Vec;
 
+    use lib_q_stark_baby_bear::BabyBear;
     use lib_q_stark_field::extension::BinomialExtensionField;
     use lib_q_stark_field::{
         Field,
@@ -152,10 +153,9 @@ mod tests {
     };
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for log_size=3. Requires field with higher two-adicity.
     fn test_interpolate_subgroup() {
         // x^2 + 2 x + 3
-        type F = Mersenne31;
+        type F = BabyBear;
         let evals = [
             6, 886605102, 1443543107, 708307799, 2, 556938009, 569722818, 1874680944,
         ]
@@ -167,10 +167,9 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for log_size=3. Requires field with higher two-adicity.
     fn test_interpolate_coset() {
         // x^2 + 2 x + 3
-        type F = Mersenne31;
+        type F = BabyBear;
         let shift = F::GENERATOR;
         let evals = [
             1026, 129027310, 457985035, 994890337, 902, 1988942953, 1555278970, 913671254,
@@ -195,9 +194,8 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for log_size=3. Requires field with higher two-adicity.
     fn test_interpolate_coset_single_point_identity() {
-        type F = Mersenne31;
+        type F = BabyBear;
 
         // Test a trivial case: constant polynomial f(x) = c
         // Regardless of x, f(x) = c, so interpolation must always return c
@@ -213,7 +211,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for log_size=2. Requires field with higher two-adicity.
     fn test_interpolate_subgroup_degree_3_correctness() {
         use lib_q_stark_field::extension::Complex;
         type F = Mersenne31;
@@ -243,7 +240,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for log_size=3. Requires field with higher two-adicity.
     fn test_interpolate_coset_multiple_polynomials() {
         use lib_q_stark_field::extension::Complex;
         type F = Mersenne31;
@@ -288,7 +284,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // Mersenne31 TWO_ADICITY=1 insufficient for log_size=3. Requires field with higher two-adicity.
     fn test_interpolate_subgroup_multiple_columns() {
         use lib_q_stark_field::extension::Complex;
         type F = Mersenne31;

@@ -15,6 +15,10 @@ lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.10" }
 lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.10" }
 lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.10" }
 
+[dev-dependencies]
+lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(hax)',

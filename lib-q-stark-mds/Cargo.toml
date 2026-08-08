@@ -24,6 +24,7 @@ lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.10" }
 # from `lib-q-random`. Keeping it out of `[dependencies]` is what lets consumers build bare-metal
 # `no_std` — a regular `rand`/std dep here previously forced std across the whole STARK leaf graph.
 [dev-dependencies]
+lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear" }
 rand = { workspace = true, default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.10" }
 

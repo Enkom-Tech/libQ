@@ -51,21 +51,18 @@ set -euo pipefail
 ROOT="${1:-$(git rev-parse --show-toplevel)}"
 cd "$ROOT"
 
-# KNOWN-DEBT allowlist (may only shrink; growing it requires a card). Every entry here compiles
-# to literally nothing in any configuration -- `lib-q-stark-dft` and `lib-q-stark-interpolation`
-# currently run 0 tests total (`cargo test -q -p <crate>` -> 0 passed, both crates, OBSERVED
-# 2026-08), and both are published to crates.io.
-KNOWN_DEBT=(
-  "lib-q-stark-dft/src/naive.rs"
-  "lib-q-stark-dft/src/util.rs"
-  "lib-q-stark-interpolation/src/lib.rs"
-  "lib-q-stark-matrix/src/dense.rs"
-  "lib-q-stark-matrix/src/extension.rs"
-  "lib-q-stark-matrix/src/lib.rs"
-  "lib-q-stark-matrix/src/row_index_mapped.rs"
-  "lib-q-stark-mds/src/coset_mds.rs"
-  "lib-q-stark-mds/src/integrated_coset_mds.rs"
-)
+# KNOWN-DEBT allowlist (may only shrink; growing it requires a card).
+#
+# NOW EMPTY. All nine original entries were re-enabled on 2026-08-08 (card t_6ea7cb21): the four
+# `lib-q-stark-matrix` files, two `lib-q-stark-dft`, two `lib-q-stark-mds` and one
+# `lib-q-stark-interpolation`. The two crates that ran 0 tests in total now run 6 each, and the
+# four crates went from 47 executed tests to 127. Every re-enabled module was checked to actually
+# assert something, by mutating the code under it and observing the tests fail.
+#
+# Keep this array empty. An entry here is a test module that compiles to literally nothing in
+# every configuration, which is indistinguishable from deleting it while still looking like
+# coverage in the source tree.
+KNOWN_DEBT=()
 
 is_known_debt() {
   local f="$1"

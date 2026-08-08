@@ -26,6 +26,7 @@ spin = { workspace = true }
 tracing = { workspace = true }
 
 [dev-dependencies]
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31" }
 rand = { workspace = true, default-features = false, features = ["std"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
