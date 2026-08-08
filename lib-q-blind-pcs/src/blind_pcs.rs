@@ -1,7 +1,8 @@
-use sha2::{
+use lib_q_sha3::{
     Digest,
-    Sha256,
+    Sha3_256,
 };
+use subtle::ConstantTimeEq;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BlindOpening {
@@ -9,8 +10,9 @@ pub struct BlindOpening {
     pub blind: Vec<u8>,
 }
 
+// SHA3-256 rather than SHAKE/K12: fixed 32-byte output, matching the commitment type.
 fn hash_commitment(message: &[u8], blind: &[u8]) -> [u8; 32] {
-    let mut hasher = Sha256::new();
+    let mut hasher = Sha3_256::new();
     hasher.update(b"lib-q-blind-pcs-v1");
     hasher.update((message.len() as u64).to_le_bytes());
     hasher.update(message);
@@ -32,5 +34,5 @@ pub fn blind_open(message: &[u8], blind: &[u8]) -> BlindOpening {
 
 pub fn verify(commitment: &[u8; 32], opening: &BlindOpening) -> bool {
     let expected = hash_commitment(&opening.message, &opening.blind);
-    commitment.iter().zip(expected.iter()).all(|(a, b)| a == b)
+    commitment.ct_eq(&expected).into()
 }

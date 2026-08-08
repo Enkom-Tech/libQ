@@ -6,6 +6,12 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Changed — BREAKING (wire format)
 
+- **`lib-q-blind-pcs`: commitment hash moved from SHA-256 (`sha2`) to SHA3-256 (`lib-q-sha3`).**
+  A classical hash had no place in a post-quantum library; the `sha2` dependency is removed.
+  Every commitment changes: those published in 0.0.6-0.0.10 do not verify under this code and
+  there is no compatibility flag. `verify` also switched from a short-circuiting `zip().all()`
+  comparison to `subtle::ConstantTimeEq`.
+
 - **`lib-q-saturnin`: Saturnin-QCB now conforms to Algorithm 1 of the QCB paper.** Every QCB
   ciphertext changes; nothing produced by 0.0.8 or earlier decrypts under this code, and there is
   no compatibility flag (keeping the old construction reachable would keep the forgery below

@@ -13,7 +13,8 @@ categories = ["cryptography", "wasm"]
 
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.10", optional = true, default-features = false }
-sha2 = { workspace = true, default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10", default-features = false }
+subtle = { workspace = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true }
 js-sys = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true, features = ["std"] }
