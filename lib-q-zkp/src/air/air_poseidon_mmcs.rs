@@ -146,6 +146,10 @@ mod tests {
     /// the defect that made `MerkleInclusionAir mismatch @ commit0` unavoidable (card
     /// t_4333e4ea); if this ever starts matching, the assertion above has become vacuous.
     #[test]
+    // Deliberately exercises the deprecated `lib_q_stark_merkle::PoseidonCompressor`: this
+    // test exists to assert a fact ABOUT it (that its convention differs from the AIR's), so
+    // the deprecation it now carries is the point, not an accident.
+    #[allow(deprecated)]
     fn previous_sponge_compressor_does_not_match_the_air() {
         use lib_q_stark_merkle::PoseidonCompressor;
         let l = fe(11, 22);
@@ -180,6 +184,10 @@ mod tests {
     /// gone. The first assertion is the positive control: it shows the property is measurable and
     /// that the second assertion is not vacuous.
     #[test]
+    // Deliberately exercises the deprecated `lib_q_stark_merkle::PoseidonCompressor`: this
+    // test exists to assert a fact ABOUT it (that its convention differs from the AIR's), so
+    // the deprecation it now carries is the point, not an accident.
+    #[allow(deprecated)]
     fn air_compressor_is_domain_separated_from_leaf_row_hashing() {
         use lib_q_stark_merkle::PoseidonCompressor;
         use lib_q_stark_symmetric::CryptographicHasher;

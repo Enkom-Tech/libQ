@@ -1,8 +1,18 @@
-//! Poseidon-based MMCS for recursive STARK verification.
+//! Poseidon-based MMCS. **Not for recursive STARK verification** — see below.
 //!
-//! Merkle trees built with this MMCS use Poseidon128 compression at each level,
-//! so siblings are compatible with MerkleInclusionAir (which constrains
-//! Poseidon(left || right) == parent in-circuit).
+//! This module's doc used to read "Merkle trees built with this MMCS use Poseidon128 compression
+//! at each level, so siblings are compatible with MerkleInclusionAir (which constrains
+//! Poseidon(left || right) == parent in-circuit)". **That was false**, and it is how a live defect
+//! (card `t_4333e4ea`) came to be written: `Poseidon128::hash_single` on two elements fills the
+//! rate and permutes *twice*, while `MerkleInclusionAir` constrains a *single* permutation. A
+//! recursive verifier could not reproduce any root from any valid path.
+//!
+//! [`PoseidonCompressor`], [`PoseidonMmcs`] and [`poseidon_mmcs_instance`] are therefore
+//! **deprecated**. Nothing in this workspace uses them; they are retained because they are public
+//! API of a published crate. For in-circuit verification use
+//! `lib_q_zkp::air::air_poseidon_mmcs::AirPoseidonMmcs`.
+//!
+//! [`PoseidonHasher`] is *not* deprecated — leaf row hashing was never the problem.
 
 use alloc::vec::Vec;
 
@@ -57,10 +67,17 @@ impl CryptographicHasher<PoseidonField, [PoseidonField; 1]> for PoseidonHasher {
 /// digest of a two-column *leaf row* equals the digest of an internal *node* over the same two
 /// values, with no domain separation between them. Anything relying on leaf digests and node
 /// digests being distinguishable must not use this pair.
+#[deprecated(
+    since = "0.0.11",
+    note = "padded-sponge node function: incompatible with lib-q-zkp's MerkleInclusionAir, and its node digest collides with a two-column leaf-row digest. Use lib_q_zkp::air::air_poseidon_mmcs instead. See card t_4333e4ea."
+)]
 #[derive(Clone, Debug)]
 pub struct PoseidonCompressor;
 
 #[cfg(feature = "poseidon")]
+// The impl must keep working for existing external callers; deprecation is a signal, not a
+// removal. `allow` here scopes to this crate's own reference to its own deprecated type.
+#[allow(deprecated)]
 impl PseudoCompressionFunction<[PoseidonField; 1], 2> for PoseidonCompressor {
     fn compress(&self, input: [[PoseidonField; 1]; 2]) -> [PoseidonField; 1] {
         let pair = [input[0][0], input[1][0]];
@@ -83,11 +100,21 @@ impl PseudoCompressionFunction<[PoseidonField; 1], 2> for PoseidonCompressor {
 /// As of the fix for card `t_4333e4ea` nothing in this workspace uses this type; it is retained
 /// because it is public API of a published crate.
 #[cfg(feature = "poseidon")]
+#[deprecated(
+    since = "0.0.11",
+    note = "padded-sponge node function: incompatible with lib-q-zkp's MerkleInclusionAir, and its node digest collides with a two-column leaf-row digest. Use lib_q_zkp::air::air_poseidon_mmcs instead. See card t_4333e4ea."
+)]
+#[allow(deprecated)]
 pub type PoseidonMmcs =
     MerkleTreeMmcs<PoseidonField, PoseidonField, PoseidonHasher, PoseidonCompressor, 1>;
 
 /// Build a Poseidon MMCS instance (hasher + compressor) for use with MerkleTreeMmcs.
 #[cfg(feature = "poseidon")]
+#[deprecated(
+    since = "0.0.11",
+    note = "padded-sponge node function: incompatible with lib-q-zkp's MerkleInclusionAir, and its node digest collides with a two-column leaf-row digest. Use lib_q_zkp::air::air_poseidon_mmcs instead. See card t_4333e4ea."
+)]
+#[allow(deprecated)]
 pub fn poseidon_mmcs_instance() -> (PoseidonHasher, PoseidonCompressor) {
     (PoseidonHasher, PoseidonCompressor)
 }
