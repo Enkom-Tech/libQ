@@ -356,13 +356,14 @@ jobs:
           rm -rf target/release-ci
           GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
           # This used to pass the single name
-          # `test_recursive_verifier_trace_satisfies_constraints_then_prove_verify`, which is
+          # `test_recursive_verifier_trace_satisfies_constraints_then_prove_verify`, which was
           # `#[ignore]`d -- so libtest reported "0 passed; 1 ignored; 12 filtered out", exited 0,
           # and the whole job asserted nothing. The vacuous-tests guard caught it. Worse, the
-          # filter was hiding two OTHER tests that fail from the same MerkleInclusionAir defect
-          # (card t_4333e4ea); they are now explicitly `#[ignore]`d with that reason, so the bug
-          # is visible in the source rather than only in a CI filter nobody reads.
-          # Run the whole target: 9 tests execute in ~5s, so there is no runtime reason to select.
+          # filter was hiding two OTHER tests failing from the same MerkleInclusionAir defect
+          # (card t_4333e4ea). That defect is fixed and all three are un-ignored, so the whole
+          # target now runs: 12 tests in ~5s, no runtime reason to select. The one remaining
+          # `#[ignore]` is the slow batch test, excluded for the runner budget, not because it
+          # fails. Do not reintroduce a name filter -- it is what hid this for two months.
           bash "$GUARD" -- cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std" \
             --test aggregation_tests \
             -- --test-threads=1
