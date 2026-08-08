@@ -821,4 +821,64 @@ mod tests {
         // Should be back to all zeros
         assert_eq!(block, [0u8; 32]);
     }
+
+    #[test]
+    fn test_encrypt_block_rejects_invalid_key_size() {
+        let core = SaturninCore::new(10, 1).unwrap();
+        let key = [0u8; 16]; // wrong size
+        let mut block = [0u8; 32];
+        let result = core.encrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 16
+            })
+        ));
+    }
+
+    #[test]
+    fn test_encrypt_block_rejects_invalid_block_size() {
+        let core = SaturninCore::new(10, 1).unwrap();
+        let key = [0u8; 32];
+        let mut block = [0u8; 10]; // wrong size
+        let result = core.encrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidMessageSize {
+                max: 32,
+                actual: 10
+            })
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_block_rejects_invalid_key_size() {
+        let core = SaturninCore::new(10, 1).unwrap();
+        let key = [0u8; 5]; // wrong size
+        let mut block = [0u8; 32];
+        let result = core.decrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 5
+            })
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_block_rejects_invalid_block_size() {
+        let core = SaturninCore::new(10, 1).unwrap();
+        let key = [0u8; 32];
+        let mut block = [0u8; 20]; // wrong size
+        let result = core.decrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidMessageSize {
+                max: 32,
+                actual: 20
+            })
+        ));
+    }
 }

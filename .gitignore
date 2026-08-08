@@ -250,3 +250,6 @@ AGENTS.md
 AGENT-*-progress.md
 hooks.json
 .rust-pre-push-health-last.json
+
+# Agent scratch working files (session-local, never a deliverable)
+scratchpad/

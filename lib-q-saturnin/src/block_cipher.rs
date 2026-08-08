@@ -340,4 +340,93 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_default_matches_new_round_trip() -> Result<()> {
+        let cipher = SaturninBlockCipher::default();
+        let key = vec![2u8; 32];
+        let plaintext = vec![7u8; 32];
+        let ciphertext = cipher.encrypt_block(&key, &plaintext)?;
+        let decrypted = cipher.decrypt_block(&key, &ciphertext)?;
+        assert_eq!(decrypted, plaintext);
+        Ok(())
+    }
+
+    #[test]
+    fn test_decrypt_block_rejects_invalid_key_size() {
+        let cipher = SaturninBlockCipher::new();
+        let key = vec![0u8; 16]; // wrong size
+        let block = vec![0u8; 32];
+        let result = cipher.decrypt_block(&key, &block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 16
+            })
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_block_rejects_invalid_block_size() {
+        let cipher = SaturninBlockCipher::new();
+        let key = vec![0u8; 32];
+        let block = vec![0u8; 10]; // wrong size
+        let result = cipher.decrypt_block(&key, &block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidMessageSize {
+                max: 32,
+                actual: 10
+            })
+        ));
+    }
+
+    #[test]
+    fn test_encrypt_ecb_rejects_invalid_key_size() {
+        let cipher = SaturninBlockCipher::new();
+        let key = vec![0u8; 8]; // wrong size
+        let blocks = vec![0u8; 64];
+        let result = cipher.encrypt_ecb(&key, &blocks);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 8
+            })
+        ));
+    }
+
+    #[test]
+    fn test_encrypt_ecb_rejects_non_multiple_of_block_size() {
+        let cipher = SaturninBlockCipher::new();
+        let key = vec![0u8; 32];
+        let blocks = vec![0u8; 40]; // not a multiple of 32
+        let result = cipher.encrypt_ecb(&key, &blocks);
+        assert!(matches!(result, Err(Error::InvalidMessageSize { .. })));
+    }
+
+    #[test]
+    fn test_decrypt_ecb_rejects_invalid_key_size() {
+        let cipher = SaturninBlockCipher::new();
+        let key = vec![0u8; 8]; // wrong size
+        let blocks = vec![0u8; 64];
+        let result = cipher.decrypt_ecb(&key, &blocks);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 8
+            })
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_ecb_rejects_non_multiple_of_block_size() {
+        let cipher = SaturninBlockCipher::new();
+        let key = vec![0u8; 32];
+        let blocks = vec![0u8; 33]; // not a multiple of 32
+        let result = cipher.decrypt_ecb(&key, &blocks);
+        assert!(matches!(result, Err(Error::InvalidMessageSize { .. })));
+    }
 }

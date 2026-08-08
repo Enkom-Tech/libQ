@@ -269,3 +269,229 @@ fn neon_runtime_detection_is_consistent() {
     // Presence check only; hardware-dependent behavior is validated in integration CI.
     let _ = runtime::has_neon();
 }
+
+// ---------------------------------------------------------------------------
+// Additional coverage: bs32 dispatch path, error paths, SimdCapabilities,
+// SimdOptimizedCore::decrypt_block, reuse_scalar_core, and the plain XOR
+// scalar routine.
+// ---------------------------------------------------------------------------
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn dispatch_single_block_bs32_path_matches_scalar_bs32_core() {
+    use lib_q_saturnin::bs32_core::SaturninBs32Core;
+
+    // (num_super_rounds = 16, domain in {7, 8}) selects the bs32 kernel path
+    // inside `uses_bs32_kernel`; exercise both domains.
+    for domain in [7u8, 8u8] {
+        let scalar = SaturninBs32Core::new(16, domain).expect("bs32 core");
+        for i in 0..16u64 {
+            let mut key = [0u8; 32];
+            let mut block = [0u8; 32];
+            fill_deterministic(0x11_0000 + u64::from(domain) * 0x100 + i, &mut key);
+            fill_deterministic(0x12_0000 + u64::from(domain) * 0x100 + i, &mut block);
+
+            let mut dispatched = block;
+            encrypt_block_dispatch(16, domain, &key, &mut dispatched).expect("dispatch");
+
+            let mut scalar_block = block;
+            scalar
+                .encrypt_block(&key, &mut scalar_block)
+                .expect("scalar bs32");
+
+            assert_eq!(
+                dispatched, scalar_block,
+                "bs32 dispatch mismatch at domain {domain}, vector {i}"
+            );
+        }
+    }
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn dispatch_batch_bs32_path_matches_scalar_bs32_core() {
+    use lib_q_saturnin::bs32_core::SaturninBs32Core;
+
+    for domain in [7u8, 8u8] {
+        let scalar = SaturninBs32Core::new(16, domain).expect("bs32 core");
+        let mut key = [0u8; 32];
+        fill_deterministic(0x13_0000 + u64::from(domain), &mut key);
+
+        let mut blocks = [[0u8; 32]; 8];
+        for (i, block) in blocks.iter_mut().enumerate() {
+            fill_deterministic(0x14_0000 + u64::from(domain) * 0x10 + i as u64, block);
+        }
+        let mut scalar_blocks = blocks;
+
+        encrypt_blocks8_dispatch(16, domain, &key, &mut blocks, None).expect("dispatch batch");
+
+        for block in &mut scalar_blocks {
+            scalar.encrypt_block(&key, block).expect("scalar bs32");
+        }
+        assert_eq!(
+            blocks, scalar_blocks,
+            "bs32 batch mismatch at domain {domain}"
+        );
+    }
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn dispatch_batch_non_bs32_path_reuses_supplied_scalar_core() {
+    let scalar_core = SaturninCore::new(10, 1).expect("core");
+    let mut key = [0u8; 32];
+    fill_deterministic(0x15_0000, &mut key);
+
+    let mut blocks = [[0u8; 32]; 8];
+    for (i, block) in blocks.iter_mut().enumerate() {
+        fill_deterministic(0x16_0000 + i as u64, block);
+    }
+    let mut expected = blocks;
+
+    encrypt_blocks8_dispatch(10, 1, &key, &mut blocks, Some(&scalar_core))
+        .expect("dispatch with reused core");
+
+    for block in &mut expected {
+        scalar_core.encrypt_block(&key, block).expect("scalar");
+    }
+    assert_eq!(
+        blocks, expected,
+        "reused-core batch path diverged from scalar core"
+    );
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn dispatch_single_block_rejects_wrong_length_key() {
+    let mut block = [0u8; 32];
+    let short_key = [0u8; 16];
+    let err = encrypt_block_dispatch(10, 1, &short_key, &mut block)
+        .expect_err("wrong-length key must be rejected");
+    match err {
+        lib_q_core::Error::InvalidKeySize { expected, actual } => {
+            assert_eq!(expected, 32);
+            assert_eq!(actual, 16);
+        }
+        other => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn dispatch_single_block_rejects_wrong_length_block() {
+    let key = [0u8; 32];
+    let mut short_block = [0u8; 16];
+    let err = encrypt_block_dispatch(10, 1, &key, &mut short_block)
+        .expect_err("wrong-length block must be rejected");
+    match err {
+        lib_q_core::Error::InvalidMessageSize { max, actual } => {
+            assert_eq!(max, 32);
+            assert_eq!(actual, 16);
+        }
+        other => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn dispatch_batch_rejects_wrong_length_key() {
+    let short_key = [0u8; 8];
+    let mut blocks = [[0u8; 32]; 8];
+    let err = encrypt_blocks8_dispatch(10, 1, &short_key, &mut blocks, None)
+        .expect_err("wrong-length key must be rejected for batch dispatch");
+    match err {
+        lib_q_core::Error::InvalidKeySize { expected, actual } => {
+            assert_eq!(expected, 32);
+            assert_eq!(actual, 8);
+        }
+        other => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn simd_optimized_core_decrypt_matches_scalar_core() {
+    let simd = SimdOptimizedCore::new(10, 1).expect("simd");
+    let scalar = SaturninCore::new(10, 1).expect("scalar");
+
+    for i in 0..32u64 {
+        let mut key = [0u8; 32];
+        let mut original = [0u8; 32];
+        fill_deterministic(0x17_0000 + i, &mut key);
+        fill_deterministic(0x18_0000 + i, &mut original);
+
+        let mut via_simd = original;
+        simd.encrypt_block(&key, &mut via_simd).expect("encrypt");
+        simd.decrypt_block(&key, &mut via_simd).expect("decrypt");
+        assert_eq!(via_simd, original, "simd round-trip mismatch on vector {i}");
+
+        let mut via_scalar = original;
+        scalar
+            .encrypt_block(&key, &mut via_scalar)
+            .expect("encrypt");
+        scalar
+            .decrypt_block(&key, &mut via_scalar)
+            .expect("decrypt");
+        assert_eq!(
+            via_simd, via_scalar,
+            "simd/scalar decrypt disagreement on vector {i}"
+        );
+    }
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn simd_capabilities_helpers_reflect_flags() {
+    use lib_q_saturnin::simd::SimdCapabilities;
+
+    let none = SimdCapabilities {
+        has_avx2: false,
+        has_neon: false,
+    };
+    assert!(!none.has_simd());
+    assert_eq!(none.best_simd(), "Scalar");
+
+    let avx2_only = SimdCapabilities {
+        has_avx2: true,
+        has_neon: false,
+    };
+    assert!(avx2_only.has_simd());
+    assert_eq!(avx2_only.best_simd(), "AVX2");
+
+    let neon_only = SimdCapabilities {
+        has_avx2: false,
+        has_neon: true,
+    };
+    assert!(neon_only.has_simd());
+    assert_eq!(neon_only.best_simd(), "NEON");
+
+    // AVX2 takes priority when both are (hypothetically) set.
+    let both = SimdCapabilities {
+        has_avx2: true,
+        has_neon: true,
+    };
+    assert!(both.has_simd());
+    assert_eq!(both.best_simd(), "AVX2");
+}
+
+#[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
+#[test]
+fn xor_blocks_32_scalar_matches_dispatch() {
+    for i in 0..16u64 {
+        let mut a = [0u8; 32];
+        let mut b = [0u8; 32];
+        fill_deterministic(0x19_0000 + i, &mut a);
+        fill_deterministic(0x1A_0000 + i, &mut b);
+
+        let mut scalar_out = [0u8; 32];
+        simd_xor::xor_blocks_32_scalar(&a, &b, &mut scalar_out);
+
+        let mut dispatch_out = [0u8; 32];
+        simd_xor::xor_blocks_32(&a, &b, &mut dispatch_out);
+
+        assert_eq!(
+            scalar_out, dispatch_out,
+            "scalar XOR disagreed with dispatch on vector {i}"
+        );
+    }
+}

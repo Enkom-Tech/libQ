@@ -529,4 +529,93 @@ mod tests {
         );
         Ok(())
     }
+
+    #[test]
+    fn encrypt_rejects_wrong_key_size() {
+        let aead = SaturninAeadCtx::new();
+        let err = aead
+            .encrypt_bytes(&[0u8; 10], &[0u8; 16], b"m", None)
+            .expect_err("10-byte key must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidKeySize {
+                expected: 32,
+                actual: 10
+            }
+        ));
+    }
+
+    #[test]
+    fn encrypt_rejects_wrong_nonce_size() {
+        let aead = SaturninAeadCtx::new();
+        let err = aead
+            .encrypt_bytes(&[0u8; 32], &[0u8; 5], b"m", None)
+            .expect_err("5-byte nonce must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidNonceSize {
+                expected: 16,
+                actual: 5
+            }
+        ));
+    }
+
+    #[test]
+    fn decrypt_rejects_wrong_key_size() {
+        let aead = SaturninAeadCtx::new();
+        let err = aead
+            .decrypt_bytes(&[0u8; 8], &[0u8; 16], &[0u8; 32], None)
+            .expect_err("8-byte key must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidKeySize {
+                expected: 32,
+                actual: 8
+            }
+        ));
+    }
+
+    #[test]
+    fn decrypt_rejects_wrong_nonce_size() {
+        let aead = SaturninAeadCtx::new();
+        let err = aead
+            .decrypt_bytes(&[0u8; 32], &[0u8; 3], &[0u8; 32], None)
+            .expect_err("3-byte nonce must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidNonceSize {
+                expected: 16,
+                actual: 3
+            }
+        ));
+    }
+
+    #[test]
+    fn decrypt_rejects_ciphertext_shorter_than_tag() {
+        let aead = SaturninAeadCtx::new();
+        let err = aead
+            .decrypt_bytes(&[0u8; 32], &[0u8; 16], &[0u8; 5], None)
+            .expect_err("5-byte ciphertext (shorter than the 32-byte tag) must be rejected");
+        assert!(matches!(err, Error::InvalidCiphertextSize { .. }));
+    }
+
+    #[test]
+    fn decrypt_semantic_reports_authentication_failed_on_tampered_tag() -> Result<()> {
+        use lib_q_core::AeadDecryptSemantic;
+
+        let aead = SaturninAeadCtx::new();
+        let ct = aead.encrypt(&key(), &nonce(), b"payload", Some(b"ad"))?;
+        let mut tampered = ct.clone();
+        *tampered.last_mut().expect("tag byte") ^= 0x01;
+
+        let outcome = aead.decrypt_semantic(&key(), &nonce(), &tampered, Some(b"ad"))?;
+        assert_eq!(outcome, DecryptSemanticOutcome::AuthenticationFailed);
+
+        // Layer A must surface the same failure as a hard error, not silently succeed.
+        assert!(matches!(
+            aead.decrypt(&key(), &nonce(), &tampered, Some(b"ad")),
+            Err(Error::VerificationFailed { .. })
+        ));
+        Ok(())
+    }
 }

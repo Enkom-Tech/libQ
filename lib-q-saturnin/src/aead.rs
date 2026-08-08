@@ -663,4 +663,115 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn test_saturnin_default_matches_new() {
+        // `Default` must produce a functioning instance, not merely compile — round-trip
+        // through it end to end rather than only constructing it.
+        let aead = SaturninAead::default();
+        let key = AeadKey::new(vec![3u8; 32]);
+        let nonce = Nonce::new(vec![4u8; 16]);
+        let ct = aead
+            .encrypt(&key, &nonce, b"via-default", None)
+            .expect("default-constructed AEAD must encrypt");
+        let pt = aead
+            .decrypt(&key, &nonce, &ct, None)
+            .expect("default-constructed AEAD must decrypt its own ciphertext");
+        assert_eq!(pt, b"via-default");
+    }
+
+    #[test]
+    fn test_encrypt_bytes_rejects_wrong_key_size() {
+        let aead = SaturninAead::new();
+        let err = aead
+            .encrypt_bytes(&[0u8; 31], &[0u8; 16], b"m", None)
+            .expect_err("31-byte key must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidKeySize {
+                expected: 32,
+                actual: 31
+            }
+        ));
+    }
+
+    #[test]
+    fn test_encrypt_bytes_rejects_wrong_nonce_size() {
+        let aead = SaturninAead::new();
+        let err = aead
+            .encrypt_bytes(&[0u8; 32], &[0u8; 15], b"m", None)
+            .expect_err("15-byte nonce must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidNonceSize {
+                expected: 16,
+                actual: 15
+            }
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_bytes_rejects_wrong_key_size() {
+        let aead = SaturninAead::new();
+        let err = aead
+            .decrypt_bytes(&[0u8; 20], &[0u8; 16], &[0u8; 32], None)
+            .expect_err("20-byte key must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidKeySize {
+                expected: 32,
+                actual: 20
+            }
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_bytes_rejects_wrong_nonce_size() {
+        let aead = SaturninAead::new();
+        let err = aead
+            .decrypt_bytes(&[0u8; 32], &[0u8; 4], &[0u8; 32], None)
+            .expect_err("4-byte nonce must be rejected");
+        assert!(matches!(
+            err,
+            Error::InvalidNonceSize {
+                expected: 16,
+                actual: 4
+            }
+        ));
+    }
+
+    #[test]
+    fn test_decrypt_bytes_rejects_ciphertext_shorter_than_tag() {
+        let aead = SaturninAead::new();
+        // 10 bytes is shorter than the 32-byte tag alone.
+        let err = aead
+            .decrypt_bytes(&[0u8; 32], &[0u8; 16], &[0u8; 10], None)
+            .expect_err("ciphertext shorter than the tag must be rejected");
+        assert!(matches!(err, Error::InvalidCiphertextSize { .. }));
+    }
+
+    #[test]
+    fn test_round_trip_across_block_boundary_sizes() -> Result<()> {
+        // Exercises the CTR full-block path, the CTR partial-final-block path, and the
+        // cascade's full-block vs. padded-tail branches together, for plaintext/AD sizes at
+        // and around the 32-byte block boundary.
+        let aead = SaturninAead::new();
+        let key = AeadKey::new(vec![9u8; 32]);
+        let nonce = Nonce::new(vec![5u8; 16]);
+        for len in [0usize, 1, 31, 32, 33, 63, 64, 65] {
+            let plaintext = vec![0xAAu8; len];
+            for ad_len in [0usize, 32] {
+                let ad = vec![0x55u8; ad_len];
+                let ad_opt = Some(ad.as_slice());
+                let ct = aead.encrypt(&key, &nonce, &plaintext, ad_opt)?;
+                assert_eq!(ct.len(), len + 32);
+                let pt = aead.decrypt(&key, &nonce, &ct, ad_opt)?;
+                assert_eq!(
+                    pt, plaintext,
+                    "round trip failed for len={len}, ad_len={ad_len}"
+                );
+            }
+        }
+        Ok(())
+    }
 }

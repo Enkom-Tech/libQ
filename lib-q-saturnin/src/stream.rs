@@ -493,4 +493,46 @@ mod tests {
 
         Ok(())
     }
+
+    #[test]
+    fn test_generate_keystream_rejects_invalid_key_size() {
+        let stream = SaturninStream::new();
+        let key = vec![0u8; 10]; // wrong size
+        let nonce = vec![0u8; 16];
+        let result = stream.generate_keystream(&key, &nonce, 32);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 10
+            })
+        ));
+    }
+
+    #[test]
+    fn test_generate_keystream_rejects_invalid_nonce_size() {
+        let stream = SaturninStream::new();
+        let key = vec![0u8; 32];
+        let nonce = vec![0u8; 3]; // wrong size
+        let result = stream.generate_keystream(&key, &nonce, 32);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidNonceSize {
+                expected: 16,
+                actual: 3
+            })
+        ));
+    }
+
+    #[test]
+    fn test_default_matches_new_round_trip() -> Result<()> {
+        let stream = SaturninStream::default();
+        let key = vec![9u8; 32];
+        let nonce = vec![1u8; 16];
+        let plaintext = b"default-constructed stream cipher";
+        let ct = stream.encrypt(&key, &nonce, plaintext)?;
+        let pt = stream.decrypt(&key, &nonce, &ct)?;
+        assert_eq!(pt, plaintext);
+        Ok(())
+    }
 }

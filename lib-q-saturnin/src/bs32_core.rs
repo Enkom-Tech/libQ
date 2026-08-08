@@ -710,4 +710,73 @@ mod tests {
 
         assert_eq!(original, decoded);
     }
+
+    #[test]
+    fn test_bs32_core_rejects_domain_above_15() {
+        let result = SaturninBs32Core::new(16, 16);
+        assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
+    }
+
+    #[test]
+    fn test_bs32_core_rejects_rounds_above_31() {
+        let result = SaturninBs32Core::new(32, 7);
+        assert!(matches!(result, Err(Error::InvalidAlgorithm { .. })));
+    }
+
+    #[test]
+    fn test_bs32_encrypt_block_rejects_invalid_key_size() {
+        let core = SaturninBs32Core::new(16, 7).unwrap();
+        let key = [0u8; 16]; // wrong size
+        let mut block = [0u8; 32];
+        let result = core.encrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 16
+            })
+        ));
+    }
+
+    #[test]
+    fn test_bs32_encrypt_block_rejects_invalid_block_size() {
+        let core = SaturninBs32Core::new(16, 7).unwrap();
+        let key = [0u8; 32];
+        let mut block = [0u8; 8]; // wrong size
+        let result = core.encrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidMessageSize { max: 32, actual: 8 })
+        ));
+    }
+
+    #[test]
+    fn test_bs32_decrypt_block_rejects_invalid_key_size() {
+        let core = SaturninBs32Core::new(16, 8).unwrap();
+        let key = [0u8; 4]; // wrong size
+        let mut block = [0u8; 32];
+        let result = core.decrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidKeySize {
+                expected: 32,
+                actual: 4
+            })
+        ));
+    }
+
+    #[test]
+    fn test_bs32_decrypt_block_rejects_invalid_block_size() {
+        let core = SaturninBs32Core::new(16, 8).unwrap();
+        let key = [0u8; 32];
+        let mut block = [0u8; 31]; // wrong size
+        let result = core.decrypt_block(&key, &mut block);
+        assert!(matches!(
+            result,
+            Err(Error::InvalidMessageSize {
+                max: 32,
+                actual: 31
+            })
+        ));
+    }
 }
