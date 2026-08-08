@@ -115,9 +115,18 @@ because that one already runs ~65 min per-crate plus a ~40 min workspace pass ag
 timeout. It runs `stable` only: these floors are regression backstops, and re-measuring the same
 lines under a second toolchain buys little for the runner time.
 
-Every floor is **measured, then set ~5 points under** — a backstop, not an aspiration. The
-measurement is recorded beside each threshold in both workflows so a reader can see the headroom
+Every floor is **measured on CI, then set ~5 points under** — a backstop, not an aspiration. The
+CI figure is recorded beside each threshold in both workflows so a reader can see the headroom
 without re-running anything. Raise them as coverage improves; that is the ratchet.
+
+**Calibrate from a CI log, not from a laptop.** The first cut of these floors was measured on
+Windows and was wrong by a wide margin — `lib-q-rocca-s` reads 48.32% there and **98.21%** on CI,
+against a different denominator (387 lines vs 224). Every floor still passed, which was exactly
+the danger: `lib-q-rocca-s` sat 55 points above its floor, so anything short of a catastrophic
+regression would have gone unnoticed. Retuning against CI's own numbers removed ~369 points of
+accumulated slack across the 23 crates. A WSL run is not a substitute either: it disagreed with CI
+by up to 44 points on the same crate, because this box has cargo-tarpaulin 0.35.2 while CI pins
+0.37.0.
 
 ### The measurement itself was blind for feature-gated crates
 

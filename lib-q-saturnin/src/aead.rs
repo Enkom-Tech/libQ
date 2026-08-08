@@ -774,4 +774,23 @@ mod tests {
         }
         Ok(())
     }
+
+    #[test]
+    fn test_round_trip_crosses_avx2_ctr_batch_threshold() -> Result<()> {
+        // `ctr_encrypt`'s 8-lane AVX2 batch path only triggers once the remaining data is
+        // >= 32*8 = 256 bytes; the block-boundary test above only goes up to 65 bytes, so
+        // that batch path (and the loop continuing past more than one batch) is otherwise
+        // never exercised. 600 bytes crosses two full batches plus a non-block-aligned tail.
+        let aead = SaturninAead::new();
+        let key = AeadKey::new(vec![0x71u8; 32]);
+        let nonce = Nonce::new(vec![0x62u8; 16]);
+        let plaintext = vec![0xC3u8; 600];
+        let ad = vec![0x5Au8; 17];
+
+        let ct = aead.encrypt(&key, &nonce, &plaintext, Some(&ad))?;
+        assert_eq!(ct.len(), plaintext.len() + 32);
+        let pt = aead.decrypt(&key, &nonce, &ct, Some(&ad))?;
+        assert_eq!(pt, plaintext);
+        Ok(())
+    }
 }

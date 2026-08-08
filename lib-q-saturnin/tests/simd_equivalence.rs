@@ -495,3 +495,85 @@ fn xor_blocks_32_scalar_matches_dispatch() {
         );
     }
 }
+
+// ---------------------------------------------------------------------------
+// avx2 kernel input-validation paths. These kernels are `pub unsafe fn` and are
+// never called with an out-of-range domain/round-count from anywhere else in the
+// crate (all internal callers pass domain in 1..=8 and rounds <= 16), so the
+// `domain > 15` / `num_super_rounds > 31` guards are otherwise dead in every
+// existing test. They are public API, so call them directly here.
+// ---------------------------------------------------------------------------
+
+#[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
+#[test]
+fn avx2_encrypt_blocks8_rejects_out_of_range_domain() {
+    if !runtime::has_avx2() {
+        return;
+    }
+    use lib_q_saturnin::simd::avx2;
+
+    let key = [0u8; 32];
+    let mut blocks = [[0u8; 32]; 8];
+    // domain = 16 is out of the 4-bit (0..=15) range the bs32 kernel accepts.
+    let err = unsafe { avx2::encrypt_blocks8(10, 16, &key, &mut blocks) }
+        .expect_err("domain > 15 must be rejected");
+    match err {
+        lib_q_core::Error::InvalidAlgorithm { .. } => {}
+        other => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+#[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
+#[test]
+fn avx2_encrypt_blocks8_rejects_out_of_range_super_rounds() {
+    if !runtime::has_avx2() {
+        return;
+    }
+    use lib_q_saturnin::simd::avx2;
+
+    let key = [0u8; 32];
+    let mut blocks = [[0u8; 32]; 8];
+    // num_super_rounds = 32 is out of the accepted 0..=31 range.
+    let err = unsafe { avx2::encrypt_blocks8(32, 7, &key, &mut blocks) }
+        .expect_err("num_super_rounds > 31 must be rejected");
+    match err {
+        lib_q_core::Error::InvalidAlgorithm { .. } => {}
+        other => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+#[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
+#[test]
+fn avx2_encrypt_blocks8_core_rejects_out_of_range_domain() {
+    if !runtime::has_avx2() {
+        return;
+    }
+    use lib_q_saturnin::simd::avx2;
+
+    let key = [0u8; 32];
+    let mut blocks = [[0u8; 32]; 8];
+    let err = unsafe { avx2::encrypt_blocks8_core(10, 16, &key, &mut blocks) }
+        .expect_err("domain > 15 must be rejected");
+    match err {
+        lib_q_core::Error::InvalidAlgorithm { .. } => {}
+        other => panic!("unexpected error variant: {other:?}"),
+    }
+}
+
+#[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
+#[test]
+fn avx2_encrypt_blocks8_core_rejects_out_of_range_rounds() {
+    if !runtime::has_avx2() {
+        return;
+    }
+    use lib_q_saturnin::simd::avx2;
+
+    let key = [0u8; 32];
+    let mut blocks = [[0u8; 32]; 8];
+    let err = unsafe { avx2::encrypt_blocks8_core(32, 1, &key, &mut blocks) }
+        .expect_err("num_rounds > 31 must be rejected");
+    match err {
+        lib_q_core::Error::InvalidAlgorithm { .. } => {}
+        other => panic!("unexpected error variant: {other:?}"),
+    }
+}
