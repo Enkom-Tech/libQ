@@ -1424,7 +1424,14 @@ jobs:
             # '#!\[cfg(feature = "std")\]' lib-q-hpke/tests/*.rs); without `std` here they compile
             # to EMPTY binaries -- every one of those steps reported "0 passed" and still exited 0
             # (t_9f13e8e5).
-            features: "std,ml-kem,saturnin,shake256,hash,secure-rng"
+            # `duplex-sponge-aead` gates the whole of tests/duplex_sponge_hpke_tests.rs via a
+            # file-level `#![cfg(all(feature = "std", feature = "duplex-sponge-aead"))]`. Without
+            # it that file compiled to an EMPTY binary -- 3 real, passing tests that no CI job
+            # ran. The feature was enabled only in cd.yml/npm-publish-only.yml, which BUILD wasm
+            # and never run these tests. Same defect class as t_9f13e8e5, found via t_6ea7cb21.
+            # Measured before adding it: the 3 tests pass, and the full suite is 328 tests across
+            # 29 binaries, exit 0.
+            features: "std,ml-kem,saturnin,shake256,hash,secure-rng,duplex-sponge-aead"
             rust-version: "stable"
             run-benchmarks: "false"
             run-security-tests: "true"
