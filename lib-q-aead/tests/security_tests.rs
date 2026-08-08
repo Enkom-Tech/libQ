@@ -47,6 +47,31 @@ fn invalid_key_wrong_size(algorithm: Algorithm) -> AeadKey {
 }
 
 /// Test constant-time operations
+/// Serialises the tests that mutate the process-global security config.
+///
+/// `set_security_config` / `get_security_config` operate on a single process-wide singleton, so
+/// five tests in this binary (`test_security_configuration`,
+/// `test_comprehensive_security_integration`, `test_security_configuration_persistence`,
+/// `test_security_feature_flags`, `test_security_integration_with_aead_operations`) each do `set(x); assert(get() == x)`. Run in parallel they race:
+/// another test's `set` can land between this test's `set` and `get`.
+///
+/// This is not theoretical. It was reproduced by running the compiled test binary 40 times at
+/// `--test-threads=64`, which produced 3 failures of
+/// `assertion failed: !retrieved_config.constant_time`; the same binary passes reliably at default
+/// parallelism, which is why it survives ordinary runs and only surfaced during a saturated
+/// full-workspace run.
+///
+/// Poisoning is tolerated deliberately: if one of these tests panics while holding the lock, the
+/// others should still report their own results rather than all failing with a poison error and
+/// hiding the original failure.
+static SECURITY_CONFIG_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn lock_security_config() -> std::sync::MutexGuard<'static, ()> {
+    SECURITY_CONFIG_LOCK
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
 #[test]
 fn test_constant_time_operations() {
     use lib_q_aead::security::constant_time::*;
@@ -514,6 +539,7 @@ fn test_aead_operations_with_security() {
 /// Test security configuration
 #[test]
 fn test_security_configuration() {
+    let _config_guard = lock_security_config();
     use lib_q_aead::security::*;
 
     // Test default configuration
@@ -591,6 +617,7 @@ fn test_security_configuration() {
 /// Test comprehensive security integration
 #[test]
 fn test_comprehensive_security_integration() {
+    let _config_guard = lock_security_config();
     use lib_q_aead::security::*;
 
     // Set strict security configuration
@@ -753,6 +780,7 @@ fn test_security_error_handling() {
 /// Test security configuration persistence
 #[test]
 fn test_security_configuration_persistence() {
+    let _config_guard = lock_security_config();
     use lib_q_aead::security::*;
 
     // Test that security configurations persist across operations
@@ -819,6 +847,7 @@ fn test_security_context_isolation() {
 /// Test security feature flags
 #[test]
 fn test_security_feature_flags() {
+    let _config_guard = lock_security_config();
     use lib_q_aead::security::*;
 
     // Test that security features can be enabled/disabled
@@ -882,6 +911,7 @@ fn test_security_feature_flags() {
 /// Test security integration with AEAD operations
 #[test]
 fn test_security_integration_with_aead_operations() {
+    let _config_guard = lock_security_config();
     use lib_q_aead::security::*;
 
     // Test that security enhancements work with AEAD operations
