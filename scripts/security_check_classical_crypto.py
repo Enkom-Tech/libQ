@@ -86,6 +86,13 @@ CLASSICAL = {
     "x25519-dalek", "curve25519-dalek",
     "secp256k1", "libsecp256k1",
     "des", "rc4", "blowfish",
+    # Pairing- and discrete-log-based stacks. These are the ones a zero-knowledge crate is
+    # most likely to reach for, and every one of them rests on a hardness assumption Shor
+    # breaks -- so a "post-quantum ZKP" built on any of them is not one. The security.yml
+    # step that used to claim it checked this executed two `echo`s and nothing else.
+    "bls12_381", "blstrs", "blst", "pairing", "group", "ff",
+    "ark-ec", "ark-bls12-381", "ark-ff", "ark-groth16",
+    "halo2_proofs", "bellman", "bulletproofs",
 }
 
 SHIPPED_SECTIONS = ("dependencies", "build-dependencies")

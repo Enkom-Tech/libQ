@@ -78,13 +78,26 @@ jobs:
           bash "$GUARD" -- cargo test --test constant_time -p lib-q-k12
           echo "✅ Cryptographic tests completed successfully"
       
-      - name: Validate KEM algorithms
+      # Replaces three steps named "Validate KEM algorithms", "Validate hash functions" and
+      # "Validate ZKP systems". Each consisted of an echo, a comment describing a check, and
+      # an echo of a check mark -- no command that could observe anything, and no way to
+      # fail. All three fed this job's result into "Overall Security Status: PASSED".
+      #
+      # Their three claims -- only PQC KEMs, only SHA-3-family hashing, only post-quantum
+      # ZKPs -- are one question at the dependency level: does any crate depend on
+      # pre-quantum cryptography? That is now actually checked, against a reviewed allowlist,
+      # because the blanket form of the claim is false: FIPS 205 SLH-DSA-SHA2 needs SHA-2,
+      # MAYO needs AES-CTR, and NIST KAT harnesses need an AES-CTR-DRBG. The allowlist
+      # records those with reasons and fails on anything new, on any entry that has gone
+      # stale, and on the pairing/discrete-log stacks a ZK crate would otherwise reach for.
+      - name: Validate cryptographic dependency surface
         run: |
-          echo "🔑 Validating KEM algorithms..."
-          # Check that only NIST PQC-process KEMs are implemented (ML-KEM/FIPS 203 is
-          # standardized; HQC and CB-KEM track their own, distinct standardization status)
-          echo "✅ KEM algorithm validation completed"
-      
+          echo "🔑 Validating the classical-cryptography surface..."
+          # Self-test first: this check replaced one that could not fail, so a clean result
+          # is only worth anything if detection is re-proven on every run.
+          python3 scripts/security_check_classical_crypto.py --self-test
+          python3 scripts/security_check_classical_crypto.py .
+
       - name: Validate signature algorithms
         run: |
           echo "✍️  Validating signature algorithms..."
@@ -96,18 +109,6 @@ jobs:
           cd lib-q-fn-dsa
           bash "$GUARD" -- cargo test --test security_tests --features "std,rand" -- nist_compliance
           echo "✅ Signature algorithm validation completed"
-      
-      - name: Validate hash functions
-        run: |
-          echo "📊 Validating hash functions..."
-          # Check that only SHA-3 family is used
-          echo "✅ Hash function validation completed"
-      
-      - name: Validate ZKP systems
-        run: |
-          echo "🔍 Validating ZKP systems..."
-          # Check that only post-quantum secure ZKPs are used
-          echo "✅ ZKP system validation completed"
       
       - name: Validate RNG systems
         run: |
@@ -221,12 +222,18 @@ jobs:
           cargo outdated --root-deps-only --depth 1 || echo "⚠️  Some dependencies may be outdated"
           echo "✅ Outdated dependency check completed"
       
+      # This step used to run:
+      #     cargo tree --format "{p} {f}" | grep -v "crates.io" | grep -v "github.com" || true
+      # `cargo tree --format "{p} {f}"` prints a package and its features and never prints a
+      # source, so both filters matched 0 of 1212 lines; the output was discarded, `|| true`
+      # erased the exit status, and the step echoed success regardless. Had the filters ever
+      # matched, `grep -v "github.com"` would have hidden git dependencies -- the very thing
+      # worth finding. Now checked properly, via cargo metadata's per-package source.
       - name: Validate dependency sources
         run: |
           echo "🔗 Validating dependency sources..."
-          # Ensure all dependencies come from trusted sources
-          cargo tree --format "{p} {f}" | grep -v "crates.io" | grep -v "github.com" || true
-          echo "✅ Dependency source validation completed"
+          python3 scripts/security_check_dependency_sources.py --self-test
+          python3 scripts/security_check_dependency_sources.py .
 
   # WASM security validation - runs after core security
   wasm-security:
