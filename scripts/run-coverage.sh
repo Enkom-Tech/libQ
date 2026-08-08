@@ -104,6 +104,26 @@ if [[ -n "$CRATE" ]]; then
   elif [[ "$CRATE" == "lib-q-kem" ]]; then
     # Default features are empty; tests and implementations are behind ml-kem/hqc/alloc.
     CMD="$CMD --features std,alloc,ml-kem,hqc"
+  elif [[ "$CRATE" == "lib-q-saturnin" ]]; then
+    # `aead-short` and `qcb` are deliberately non-default (see the crate's [features]
+    # comment: QCB is nonce-catastrophic and currently has no consumers). They are still
+    # shipped, published code with their own tests -- tests/nonce_misuse.rs among them -- so
+    # a default-features run leaves src/aead_short.rs, src/tbc.rs and src/commit.rs
+    # uncompiled and therefore unmeasured. Enabling them here measures what is published
+    # rather than only what is on by default.
+    # `simd-avx2` is added too: src/simd/avx2.rs is gated on the feature AND x86_64, and the
+    # crate ships tests/simd_equivalence.rs to exercise it, so on an x86_64 runner it is both
+    # compilable and tested -- leaving it off measured 0/39 on code that has a test.
+    # `simd-neon` is NOT added: it is gated on aarch64, so on x86_64 (CI and dev) it would sit
+    # in the denominator at 0 however good the tests are. Same argument as the lib-q-keccak /
+    # lib-q-ml-dsa / lib-q-stark-monty31 entries below.
+    CMD="$CMD --features std,alloc,aead,block-cipher,hash,stream,aead-short,qcb,simd-avx2"
+  elif [[ "$CRATE" == "lib-q-blind-pcs" ]]; then
+    # Default features are EMPTY and the whole implementation sits behind `blind-pcs`
+    # (src/lib.rs gates the module on it), so a default run instruments an empty crate:
+    # tarpaulin reports "No coverable lines found" and 0%, which a threshold of 0 accepts.
+    # Without this the crate cannot be gated at all -- there is nothing to measure.
+    CMD="$CMD --features blind-pcs"
   elif [[ "$CRATE" == "lib-q-ml-kem" ]]; then
     # ACVP integration tests (kem/pke paths) are behind `deterministic`.
     CMD="$CMD --features std,deterministic"

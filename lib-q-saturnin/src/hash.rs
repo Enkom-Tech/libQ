@@ -180,6 +180,8 @@ impl Default for SaturninHash {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(feature = "alloc")]
+    use alloc::vec;
     #[cfg(feature = "std")]
     use std::eprintln;
 
@@ -491,5 +493,36 @@ mod tests {
                 eprintln!("  RC[{}] = 0x{:04X}", i, constant);
             }
         }
+    }
+
+    #[test]
+    fn test_hash_trait_output_size_is_32() {
+        let hash = SaturninHash::new();
+        assert_eq!(Hash::output_size(&hash), 32);
+    }
+
+    #[test]
+    fn test_hash_default_matches_new() -> Result<()> {
+        let a = SaturninHash::default();
+        let b = SaturninHash::new();
+        assert_eq!(a.hash(b"same input")?, b.hash(b"same input")?);
+        Ok(())
+    }
+
+    #[test]
+    fn test_hash_exact_block_boundary_sizes() -> Result<()> {
+        // 32 bytes is exactly one block (forces the full-block branch then an empty
+        // padded final block); 31/33 straddle the boundary on either side.
+        let hash = SaturninHash::new();
+        for len in [31usize, 32, 33, 64, 65] {
+            let data = vec![0x11u8; len];
+            let out = hash.hash(&data)?;
+            assert_eq!(
+                out.len(),
+                32,
+                "hash output must always be 32 bytes for len={len}"
+            );
+        }
+        Ok(())
     }
 }
