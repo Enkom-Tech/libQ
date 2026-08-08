@@ -138,29 +138,66 @@ direction-not-magnitude argument) and that the deployed closure is sound.
 zero-knowledge — forcing the ciphertext noise pseudorandom so the C1 probe cannot be aimed. Explicitly
 **RED/unsigned, not production-ready.**
 
-**Status — built vs remaining.** BUILT + self-reviewed-sound + fuzzed (all still RED, self-review
-only): `ShakeSpongeAir` (R1), `Ternary`/`BoundedSamplerAir` (R2), the non-native `Z_q` toolkit
-(`ModReduce`/`HornerFold`/`RelationCheck`/`EncodeMuFold`, R3; 36k-tamper fuzz, zero survivors), LogUp
-join-1 + `XofStreamTableAir` + `SqueezeByteAir`. REMAINING/RED: sponge must **Send** its rate limbs so
-sampler bytes are bound in-proof (byte-provenance — the critical open item); `LatticeCheckAir`
-composition wiring (boundary openings feeding folds into `RelationCheck`, both LogUp joins, shared FS
-`ζ`, µ↔sponge transitive binding, offset disjointness); `prove_batch` assembly; Hiding-FRI **not
-proven to hide** `µ`/`(e,f,g)`; no ZK proof, no soundness proof.
+**Status — 2026-08-08, card `t_a73aaed2`: the R3 relation this gate reviewed was VACUOUS, and has
+been replaced.** Everything the previous version of this entry said about fold soundness (the
+Schwartz–Zippel `(2N−2)/q ≈ 2⁻³⁷` per point, `m=4 ⇒ ≤2⁻¹⁴⁸`, the shared FS `ζ`, the `µ↔sponge
+transitive binding`) described a construction that proved nothing. It is retained below only as the
+record of what was refuted.
 
-**Load-bearing numbers.** `R_enc` sufficiency: grinding `µ` to steer `f` infeasible at **≈2⁻¹¹⁰⁰⁰
-/draw**. Fold (Schwartz–Zippel) soundness ≤ `(2N−2)/q ≈ 2⁻³⁷` per point; **m=4** points ⇒ `≤2⁻¹⁴⁸`.
-This proof's own STARK config: Mersenne31, GF(p²) value field, `log_blowup=2`, `num_queries=64`,
-`pow=16` ⇒ ≈128 *conjectured* (positional-binding collision `≈2⁻⁶²` over GF(p²)). Target ring `q=2⁴⁸−2¹⁴+1`,
-N=1024; `Z_q` MAC gadget 14-bit limbs × 4 (corrected from an unsound 16-bit/3-limb draft); `ζ`
-rejection-sampled (bare mod-q biases ≈2⁻³⁴). Scale ≈5M constraints, inside the 2²⁴-row ceiling.
+**What was wrong.** Each R3 relation lifted the ring identity to `Z_q[X]` as `D(X)=H(X)·(X^N+1)` and
+checked it at `ζ = SHAKE(pk_digest‖ct)`. `H` was a FREE prover-chosen coefficient column committed
+*after* `ζ` was fixed by the statement, entering with the nonzero public coefficient `−(ζ^N+1)`, so
+`H(ζ) := D(ζ)/(ζ^N+1)` satisfied the relation for ANY ciphertext. Not grindable — **vacuous**.
+Schwartz–Zippel never applied: it needs the polynomial fixed BEFORE the point is drawn. Confirmed by
+exploit at every tier including the "complete closure" tier at production FRI parameters, at `m=1`
+AND `m=3` (each challenge carried its own free fold, so `m` bought nothing). Two further operands of
+the same class were also free and are also closed: tier 1's `g` fold, and `EncodeMuFoldAir`'s 256
+µ-bits — the latter allowed an **arbitrary malformed `v`** via a subset-sum, since
+`⟨encode(µ),κ⟩ = ⌊q/2⌋·Σᵢ µᵢκᵢ` is linear with public coefficients and `κ` is known before `µ` is
+chosen. "Boolean-constrained" is not "bound".
 
-**Open items (design reviewer items 1–6).** (1) confirm randomized-trace + hiding-PCS actually hide
-`µ` and all `(e,f,g)` (sponge first-block bytes 70..102 = `µ` must be blinded); (2) fold-soundness
-composes with STARK + LogUp, no challenge reuse between fold `γ/ζ` and LogUp `α,β`; (3) the explicit
-monotone `stream_pos` transition constraint (load-bearing beyond the lookup) prevents reorder around
-rejections; (4) fixed height `H` + µ-independent LogUp balance hide the rejection count,
-`Pr[draws>H]<2⁻¹²⁸`; (5) state the *provable* STARK bound in any claim, not the conjectured 128;
-(6) non-native quotient/remainder range bounds tight, 7-limb accumulator never overflows.
+**What replaced it (main @ `d023856`).** The quotient is deleted. The already-reduced residual is
+tested with a public random linear functional `⟨D, κ⟩ = 0`, `κ` drawn from the statement; the
+negacyclic identity `⟨u ⊛ w, κ⟩ = Σ_b w_b·ψ_b` makes the public `t0`/`B0` side collapse into
+per-coefficient public multipliers `ψ`, so the relation is a linear form over coefficient columns the
+byte-provenance COEFF buses already pin. `HornerFoldAir → DotFoldAir` (`acc + w·ψ`, `ψ` in a
+**verifier-rebuilt preprocessed** column). New `mu_bits` limb→bit bridge + `MU_LIMB_BUS`/`MU_BIT_BUS`
+binds the encode fold's µ to the sponge preimage. `derive_zetas`, both `*_quotient_poly`, both
+`*_public_coeffs`, `horner_public_values`, and the whole `prove` module are DELETED, not deprecated.
+103 tests green (98 fast + 5 heavy at production FRI params, incl. the full tier at `m=3` and the
+hiding-FRI path); clippy/no_std/fmt clean. **Still RED — no cryptographer has reviewed any of it.**
+
+**Load-bearing numbers (revised).** Per-challenge soundness of the new relation is claimed at
+`≤ 2/q ≈ 2⁻⁴⁷` over `(κ, ρ)` — 1/q that the ρ-combination cancels a nonzero `⟨D_j,κ⟩`, plus 1/q that
+every `⟨D_j,κ⟩` vanished — so forging costs `≈ (q/2)^m`, `m=3 ⇒ ≈2¹⁴¹`. **This bound is unreviewed
+and is open item (1) below.** Unchanged: `R_enc` sufficiency (grinding `µ` to steer `f` infeasible at
+≈2⁻¹¹⁰⁰⁰/draw); the STARK config (Mersenne31, GF(p²) value field, GF(p⁶) challenge field,
+`log_blowup=2`, `num_queries=64`, `pow=16` ⇒ ≈128 *conjectured*); ring `q=2⁴⁸−2¹⁴+1`, `N=1024`,
+`MU=6`, `KAPPA=9`; `κ`/`ρ` rejection-sampled (bare mod-q biases ≈2⁻³⁴).
+
+**Open items for a reviewer.**
+1. The Fiat–Shamir / grinding bound in the (Q)ROM: is the `2/q` per-challenge union bound the right
+   shape, and is it tight? Does `(q/2)^m` correctly capture a prover who grinds `ct`?
+2. `κ ⊥ ρ` independence. Both are rejection-sampled from the same statement `(pk_digest ‖ ct)` under
+   separated domain tags (`DOM_KAPPA`, `DOM_RHO`). The bound treats them as independent draws.
+3. **The verifier-rebuilt-preprocessed obligation, now load-bearing for soundness rather than only
+   for the sponge round constants.** Every fold's public multiplier `ψ` lives in a preprocessed
+   trace; if a verifier reuses the prover's preprocessed `CommonData` the prover chooses the linear
+   functional and every relation is vacuous again. `ψ` is public so non-hiding leaks nothing, but the
+   ZK path currently reproduces the hiding commitment by restarting the MMCS RNG at a fixed seed — a
+   deployment wanting genuinely random witness blinding needs preprocessed under a separate
+   non-hiding sub-commitment. `build_preprocessed` is a TEST helper, so this is a caller obligation.
+4. That the negacyclic sign table in `corr_negacyclic` equals the KEM's own ring multiplication.
+   Cross-checked in-tree at `N=1024` against a real ciphertext, but by the same author as the code.
+5. Confirm randomized-trace + hiding-PCS actually hide `µ` and all `(e,f,g)` (sponge first-block
+   bytes 70..102 = `µ` must be blinded) — carried over unchanged from the previous review list.
+6. State the *provable* STARK bound in any claim, not the conjectured 128 — carried over unchanged.
+
+**Refuted, retained as the record of what this gate used to say:** fold (Schwartz–Zippel) soundness
+`≤ (2N−2)/q ≈ 2⁻³⁷` per point with `m=4 ⇒ ≤2⁻¹⁴⁸`; "`µ↔sponge` transitive binding"; and the claim
+that the `Z_q` toolkit was "self-reviewed-sound + fuzzed, zero survivors". The fuzzing was real and
+found no *implementation* bugs; the defect was in the protocol the AIRs correctly implemented, which
+is precisely the class fuzzing cannot reach.
 
 ---
 
