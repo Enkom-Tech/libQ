@@ -81,6 +81,46 @@ those rows need a manifest-path invocation or the crates need to become workspac
 that has not been verified on a Linux runner. The entry in `NESTED_PACKAGE_EXCEPTIONS` keeps the
 gap visible until then.
 
+### Known gap: published crates in no gate list at all
+
+The gap above is about a crate whose *number* understates it. This one is about crates with no
+number at all.
+
+Coverage is gated by **name**. `pr.yml` builds `ALL_CRATES` from four hardcoded lists, finds the
+first crate the PR touched, and measures that one against the `case` statement's threshold;
+`coverage.yml` walks its own `CORE_CRATES` / `CRYPTO_CRATES` / `UTIL_CRATES`. A crate named in
+none of them is never measured against any floor.
+
+Nothing surfaces this. A crate absent from every list cannot lower a percentage that is never
+computed for it, so the Test Coverage workflow is green whether its coverage is 90% or 0%.
+
+**Measured 2026-08-08: 77 published crates, 46 gated names, 31 published crates outside all of
+them** — including `lib-q-saturnin`, `lib-q-hqc`, `lib-q-slh-dsa`, `lib-q-mayo` and
+`lib-q-zk-encryption-proof`.
+
+Two consequences worth stating plainly:
+
+- **A green "Test Coverage" run says nothing about a crate on that list.** It is not weak
+  evidence about them; it is no evidence.
+- `pr.yml` `break`s at the first affected crate, so even among gated crates a PR touching two of
+  them measures only one.
+
+`scripts/ci_guard_coverage_floors.py` (run in `ci.yml`'s `core-validation`) freezes this rather
+than fixing it. Every published crate must be gated somewhere or listed in
+`scripts/coverage-floor-exemptions.txt` with a reason; a newly published crate fails until
+someone decides which, and an exemption for a crate that has since been gated also fails so the
+file cannot rot.
+
+It is deliberately not fixed by the guard. Gating 31 more crates under debug tarpaulin is a
+CI-runtime decision — the per-crate step already runs ~65 minutes for 18 crates — and four of the
+absentees (`lib-q-dkg`, `lib-q-threshold-raccoon`, `lib-q-threshold-kem-lattice`,
+`lib-q-blind-token`) are excluded because instrumented keygen is impractically slow, which
+`coverage.yml` already records. The exemptions file distinguishes those from the ones marked
+`UNTRIAGED`, which are simply unmeasured and are where to start.
+
+The route in is the same measure-then-gate the FN-DSA section describes: add `--threshold 0`
+rows, read what CI prints, then set floors from it.
+
 ## Security-critical paths (line targets)
 
 These are the first scoped paths used for the dedicated workflow; extend the list in that workflow when new stable entry points warrant it.
