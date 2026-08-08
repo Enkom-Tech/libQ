@@ -8,10 +8,11 @@
 //!     V = κ·q + r,        0 ≤ r < q,   0 ≤ κ < 2^48,        V < 2^96
 //! ```
 //!
-//! for a witnessed non-negative integer `V`. In the R3 Horner fold `acc ← acc·ζ + w` the challenge
-//! `ζ` is a *public* Fiat-Shamir scalar, so `acc·ζ + w = V` is a public-coefficient-linear function
-//! of the witness limbs (no witness×witness product); the **only** non-native nonlinearity is this
-//! reduction, which is why it is factored out and reviewed on its own.
+//! for a witnessed non-negative integer `V`. In the R3 dot fold `acc ← acc + w·ψ` the multiplier `ψ`
+//! is a *public* per-coefficient value (from the instance's preprocessed column), so `acc + w·ψ = V`
+//! is a public-coefficient-linear function of the witness limbs (no witness×witness product); the
+//! **only** non-native nonlinearity is this reduction, which is why it is factored out and reviewed
+//! on its own.
 //!
 //! ## Limb choice (why 12 bits)
 //! A limb product `a_i·b_j` must stay below `p` so that field-equality implies integer-equality.
@@ -54,6 +55,7 @@ use lib_q_zkp::stark::ConfigVal;
 
 use crate::error::EncProofError;
 use crate::logup_join::{
+    MU_BIT_BUS,
     mcol,
     sconst,
 };
@@ -375,16 +377,17 @@ pub fn generate_modreduce_trace(
 // **Composition obligations (adversarial review, 2026-07-10 — the fold's *internal* arithmetic is
 // sound; these are the boundary bindings the R3 relation-check / composition layer MUST supply):**
 //  1. *Expose the result.* The final row's `r` is `E` but is NOT a public value of this AIR, so a
-//     standalone `HornerFoldAir` proof only attests "some Horner chain is internally consistent." The
+//     standalone `DotFoldAir` proof only attests "some accumulation is internally consistent." The
 //     relation-check AIR must READ the last-row `r` (boundary opening / shared LogUp column) and feed
 //     it into the scalar equations (§4.1); otherwise a prover could evaluate a *different* polynomial.
 //  2. *Bind the coefficients.* `w`'s per-row values must be tied to the real sampler coefficients via
 //     LogUp join 2 (only `w < 2^48` is local here). Absent the join, the polynomial is unconstrained.
-//  3. *Canonical `ζ`.* The 4 public `ζ` limbs must each be `< 2^12` (a 12-bit-canonical decomposition
-//     of a `< q` challenge) — the verifier obligation the [`horner_public_values`] constructor meets.
-//     A non-canonical `ζ` limb could breach the §4.2 field-fit bound; do not hand-build the pubs.
+//  3. *Canonical `ψ`.* Each row's 4 preprocessed `ψ` limbs must be `< 2^12` (a 12-bit-canonical
+//     decomposition of a `< q` value) — met by construction, since `DotFoldAir::preprocessed_trace`
+//     emits `limbs4(ψ_b)` and the VERIFIER commits that trace itself from public data. A
+//     non-canonical limb could breach the §4.2 field-fit bound; do not hand-build the column.
 
-// Column layout (width [`HORNER_WIDTH`]).
+// Column layout (width [`DOT_FOLD_WIDTH`]).
 const HW_ACC: usize = 0; // 4 accumulator-in limbs:   0 .. 4
 const HW_W: usize = 4; // 4 coefficient limbs:       4 .. 8
 const HW_K: usize = 8; // 4 quotient κ limbs:         8 .. 12
@@ -411,39 +414,113 @@ const HW_IDX: usize = 393; // coefficient ζ-power index (descending): 393
 /// (`idx ≥ 1` off the last row); consumed only by the composition-time Send lookup, inert to `eval`.
 const HW_ISLAST: usize = 394; // last-row indicator (join 3): 394
 
-/// Trace width of [`HornerFoldAir`].
-pub const HORNER_WIDTH: usize = 395;
+/// Trace width of [`DotFoldAir`].
+pub const DOT_FOLD_WIDTH: usize = 395;
 /// Signed-carry offset (`cc = c + 2^17 ∈ [0, 2^18)`); honest `|c| < 2^15`.
 const CARRY_OFFSET: u64 = 1 << 17;
 /// Signed-carry range-check width.
-const HORNER_CARRY_BITS: usize = 18;
+const FOLD_CARRY_BITS: usize = 18;
 
-/// AIR evaluating `E = Σ_i c_i·ζ^i (mod q)` by chained Horner steps. `ζ`'s four 12-bit limbs are the
-/// public values; the final row's `r` is the fold result.
+/// AIR evaluating the linear functional `E = Σ_i c_i·ψ_i (mod q)` — the witness coefficient column
+/// paired against a **public** per-coefficient multiplier vector `ψ`, accumulated one coefficient per
+/// row. The final row's `r` is the fold result.
+///
+/// ## Why a dot product and not a Horner evaluation (card `t_a73aaed2`)
+/// This AIR used to compute `Σ_i c_i·ζ^i` for a scalar Fiat–Shamir point `ζ`. That shape forced the
+/// R3 relations to carry a **quotient** witnessing the reduction mod `X^N+1` (evaluation-at-`ζ` is a
+/// ring homomorphism on `Z_q[X]/(X^N+1)` only when `ζ^N = −1`), and that quotient was a free
+/// prover-chosen column committed *after* `ζ` was fixed by the statement — so the relation was
+/// solvable for any ciphertext and proved nothing. See [`crate::relation_assembly::corr_negacyclic`].
+///
+/// The dot-product form removes the quotient entirely: `ψ` is the public negacyclic correlation of
+/// the public multiplier polynomial with the challenge vector `κ`, so the relation becomes a linear
+/// form over coefficient columns that are already bus-pinned to the byte-provenance layer. **Nothing
+/// in the fold is prover-chosen except the coefficients, and those are pinned.**
+///
+/// ## Where `ψ` lives, and why that is sound
+/// `ψ` is `N` public field elements, so it cannot ride in public values (a row-local AIR constraint
+/// cannot index a public-value slice by row). It is a **preprocessed** column. The verifier builds its
+/// own AIRs from public data, commits their preprocessed traces itself, and binds the openings to that
+/// commitment — so a prover that commits a different `ψ` is rejected. This is the same argument
+/// [`crate::sponge_air::ShakeSpongeAir`] already relies on, one step further: `ψ` is a fixed function
+/// of `(row, public statement)` rather than of the row alone.
+///
+/// **Deployment obligation:** under a hiding PCS the preprocessed commitment must still be one the
+/// verifier REBUILDS (a non-hiding sub-commitment). `ψ` is fully public, so non-hiding leaks nothing —
+/// but reusing the prover's preprocessed data, which is sound for a fixed round-constant table, would
+/// here let a prover inject a false `ψ`. See `crate::compose::build_preprocessed_non_hiding`.
 #[derive(Debug, Clone, Default)]
-pub struct HornerFoldAir;
+pub struct DotFoldAir {
+    /// The public multiplier for each coefficient index (low-order first), length = the coefficient
+    /// count the fold consumes. Materialised as this instance's preprocessed column.
+    pub psi: Vec<u64>,
+}
 
-impl<F> BaseAir<F> for HornerFoldAir {
-    fn width(&self) -> usize {
-        HORNER_WIDTH
+impl DotFoldAir {
+    /// A fold over `psi`.
+    #[must_use]
+    pub fn new(psi: Vec<u64>) -> Self {
+        Self { psi }
     }
 
-    fn num_public_values(&self) -> usize {
-        NLIMB // ζ's four 12-bit limbs
+    /// Padded trace height for a fold over `len` coefficients — the same rule
+    /// [`generate_dot_trace`] uses, so the preprocessed and main traces always agree.
+    fn height_for(len: usize) -> usize {
+        len.next_power_of_two().max(2)
     }
 }
 
-impl<AB: AirBuilder> Air<AB> for HornerFoldAir {
+impl BaseAir<ConfigVal> for DotFoldAir {
+    fn width(&self) -> usize {
+        DOT_FOLD_WIDTH
+    }
+
+    fn num_public_values(&self) -> usize {
+        0 // ψ is preprocessed, not public values; the fold binds nothing else publicly.
+    }
+
+    /// `NLIMB` preprocessed columns: `ψ` for the coefficient this row processes, 12-bit limbs
+    /// low-order first. Row `t` handles coefficient degree `p − 1 − t` (see [`HW_IDX`]), matching
+    /// [`generate_dot_trace`]'s row order exactly; the front-padding rows carry `ψ = 0` and a zero
+    /// coefficient, so they contribute nothing.
+    fn preprocessed_trace(&self) -> Option<RowMajorMatrix<ConfigVal>> {
+        if self.psi.is_empty() {
+            return None;
+        }
+        let p = Self::height_for(self.psi.len());
+        let mut vals = Vec::with_capacity(p * NLIMB);
+        for t in 0..p {
+            let deg = p - 1 - t;
+            let psi_b = self.psi.get(deg).copied().unwrap_or(0);
+            for l in limbs4(psi_b) {
+                vals.push(cv(l));
+            }
+        }
+        Some(RowMajorMatrix::new(vals, NLIMB))
+    }
+
+    /// `eval` reads only the CURRENT preprocessed row, so the verifier need not open the next one.
+    fn preprocessed_next_row_columns(&self) -> Vec<usize> {
+        Vec::new()
+    }
+}
+
+impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for DotFoldAir {
     fn eval(&self, builder: &mut AB) {
         let (loc, nxt_acc, nxt_idx): (Vec<AB::Expr>, [AB::Expr; NLIMB], AB::Expr) = {
             let main = builder.main();
             let local = main.current_slice();
             let next = main.next_slice();
-            let loc: Vec<AB::Expr> = (0..HORNER_WIDTH).map(|i| local[i].into()).collect();
+            let loc: Vec<AB::Expr> = (0..DOT_FOLD_WIDTH).map(|i| local[i].into()).collect();
             let nxt_acc = array::from_fn(|i| next[HW_ACC + i].into());
             (loc, nxt_acc, next[HW_IDX].into())
         };
-        let zeta: [AB::Expr; NLIMB] = array::from_fn(|j| builder.public_values()[j].into());
+        // ψ's four 12-bit limbs for this row, from the verifier-rebuilt preprocessed trace.
+        let psi: [AB::Expr; NLIMB] = {
+            let prep = builder.preprocessed();
+            let cur = prep.current_slice();
+            array::from_fn(|j| cur[j].into())
+        };
 
         let recompose = |builder: &mut AB, base: usize, nbits: usize| -> AB::Expr {
             let mut horner = AB::Expr::ZERO;
@@ -467,7 +544,7 @@ impl<AB: AirBuilder> Air<AB> for HornerFoldAir {
             builder.assert_zero(loc[HW_R + i].clone() - r);
         }
         for g in 0..7 {
-            let c = recompose(builder, HW_CBIT + HORNER_CARRY_BITS * g, HORNER_CARRY_BITS);
+            let c = recompose(builder, HW_CBIT + FOLD_CARRY_BITS * g, FOLD_CARRY_BITS);
             builder.assert_zero(loc[HW_CARRY + g].clone() - c);
         }
         for g in 0..NLIMB {
@@ -477,21 +554,26 @@ impl<AB: AirBuilder> Air<AB> for HornerFoldAir {
             }
         }
 
-        // --- fused signed carry chain:  acc·ζ + w − κ·q − r = 0 ---
+        // --- fused signed carry chain:  acc + w·ψ − t·q − r = 0 ---
+        // Structurally identical to the superseded Horner chain `acc·ζ + w − t·q − r = 0`: one
+        // 4×4-limb product plus one 4-limb addend, so the digit magnitudes and the |c| < 2^15 carry
+        // bound are unchanged. Only the product's operands swap (w·ψ instead of acc·ζ) and the addend
+        // becomes `acc` instead of `w`. `t` (column block `HW_K`) is the MODULAR-REDUCTION quotient,
+        // unrelated to the `κ` challenge vector that `ψ` is derived from.
         let radix = konst::<AB>(B);
         let offset = konst::<AB>(CARRY_OFFSET);
         for g in 0..VLIMB {
-            let mut l_g = AB::Expr::ZERO; // Σ_{i+j=g} acc_i·ζ_j   (ζ public)
-            let mut r_g = AB::Expr::ZERO; // Σ_{i+j=g} κ_i·q_j     (q constant)
+            let mut l_g = AB::Expr::ZERO; // Σ_{i+j=g} w_i·ψ_j   (ψ preprocessed, public)
+            let mut r_g = AB::Expr::ZERO; // Σ_{i+j=g} t_i·q_j   (q constant)
             for i in 0..NLIMB {
                 if g >= i && g - i < NLIMB {
-                    l_g += loc[HW_ACC + i].clone() * zeta[g - i].clone();
+                    l_g += loc[HW_W + i].clone() * psi[g - i].clone();
                     r_g += loc[HW_K + i].clone() * konst::<AB>(Q_LIMBS[g - i]);
                 }
             }
             let mut net = l_g - r_g;
             if g < NLIMB {
-                net = net + loc[HW_W + g].clone() - loc[HW_R + g].clone();
+                net = net + loc[HW_ACC + g].clone() - loc[HW_R + g].clone();
             }
             let c_in = if g == 0 {
                 AB::Expr::ZERO
@@ -525,7 +607,7 @@ impl<AB: AirBuilder> Air<AB> for HornerFoldAir {
         }
         builder.assert_zero(loc[HW_BORROW + (NLIMB - 1)].clone());
 
-        // --- Horner chaining: next.acc = this.r ;  first.acc = 0 ---
+        // --- accumulator chaining: next.acc = this.r ;  first.acc = 0 ---
         for i in 0..NLIMB {
             builder
                 .when_transition()
@@ -558,15 +640,16 @@ fn limbs4(x: u64) -> [u64; NLIMB] {
     array::from_fn(|i| (x >> (LIMB_BITS * i)) & LIMB_MASK)
 }
 
-/// Build one [`HornerFoldAir`] row for `acc ← (acc·ζ + w) mod q` with `κ = quot`, `r = rem`.
-fn horner_row(acc: u64, w: u64, kappa: u64, r: u64, zeta: u64) -> [ConfigVal; HORNER_WIDTH] {
+/// Build one [`DotFoldAir`] row for `acc ← (acc + w·ψ) mod q`, with `quot` the modular-reduction
+/// quotient and `r` the remainder.
+fn dot_row(acc: u64, w: u64, quot: u64, r: u64, psi: u64) -> [ConfigVal; DOT_FOLD_WIDTH] {
     let acc_l = limbs4(acc);
     let w_l = limbs4(w);
-    let k_l = limbs4(kappa);
+    let k_l = limbs4(quot);
     let r_l = limbs4(r);
-    let z_l = limbs4(zeta);
+    let z_l = limbs4(psi);
 
-    let mut row = [ConfigVal::ZERO; HORNER_WIDTH];
+    let mut row = [ConfigVal::ZERO; DOT_FOLD_WIDTH];
     for i in 0..NLIMB {
         row[HW_ACC + i] = cv(acc_l[i]);
         row[HW_W + i] = cv(w_l[i]);
@@ -586,26 +669,26 @@ fn horner_row(acc: u64, w: u64, kappa: u64, r: u64, zeta: u64) -> [ConfigVal; HO
         let (mut l_g, mut rr_g) = (0i64, 0i64);
         for i in 0..NLIMB {
             if g >= i && g - i < NLIMB {
-                l_g += (acc_l[i] * z_l[g - i]) as i64;
+                l_g += (w_l[i] * z_l[g - i]) as i64;
                 rr_g += (k_l[i] * Q_LIMBS[g - i]) as i64;
             }
         }
         let mut net = l_g - rr_g;
         if g < NLIMB {
-            net += w_l[g] as i64 - r_l[g] as i64;
+            net += acc_l[g] as i64 - r_l[g] as i64;
         }
         let s = net + c;
-        debug_assert_eq!(s.rem_euclid(B as i64), 0, "horner fused digit must be 0");
+        debug_assert_eq!(s.rem_euclid(B as i64), 0, "dot-fold fused digit must be 0");
         c = s.div_euclid(B as i64);
         if g < 7 {
             let cc = (c + CARRY_OFFSET as i64) as u64;
             row[HW_CARRY + g] = cv(cc);
-            for b in 0..HORNER_CARRY_BITS {
-                row[HW_CBIT + HORNER_CARRY_BITS * g + b] = bit_cv((cc >> b) & 1);
+            for b in 0..FOLD_CARRY_BITS {
+                row[HW_CBIT + FOLD_CARRY_BITS * g + b] = bit_cv((cc >> b) & 1);
             }
         }
     }
-    debug_assert_eq!(c, 0, "horner fused carry must fully vanish");
+    debug_assert_eq!(c, 0, "dot-fold fused carry must fully vanish");
 
     // r < q borrow chain.
     let mut borrow = 0i64;
@@ -622,41 +705,55 @@ fn horner_row(acc: u64, w: u64, kappa: u64, r: u64, zeta: u64) -> [ConfigVal; HO
         row[HW_BORROW + g] = bit_cv(bo as u64);
         borrow = bo;
     }
-    debug_assert_eq!(borrow, 0, "r = (acc·ζ+w) mod q is always < q");
+    debug_assert_eq!(borrow, 0, "r = (acc + w·ψ) mod q is always < q");
 
     row
 }
 
-/// Generate a [`HornerFoldAir`] trace evaluating `E = Σ_i coeffs[i]·ζ^i (mod q)`. `coeffs` are the
-/// polynomial coefficients low-order first (each `< q`); `zeta < q`. Returns the trace and `E` (the
-/// final row's `r`). The trace height is `coeffs.len().next_power_of_two()`; when padding is needed
-/// the extra high-order coefficients are zero (leading `acc = 0` rows that do not disturb `E`).
-pub fn generate_horner_trace(
+/// Generate a [`DotFoldAir`] trace evaluating `E = Σ_i coeffs[i]·psi[i] (mod q)`. `coeffs` are the
+/// polynomial coefficients low-order first (each `< q`) and `psi[i]` is the public multiplier for
+/// coefficient `i` (each `< q`); the two must be the same length, since a shorter `psi` would silently
+/// drop coefficients from the functional. Returns the trace and `E` (the final row's `r`).
+///
+/// The trace height is `coeffs.len().next_power_of_two().max(2)`, matching
+/// `DotFoldAir::preprocessed_trace`; padding rows sit at the FRONT and carry `w = 0`, `ψ = 0`, so they
+/// leave the accumulator untouched.
+///
+/// # Errors
+/// [`EncProofError::TraceGeneration`] if `coeffs` is empty or `psi.len() != coeffs.len()`.
+pub fn generate_dot_trace(
     coeffs: &[u64],
-    zeta: u64,
+    psi: &[u64],
 ) -> Result<(RowMajorMatrix<ConfigVal>, u64), EncProofError> {
     if coeffs.is_empty() {
+        return Err(EncProofError::TraceGeneration("dot fold: no coefficients"));
+    }
+    if psi.len() != coeffs.len() {
         return Err(EncProofError::TraceGeneration(
-            "horner fold: no coefficients",
+            "dot fold: psi length must equal the coefficient count",
         ));
     }
     let m = coeffs.len();
     let p = m.next_power_of_two().max(2);
-    // Horner order (high-order first), zero-padded at the front to a power-of-two height.
+    // Descending-degree order, zero-padded at the front to a power-of-two height.
     let mut wseq = alloc::vec![0u64; p];
-    for (idx, &c) in coeffs.iter().rev().enumerate() {
+    let mut pseq = alloc::vec![0u64; p];
+    for (idx, (&c, &s)) in coeffs.iter().rev().zip(psi.iter().rev()).enumerate() {
         wseq[p - m + idx] = c;
+        pseq[p - m + idx] = s;
     }
 
     let q128 = u128::from(Q);
     let mut acc = 0u64;
-    let mut rows: Vec<[ConfigVal; HORNER_WIDTH]> = Vec::with_capacity(p);
-    for (t, &w) in wseq.iter().enumerate() {
-        let prod = u128::from(acc) * u128::from(zeta) + u128::from(w);
-        let kappa = (prod / q128) as u64;
+    let mut rows: Vec<[ConfigVal; DOT_FOLD_WIDTH]> = Vec::with_capacity(p);
+    for (t, (&w, &s)) in wseq.iter().zip(pseq.iter()).enumerate() {
+        let prod = u128::from(w) * u128::from(s) + u128::from(acc);
+        let quot = (prod / q128) as u64;
         let r = (prod % q128) as u64;
-        let mut row = horner_row(acc, w, kappa, r, zeta);
-        // ζ-power index: descends p−1 → 0 (see [`HW_IDX`]); the coefficient in row t has degree p−1−t.
+        let mut row = dot_row(acc, w, quot, r, s);
+        // Coefficient index: descends p−1 → 0 (see [`HW_IDX`]); row t carries the coefficient of
+        // degree p−1−t. Join 2's Receive keys on this, so the bus binding is unchanged by the switch
+        // from a Horner chain to a dot product (a dot product is order-agnostic).
         row[HW_IDX] = cv((p - 1 - t) as u64);
         row[HW_ISLAST] = if t == p - 1 {
             ConfigVal::ONE
@@ -668,21 +765,16 @@ pub fn generate_horner_trace(
     }
     let e = acc;
 
-    let mut vals = Vec::with_capacity(p * HORNER_WIDTH);
+    let mut vals = Vec::with_capacity(p * DOT_FOLD_WIDTH);
     for row in rows {
         vals.extend_from_slice(&row);
     }
-    Ok((RowMajorMatrix::new(vals, HORNER_WIDTH), e))
-}
-
-/// The four 12-bit ζ-limbs a [`HornerFoldAir`] proof binds as public values.
-pub fn horner_public_values(zeta: u64) -> Vec<ConfigVal> {
-    limbs4(zeta).iter().map(|&l| cv(l)).collect()
+    Ok((RowMajorMatrix::new(vals, DOT_FOLD_WIDTH), e))
 }
 
 /// Join-2 **Receive** lookups the fold contributes (design §5, coefficient binding): four single-limb
 /// `(position, w_limb)` tuples per row on `bus`, at absolute coefficient-limb position
-/// `base + 4·idx + j` where `idx` is `HW_IDX` (this row's ζ-power / coefficient degree) and
+/// `base + 4·idx + j` where `idx` is `HW_IDX` (this row's coefficient degree) and
 /// `base = 4·r·N` locates ring element `r` on the component's coefficient axis (`base = 0` for a lone
 /// ring element). One single-tuple lookup per limb (degree-3 constraint) rather than one 4-tuple
 /// lookup. **Every row Receives** (no gate): the fold height must equal its coefficient count `N`
@@ -690,7 +782,7 @@ pub fn horner_public_values(zeta: u64) -> Vec<ConfigVal> {
 /// the sampler's `N` Sends exactly. The fold's own `w`-limb range checks (`< 2^12`) and `w < q`
 /// comparison make the received limbs canonical, back-propagating (via multiset equality) to pin the
 /// sampler's Sent lift limbs.
-pub fn horner_coeff_receive_lookups_at(bus: &str, base: u64) -> Vec<Lookup<ConfigVal>> {
+pub fn fold_coeff_receive_lookups_at(bus: &str, base: u64) -> Vec<Lookup<ConfigVal>> {
     let idx = mcol(HW_IDX);
     (0..NLIMB)
         .map(|j| {
@@ -717,7 +809,7 @@ pub fn horner_coeff_receive_lookups_at(bus: &str, base: u64) -> Vec<Lookup<Confi
 /// carries other lookups (e.g. its join-2 coefficient *receive* on cols `0..4`, or sends to several
 /// relations) passes `col_base` past those so the aux columns don't collide within the instance. A
 /// lone send uses `col_base = 0`.
-pub fn horner_e_send_lookups_at(
+pub fn fold_result_send_lookups_at(
     bus: &str,
     base: u64,
     term: usize,
@@ -745,11 +837,11 @@ pub fn horner_e_send_lookups_at(
 // The message μ ∈ {0,1}^256 is embedded in R_q by the tkem `encode_msg` as
 //     encode(μ) = Σ_{i<256} ⌊q/2⌋·μ_i·X^i          (bit i → coefficient i = ⌊q/2⌋, else 0;
 //                                                    coefficients 256..N are 0),
-// so its evaluation at the public challenge ζ is the 256-term Horner sum
-//     E_encode = encode(μ)(ζ) = Σ_{i<256} ⌊q/2⌋·μ_i·ζ^i (mod q).
+// so its pairing with the public challenge vector κ is the 256-term sum
+//     E_encode = ⟨encode(μ), κ⟩ = Σ_{i<256} ⌊q/2⌋·μ_i·κ_i (mod q).
 // R3b (`v = ⟨t0,e⟩ + g + encode(μ)`) needs `E_encode` as one of its fold witnesses. If `encode(μ)`
 // were folded as a *free* ring element the prover could set it to `v − ⟨t0,e⟩ − g` and R3b would pass
-// vacuously (§4.4). [`EncodeMuFoldAir`] closes that: it reuses the [`HornerFoldAir`] arithmetic
+// vacuously (§4.4). [`EncodeMuFoldAir`] closes that: it reuses the [`DotFoldAir`] arithmetic
 // VERBATIM (delegated `eval`) and adds, per row, a boolean μ-bit column plus the *derivation*
 // constraint
 //     w_j = HALFQ_j · μ_bit        (j ∈ 0..NLIMB, HALFQ = ⌊q/2⌋ a public constant),
@@ -758,13 +850,20 @@ pub fn horner_e_send_lookups_at(
 //  * `w < q` is STRUCTURAL (HALFQ < q) — unlike the generic fold, no join-2 coefficient bound needed.
 //
 // **Composition obligations (same category as the fold's; internal arithmetic is the fuzzer-checked
-// HornerFold — a STANDALONE proof here attests only "some binary μ′ folds to encode(μ′)(ζ) with the
+// DotFold — a STANDALONE proof here attests only "some binary μ′ folds to ⟨encode(μ′), κ⟩ with the
 // result in the last-row r", NOT which μ′ nor that r is consumed):** (1) expose the last-row
-// `r = E_encode` to R3b's [`RelationCheckAir`] (boundary opening) — the LOAD-BEARING one; (2) canonical
-// ζ limbs (met by the shared [`horner_public_values`] / [`encode_mu_public_values`]); (3) bind these
-// μ-bits to the sponge's μ — done TRANSITIVELY through the (e,g)-pinning and the R3b fold (§4.4), NOT a
-// third LogUp join; (4) SAME ζ across all fold AIRs (e/g/encode) — all must evaluate at one Fiat-Shamir
-// challenge or the §4.1 polynomial identity is checked at mixed points and does not certify the relation.
+// `r = E_encode` to R3b's [`RelationCheckAir`] (boundary opening) — the LOAD-BEARING one; (2) SAME κ
+// across all fold AIRs of a challenge (e/g/encode), or the linear functional is evaluated at mixed
+// points and does not certify the relation; (3) bind these μ-bits to the SPONGE's μ.
+//
+// **(3) is done via [`MU_BIT_BUS`]** — see [`encode_mu_bit_receive_lookup`] and
+// [`crate::mu_bits`]. It was NOT always: an earlier comment here claimed the binding held
+// "TRANSITIVELY through the (e,g)-pinning and the R3b fold", which was false, and the μ-bits were a
+// genuinely free operand. Because `⟨encode(μ), κ⟩ = ⌊q/2⌋·Σ_i μ_i·κ_i` is linear with PUBLIC
+// coefficients and `κ` is known before the prover picks μ, a subset-sum over the 256 free bits let an
+// ARBITRARY malformed `v` verify — the same defect class as the free quotient fold (card
+// `t_a73aaed2`). Booleanity constrains each bit; it does not constrain their inner product with a
+// public vector. If you ever remove the MU_BIT Receive, that break comes straight back.
 
 /// `⌊q/2⌋ = 2^47 − 2^13 = 140737488347136`, the tkem `encode_msg` constant (message bit → coefficient
 /// value). Integer floor division, matching `let half = Q / 2` in `lib-q-threshold-kem-lattice`.
@@ -772,34 +871,57 @@ pub const HALFQ: u64 = Q / 2;
 /// `HALFQ` as four 12-bit limbs (verified in tests): `2^47 − 2^13 = 2^12·(2^35 − 2)` ⇒ `[0,4094,4095,2047]`.
 const HALFQ_LIMBS: [u64; NLIMB] = [0, 4094, 4095, 2047];
 /// Number of message bits (= tkem `MESSAGE_BITS`); the encode fold has exactly this many terms, and
-/// `256` is a power of two so the [`HornerFoldAir`] trace needs no front padding.
-const MSG_BITS: usize = 256;
+/// `256` is a power of two so the [`DotFoldAir`] trace needs no front padding.
+pub const MSG_BITS: usize = 256;
 
-/// Extra μ-bit column appended after the [`HornerFoldAir`] columns.
-const EMW_MUBIT: usize = HORNER_WIDTH;
-/// Trace width of [`EncodeMuFoldAir`] (all [`HornerFoldAir`] columns + one boolean μ-bit).
-pub const ENCODE_MU_WIDTH: usize = HORNER_WIDTH + 1;
+/// Extra μ-bit column appended after the [`DotFoldAir`] columns.
+const EMW_MUBIT: usize = DOT_FOLD_WIDTH;
+/// Trace width of [`EncodeMuFoldAir`] (all [`DotFoldAir`] columns + one boolean μ-bit).
+pub const ENCODE_MU_WIDTH: usize = DOT_FOLD_WIDTH + 1;
 
-/// AIR proving `E = encode(μ)(ζ) (mod q)` for a boolean message μ: the [`HornerFoldAir`] fold with each
-/// coefficient constrained to `⌊q/2⌋·μ_i` via a per-row boolean μ-bit. `ζ`'s four 12-bit limbs are the
-/// public values (shared with [`horner_public_values`]); the final row's `r` is `E_encode`.
+/// AIR proving `E = ⟨encode(μ), κ⟩ (mod q)` for a boolean message μ: the [`DotFoldAir`] fold with each
+/// coefficient constrained to `⌊q/2⌋·μ_i` via a per-row boolean μ-bit. `psi` is `κ`'s first
+/// [`MSG_BITS`] entries, carried as this instance's preprocessed column; the final row's `r` is
+/// `E_encode`.
 #[derive(Debug, Clone, Default)]
-pub struct EncodeMuFoldAir;
+pub struct EncodeMuFoldAir {
+    /// `κ[0..MSG_BITS]` — the public multiplier for each message bit's coefficient.
+    pub psi: Vec<u64>,
+}
 
-impl<F> BaseAir<F> for EncodeMuFoldAir {
+impl EncodeMuFoldAir {
+    /// An encode fold against `psi = κ[0..MSG_BITS]`.
+    #[must_use]
+    pub fn new(psi: Vec<u64>) -> Self {
+        Self { psi }
+    }
+}
+
+impl BaseAir<ConfigVal> for EncodeMuFoldAir {
     fn width(&self) -> usize {
         ENCODE_MU_WIDTH
     }
 
     fn num_public_values(&self) -> usize {
-        NLIMB // ζ's four 12-bit limbs (same as HornerFoldAir)
+        0 // κ is preprocessed, like every other fold.
+    }
+
+    fn preprocessed_trace(&self) -> Option<RowMajorMatrix<ConfigVal>> {
+        BaseAir::<ConfigVal>::preprocessed_trace(&DotFoldAir::new(self.psi.clone()))
+    }
+
+    fn preprocessed_next_row_columns(&self) -> Vec<usize> {
+        Vec::new()
     }
 }
 
-impl<AB: AirBuilder> Air<AB> for EncodeMuFoldAir {
+impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for EncodeMuFoldAir {
     fn eval(&self, builder: &mut AB) {
-        // (1) All HornerFold fold / range-check / chaining constraints over columns 0..HORNER_WIDTH.
-        HornerFoldAir.eval(builder);
+        // (1) All DotFold fold / range-check / chaining constraints over columns 0..DOT_FOLD_WIDTH.
+        //     `DotFoldAir::eval` reads ψ from the PREPROCESSED trace, never from `self`, so delegating
+        //     through a default instance is exact — this AIR supplies the same preprocessed column via
+        //     its own `preprocessed_trace` above.
+        DotFoldAir::default().eval(builder);
 
         // (2) Boolean μ-bit + coefficient derivation  w_j = HALFQ_j · μ_bit  (public-linear select).
         let (mu, w): (AB::Expr, [AB::Expr; NLIMB]) = {
@@ -816,14 +938,43 @@ impl<AB: AirBuilder> Air<AB> for EncodeMuFoldAir {
     }
 }
 
-/// Generate an [`EncodeMuFoldAir`] trace proving `E = encode(μ)(ζ) (mod q)`. `mu` is the 32-byte
-/// message with bit `i` = `(mu[i/8] >> (i%8)) & 1` (matching tkem `encode_msg`); `zeta < q`. Trace
-/// height is exactly `MSG_BITS = 256` (a power of two — no padding). Returns the trace and `E_encode`
-/// (the final row's `r`).
+/// The **Receive** binding this fold's per-row μ-bit to the sponge's preimage μ, over
+/// [`MU_BIT_BUS`] (card `t_a73aaed2`, GAP 2). Row `i` (coefficient index `HW_IDX = i`) Receives
+/// `(i, μ_i)`; [`crate::mu_bits::mu_bits_lookups`] Sends all 256. Every row Receives — the fold's
+/// height is exactly `MSG_BITS`, so the counts match with no gate.
+///
+/// WITHOUT this, the 256 μ-bit columns are a FREE operand: `⟨encode(μ), κ⟩ = ⌊q/2⌋·Σ_i μ_i·κ_i` is
+/// linear with public coefficients and `κ` is known before the prover picks μ, so a modular
+/// subset-sum over the 256 bits hits any target and an arbitrary malformed `v` verifies. Booleanity
+/// alone binds nothing.
+///
+/// `col_base` is the first permutation aux-column index these four... one lookup occupies.
+#[must_use]
+pub fn encode_mu_bit_receive_lookup(col_base: usize) -> Vec<Lookup<ConfigVal>> {
+    Vec::from([Lookup::new(
+        Kind::Global(MU_BIT_BUS.into()),
+        Vec::from([Vec::from([mcol(HW_IDX), mcol(EMW_MUBIT)])]),
+        Vec::from([Direction::Receive.multiplicity(sconst(1))]),
+        Vec::from([col_base]),
+    )])
+}
+
+/// Generate an [`EncodeMuFoldAir`] trace proving `E = ⟨encode(μ), κ⟩ (mod q)`. `mu` is the 32-byte
+/// message with bit `i` = `(mu[i/8] >> (i%8)) & 1` (matching tkem `encode_msg`); `psi` is
+/// `κ[0..MSG_BITS]`. Trace height is exactly `MSG_BITS = 256` (a power of two — no padding). Returns
+/// the trace and `E_encode` (the final row's `r`).
+///
+/// # Errors
+/// [`EncProofError::TraceGeneration`] if `psi.len() != MSG_BITS`.
 pub fn generate_encode_mu_trace(
     mu: &[u8; 32],
-    zeta: u64,
+    psi: &[u64],
 ) -> Result<(RowMajorMatrix<ConfigVal>, u64), EncProofError> {
+    if psi.len() != MSG_BITS {
+        return Err(EncProofError::TraceGeneration(
+            "encode fold: psi must have exactly MSG_BITS entries",
+        ));
+    }
     let q128 = u128::from(Q);
     let mut acc = 0u64;
     let mut vals = Vec::with_capacity(MSG_BITS * ENCODE_MU_WIDTH);
@@ -832,13 +983,14 @@ pub fn generate_encode_mu_trace(
         let idx = MSG_BITS - 1 - j;
         let bit = (mu[idx / 8] >> (idx % 8)) & 1;
         let w = if bit == 1 { HALFQ } else { 0 };
-        let prod = u128::from(acc) * u128::from(zeta) + u128::from(w);
-        let kappa = (prod / q128) as u64;
+        let s = psi[idx];
+        let prod = u128::from(w) * u128::from(s) + u128::from(acc);
+        let quot = (prod / q128) as u64;
         let r = (prod % q128) as u64;
-        let base = horner_row(acc, w, kappa, r, zeta);
+        let base = dot_row(acc, w, quot, r, s);
         let mut row = [ConfigVal::ZERO; ENCODE_MU_WIDTH];
-        row[..HORNER_WIDTH].copy_from_slice(&base);
-        // ζ-power index (= coefficient degree) for the delegated HornerFold descent constraint.
+        row[..DOT_FOLD_WIDTH].copy_from_slice(&base);
+        // Coefficient index for the delegated DotFold descent constraint.
         row[HW_IDX] = cv(idx as u64);
         row[HW_ISLAST] = if j == MSG_BITS - 1 {
             ConfigVal::ONE
@@ -850,12 +1002,6 @@ pub fn generate_encode_mu_trace(
         acc = r;
     }
     Ok((RowMajorMatrix::new(vals, ENCODE_MU_WIDTH), acc))
-}
-
-/// The public values (ζ's four 12-bit limbs) an [`EncodeMuFoldAir`] proof binds — identical to
-/// [`horner_public_values`] (the encode fold shares the challenge ζ).
-pub fn encode_mu_public_values(zeta: u64) -> Vec<ConfigVal> {
-    horner_public_values(zeta)
 }
 
 // ===========================================================================================
@@ -888,7 +1034,12 @@ const REL_WLIMB: usize = 8; // limb positions in the LHS/κ·q carry chain (LHS 
 const REL_KLIMB: usize = 5; // κ limbs (κ < 2^60)
 const REL_CARRY_OFFSET: u64 = 1 << 18; // signed-carry offset; honest |c| < 2^18
 const REL_CARRY_BITS: usize = 19; // signed-carry range-check width
-const REL_MAX_TERMS: usize = 15; // completeness bound: honest carries `4L·2^12` must fit `2^18`
+/// Maximum witness terms `L` in one [`RelationCheckAir`] instance. Completeness bound: honest carries
+/// are `≤ 4L·2^12` and must fit the `2^18` signed-carry offset. Field-fit (soundness) holds to
+/// `L ≤ 31`; this is the tighter of the two, so a valid relation always yields a *provable* trace.
+/// Callers that batch several ring identities into one relation must split to stay under it — see the
+/// `const _: () = assert!(..)` guards in [`crate::encryption_proof`].
+pub const REL_MAX_TERMS: usize = 15;
 
 /// AIR proving the Z_q relation `Σ_{j<L} a_j·w_j + c ≡ 0 (mod q)` where `a_0..a_{L-1}` and `c` are the
 /// public values (4 limbs each) and `w_0..w_{L-1}` are witness `Z_q` values.
@@ -929,7 +1080,7 @@ impl RelationCheckAir {
 
     /// Join-3 **Receive** lookups (design §4.1, the boundary opening): for each witness term `j` and
     /// limb, Receive `(base + 4·j + limb, w_j_limb)` on `bus`, gated by the first-row indicator, binding
-    /// each `w_j` to the fold that Sends its result `E_j` at term `j` ([`horner_e_send_lookups_at`]).
+    /// each `w_j` to the fold that Sends its result `E_j` at term `j` ([`fold_result_send_lookups_at`]).
     /// `base` must match the folds' Send `base` (the relation instance's offset). `4·L` single-tuple
     /// lookups (degree-3); the bound `w_j` are exactly the fold outputs the relation constrains.
     pub fn relation_w_receive_lookups_at(&self, bus: &str, base: u64) -> Vec<Lookup<ConfigVal>> {
@@ -1199,7 +1350,21 @@ pub fn generate_relation_trace(
 
 #[cfg(test)]
 mod tests {
+    use lib_q_stark::{
+        DebugConstraintBuilder,
+        PcsError,
+        PreprocessedVerifierKey,
+        Proof,
+        ProverConstraintFolder,
+        SymbolicAirBuilder,
+        VerificationError,
+        VerifierConstraintFolder,
+        prove_with_preprocessed,
+        setup_preprocessed,
+        verify_with_preprocessed,
+    };
     use lib_q_zkp::stark::{
+        DefaultConfig,
         StarkProver,
         StarkVerifier,
         default_config,
@@ -1207,6 +1372,128 @@ mod tests {
 
     use super::*;
     use crate::test_macros::assert_air_rejects;
+
+    // -----------------------------------------------------------------------------------------
+    // Preprocessed-trace plumbing for `DotFoldAir`/`EncodeMuFoldAir` (card `t_a73aaed2`).
+    //
+    // `StarkProver`/`StarkVerifier` (`lib_q_zkp::stark`) always pass `None` for preprocessed data:
+    // `StarkProver::prove` forwards to `lib_q_stark::prove`, which is
+    // `prove_with_preprocessed(.., None)` (`lib-q-stark/src/prover.rs:530`/`545`). For an AIR whose
+    // `preprocessed_trace()` is `Some(..)` that hits the explicit panic guard at
+    // `lib-q-stark/src/prover.rs:214-221` ("AIR defines preprocessed columns ... but no
+    // PreprocessedProverData was provided"), so `assert_air_rejects!`/`StarkProver::prove` cannot
+    // drive these two AIRs at all.
+    //
+    // `lib_q_zkp::stark` exposes no preprocessed-aware entry point, but `lib-q-stark` (already a
+    // dev-dependency of this crate — see its `Cargo.toml` — for exactly this reason) exposes
+    // `setup_preprocessed` / `prove_with_preprocessed` / `verify_with_preprocessed` directly, and
+    // `lib_q_zkp::stark::DefaultConfig` is a type alias for a `lib_q_stark::StarkConfig<..>`, so
+    // `default_config()` plugs straight into them — no detour through the batch-STARK stack
+    // (`lib_q_plonky_batch_stark`) is needed for a single AIR. `setup_preprocessed(config, air,
+    // degree_bits)` calls `air.preprocessed_trace()` ITSELF and commits the result, returning both
+    // prover data and a `PreprocessedVerifierKey` — exactly the "verifier rebuilds its own
+    // commitment from public data" property `DotFoldAir`'s doc comment relies on. A caller that wants
+    // to check that property calls `setup_preprocessed` a second time on a (possibly different) `air`
+    // instance and feeds the resulting key to `verify_preprocessed`; see
+    // `dot_fold_rejects_a_psi_the_verifier_did_not_commit`.
+
+    /// `degree_bits` for `prove_with_preprocessed`/`setup_preprocessed`, derived the same way
+    /// `lib-q-stark`'s own prover does (`trace.height()`'s log2): `trace.values.len() / width`, which
+    /// is always an exact power of two for these AIRs (`DotFoldAir`/`EncodeMuFoldAir` pad to one).
+    fn degree_bits_of(trace: &RowMajorMatrix<ConfigVal>, width: usize) -> usize {
+        (trace.values.len() / width).trailing_zeros() as usize
+    }
+
+    /// Preprocessed-aware analogue of `StarkProver::prove`: commits `air`'s own preprocessed trace
+    /// (if it has one) via `setup_preprocessed`, then proves `trace` against it.
+    fn prove_preprocessed<A>(
+        air: &A,
+        trace: RowMajorMatrix<ConfigVal>,
+        pubs: &[ConfigVal],
+    ) -> (
+        Proof<DefaultConfig>,
+        Option<PreprocessedVerifierKey<DefaultConfig>>,
+    )
+    where
+        A: Air<SymbolicAirBuilder<ConfigVal>>
+            + for<'a> Air<ProverConstraintFolder<'a, DefaultConfig>>
+            + for<'a> Air<DebugConstraintBuilder<'a, ConfigVal>>,
+    {
+        let config = default_config();
+        let degree_bits = degree_bits_of(&trace, air.width());
+        let (prover_data, vk) = match setup_preprocessed(&config, air, degree_bits) {
+            Some((pd, vk)) => (Some(pd), Some(vk)),
+            None => (None, None),
+        };
+        let proof = prove_with_preprocessed(&config, air, trace, pubs, prover_data.as_ref())
+            .expect("prove_with_preprocessed");
+        (proof, vk)
+    }
+
+    /// Preprocessed-aware analogue of `StarkVerifier::verify`. `vk` should come from calling
+    /// `setup_preprocessed` on the VERIFIER's own `air` instance (never the prover's) — that is the
+    /// whole soundness point: the commitment is rebuilt from public data, not trusted from the proof.
+    fn verify_preprocessed<A>(
+        air: &A,
+        proof: &Proof<DefaultConfig>,
+        pubs: &[ConfigVal],
+        vk: Option<&PreprocessedVerifierKey<DefaultConfig>>,
+    ) -> Result<(), VerificationError<PcsError<DefaultConfig>>>
+    where
+        A: Air<SymbolicAirBuilder<ConfigVal>>
+            + for<'a> Air<VerifierConstraintFolder<'a, DefaultConfig>>,
+    {
+        verify_with_preprocessed(&default_config(), air, proof, pubs, vk)
+    }
+
+    /// Independently rebuild `air`'s verifier key at `degree_bits` — what a real verifier does
+    /// instead of trusting the prover's key.
+    fn rebuild_verifier_key<A>(
+        air: &A,
+        degree_bits: usize,
+    ) -> Option<PreprocessedVerifierKey<DefaultConfig>>
+    where
+        A: Air<SymbolicAirBuilder<ConfigVal>>
+            + for<'a> Air<ProverConstraintFolder<'a, DefaultConfig>>,
+    {
+        setup_preprocessed(&default_config(), air, degree_bits).map(|(_, vk)| vk)
+    }
+
+    /// Preprocessed-aware analogue of `crate::test_macros::assert_air_rejects`: that macro always
+    /// drives `StarkProver`/`StarkVerifier`, which (per the module doc above) cannot carry a
+    /// preprocessed trace, so it cannot be reused for `DotFoldAir`/`EncodeMuFoldAir`. Same rejection
+    /// outcomes count (a debug-mode `check_constraints` panic, a `prove` error, or a built proof that
+    /// fails verification), but this drives `prove_preprocessed`/`verify_preprocessed` and verifies
+    /// against the SAME `air` used to prove — i.e. it tests "a tampered MAIN trace is rejected", not
+    /// the psi-substitution attack (`dot_fold_rejects_a_psi_the_verifier_did_not_commit` covers that).
+    fn assert_preprocessed_air_rejects<A>(
+        air: &A,
+        trace: RowMajorMatrix<ConfigVal>,
+        pubs: &[ConfigVal],
+        msg: &str,
+    ) where
+        A: Air<SymbolicAirBuilder<ConfigVal>>
+            + for<'a> Air<ProverConstraintFolder<'a, DefaultConfig>>
+            + for<'a> Air<VerifierConstraintFolder<'a, DefaultConfig>>
+            + for<'a> Air<DebugConstraintBuilder<'a, ConfigVal>>,
+    {
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            prove_preprocessed(air, trace, pubs)
+        }));
+        match outcome {
+            // debug `check_constraints` panicked on the violating trace, or `prove` returned an
+            // `Err` (also surfaced as a panic via `.expect` inside `prove_preprocessed`) ⇒ rejected.
+            Err(_) => {}
+            // a proof was built: it MUST fail verification.
+            Ok((proof, vk)) => {
+                assert!(
+                    verify_preprocessed(air, &proof, pubs, vk.as_ref()).is_err(),
+                    "{}",
+                    msg
+                );
+            }
+        }
+    }
 
     #[test]
     fn q_limbs_are_correct() {
@@ -1332,18 +1619,19 @@ mod tests {
         );
     }
 
-    /// Reference polynomial evaluation `Σ_i c_i·ζ^i (mod q)` (Horner, high-order first).
-    fn eval_reference(coeffs: &[u64], zeta: u64) -> u64 {
+    /// Reference linear functional `Σ_i coeffs[i]·psi[i] (mod q)` (order-agnostic — a dot product,
+    /// not a Horner evaluation).
+    fn dot_reference(coeffs: &[u64], psi: &[u64]) -> u64 {
         let q128 = u128::from(Q);
         let mut e = 0u128;
-        for &c in coeffs.iter().rev() {
-            e = (e * u128::from(zeta) + u128::from(c)) % q128;
+        for (&c, &s) in coeffs.iter().zip(psi.iter()) {
+            e = (e + u128::from(c) * u128::from(s)) % q128;
         }
         e as u64
     }
 
     #[test]
-    fn horner_fold_matches_reference_and_proves() {
+    fn dot_fold_matches_reference_and_proves() {
         let coeffs: [u64; 16] = [
             1,
             2,
@@ -1362,43 +1650,129 @@ mod tests {
             123,
             Q - 7,
         ];
-        let zeta = 987654321012345u64 % Q;
-        let expected = eval_reference(&coeffs, zeta);
+        // Reuse the same adversarial (limb/carry-edge) values for psi, reordered, so every row still
+        // multiplies two extremal operands together.
+        let psi: Vec<u64> = coeffs.iter().rev().copied().collect();
+        let expected = dot_reference(&coeffs, &psi);
 
-        let (trace, e) = generate_horner_trace(&coeffs, zeta).expect("trace generation");
+        let (trace, e) = generate_dot_trace(&coeffs, &psi).expect("trace generation");
         assert_eq!(
             e, expected,
-            "trace fold value must equal the reference evaluation"
+            "trace fold value must equal the reference dot product"
         );
 
-        let pubs = horner_public_values(zeta);
-        let proof = StarkProver::new(default_config())
-            .prove(&HornerFoldAir, trace, &pubs)
-            .expect("prove horner fold");
-        StarkVerifier::new(default_config())
-            .verify(&HornerFoldAir, &proof, &pubs)
-            .expect("verify horner fold");
+        let air = DotFoldAir::new(psi);
+        let (proof, vk) = prove_preprocessed(&air, trace, &[]);
+        verify_preprocessed(&air, &proof, &[], vk.as_ref()).expect("verify dot fold");
     }
 
     #[test]
-    fn horner_fold_rejects_tampered_result() {
+    fn dot_fold_rejects_tampered_result() {
         let coeffs: [u64; 8] = [1, 2, 3, 4, 5, 6, 7, 8];
-        let zeta = 424242424242u64 % Q;
-        let (mut trace, _e) = generate_horner_trace(&coeffs, zeta).expect("trace generation");
+        let psi: [u64; 8] = [Q - 1, 100, Q - 2, 55, 12345, Q - 7, 3, Q - 100000];
+        let (mut trace, _e) = generate_dot_trace(&coeffs, &psi).expect("trace generation");
 
-        // Corrupt the last row's remainder (the fold result) low limb: breaks acc·ζ + w = κ·q + r
+        // Corrupt the last row's remainder (the fold result) low limb: breaks acc + w·ψ = κ·q + r
         // on that row (and the chaining to nowhere, but the fused identity alone already fails).
-        let p = trace.values.len() / HORNER_WIDTH;
-        let last = (p - 1) * HORNER_WIDTH;
+        let p = trace.values.len() / DOT_FOLD_WIDTH;
+        let last = (p - 1) * DOT_FOLD_WIDTH;
         trace.values[last + HW_R] += ConfigVal::ONE;
 
-        let pubs = horner_public_values(zeta);
-        assert_air_rejects!(
-            &HornerFoldAir,
-            trace,
-            &pubs,
-            "a tampered fold result must not verify"
+        let air = DotFoldAir::new(psi.to_vec());
+        assert_preprocessed_air_rejects(&air, trace, &[], "a tampered fold result must not verify");
+    }
+
+    #[test]
+    fn dot_fold_preprocessed_psi_matches_generated_trace() {
+        // Several coefficient counts, including a non-power-of-two, exercising both the
+        // no-front-padding case (16) and front-padding cases (5 -> height 8, 300 -> height 512).
+        for &n in &[5usize, 16, 300] {
+            let coeffs: Vec<u64> = (0..n).map(|i| (i as u64 * 7 + 3) % Q).collect();
+            let psi: Vec<u64> = (0..n).map(|i| (i as u64 * 131 + 17 + Q / 3) % Q).collect();
+
+            let (trace, _e) = generate_dot_trace(&coeffs, &psi).expect("trace generation");
+            let main_height = trace.values.len() / DOT_FOLD_WIDTH;
+
+            let air = DotFoldAir::new(psi.clone());
+            let prep = air
+                .preprocessed_trace()
+                .expect("non-empty psi must yield a preprocessed trace");
+            let prep_height = prep.values.len() / prep.width;
+
+            assert_eq!(
+                prep_height, main_height,
+                "preprocessed height must equal the main trace height for n={n}"
+            );
+            assert_eq!(prep.width, NLIMB, "preprocessed width is 4 limbs for n={n}");
+
+            let p = main_height;
+            for t in 0..p {
+                let deg = p - 1 - t;
+                let expected: [ConfigVal; NLIMB] = if deg < n {
+                    limbs4(psi[deg]).map(cv)
+                } else {
+                    [ConfigVal::ZERO; NLIMB]
+                };
+                assert_eq!(
+                    &prep.values[t * NLIMB..t * NLIMB + NLIMB],
+                    &expected,
+                    "preprocessed row {t} (n={n}) must hold limbs4(psi[{deg}]) (or zero padding)"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn dot_fold_rejects_a_psi_the_verifier_did_not_commit() {
+        let coeffs: [u64; 6] = [11, Q - 3, 2222, 0, Q - 1, 987654321];
+        let psi_a: [u64; 6] = [1, 2, 3, 4, 5, 6];
+        let psi_b: [u64; 6] = [7, 8, 9, 10, 11, 12];
+        assert_ne!(psi_a, psi_b);
+
+        let (trace, _e) = generate_dot_trace(&coeffs, &psi_a).expect("trace generation");
+        let air_a = DotFoldAir::new(psi_a.to_vec());
+        let degree_bits = degree_bits_of(&trace, air_a.width());
+        let (proof, _vk_a) = prove_preprocessed(&air_a, trace, &[]);
+
+        // Negative: a verifier carrying psi_b (never committed by the prover) must REJECT.
+        let air_b = DotFoldAir::new(psi_b.to_vec());
+        let vk_b =
+            rebuild_verifier_key(&air_b, degree_bits).expect("air_b defines preprocessed columns");
+        assert!(
+            verify_preprocessed(&air_b, &proof, &[], Some(&vk_b)).is_err(),
+            "verifying against a psi the prover never committed must be rejected"
         );
+
+        // Positive control: a verifier independently rebuilding the SAME psi_a must ACCEPT.
+        let air_a_verifier = DotFoldAir::new(psi_a.to_vec());
+        let vk_a_rebuilt = rebuild_verifier_key(&air_a_verifier, degree_bits)
+            .expect("air_a defines preprocessed columns");
+        verify_preprocessed(&air_a_verifier, &proof, &[], Some(&vk_a_rebuilt))
+            .expect("verifying against the committed psi must accept");
+    }
+
+    #[test]
+    fn generate_dot_trace_rejects_mismatched_psi_length() {
+        let coeffs = [1u64, 2, 3];
+
+        let psi_short = [1u64, 2];
+        assert!(matches!(
+            generate_dot_trace(&coeffs, &psi_short),
+            Err(EncProofError::TraceGeneration(_))
+        ));
+
+        let psi_long = [1u64, 2, 3, 4];
+        assert!(matches!(
+            generate_dot_trace(&coeffs, &psi_long),
+            Err(EncProofError::TraceGeneration(_))
+        ));
+
+        // Empty coefficients must also error (regardless of psi length).
+        let empty: [u64; 0] = [];
+        assert!(matches!(
+            generate_dot_trace(&empty, &empty),
+            Err(EncProofError::TraceGeneration(_))
+        ));
     }
 
     #[test]
@@ -1477,32 +1851,27 @@ mod tests {
         for (i, b) in mu.iter_mut().enumerate() {
             *b = i as u8;
         }
-        let zeta = 987654321012345u64 % Q;
+        let psi: Vec<u64> = (0..MSG_BITS).map(|i| (i as u64 * 97 + 13) % Q).collect();
 
-        let (trace, e) = generate_encode_mu_trace(&mu, zeta).expect("trace generation");
+        let (trace, e) = generate_encode_mu_trace(&mu, &psi).expect("trace generation");
 
-        // Reference: E = Σ_{i<256} ⌊q/2⌋·μ_i·ζ^i (mod q), high-order-first Horner.
+        // Reference: E = Σ_{i<256} ⌊q/2⌋·μ_i·psi[i] (mod q) — order-agnostic dot product.
         let q128 = u128::from(Q);
-        let z = u128::from(zeta);
         let mut e_ref = 0u128;
-        for i in (0..MSG_BITS).rev() {
+        for i in 0..MSG_BITS {
             let bit = (mu[i / 8] >> (i % 8)) & 1;
             let c = if bit == 1 { u128::from(HALFQ) } else { 0 };
-            e_ref = (e_ref * z + c) % q128;
+            e_ref = (e_ref + c * u128::from(psi[i])) % q128;
         }
         assert_eq!(
             u128::from(e),
             e_ref,
-            "fold result must equal encode(μ)(ζ) mod q"
+            "fold result must equal ⟨encode(μ), psi⟩ mod q"
         );
 
-        let pubs = encode_mu_public_values(zeta);
-        let proof = StarkProver::new(default_config())
-            .prove(&EncodeMuFoldAir, trace, &pubs)
-            .expect("prove encode-mu fold");
-        StarkVerifier::new(default_config())
-            .verify(&EncodeMuFoldAir, &proof, &pubs)
-            .expect("verify encode-mu fold");
+        let air = EncodeMuFoldAir::new(psi);
+        let (proof, vk) = prove_preprocessed(&air, trace, &[]);
+        verify_preprocessed(&air, &proof, &[], vk.as_ref()).expect("verify encode-mu fold");
     }
 
     #[test]
@@ -1511,20 +1880,15 @@ mod tests {
         for (i, b) in mu.iter_mut().enumerate() {
             *b = i as u8;
         }
-        let zeta = 424242424242u64 % Q;
-        let (mut trace, _e) = generate_encode_mu_trace(&mu, zeta).expect("trace generation");
-        let pubs = encode_mu_public_values(zeta);
+        let psi: Vec<u64> = (0..MSG_BITS).map(|i| (i as u64 * 97 + 13) % Q).collect();
+        let (mut trace, _e) = generate_encode_mu_trace(&mu, &psi).expect("trace generation");
 
         // Row 0 processes coefficient index 255 (bit = μ[31]>>7 = 0), so its μ-bit is 0. Flip it to 1
         // WITHOUT touching the coefficient limbs: the derivation constraint w_1 = HALFQ_1·μ_bit is now
         // violated (w_1 stayed 0 but HALFQ_1·1 = 4094 ≠ 0).
         trace.values[EMW_MUBIT] += ConfigVal::ONE;
 
-        assert_air_rejects!(
-            &EncodeMuFoldAir,
-            trace,
-            &pubs,
-            "a tampered μ-bit must not verify"
-        );
+        let air = EncodeMuFoldAir::new(psi);
+        assert_preprocessed_air_rejects(&air, trace, &[], "a tampered μ-bit must not verify");
     }
 }

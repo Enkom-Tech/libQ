@@ -53,9 +53,6 @@
 //! (blinds μ; #32, demonstrated in `encryption_proof::tests`). **Remaining:** the KEM-side H1
 //! (constant-time samplers) and H3 (estimator vendoring), plus external cryptographer sign-off.
 
-#[cfg(not(feature = "std"))]
-use alloc::vec::Vec;
-
 use lib_q_stark_air::{
     Air,
     AirBuilder,
@@ -65,6 +62,7 @@ use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_zkp::stark::ConfigVal;
 
 use crate::logup_join::XofStreamTableAir;
+use crate::mu_bits::MuBitsAir;
 use crate::sampler::{
     BoundedSamplerAir,
     TernarySamplerAir,
@@ -72,8 +70,8 @@ use crate::sampler::{
 use crate::sponge_air::ShakeSpongeAir;
 use crate::squeeze_byte::SqueezeByteAir;
 use crate::zq::{
+    DotFoldAir,
     EncodeMuFoldAir,
-    HornerFoldAir,
     RelationCheckAir,
 };
 
@@ -94,9 +92,11 @@ pub enum EncProofAir {
     /// Bounded rejection sampler for `f`/`g` (design §5.2).
     Bounded(BoundedSamplerAir),
     /// Horner `E = Σ cᵢ·ζⁱ (mod q)` fold for a witness ring element (design §4.1, R3).
-    HornerFold(HornerFoldAir),
+    DotFold(DotFoldAir),
     /// `encode(μ)(ζ)` fold with boolean-μ binding (design §4.4, R3b).
     EncodeMuFold(EncodeMuFoldAir),
+    /// μ limb→bit bridge tying the encode fold's μ to the sponge preimage's (card `t_a73aaed2`).
+    MuBits(MuBitsAir),
     /// Non-native `Z_q` linear-relation check `Σ_j a_j·w_j + c ≡ 0` (design §4.1, R3).
     RelationCheck(RelationCheckAir),
     /// Interim positional byte-stream source stand-in (design §5.1) — removed once the sponge sends.
@@ -110,8 +110,9 @@ impl BaseAir<ConfigVal> for EncProofAir {
             EncProofAir::SqueezeByte(a) => BaseAir::<ConfigVal>::width(a),
             EncProofAir::Ternary(a) => BaseAir::<ConfigVal>::width(a),
             EncProofAir::Bounded(a) => BaseAir::<ConfigVal>::width(a),
-            EncProofAir::HornerFold(a) => BaseAir::<ConfigVal>::width(a),
+            EncProofAir::DotFold(a) => BaseAir::<ConfigVal>::width(a),
             EncProofAir::EncodeMuFold(a) => BaseAir::<ConfigVal>::width(a),
+            EncProofAir::MuBits(a) => BaseAir::<ConfigVal>::width(a),
             EncProofAir::RelationCheck(a) => BaseAir::<ConfigVal>::width(a),
             EncProofAir::XofStream(a) => BaseAir::<ConfigVal>::width(a),
         }
@@ -123,8 +124,9 @@ impl BaseAir<ConfigVal> for EncProofAir {
             EncProofAir::SqueezeByte(a) => BaseAir::<ConfigVal>::num_public_values(a),
             EncProofAir::Ternary(a) => BaseAir::<ConfigVal>::num_public_values(a),
             EncProofAir::Bounded(a) => BaseAir::<ConfigVal>::num_public_values(a),
-            EncProofAir::HornerFold(a) => BaseAir::<ConfigVal>::num_public_values(a),
+            EncProofAir::DotFold(a) => BaseAir::<ConfigVal>::num_public_values(a),
             EncProofAir::EncodeMuFold(a) => BaseAir::<ConfigVal>::num_public_values(a),
+            EncProofAir::MuBits(a) => BaseAir::<ConfigVal>::num_public_values(a),
             EncProofAir::RelationCheck(a) => BaseAir::<ConfigVal>::num_public_values(a),
             EncProofAir::XofStream(a) => BaseAir::<ConfigVal>::num_public_values(a),
         }
@@ -136,8 +138,9 @@ impl BaseAir<ConfigVal> for EncProofAir {
             EncProofAir::SqueezeByte(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
             EncProofAir::Ternary(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
             EncProofAir::Bounded(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
-            EncProofAir::HornerFold(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
+            EncProofAir::DotFold(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
             EncProofAir::EncodeMuFold(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
+            EncProofAir::MuBits(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
             EncProofAir::RelationCheck(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
             EncProofAir::XofStream(a) => BaseAir::<ConfigVal>::preprocessed_trace(a),
         }
@@ -151,8 +154,9 @@ impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for EncProofAir {
             EncProofAir::SqueezeByte(a) => a.eval(builder),
             EncProofAir::Ternary(a) => a.eval(builder),
             EncProofAir::Bounded(a) => a.eval(builder),
-            EncProofAir::HornerFold(a) => a.eval(builder),
+            EncProofAir::DotFold(a) => a.eval(builder),
             EncProofAir::EncodeMuFold(a) => a.eval(builder),
+            EncProofAir::MuBits(a) => a.eval(builder),
             EncProofAir::RelationCheck(a) => a.eval(builder),
             EncProofAir::XofStream(a) => a.eval(builder),
         }
@@ -350,6 +354,24 @@ mod tests {
         let mut out = vec![0u8; n];
         rd.read(&mut out);
         out
+    }
+
+    /// A deterministic `Z_q` public multiplier vector of length `len`, for fold tests that exercise
+    /// the join-2/join-3 LogUp mechanism itself rather than the real R3b `κ`/`corr_negacyclic`
+    /// semantics (see [`crate::relation_assembly`]) — any public vector of the right length is a
+    /// valid `ψ` for [`DotFoldAir`]/[`generate_dot_trace`], since those isolation tests only need
+    /// *some* fixed public functional for the fold to bind against.
+    fn arbitrary_psi(seed: &[u8], len: usize) -> Vec<u64> {
+        let raw = shake256_xof(seed, len * 8);
+        raw.as_chunks::<8>()
+            .0
+            .iter()
+            .map(|c| {
+                let mut b = [0u8; 8];
+                b.copy_from_slice(c);
+                u64::from_le_bytes(b) % crate::zq::Q
+            })
+            .collect()
     }
 
     fn active_rows(trace: &RowMajorMatrix<ConfigVal>, width: usize, active_col: usize) -> usize {
@@ -884,20 +906,21 @@ mod tests {
         use crate::zq::{
             Q,
             RelationCheckAir,
-            generate_horner_trace,
+            fold_result_send_lookups_at,
+            generate_dot_trace,
             generate_relation_trace,
-            horner_e_send_lookups_at,
-            horner_public_values,
         };
 
         const H: usize = 32; // trace height (power of two, safely above the test FRI minimum)
 
-        // Fold over H coefficients (height H, no front padding).
+        // Fold over H coefficients (height H, no front padding) against an arbitrary public ψ — this
+        // test exercises join 3's boundary opening (the fold → relation binding), not the R3b `κ`
+        // semantics, so any public multiplier vector works.
         let coeffs: Vec<u64> = (0..H as u64).map(|i| (i * 7 + 3) % Q).collect();
-        let zeta = 424_242u64;
-        let (fold, e) = generate_horner_trace(&coeffs, zeta).expect("horner trace");
-        let fold_air = EncProofAir::HornerFold(HornerFoldAir);
-        let fold_pubs = horner_public_values(zeta);
+        let psi = arbitrary_psi(b"libq/compose/join3-psi", H);
+        let (fold, e) = generate_dot_trace(&coeffs, &psi).expect("dot fold trace");
+        let fold_air = EncProofAir::DotFold(DotFoldAir::new(psi));
+        let fold_pubs: Vec<ConfigVal> = Vec::new(); // ψ is preprocessed, not a public value
 
         // Build a RelationCheck (1·w_0 + (q−w_0) ≡ 0) and pad its 2 replica rows to height H (row 0
         // keeps is_first = 1; the rest are is_first = 0 replicas — the descent/transition still pins it).
@@ -915,24 +938,28 @@ mod tests {
 
         let (rc, relation, rel_pubs) = build_relation(e);
         let relation_air = EncProofAir::RelationCheck(rc.clone());
-        let send = horner_e_send_lookups_at(FOLD_E_BUS, 0, 0, 0);
+        let send = fold_result_send_lookups_at(FOLD_E_BUS, 0, 0, 0);
         let recv = rc.relation_w_receive_lookups_at(FOLD_E_BUS, 0);
 
         let config = test_batch_config();
-        let common = CommonData::new(None, Vec::from([send.clone(), recv.clone()]));
+        // The fold's ψ now rides its preprocessed trace, so this instance needs the verifier-rebuilt
+        // preprocessed commitment (unlike the superseded ζ-in-public-values fold).
+        let airs = [fold_air, relation_air];
+        let (global, prover_only) = build_preprocessed(&config, &airs);
+        let common = CommonData::new(global, Vec::from([send.clone(), recv.clone()]));
         let prover_data = ProverData {
             common,
-            prover_only: ProverOnlyData::empty(),
+            prover_only,
         };
         let instances = [
             StarkInstance {
-                air: &fold_air,
+                air: &airs[0],
                 trace: &fold,
                 public_values: fold_pubs.clone(),
                 lookups: send.clone(),
             },
             StarkInstance {
-                air: &relation_air,
+                air: &airs[1],
                 trace: &relation,
                 public_values: rel_pubs.clone(),
                 lookups: recv.clone(),
@@ -941,7 +968,7 @@ mod tests {
         let proof = prove_batch(&config, &instances, &prover_data).expect("prove_batch");
         verify_batch(
             &config,
-            &[fold_air.clone(), relation_air],
+            &airs,
             &proof,
             &[fold_pubs.clone(), rel_pubs],
             &prover_data.common,
@@ -952,20 +979,22 @@ mod tests {
         let (rc2, relation2, rel_pubs2) = build_relation((e + 1) % Q);
         let relation_air2 = EncProofAir::RelationCheck(rc2.clone());
         let recv2 = rc2.relation_w_receive_lookups_at(FOLD_E_BUS, 0);
-        let common2 = CommonData::new(None, Vec::from([send.clone(), recv2.clone()]));
+        let airs2 = [airs[0].clone(), relation_air2];
+        let (global2, prover_only2) = build_preprocessed(&config, &airs2);
+        let common2 = CommonData::new(global2, Vec::from([send.clone(), recv2.clone()]));
         let prover_data2 = ProverData {
             common: common2,
-            prover_only: ProverOnlyData::empty(),
+            prover_only: prover_only2,
         };
         let instances2 = [
             StarkInstance {
-                air: &fold_air,
+                air: &airs2[0],
                 trace: &fold,
                 public_values: fold_pubs.clone(),
                 lookups: send,
             },
             StarkInstance {
-                air: &relation_air2,
+                air: &airs2[1],
                 trace: &relation2,
                 public_values: rel_pubs2.clone(),
                 lookups: recv2,
@@ -974,7 +1003,7 @@ mod tests {
         let proof2 = prove_batch(&config, &instances2, &prover_data2).expect("prove_batch");
         let res = verify_batch(
             &config,
-            &[fold_air, relation_air2],
+            &airs2,
             &proof2,
             &[fold_pubs, rel_pubs2],
             &prover_data2.common,
@@ -997,9 +1026,8 @@ mod tests {
         use crate::sampler::ternary_coeff_send_lookups_at;
         use crate::zq::{
             Q,
-            generate_horner_trace,
-            horner_coeff_receive_lookups_at,
-            horner_public_values,
+            fold_coeff_receive_lookups_at,
+            generate_dot_trace,
         };
 
         let bytes = shake256_xof(b"libq/compose/join2", 4096);
@@ -1019,29 +1047,33 @@ mod tests {
                 lifts.push((i64::from(two) - 1).rem_euclid(Q as i64) as u64);
             }
         }
-        let zeta = 191_919u64;
-        let (fold, _e) = generate_horner_trace(&lifts, zeta).expect("horner trace");
-        let fold_air = EncProofAir::HornerFold(HornerFoldAir);
-        let fold_pubs = horner_public_values(zeta);
+        // Arbitrary public ψ — this test exercises join 2's coefficient binding, not the R3b `κ`
+        // semantics.
+        let psi = arbitrary_psi(b"libq/compose/join2-psi", n);
+        let (fold, _e) = generate_dot_trace(&lifts, &psi).expect("dot fold trace");
+        let fold_air = EncProofAir::DotFold(DotFoldAir::new(psi.clone()));
+        let fold_pubs: Vec<ConfigVal> = Vec::new();
 
         let send = ternary_coeff_send_lookups_at(0, 0);
-        let recv = horner_coeff_receive_lookups_at(COEFF_E_BUS, 0);
+        let recv = fold_coeff_receive_lookups_at(COEFF_E_BUS, 0);
 
         let config = test_batch_config();
-        let common = CommonData::new(None, Vec::from([send.clone(), recv.clone()]));
+        let airs = [ternary_air, fold_air];
+        let (global, prover_only) = build_preprocessed(&config, &airs);
+        let common = CommonData::new(global, Vec::from([send.clone(), recv.clone()]));
         let prover_data = ProverData {
             common,
-            prover_only: ProverOnlyData::empty(),
+            prover_only,
         };
         let instances = [
             StarkInstance {
-                air: &ternary_air,
+                air: &airs[0],
                 trace: &ternary,
                 public_values: ternary_pubs.clone(),
                 lookups: send.clone(),
             },
             StarkInstance {
-                air: &fold_air,
+                air: &airs[1],
                 trace: &fold,
                 public_values: fold_pubs.clone(),
                 lookups: recv.clone(),
@@ -1050,26 +1082,27 @@ mod tests {
         let proof = prove_batch(&config, &instances, &prover_data).expect("prove_batch");
         verify_batch(
             &config,
-            &[ternary_air.clone(), fold_air.clone()],
+            &airs,
             &proof,
             &[ternary_pubs.clone(), fold_pubs.clone()],
             &prover_data.common,
         )
         .expect("the fold coefficients must bind to the sampler's on the coeff bus");
 
-        // Negative: fold a DIFFERENT coefficient at degree 0 → the coeff bus no longer balances.
+        // Negative: fold a DIFFERENT coefficient at degree 0 → the coeff bus no longer balances. Same
+        // ψ (the AIR/preprocessed data is unchanged), only the trace's coefficient differs.
         let mut bad = lifts.clone();
         bad[0] = if lifts[0] == 1 { 0 } else { 1 };
-        let (bad_fold, _) = generate_horner_trace(&bad, zeta).expect("horner trace");
+        let (bad_fold, _) = generate_dot_trace(&bad, &psi).expect("dot fold trace");
         let instances2 = [
             StarkInstance {
-                air: &ternary_air,
+                air: &airs[0],
                 trace: &ternary,
                 public_values: ternary_pubs.clone(),
                 lookups: send,
             },
             StarkInstance {
-                air: &fold_air,
+                air: &airs[1],
                 trace: &bad_fold,
                 public_values: fold_pubs.clone(),
                 lookups: recv,
@@ -1078,7 +1111,7 @@ mod tests {
         let proof2 = prove_batch(&config, &instances2, &prover_data).expect("prove_batch");
         let res = verify_batch(
             &config,
-            &[ternary_air, fold_air],
+            &airs,
             &proof2,
             &[ternary_pubs, fold_pubs],
             &prover_data.common,
@@ -1164,11 +1197,10 @@ mod tests {
         use crate::zq::{
             Q,
             RelationCheckAir,
-            generate_horner_trace,
+            fold_coeff_receive_lookups_at,
+            fold_result_send_lookups_at,
+            generate_dot_trace,
             generate_relation_trace,
-            horner_coeff_receive_lookups_at,
-            horner_e_send_lookups_at,
-            horner_public_values,
         };
 
         let bytes = shake256_xof(b"libq/compose/two-joins", 4096);
@@ -1188,10 +1220,12 @@ mod tests {
                 lifts.push((i64::from(two) - 1).rem_euclid(Q as i64) as u64);
             }
         }
-        let zeta = 606_060u64;
-        let (fold, e) = generate_horner_trace(&lifts, zeta).expect("horner trace");
-        let fold_air = EncProofAir::HornerFold(HornerFoldAir);
-        let fold_pubs = horner_public_values(zeta);
+        // Arbitrary public ψ — this test exercises join 2 AND join 3's wiring, not the R3b `κ`
+        // semantics.
+        let psi = arbitrary_psi(b"libq/compose/two-joins-psi", n);
+        let (fold, e) = generate_dot_trace(&lifts, &psi).expect("dot fold trace");
+        let fold_air = EncProofAir::DotFold(DotFoldAir::new(psi));
+        let fold_pubs: Vec<ConfigVal> = Vec::new();
 
         // Relation 1·w_0 + (q−E) ≡ 0; pad its 2 replica rows to height n.
         let rc = RelationCheckAir { num_terms: 1 };
@@ -1209,36 +1243,38 @@ mod tests {
         // Lookups: sampler Send (coeff bus); fold Receive (coeff bus, cols 0..4) + Send (fold-E bus,
         // cols 4..8); relation Receive (fold-E bus).
         let s_send = ternary_coeff_send_lookups_at(0, 0);
-        let f_recv = horner_coeff_receive_lookups_at(COEFF_E_BUS, 0);
-        let f_send = horner_e_send_lookups_at(FOLD_E_BUS, 0, 0, 4);
+        let f_recv = fold_coeff_receive_lookups_at(COEFF_E_BUS, 0);
+        let f_send = fold_result_send_lookups_at(FOLD_E_BUS, 0, 0, 4);
         let mut fold_lookups = f_recv;
         fold_lookups.extend(f_send);
         let r_recv = rc.relation_w_receive_lookups_at(FOLD_E_BUS, 0);
 
         let config = test_batch_config();
+        let airs = [ternary_air, fold_air, relation_air];
+        let (global, prover_only) = build_preprocessed(&config, &airs);
         let common = CommonData::new(
-            None,
+            global,
             Vec::from([s_send.clone(), fold_lookups.clone(), r_recv.clone()]),
         );
         let prover_data = ProverData {
             common,
-            prover_only: ProverOnlyData::empty(),
+            prover_only,
         };
         let instances = [
             StarkInstance {
-                air: &ternary_air,
+                air: &airs[0],
                 trace: &ternary,
                 public_values: ternary_pubs.clone(),
                 lookups: s_send,
             },
             StarkInstance {
-                air: &fold_air,
+                air: &airs[1],
                 trace: &fold,
                 public_values: fold_pubs.clone(),
                 lookups: fold_lookups,
             },
             StarkInstance {
-                air: &relation_air,
+                air: &airs[2],
                 trace: &relation,
                 public_values: rel_pubs.clone(),
                 lookups: r_recv,
@@ -1247,7 +1283,7 @@ mod tests {
         let proof = prove_batch(&config, &instances, &prover_data).expect("prove_batch");
         verify_batch(
             &config,
-            &[ternary_air, fold_air, relation_air],
+            &airs,
             &proof,
             &[ternary_pubs, fold_pubs, rel_pubs],
             &prover_data.common,
@@ -1291,11 +1327,10 @@ mod tests {
         use crate::zq::{
             Q,
             RelationCheckAir,
-            generate_horner_trace,
+            fold_coeff_receive_lookups_at,
+            fold_result_send_lookups_at,
+            generate_dot_trace,
             generate_relation_trace,
-            horner_coeff_receive_lookups_at,
-            horner_e_send_lookups_at,
-            horner_public_values,
         };
 
         let pk = [0x21u8; 32];
@@ -1327,8 +1362,10 @@ mod tests {
                 lifts.push((i64::from(two) - 1).rem_euclid(Q as i64) as u64);
             }
         }
-        let zeta = 777_777u64;
-        let (fold, e) = generate_horner_trace(&lifts, zeta).expect("horner trace");
+        // Arbitrary public ψ — this test exercises the full join chain's wiring, not the R3b `κ`
+        // semantics.
+        let psi = arbitrary_psi(b"libq/compose/vertical-slice-psi", n);
+        let (fold, e) = generate_dot_trace(&lifts, &psi).expect("dot fold trace");
 
         // Relation 1·w_0 + (q−E) ≡ 0, padded to height n.
         let rc = RelationCheckAir { num_terms: 1 };
@@ -1346,7 +1383,7 @@ mod tests {
             EncProofAir::Sponge(ShakeSpongeAir { height }),
             EncProofAir::SqueezeByte(SqueezeByteAir),
             EncProofAir::Ternary(TernarySamplerAir { num_coeffs: n }),
-            EncProofAir::HornerFold(HornerFoldAir),
+            EncProofAir::DotFold(DotFoldAir::new(psi)),
             EncProofAir::RelationCheck(rc.clone()),
         ];
 
@@ -1358,8 +1395,8 @@ mod tests {
         ]);
         let mut ternary_lookups = Vec::from([ternary_receive_lookup()]); // byte Receive: col 0
         ternary_lookups.extend(ternary_coeff_send_lookups_at(0, 1)); // coeff Send: cols 1..5
-        let mut fold_lookups = horner_coeff_receive_lookups_at(COEFF_E_BUS, 0); // cols 0..4
-        fold_lookups.extend(horner_e_send_lookups_at(FOLD_E_BUS, 0, 0, 4)); // cols 4..8
+        let mut fold_lookups = fold_coeff_receive_lookups_at(COEFF_E_BUS, 0); // cols 0..4
+        fold_lookups.extend(fold_result_send_lookups_at(FOLD_E_BUS, 0, 0, 4)); // cols 4..8
         let relation_lookups = rc.relation_w_receive_lookups_at(FOLD_E_BUS, 0);
 
         let config = test_batch_config();
@@ -1381,7 +1418,7 @@ mod tests {
 
         let sponge_pubs = sponge_public_values(&pk);
         let ternary_pubs = ternary_public_values(n);
-        let fold_pubs = horner_public_values(zeta);
+        let fold_pubs: Vec<ConfigVal> = Vec::new(); // ψ is preprocessed, not a public value
         let instances = [
             StarkInstance {
                 air: &airs[0],
@@ -1439,18 +1476,19 @@ mod tests {
         use crate::zq::{
             Q,
             RelationCheckAir,
-            generate_horner_trace,
+            fold_result_send_lookups_at,
+            generate_dot_trace,
             generate_relation_trace,
-            horner_e_send_lookups_at,
-            horner_public_values,
         };
 
         const H: usize = 32;
         let coeffs: Vec<u64> = (0..H as u64).map(|i| (i * 7 + 3) % Q).collect();
-        let zeta = 424_242u64;
-        let (fold, e) = generate_horner_trace(&coeffs, zeta).expect("horner trace");
-        let fold_air = EncProofAir::HornerFold(HornerFoldAir);
-        let fold_pubs = horner_public_values(zeta);
+        // Arbitrary public ψ — this test exercises join 3 under the hiding-FRI config, not the R3b
+        // `κ` semantics.
+        let psi = arbitrary_psi(b"libq/compose/join3-zk-psi", H);
+        let (fold, e) = generate_dot_trace(&coeffs, &psi).expect("dot fold trace");
+        let fold_air = EncProofAir::DotFold(DotFoldAir::new(psi));
+        let fold_pubs: Vec<ConfigVal> = Vec::new();
 
         let rc = RelationCheckAir { num_terms: 1 };
         let (rm, rel_pubs) =
@@ -1464,24 +1502,26 @@ mod tests {
         let relation = RowMajorMatrix::new(rvals, rw);
         let relation_air = EncProofAir::RelationCheck(rc.clone());
 
-        let send = horner_e_send_lookups_at(FOLD_E_BUS, 0, 0, 0);
+        let send = fold_result_send_lookups_at(FOLD_E_BUS, 0, 0, 0);
         let recv = rc.relation_w_receive_lookups_at(FOLD_E_BUS, 0);
 
         let config = test_batch_config_zk(); // hiding-FRI ZK config (is_zk == 1)
-        let common = CommonData::new(None, Vec::from([send.clone(), recv.clone()]));
+        let airs = [fold_air, relation_air];
+        let (global, prover_only) = build_preprocessed(&config, &airs);
+        let common = CommonData::new(global, Vec::from([send.clone(), recv.clone()]));
         let prover_data = ProverData {
             common,
-            prover_only: ProverOnlyData::empty(),
+            prover_only,
         };
         let instances = [
             StarkInstance {
-                air: &fold_air,
+                air: &airs[0],
                 trace: &fold,
                 public_values: fold_pubs.clone(),
                 lookups: send,
             },
             StarkInstance {
-                air: &relation_air,
+                air: &airs[1],
                 trace: &relation,
                 public_values: rel_pubs.clone(),
                 lookups: recv,
@@ -1490,7 +1530,7 @@ mod tests {
         let proof = prove_batch(&config, &instances, &prover_data).expect("zk prove_batch");
         verify_batch(
             &config,
-            &[fold_air, relation_air],
+            &airs,
             &proof,
             &[fold_pubs, rel_pubs],
             &prover_data.common,
@@ -1498,161 +1538,15 @@ mod tests {
         .expect("the zero-knowledge (hiding-FRI) proof must verify");
     }
 
-    /// **R3b relation layer on a REAL ciphertext through `prove_batch` (task #26).** Proves the `v`
-    /// equation `v = Σ_r t0_r·e_r + g + encode(μ) (mod X^N+1)` for a genuine `encapsulate_derand`
-    /// ciphertext: `MU` folds evaluate `e_r(ζ)`, one evaluates `g(ζ)`, an `EncodeMuFold` evaluates
-    /// `encode(μ)(ζ)`, one evaluates the quotient `H_b(ζ)`, and a `RelationCheckAir` binds all `MU + 3`
-    /// fold results (join 3) into `Σ_j a_j·w_j + c ≡ 0 (mod q)` with the assembled public coefficients.
-    /// `verify_batch` accepts iff the fold-E bus balances AND the relation holds — the relation half of
-    /// the full proof, cryptographically enforced end-to-end on real witness data.
-    #[test]
-    fn compose_r3b_real_relation_prove_batch() {
-        use lib_q_dkg::lattice::bdlop::MU;
-        use lib_q_dkg::lattice::ring::{
-            N,
-            Rq,
-        };
-        use lib_q_plonky_lookup::Lookup;
-        use lib_q_threshold_kem_lattice::kem::{
-            encapsulate_derand,
-            encode_msg,
-            fo_expand_witness,
-        };
-
-        use crate::logup_join::FOLD_E_BUS;
-        use crate::relation_assembly::{
-            derive_zetas,
-            r3b_public_coeffs,
-            r3b_quotient_poly,
-            rq_coeffs_zq,
-        };
-        use crate::zq::{
-            EncodeMuFoldAir,
-            RelationCheckAir,
-            encode_mu_public_values,
-            generate_encode_mu_trace,
-            generate_horner_trace,
-            generate_relation_trace,
-            horner_e_send_lookups_at,
-            horner_public_values,
-        };
-
-        let t0: Vec<Rq> = (0..MU)
-            .map(|r| {
-                let mut c = [0i64; N];
-                for (i, ci) in c.iter_mut().enumerate() {
-                    *ci = (i as i64 * 17 + r as i64 * 5) % lib_q_dkg::lattice::ring::Q;
-                }
-                Rq::from_coeffs(c)
-            })
-            .collect();
-        let mu = [0x3Cu8; 32];
-        let ct = encapsulate_derand(&t0, &mu);
-        let w = fo_expand_witness(&t0, &mu);
-
-        let zeta = derive_zetas(&ct.to_bytes(), 1)[0];
-
-        // Assemble R3b public coeffs + the quotient witness.
-        let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
-        let t0_cols: Vec<&[u64]> = t0_cols_owned.iter().map(|v| v.as_slice()).collect();
-        let e_lifts: Vec<Vec<u64>> = w.e.iter().map(rq_coeffs_zq).collect();
-        let e_ref: Vec<&[u64]> = e_lifts.iter().map(|v| v.as_slice()).collect();
-        let v_z = rq_coeffs_zq(&ct.v);
-        let g_z = rq_coeffs_zq(&w.g);
-        let encode_z = rq_coeffs_zq(&encode_msg(&mu));
-        let (a, c) = r3b_public_coeffs(&t0_cols, &v_z, zeta, N);
-        let hb =
-            r3b_quotient_poly(&t0_cols, &e_ref, &g_z, &encode_z, &v_z, N).expect("R3b divisible");
-
-        // Fold traces (each Sends its result E on FOLD_E at its relation-term position).
-        let mut fold_traces = Vec::new();
-        let mut fold_es = Vec::new();
-        for e in &e_lifts {
-            let (t, ev) = generate_horner_trace(e, zeta).expect("e fold");
-            fold_traces.push(t);
-            fold_es.push(ev);
-        }
-        let (g_trace, g_ev) = generate_horner_trace(&g_z, zeta).expect("g fold");
-        let (enc_trace, enc_ev) = generate_encode_mu_trace(&mu, zeta).expect("encode fold");
-        let (hb_trace, hb_ev) = generate_horner_trace(&hb, zeta).expect("hb fold");
-
-        // Witness terms: E_0..E_{MU-1}, G, E_encode, HK_b.
-        let mut w_terms = fold_es.clone();
-        w_terms.push(g_ev);
-        w_terms.push(enc_ev);
-        w_terms.push(hb_ev);
-        let l = MU + 3;
-        assert_eq!(a.len(), l);
-        assert_eq!(w_terms.len(), l);
-
-        let rc = RelationCheckAir { num_terms: l };
-        let (rm, rel_pubs) = generate_relation_trace(&a, &w_terms, c).expect("R3b relation holds");
-        let rw = rm.width;
-        let rh = 64usize;
-        let mut rvals = Vec::with_capacity(rh * rw);
-        rvals.extend_from_slice(&rm.values[0..rw]);
-        for _ in 0..rh - 1 {
-            rvals.extend_from_slice(&rm.values[rw..2 * rw]);
-        }
-        let relation = RowMajorMatrix::new(rvals, rw);
-
-        // Enum-wrapped AIRs: MU HornerFold (e) + 1 (g) + 1 EncodeMuFold + 1 HornerFold (hb) + relation.
-        let mut airs: Vec<EncProofAir> = Vec::new();
-        for _ in 0..MU {
-            airs.push(EncProofAir::HornerFold(HornerFoldAir));
-        }
-        airs.push(EncProofAir::HornerFold(HornerFoldAir)); // g
-        airs.push(EncProofAir::EncodeMuFold(EncodeMuFoldAir)); // encode
-        airs.push(EncProofAir::HornerFold(HornerFoldAir)); // hb
-        airs.push(EncProofAir::RelationCheck(rc.clone()));
-
-        // Per-instance lookups: each fold Sends E at its term (col_base 0); relation Receives all terms.
-        let mut all_lookups: Vec<Vec<Lookup<ConfigVal>>> = Vec::new();
-        for term in 0..l {
-            all_lookups.push(horner_e_send_lookups_at(FOLD_E_BUS, 0, term, 0));
-        }
-        all_lookups.push(rc.relation_w_receive_lookups_at(FOLD_E_BUS, 0));
-
-        // Traces + public values in AIR order.
-        let zeta_pubs = horner_public_values(zeta);
-        let mut traces: Vec<&RowMajorMatrix<ConfigVal>> = Vec::new();
-        let mut pubs: Vec<Vec<ConfigVal>> = Vec::new();
-        for t in &fold_traces {
-            traces.push(t);
-            pubs.push(zeta_pubs.clone());
-        }
-        traces.push(&g_trace);
-        pubs.push(zeta_pubs.clone());
-        traces.push(&enc_trace);
-        pubs.push(encode_mu_public_values(zeta));
-        traces.push(&hb_trace);
-        pubs.push(zeta_pubs.clone());
-        traces.push(&relation);
-        pubs.push(rel_pubs.clone());
-
-        let config = test_batch_config();
-        let common = CommonData::new(None, all_lookups.clone());
-        let prover_data = ProverData {
-            common,
-            prover_only: ProverOnlyData::empty(),
-        };
-        let instances: Vec<StarkInstance<'_, TestConfig, EncProofAir>> = airs
-            .iter()
-            .zip(traces.iter())
-            .zip(pubs.iter())
-            .zip(all_lookups.iter())
-            .map(|(((air, trace), pv), lookups)| StarkInstance {
-                air,
-                trace,
-                public_values: pv.clone(),
-                lookups: lookups.clone(),
-            })
-            .collect();
-
-        let proof = prove_batch(&config, &instances, &prover_data).expect("prove_batch R3b");
-        verify_batch(&config, &airs, &proof, &pubs, &prover_data.common)
-            .expect("the R3b relation over the real ciphertext must verify (fold-E bus balanced)");
-    }
+    // `compose_r3b_real_relation_prove_batch` (R3b on a REAL ciphertext via fold+relation only, no
+    // byte provenance) was REMOVED (card `t_a73aaed2`): its entire subject was the evaluation-at-`ζ`
+    // relation witnessed by a prover-chosen quotient `H_b` — `relation_assembly::{derive_zetas,
+    // r3b_public_coeffs, r3b_quotient_poly}` — exactly the vacuous construction this fix deletes
+    // (see `relation_assembly::corr_negacyclic`'s doc comment). There is no `κ`-based analogue to
+    // port it to beyond re-deriving `crate::encryption_proof::r3b_public`'s logic by hand, which
+    // would just duplicate (with independent, unreviewed drift risk) what that module's own
+    // `assemble_e_provenance_prover`/`_verifier` and their test suite already cover on a REAL
+    // ciphertext, at both test and PRODUCTION FRI params.
 
     /// **Multi-fold-from-one-sampler + fan-out (the last full-assembly wiring, task #26).** ONE ternary
     /// sampler emits `2n` coefficients; TWO folds Receive their halves (join 2 with per-ring-element
@@ -1672,11 +1566,10 @@ mod tests {
         use crate::zq::{
             Q,
             RelationCheckAir,
-            generate_horner_trace,
+            fold_coeff_receive_lookups_at,
+            fold_result_send_lookups_at,
+            generate_dot_trace,
             generate_relation_trace,
-            horner_coeff_receive_lookups_at,
-            horner_e_send_lookups_at,
-            horner_public_values,
         };
 
         let bytes = shake256_xof(b"libq/compose/multifold", 4096);
@@ -1694,10 +1587,14 @@ mod tests {
                 lifts.push((i64::from(two) - 1).rem_euclid(Q as i64) as u64);
             }
         }
-        let zeta = 313_131u64;
-        let (fold0, e0) = generate_horner_trace(&lifts[0..n], zeta).expect("e0 fold");
-        let (fold1, e1) = generate_horner_trace(&lifts[n..2 * n], zeta).expect("e1 fold");
-        let fold_pubs = horner_public_values(zeta);
+        // Each fold gets its own arbitrary public ψ (mirroring the real design, where e_0/e_1's
+        // multipliers differ because they pair against different t0_r) — this test exercises the
+        // join-2/join-3 fan-out wiring, not the R3b `κ` semantics.
+        let psi0 = arbitrary_psi(b"libq/compose/multifold-psi0", n);
+        let psi1 = arbitrary_psi(b"libq/compose/multifold-psi1", n);
+        let (fold0, e0) = generate_dot_trace(&lifts[0..n], &psi0).expect("e0 fold");
+        let (fold1, e1) = generate_dot_trace(&lifts[n..2 * n], &psi1).expect("e1 fold");
+        let fold_pubs: Vec<ConfigVal> = Vec::new();
 
         // Two relations over [E_0, E_1] with distinct public coefficients (both hold by construction).
         let qq = Q as u128;
@@ -1722,20 +1619,20 @@ mod tests {
 
         let airs = [
             EncProofAir::Ternary(TernarySamplerAir { num_coeffs: 2 * n }),
-            EncProofAir::HornerFold(HornerFoldAir), // e_0
-            EncProofAir::HornerFold(HornerFoldAir), // e_1
-            EncProofAir::RelationCheck(rc.clone()), // relation A
-            EncProofAir::RelationCheck(rc.clone()), // relation B
+            EncProofAir::DotFold(DotFoldAir::new(psi0)), // e_0
+            EncProofAir::DotFold(DotFoldAir::new(psi1)), // e_1
+            EncProofAir::RelationCheck(rc.clone()),      // relation A
+            EncProofAir::RelationCheck(rc.clone()),      // relation B
         ];
 
         // Fold 0: join-2 receive (cols 0..4) + join-3 send to A term 0 (cols 4..8) + to B term 0 (8..12).
-        let mut f0 = horner_coeff_receive_lookups_at(COEFF_E_BUS, 0);
-        f0.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_a, 0, 4));
-        f0.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_b, 0, 8));
+        let mut f0 = fold_coeff_receive_lookups_at(COEFF_E_BUS, 0);
+        f0.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_a, 0, 4));
+        f0.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_b, 0, 8));
         // Fold 1: receive at base n·4 (its coefficient half) + send to A term 1 + B term 1.
-        let mut f1 = horner_coeff_receive_lookups_at(COEFF_E_BUS, (n as u64) * 4);
-        f1.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_a, 1, 4));
-        f1.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_b, 1, 8));
+        let mut f1 = fold_coeff_receive_lookups_at(COEFF_E_BUS, (n as u64) * 4);
+        f1.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_a, 1, 4));
+        f1.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_b, 1, 8));
 
         let all_lookups = Vec::from([
             ternary_coeff_send_lookups_at(0, 0),
@@ -1754,10 +1651,11 @@ mod tests {
         ];
 
         let config = test_batch_config();
-        let common = CommonData::new(None, all_lookups.clone());
+        let (global, prover_only) = build_preprocessed(&config, &airs);
+        let common = CommonData::new(global, all_lookups.clone());
         let prover_data = ProverData {
             common,
-            prover_only: ProverOnlyData::empty(),
+            prover_only,
         };
         let instances: Vec<StarkInstance<'_, TestConfig, EncProofAir>> = airs
             .iter()
@@ -1813,11 +1711,10 @@ mod tests {
         use crate::zq::{
             Q,
             RelationCheckAir,
-            generate_horner_trace,
+            fold_coeff_receive_lookups_at,
+            fold_result_send_lookups_at,
+            generate_dot_trace,
             generate_relation_trace,
-            horner_coeff_receive_lookups_at,
-            horner_e_send_lookups_at,
-            horner_public_values,
         };
 
         let pk = [0x5Du8; 32];
@@ -1846,10 +1743,12 @@ mod tests {
                 lifts.push((i64::from(two) - 1).rem_euclid(Q as i64) as u64);
             }
         }
-        let zeta = 909_090u64;
-        let (fold0, e0) = generate_horner_trace(&lifts[0..n], zeta).expect("e0 fold");
-        let (fold1, e1) = generate_horner_trace(&lifts[n..2 * n], zeta).expect("e1 fold");
-        let fold_pubs = horner_public_values(zeta);
+        // Each fold gets its own arbitrary public ψ (see compose_multifold_fanout_prove_batch).
+        let psi0 = arbitrary_psi(b"libq/compose/full-stack-psi0", n);
+        let psi1 = arbitrary_psi(b"libq/compose/full-stack-psi1", n);
+        let (fold0, e0) = generate_dot_trace(&lifts[0..n], &psi0).expect("e0 fold");
+        let (fold1, e1) = generate_dot_trace(&lifts[n..2 * n], &psi1).expect("e1 fold");
+        let fold_pubs: Vec<ConfigVal> = Vec::new();
 
         let qq = Q as u128;
         let (ea, eb) = (e0 as u128, e1 as u128);
@@ -1874,10 +1773,10 @@ mod tests {
             EncProofAir::Sponge(ShakeSpongeAir { height }),
             EncProofAir::SqueezeByte(SqueezeByteAir),
             EncProofAir::Ternary(TernarySamplerAir { num_coeffs: 2 * n }),
-            EncProofAir::HornerFold(HornerFoldAir), // e_0
-            EncProofAir::HornerFold(HornerFoldAir), // e_1
-            EncProofAir::RelationCheck(rc.clone()), // relation A
-            EncProofAir::RelationCheck(rc.clone()), // relation B
+            EncProofAir::DotFold(DotFoldAir::new(psi0)), // e_0
+            EncProofAir::DotFold(DotFoldAir::new(psi1)), // e_1
+            EncProofAir::RelationCheck(rc.clone()),      // relation A
+            EncProofAir::RelationCheck(rc.clone()),      // relation B
         ];
 
         let sponge_lookups = sponge_limb_send_lookups();
@@ -1887,12 +1786,12 @@ mod tests {
         ]);
         let mut ternary_lookups = Vec::from([ternary_receive_lookup()]); // byte Receive: col 0
         ternary_lookups.extend(ternary_coeff_send_lookups_at(0, 1)); // coeff Send: cols 1..5
-        let mut f0 = horner_coeff_receive_lookups_at(COEFF_E_BUS, 0);
-        f0.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_a, 0, 4));
-        f0.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_b, 0, 8));
-        let mut f1 = horner_coeff_receive_lookups_at(COEFF_E_BUS, (n as u64) * 4);
-        f1.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_a, 1, 4));
-        f1.extend(horner_e_send_lookups_at(FOLD_E_BUS, base_b, 1, 8));
+        let mut f0 = fold_coeff_receive_lookups_at(COEFF_E_BUS, 0);
+        f0.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_a, 0, 4));
+        f0.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_b, 0, 8));
+        let mut f1 = fold_coeff_receive_lookups_at(COEFF_E_BUS, (n as u64) * 4);
+        f1.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_a, 1, 4));
+        f1.extend(fold_result_send_lookups_at(FOLD_E_BUS, base_b, 1, 8));
 
         let all_lookups = Vec::from([
             sponge_lookups.clone(),
@@ -1942,220 +1841,15 @@ mod tests {
         );
     }
 
-    /// **Real-scale byte-provenance ⇒ R3b on a genuine ciphertext at N=1024 (task #26).** The `v`
-    /// equation proven for a real `encapsulate_derand` ciphertext with the `e_r` fold coefficients
-    /// **byte-bound to the SHAKE sponge**: sponge (over the real FO preimage `DOM ‖ pk_digest ‖ μ`,
-    /// covering `e`'s bytes) ⇒ squeeze ⇒ e-sampler (`MU·N` coeffs, join 1) ⇒ `MU` `e_r` folds (join 2
-    /// bind to the sampler at per-ring-element bases) ⇒ join 3 into the R3b relation (with `g`, encode,
-    /// and the quotient fed directly). `verify_batch` accepts iff the sampler consumed the genuine
-    /// SHAKE output AND those coefficients satisfy `v = Σ t0_r·e_r + g + encode(μ)` at ζ — the full
-    /// byte-provenance⇒relation composition at PRODUCTION dimension (`N = 1024`), for the `e` component.
-    /// (Only `e`'s ~8 KB is squeezed here to keep the sponge tractable; binding `f`/`g` needs the full
-    /// ~90 KB sponge — the same structure, heavier.)
-    #[test]
-    fn compose_r3b_e_provenance_real_ciphertext() {
-        use lib_q_dkg::lattice::bdlop::MU;
-        use lib_q_dkg::lattice::ring::{
-            N,
-            Rq,
-        };
-        use lib_q_plonky_keccak_air::{
-            NUM_KECCAK_COLS,
-            NUM_ROUNDS,
-        };
-        use lib_q_plonky_lookup::Lookup;
-        use lib_q_threshold_kem_lattice::kem::{
-            encapsulate_derand,
-            encode_msg,
-            fo_expand_witness,
-        };
-
-        use crate::logup_join::{
-            COEFF_E_BUS,
-            FOLD_E_BUS,
-        };
-        use crate::relation_assembly::{
-            derive_zetas,
-            r3b_public_coeffs,
-            r3b_quotient_poly,
-            rq_coeffs_zq,
-        };
-        use crate::sampler::ternary_coeff_send_lookups_at;
-        use crate::sponge::RATE_BYTES;
-        use crate::sponge_air::{
-            encap_preimage,
-            generate_provable_sponge_trace,
-            sponge_limb_send_lookups,
-            sponge_public_values,
-        };
-        use crate::squeeze_byte::{
-            generate_squeeze_byte_trace_partial,
-            squeeze_byte_limb_receive_lookup,
-            squeeze_byte_send_lookup,
-        };
-        use crate::zq::{
-            EncodeMuFoldAir,
-            RelationCheckAir,
-            encode_mu_public_values,
-            generate_encode_mu_trace,
-            generate_horner_trace,
-            generate_relation_trace,
-            horner_coeff_receive_lookups_at,
-            horner_e_send_lookups_at,
-            horner_public_values,
-        };
-
-        let t0: Vec<Rq> = (0..MU)
-            .map(|r| {
-                let mut c = [0i64; N];
-                for (i, ci) in c.iter_mut().enumerate() {
-                    *ci = (i as i64 * 31 + r as i64 * 7) % lib_q_dkg::lattice::ring::Q;
-                }
-                Rq::from_coeffs(c)
-            })
-            .collect();
-        let mu = [0x6Bu8; 32];
-        let ct = encapsulate_derand(&t0, &mu);
-        let w = fo_expand_witness(&t0, &mu);
-        let input = encap_preimage(&w.pk_digest, &mu);
-
-        // e-sampler over the real XOF (MU·N ternary coeffs); sponge covers e's consumed bytes.
-        let bytes = shake256_xof(&input, MU * N * 2 + 4096);
-        let e_sampler = generate_ternary_trace(&bytes, MU * N).expect("e sampler");
-        let consumed = active_rows(&e_sampler, SAMPLER_WIDTH, 0);
-        let sponge = generate_provable_sponge_trace(&input, consumed + RATE_BYTES);
-        let height = sponge.values.len() / NUM_KECCAK_COLS;
-        let blocks = (0..height)
-            .filter(|r| r % NUM_ROUNDS == NUM_ROUNDS - 1)
-            .count();
-        let full_limbs = blocks * (RATE_BYTES / 2);
-        let squeeze = generate_squeeze_byte_trace_partial(&input, full_limbs, consumed);
-
-        let zeta = derive_zetas(&ct.to_bytes(), 1)[0];
-
-        // R3b assembly.
-        let t0_cols_owned: Vec<Vec<u64>> = t0.iter().map(rq_coeffs_zq).collect();
-        let t0_cols: Vec<&[u64]> = t0_cols_owned.iter().map(|v| v.as_slice()).collect();
-        let e_lifts: Vec<Vec<u64>> = w.e.iter().map(rq_coeffs_zq).collect();
-        let e_ref: Vec<&[u64]> = e_lifts.iter().map(|v| v.as_slice()).collect();
-        let v_z = rq_coeffs_zq(&ct.v);
-        let g_z = rq_coeffs_zq(&w.g);
-        let encode_z = rq_coeffs_zq(&encode_msg(&mu));
-        let (a, c) = r3b_public_coeffs(&t0_cols, &v_z, zeta, N);
-        let hb =
-            r3b_quotient_poly(&t0_cols, &e_ref, &g_z, &encode_z, &v_z, N).expect("R3b divisible");
-
-        // e_r folds (byte-bound); g / encode / hb folds (fed directly).
-        let mut e_fold_traces = Vec::new();
-        let mut w_terms = Vec::new();
-        for e in &e_lifts {
-            let (t, ev) = generate_horner_trace(e, zeta).expect("e fold");
-            e_fold_traces.push(t);
-            w_terms.push(ev);
-        }
-        let (g_trace, g_ev) = generate_horner_trace(&g_z, zeta).expect("g fold");
-        let (enc_trace, enc_ev) = generate_encode_mu_trace(&mu, zeta).expect("encode fold");
-        let (hb_trace, hb_ev) = generate_horner_trace(&hb, zeta).expect("hb fold");
-        w_terms.push(g_ev);
-        w_terms.push(enc_ev);
-        w_terms.push(hb_ev);
-        let l = MU + 3;
-
-        let rc = RelationCheckAir { num_terms: l };
-        let (rm, rel_pubs) = generate_relation_trace(&a, &w_terms, c).expect("R3b relation holds");
-        let rw = rm.width;
-        let mut rvals = Vec::with_capacity(64 * rw);
-        rvals.extend_from_slice(&rm.values[0..rw]);
-        for _ in 0..63 {
-            rvals.extend_from_slice(&rm.values[rw..2 * rw]);
-        }
-        let relation = RowMajorMatrix::new(rvals, rw);
-
-        // AIRs: sponge, squeeze, e-sampler, MU e-folds, g, encode, hb, relation.
-        let mut airs = Vec::from([
-            EncProofAir::Sponge(ShakeSpongeAir { height }),
-            EncProofAir::SqueezeByte(SqueezeByteAir),
-            EncProofAir::Ternary(TernarySamplerAir { num_coeffs: MU * N }),
-        ]);
-        for _ in 0..MU {
-            airs.push(EncProofAir::HornerFold(HornerFoldAir));
-        }
-        airs.push(EncProofAir::HornerFold(HornerFoldAir)); // g
-        airs.push(EncProofAir::EncodeMuFold(EncodeMuFoldAir)); // encode
-        airs.push(EncProofAir::HornerFold(HornerFoldAir)); // hb
-        airs.push(EncProofAir::RelationCheck(rc.clone()));
-
-        // Lookups.
-        let mut lookups: Vec<Vec<Lookup<ConfigVal>>> = Vec::new();
-        lookups.push(sponge_limb_send_lookups());
-        lookups.push(Vec::from([
-            squeeze_byte_send_lookup(),
-            squeeze_byte_limb_receive_lookup(),
-        ]));
-        let mut e_samp = Vec::from([ternary_receive_lookup()]); // byte Receive (col 0)
-        e_samp.extend(ternary_coeff_send_lookups_at(0, 1)); // coeff Send (cols 1..5)
-        lookups.push(e_samp);
-        for (r, _) in e_lifts.iter().enumerate() {
-            // e_r fold: join-2 receive at base r·N·4 (cols 0..4) + join-3 send to R3b term r (cols 4..8).
-            let mut fl = horner_coeff_receive_lookups_at(COEFF_E_BUS, (r as u64) * (N as u64) * 4);
-            fl.extend(horner_e_send_lookups_at(FOLD_E_BUS, 0, r, 4));
-            lookups.push(fl);
-        }
-        lookups.push(horner_e_send_lookups_at(FOLD_E_BUS, 0, MU, 0)); // g → term MU
-        lookups.push(horner_e_send_lookups_at(FOLD_E_BUS, 0, MU + 1, 0)); // encode → term MU+1
-        lookups.push(horner_e_send_lookups_at(FOLD_E_BUS, 0, MU + 2, 0)); // hb → term MU+2
-        lookups.push(rc.relation_w_receive_lookups_at(FOLD_E_BUS, 0));
-
-        // Traces + public values.
-        let zeta_pubs = horner_public_values(zeta);
-        let mut traces: Vec<&RowMajorMatrix<ConfigVal>> =
-            Vec::from([&sponge, &squeeze, &e_sampler]);
-        let mut pubs: Vec<Vec<ConfigVal>> = Vec::from([
-            sponge_public_values(&[0u8; 32]),
-            Vec::new(),
-            ternary_public_values(MU * N),
-        ]);
-        // Note: the sponge's pk_digest public values are a *verifier obligation* (build from
-        // ct.pk_digest); here they're arbitrary since we don't assert pk-binding in this composition
-        // test — the join balances (byte provenance) are the property under test.
-        pubs[0] = sponge_public_values(&w.pk_digest);
-        for t in &e_fold_traces {
-            traces.push(t);
-            pubs.push(zeta_pubs.clone());
-        }
-        traces.push(&g_trace);
-        pubs.push(zeta_pubs.clone());
-        traces.push(&enc_trace);
-        pubs.push(encode_mu_public_values(zeta));
-        traces.push(&hb_trace);
-        pubs.push(zeta_pubs.clone());
-        traces.push(&relation);
-        pubs.push(rel_pubs);
-
-        let config = test_batch_config();
-        let (global, prover_only) = build_preprocessed(&config, &airs);
-        let common = CommonData::new(global, lookups.clone());
-        let prover_data = ProverData {
-            common,
-            prover_only,
-        };
-        let instances: Vec<StarkInstance<'_, TestConfig, EncProofAir>> = airs
-            .iter()
-            .zip(traces.iter())
-            .zip(pubs.iter())
-            .zip(lookups.iter())
-            .map(|(((air, trace), pv), lk)| StarkInstance {
-                air,
-                trace,
-                public_values: pv.clone(),
-                lookups: lk.clone(),
-            })
-            .collect();
-
-        let proof =
-            prove_batch(&config, &instances, &prover_data).expect("prove_batch e-provenance R3b");
-        verify_batch(&config, &airs, &proof, &pubs, &prover_data.common).expect(
-            "real-ciphertext R3b with e byte-bound to SHAKE must verify at N=1024 (all buses balanced)",
-        );
-    }
+    // `compose_r3b_e_provenance_real_ciphertext` (byte-provenance e => R3b on a REAL ciphertext
+    // at N=1024, fed through a hand-rolled quotient) was REMOVED (card `t_a73aaed2`) for the same
+    // reason as `compose_r3b_real_relation_prove_batch` above: it used the deleted
+    // `relation_assembly::{derive_zetas, r3b_public_coeffs, r3b_quotient_poly}` quotient-witnessed
+    // construction. Its exact purpose - e byte-bound to the genuine SHAKE output, folded and
+    // checked against a REAL ciphertext's R3b relation, at production dimension N=1024 - is what
+    // `crate::encryption_proof::{assemble_e_provenance_prover, assemble_e_provenance_verifier}`
+    // now IS (the doc comment at the top of this file already records the #26 lift-out), exercised
+    // by that module's own test suite at both test AND production FRI params, including the
+    // negative `spike_tampered_e_witness_rejected` / `forged_relation_term_for_a_malformed_
+    // ciphertext_is_rejected` tests.
 }
