@@ -1,0 +1,14 @@
+# Expected output of scripts/ci_guard_nonexistent_feature_gates.py against this fixture.
+# Regenerate deliberately, never to silence a failure: a MISSED line means detection
+# regressed, and the fix belongs in the guard rather than in this file.
+# 8 planted gates; every other construct in the fixture is a control that must not appear.
+# Every planted gate and every control is load-bearing -- README.md names the guard
+# mutation each one detects, and records the battery that proved it.
+crate-a/build.rs:3: feature 'ghost_buildrs' is not defined by crate-a
+crate-a/src/lib.rs:12: feature 'ghost_macro' is not defined by crate-a
+crate-a/src/lib.rs:16: feature 'ghost_nested' is not defined by crate-a
+crate-a/src/lib.rs:20: feature 'serde' is not defined by crate-a
+crate-a/src/lib.rs:5: feature 'ghost_multiline' is not defined by crate-a
+crate-a/src/lib.rs:61: feature 'ghost_after_char_literal' is not defined by crate-a
+crate-a/tests/t.rs:2: feature 'ghost_testdir' is not defined by crate-a
+nested/inner/src/lib.rs:3: feature 'ghost_nonlibq' is not defined by inner

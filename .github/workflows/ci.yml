@@ -120,6 +120,18 @@ jobs:
       - name: Guard against disabled (#[cfg(any())]) test modules
         run: bash ./scripts/ci-guard-no-disabled-test-modules.sh
 
+      # Closes the blind spot the guard above names in its own "WHAT THIS GUARD DOES NOT COVER"
+      # section: an always-false gate spelled `#[cfg(feature = "X")]` where no manifest ever
+      # defines X. Same effect as cfg(any()) -- compiles to nothing in every configuration -- but
+      # it looks like an ordinary feature gate to a reader, to grep, and to cargo, which does not
+      # warn on it. Scans tracked crates only (79 of 79 workspace members, measured against
+      # `cargo metadata --no-deps`), across src/ tests/ benches/ examples/ and build.rs, and
+      # understands the multi-line attribute and `cfg!` macro spellings. Developed against an
+      # adversarial fixture of seven planted gates and seen to catch all seven -- see the script
+      # header. Static and stdlib-only, no cargo, no network, ~1.5s.
+      - name: Guard against always-false (undefined-feature) cfg gates
+        run: bash ./scripts/ci-guard-nonexistent-feature-gates.sh
+
       - name: Core validation
         uses: ./.github/actions/rust-build
         with:

@@ -1,0 +1,18 @@
+# Named .fixture so cargo never treats this tree as a package: it is not a workspace member and
+# must not become one. scripts/ci_guard_nonexistent_feature_gates.py --self-test materialises it
+# into a temp directory, renaming to Cargo.toml, and runs the guard against that.
+[package]
+name = "crate-a"
+version = "0.0.0"
+edition = "2021"
+
+[features]
+real = []
+# Referencing serde as `dep:serde` suppresses the implicit `serde` feature Cargo would otherwise
+# create for the optional dependency -- so `cfg(feature = "serde")` below is always false.
+uses-dep-syntax = ["dep:serde"]
+
+[dependencies]
+serde = { version = "1", optional = true }
+# No `dep:rand` anywhere in [features], so Cargo DOES create an implicit `rand` feature.
+rand = { version = "0.8", optional = true }
