@@ -186,22 +186,44 @@ const RATE_SHA3_512: usize = 72;
 /// per-call overhead.
 const RELATION_INPUT_LEN: usize = 4096;
 
-/// Measurement budget for [`test_hash_algorithm_timing_relationships`]: far smaller than
+/// Iterations inside one timed window in [`measure_variants`]: far smaller than
 /// `TIMING_ITERATIONS` because each hash there is 29-57 permutations rather than one.
+///
+/// Deliberately small. See [`RELATION_ROUNDS`] — the product of the two is the measurement
+/// budget, and how it is split between them decides whether the minimum estimator works.
 #[cfg(not(tarpaulin))]
-const RELATION_ITERATIONS: usize = 100;
+const RELATION_ITERATIONS: usize = 20;
 #[cfg(tarpaulin)]
-const RELATION_ITERATIONS: usize = 10;
+const RELATION_ITERATIONS: usize = 5;
 #[cfg(not(tarpaulin))]
 const RELATION_WARMUP: usize = 20;
 #[cfg(tarpaulin)]
 const RELATION_WARMUP: usize = 2;
 
 /// Rounds of the interleaved measurement in [`measure_variants`].
+///
+/// # Why many short rounds and not a few long ones
+///
+/// `measure_variants` reports each variant's *fastest* round, which is only a good estimate of
+/// the underlying operation if at least one round ran without interference. The chance a given
+/// round is clean falls as its window widens, so a wide window spends the whole budget on
+/// samples that are all polluted — and it does so unevenly, because the four windows are not
+/// the same width. SHA3-512 absorbs the most blocks, so its window is the widest and it is the
+/// likeliest of the four to never see a clean round; a ratio taken against SHA3-256 then reads
+/// as a violated relationship when nothing about SHA-3 changed.
+///
+/// That is the observed failure, not a hypothetical one. At 100 iterations x 9 rounds, CI run
+/// 31262247680 measured SHA3-512 at 107183ns per absorbed block while 224/256/384 sat at
+/// 87430/82658/84717 — a 512-only inflation of ~30%, which pushed the 512:256 ratio to 2.384
+/// against a block-count prediction of 1.839 and a +-25% band topping out at 2.298.
+///
+/// The budget per variant is unchanged (`ITERATIONS * ROUNDS` = 900 hashes, as before); it is
+/// only split differently. That narrows the widest window from ~6.5ms to ~1.3ms and raises the
+/// number of chances at a clean one from 9 to 45.
 #[cfg(not(tarpaulin))]
-const RELATION_ROUNDS: usize = 9;
+const RELATION_ROUNDS: usize = 45;
 #[cfg(tarpaulin)]
-const RELATION_ROUNDS: usize = 3;
+const RELATION_ROUNDS: usize = 6;
 
 /// Allowed deviation from the block-count ratio, absorbing per-call overhead and CI noise.
 ///
