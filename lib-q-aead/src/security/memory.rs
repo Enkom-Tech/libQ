@@ -20,7 +20,36 @@ use core::ptr;
 /// # Security
 /// This function uses compiler barriers to ensure the zeroing operation
 /// is not optimized away by the compiler.
-pub fn secure_zero<T>(data: &mut T) {
+///
+/// # Safety
+/// Overwriting `*data` with all-zero bytes must produce a valid value of
+/// `T`. This is **not** true for most types: references, `Box`, `NonNull`,
+/// `NonZero*`, most `enum`s, and any niche-optimized or
+/// `#[repr(transparent)]` wrapper over such types have an all-zero bit
+/// pattern that is not a legal value, so zeroing them is instant undefined
+/// behaviour. The caller must ensure `T` has no validity invariant that
+/// excludes the all-zero bit pattern (e.g. `T` is `u8`/`[u8; N]`, a plain
+/// `#[repr(C)]`/`#[repr(Rust)]` aggregate of such types with no niches, or a
+/// type that documents all-zero as a valid representation). Prefer
+/// [`secure_zero_slice`] for byte buffers, which carries no such
+/// requirement.
+///
+/// # Regression test (F5)
+/// This function used to be a safe `pub fn`, which let safe code zero an
+/// arbitrary `T` — including types (like `&str`) whose all-zero bit pattern
+/// is not a legal value, which is instant undefined behaviour with no
+/// `unsafe` in sight. Making it `unsafe fn` closes that hole at the type
+/// system level: calling it without an `unsafe` block is now a compile
+/// error, which this `compile_fail` doctest pins down so the fix cannot
+/// silently regress back to a safe fn.
+///
+/// ```compile_fail
+/// let mut r: &'static str = "k";
+/// // No `unsafe` block: must fail to compile now that `secure_zero` is
+/// // `unsafe fn`. Before the F5 fix this compiled (and was UB at runtime).
+/// lib_q_aead::security::memory::secure_zero(&mut r);
+/// ```
+pub unsafe fn secure_zero<T>(data: &mut T) {
     let size = size_of_val(data);
     let ptr = data as *mut T as *mut u8;
 
@@ -62,7 +91,19 @@ pub fn secure_zero_slice(data: &mut [u8]) {
 ///
 /// # Security
 /// This function uses secure memory operations to prevent data leakage.
-pub fn secure_copy<T>(dst: &mut T, src: &T) {
+///
+/// # Safety
+/// This byte-copies `size_of_val(src)` bytes over `*dst` without running
+/// `T`'s destructor on the value it overwrites and without preventing `src`
+/// from later being independently dropped. The caller must ensure:
+/// - `T: Copy` (or the value in `*dst` is otherwise known not to own a
+///   resource — e.g. heap memory, a file handle — that would be double-freed
+///   once both `*dst` and `*src` are eventually dropped), and
+/// - the raw byte copy is a valid way to duplicate `T` (true for `Copy`
+///   types; not generally true for types with padding-sensitive invariants).
+///
+/// Violating either bullet is undefined behaviour or a double free.
+pub unsafe fn secure_copy<T>(dst: &mut T, src: &T) {
     let size = size_of_val(src);
     let dst_ptr = dst as *mut T as *mut u8;
     let src_ptr = src as *const T as *const u8;
@@ -110,9 +151,18 @@ pub fn secure_copy_slice(dst: &mut [u8], src: &[u8]) {
 /// # Security
 /// This function securely moves data and zeroes the source to prevent
 /// sensitive data from remaining in memory.
-pub fn secure_move<T>(dst: &mut T, src: &mut T) {
-    secure_copy(dst, src);
-    secure_zero(src);
+///
+/// # Safety
+/// Same requirements as [`secure_copy`] and [`secure_zero`]: `T` must be
+/// safely byte-copyable (in practice, `T: Copy`) and must have a valid
+/// all-zero representation.
+pub unsafe fn secure_move<T>(dst: &mut T, src: &mut T) {
+    // SAFETY: caller upholds the same obligations documented on this
+    // function, which are exactly `secure_copy`'s and `secure_zero`'s.
+    unsafe {
+        secure_copy(dst, src);
+        secure_zero(src);
+    }
 }
 
 /// Secure memory move for slices
@@ -150,7 +200,20 @@ pub fn secure_move_slice(dst: &mut [u8], src: &mut [u8]) {
 /// # Security
 /// This function performs the comparison in constant time to prevent
 /// timing attacks.
-pub fn secure_compare<T>(a: &T, b: &T) -> bool {
+///
+/// # Safety
+/// This reads every byte of `*a` and `*b`, including any padding bytes
+/// inserted by the compiler between/after fields. Padding is not guaranteed
+/// to be initialized (it is `undef` for a `#[repr(Rust)]`/`#[repr(C)]`
+/// struct unless every byte was explicitly written), so reading it is
+/// undefined behaviour, and even where it happens to be initialized its
+/// value is unspecified, which can make this function return `false` for
+/// two structurally-equal values. The caller must ensure `T` has no padding
+/// (e.g. `T` is `u8`, `[u8; N]`, or another type whose every byte is a
+/// defined, initialized field with no gaps). Prefer
+/// [`secure_compare_slice`] for byte buffers, which carries no such
+/// requirement.
+pub unsafe fn secure_compare<T>(a: &T, b: &T) -> bool {
     let size = size_of_val(a);
     let a_ptr = a as *const T as *const u8;
     let b_ptr = b as *const T as *const u8;
@@ -285,19 +348,31 @@ fn secure_zero_raw(ptr: *mut u8, size: usize) {
 /// # Arguments
 /// * `ptr` - Pointer to memory to deallocate
 /// * `size` - Size of memory to deallocate
+/// * `alignment` - Alignment that was used for the corresponding allocation
+///
+/// There used to be a zero-argument-alignment `secure_dealloc` convenience
+/// wrapper here that silently deallocated with a hardcoded alignment of 64,
+/// regardless of what alignment the memory was actually allocated with
+/// (`secure_alloc_aligned` accepts an arbitrary caller-chosen alignment).
+/// Deallocating with a `Layout` whose alignment differs from the one used at
+/// allocation time is undefined behaviour, so that wrapper has been removed:
+/// callers must state the alignment explicitly and it must match the value
+/// passed to [`secure_alloc_aligned`] (or, for memory obtained via
+/// [`secure_alloc`], the value `64`).
 ///
 /// # Safety
 /// This function is unsafe because it:
 /// - Takes a raw pointer that must be valid for the given size
 /// - The pointer must have been allocated with the same allocator
 /// - The size must match the size used for allocation
+/// - The alignment must match the alignment used for allocation
 ///
 /// # Security
 /// This function securely deallocates memory by zeroing it first
 /// to prevent data leakage.
 #[cfg(feature = "alloc")]
-pub unsafe fn secure_dealloc(ptr: *mut u8, size: usize) {
-    unsafe { secure_dealloc_aligned(ptr, size, 64) } // Default to cache line alignment
+pub unsafe fn secure_dealloc(ptr: *mut u8, size: usize, alignment: usize) {
+    unsafe { secure_dealloc_aligned(ptr, size, alignment) }
 }
 
 /// Secure memory deallocation with custom alignment
@@ -462,7 +537,8 @@ mod tests {
     #[test]
     fn test_secure_zero() {
         let mut data = [1, 2, 3, 4, 5];
-        secure_zero(&mut data);
+        // SAFETY: `[i32; 5]` has an all-zero valid representation.
+        unsafe { secure_zero(&mut data) };
         assert_eq!(data, [0, 0, 0, 0, 0]);
     }
 
@@ -477,7 +553,8 @@ mod tests {
     fn test_secure_copy() {
         let src = [1, 2, 3, 4, 5];
         let mut dst = [0; 5];
-        secure_copy(&mut dst, &src);
+        // SAFETY: `[i32; 5]` is `Copy` and has no padding-sensitive invariant.
+        unsafe { secure_copy(&mut dst, &src) };
         assert_eq!(dst, src);
     }
 
@@ -493,7 +570,8 @@ mod tests {
     fn test_secure_move() {
         let mut src = [1, 2, 3, 4, 5];
         let mut dst = [0; 5];
-        secure_move(&mut dst, &mut src);
+        // SAFETY: `[i32; 5]` is `Copy` and has an all-zero valid representation.
+        unsafe { secure_move(&mut dst, &mut src) };
         assert_eq!(dst, [1, 2, 3, 4, 5]);
         assert_eq!(src, [0, 0, 0, 0, 0]);
     }
@@ -513,8 +591,11 @@ mod tests {
         let b = [1, 2, 3, 4, 5];
         let c = [1, 2, 3, 4, 6];
 
-        assert!(secure_compare(&a, &b));
-        assert!(!secure_compare(&a, &c));
+        // SAFETY: `[i32; 5]` has no padding.
+        unsafe {
+            assert!(secure_compare(&a, &b));
+            assert!(!secure_compare(&a, &c));
+        }
     }
 
     #[test]
