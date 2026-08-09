@@ -99,8 +99,12 @@ pub use fn_dsa::{
     KeyPairGenerator,
     KeyPairGeneratorStandard,
     SigningKey,
+    SigningKey512,
+    SigningKey1024,
     SigningKeyStandard,
     VerifyingKey,
+    VerifyingKey512,
+    VerifyingKey1024,
     VerifyingKeyStandard,
     sign_key_size,
     signature_size,
@@ -158,6 +162,17 @@ fn sign_from_seed_bytes(
             expected: sign_key_size(logn),
             actual: secret_key.as_bytes().len(),
         })?;
+    // `SigningKeyStandard` decodes BOTH degree 512 and degree 1024 keys (it is the
+    // degree-permissive decoder). Reject a decoded key whose degree does not match the
+    // caller-requested `logn` -- otherwise a 1024 key handed to the 512 entry point (or
+    // vice versa) is silently accepted here and only crashes later inside `sign()`
+    // (`assertion failed: sig.len() == signature_size(logn)`), which can abort the process.
+    if sk.get_logn() != logn {
+        return Err(Error::InvalidKeySize {
+            expected: sign_key_size(logn),
+            actual: secret_key.as_bytes().len(),
+        });
+    }
     let mut signature = vec![0u8; signature_size(logn)];
     let mut rng = Kt128Rng::from_seed_bytes(*seed);
     sk.sign(
@@ -272,13 +287,15 @@ impl Signature for FnDsa512 {
     }
 
     fn sign(&self, secret_key: &SigSecretKey, message: &[u8]) -> Result<Vec<u8>> {
-        // Decode the signing key
-        let mut sk = SigningKeyStandard::decode(secret_key.as_bytes()).ok_or_else(|| {
-            Error::InvalidKeySize {
+        // Decode the signing key using the degree-512-ONLY decoder: `SigningKey512` rejects
+        // (returns `None` for) a degree-1024 key outright, instead of silently accepting it
+        // the way the degree-permissive `SigningKeyStandard` does. A type-level fix rather than
+        // a runtime degree comparison, since the crate already ships a degree-specific decoder.
+        let mut sk =
+            SigningKey512::decode(secret_key.as_bytes()).ok_or_else(|| Error::InvalidKeySize {
                 expected: sign_key_size(self.logn()),
                 actual: secret_key.as_bytes().len(),
-            }
-        })?;
+            })?;
 
         // Create signature buffer
         let mut signature = {
@@ -311,8 +328,8 @@ impl Signature for FnDsa512 {
             });
         }
 
-        // Decode the verifying key
-        let vk = VerifyingKeyStandard::decode(public_key.as_bytes()).ok_or_else(|| {
+        // Decode the verifying key using the degree-512-ONLY decoder (see `sign` above).
+        let vk = VerifyingKey512::decode(public_key.as_bytes()).ok_or_else(|| {
             Error::InvalidKeySize {
                 expected: vrfy_key_size(self.logn()),
                 actual: public_key.as_bytes().len(),
@@ -396,13 +413,15 @@ impl Signature for FnDsa1024 {
     }
 
     fn sign(&self, secret_key: &SigSecretKey, message: &[u8]) -> Result<Vec<u8>> {
-        // Decode the signing key
-        let mut sk = SigningKeyStandard::decode(secret_key.as_bytes()).ok_or_else(|| {
-            Error::InvalidKeySize {
+        // Decode the signing key using the degree-1024-ONLY decoder: `SigningKey1024` rejects
+        // (returns `None` for) a degree-512 key outright, instead of silently accepting it the
+        // way the degree-permissive `SigningKeyStandard` does. A type-level fix rather than a
+        // runtime degree comparison, since the crate already ships a degree-specific decoder.
+        let mut sk =
+            SigningKey1024::decode(secret_key.as_bytes()).ok_or_else(|| Error::InvalidKeySize {
                 expected: sign_key_size(self.logn()),
                 actual: secret_key.as_bytes().len(),
-            }
-        })?;
+            })?;
 
         // Create signature buffer
         let mut signature = {
@@ -435,8 +454,8 @@ impl Signature for FnDsa1024 {
             });
         }
 
-        // Decode the verifying key
-        let vk = VerifyingKeyStandard::decode(public_key.as_bytes()).ok_or_else(|| {
+        // Decode the verifying key using the degree-1024-ONLY decoder (see `sign` above).
+        let vk = VerifyingKey1024::decode(public_key.as_bytes()).ok_or_else(|| {
             Error::InvalidKeySize {
                 expected: vrfy_key_size(self.logn()),
                 actual: public_key.as_bytes().len(),
@@ -510,13 +529,25 @@ impl Signature for FnDsa {
     }
 
     fn sign(&self, secret_key: &SigSecretKey, message: &[u8]) -> Result<Vec<u8>> {
-        // Decode the signing key
+        // `FnDsa` is generic over the security level chosen at runtime (`self.logn()` can be
+        // either 9 or 10), so there is no single degree-specific `SigningKeyNNN` decoder to
+        // reach for here (unlike `FnDsa512`/`FnDsa1024`). Decode with the degree-permissive
+        // `SigningKeyStandard` as before, but explicitly reject a decoded degree that does not
+        // match `self.logn()` -- otherwise e.g. a 1024 key handed to a `FnDsa::level1()`
+        // instance is silently accepted and only crashes later inside `sign()` (`assertion
+        // failed: sig.len() == signature_size(logn)`), which can abort the process.
         let mut sk = SigningKeyStandard::decode(secret_key.as_bytes()).ok_or_else(|| {
             Error::InvalidKeySize {
                 expected: sign_key_size(self.logn()),
                 actual: secret_key.as_bytes().len(),
             }
         })?;
+        if sk.get_logn() != self.logn() {
+            return Err(Error::InvalidKeySize {
+                expected: sign_key_size(self.logn()),
+                actual: secret_key.as_bytes().len(),
+            });
+        }
 
         // Create signature buffer
         let mut signature = {
@@ -549,7 +580,7 @@ impl Signature for FnDsa {
             });
         }
 
-        // Decode the verifying key
+        // Decode the verifying key. See the degree-mismatch note in `sign` above.
         let vk = VerifyingKeyStandard::decode(public_key.as_bytes()).ok_or_else(|| {
             Error::InvalidKeySize {
                 expected: vrfy_key_size(self.logn()),
@@ -820,6 +851,60 @@ mod tests {
         // Both signatures verify under the seed-derived key.
         assert!(fn_dsa.verify(&kp.public_key, message, &sig_a)?);
         assert!(fn_dsa.verify(&kp.public_key, message, &sig_c)?);
+        Ok(())
+    }
+
+    // Regression for the type-confusion finding (audit F19/F20-22): `FnDsa512::sign` /
+    // `FnDsa512::verify` must REJECT a decoded FN-DSA-1024 key with a clean `Err`, not panic.
+    //
+    // Pre-fix, this reached `assertion failed: sig.len() == signature_size(logn)` inside
+    // `fn-dsa-sign` (observed via `lib-q-fn-dsa/examples/crash_probe.rs` run as a *separate*
+    // process, since the audit reports this assertion failure can manifest as an uncatchable
+    // process abort rather than a catchable panic on some configurations -- running it as a
+    // plain `#[test]` here would have risked taking down the whole test binary). That probe's
+    // observed pre-fix output: `thread 'main' panicked at ...sign_avx2.rs:179:9: assertion
+    // failed: sig.len() == signature_size(logn)` with `cargo run` reporting `exit code: 101`.
+    //
+    // Post-fix, `SigningKey512`/`VerifyingKey512` reject the mismatched degree at `decode()`
+    // time, so this now runs safely in-process and asserts the clean `Err`.
+    #[test]
+    fn fn_dsa_512_rejects_1024_secret_key() -> TestResult {
+        let fn_dsa_1024 = FnDsa1024::new();
+        let keypair_1024 = fn_dsa_1024.generate_keypair()?;
+        // Sanity: confirm the crafted input actually has FN-DSA-1024's real secret-key length
+        // (2305 bytes, per the fix at commit 0737349) so it reaches `SigningKey512::decode`
+        // as a length that could plausibly be mistaken for valid, rather than being rejected
+        // earlier by some unrelated length gate.
+        assert_eq!(keypair_1024.secret_key.as_bytes().len(), 2305);
+
+        let fn_dsa_512 = FnDsa512::new();
+        let sign_err = fn_dsa_512.sign(&keypair_1024.secret_key, b"type confusion probe");
+        assert!(
+            matches!(sign_err, Err(Error::InvalidKeySize { expected, actual })
+                if expected == sign_key_size(FN_DSA_LOGN_512) && actual == 2305),
+            "expected a clean InvalidKeySize error, got {sign_err:?}"
+        );
+
+        let verify_err = fn_dsa_512.verify(&keypair_1024.public_key, b"msg", &[0u8; 666]);
+        assert!(
+            matches!(verify_err, Err(Error::InvalidKeySize { .. })),
+            "expected a clean InvalidKeySize error, got {verify_err:?}"
+        );
+        Ok(())
+    }
+
+    // Symmetric check: FnDsa1024 must reject a 512-degree key.
+    #[test]
+    fn fn_dsa_1024_rejects_512_secret_key() -> TestResult {
+        let fn_dsa_512 = FnDsa512::new();
+        let keypair_512 = fn_dsa_512.generate_keypair()?;
+
+        let fn_dsa_1024 = FnDsa1024::new();
+        let sign_err = fn_dsa_1024.sign(&keypair_512.secret_key, b"type confusion probe");
+        assert!(
+            matches!(sign_err, Err(Error::InvalidKeySize { .. })),
+            "expected a clean InvalidKeySize error, got {sign_err:?}"
+        );
         Ok(())
     }
 
