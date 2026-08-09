@@ -538,8 +538,11 @@ impl fmt::Display for Error {
     }
 }
 
-#[cfg(feature = "std")]
-impl std::error::Error for Error {}
+// `core::error::Error` (stable since Rust 1.81) is what `std::error::Error` re-exports, so
+// implementing it here — unconditionally, not gated on `feature = "std"` — makes `Error` usable
+// anywhere a `core::error::Error` bound is required (e.g. `rand_core::TryRng::Error`), including
+// in `no_std` builds, while remaining the same impl `std` code sees via the re-export.
+impl core::error::Error for Error {}
 
 #[cfg(test)]
 mod tests {
