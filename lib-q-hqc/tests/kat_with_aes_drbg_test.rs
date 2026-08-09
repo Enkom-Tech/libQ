@@ -95,16 +95,13 @@ fn test_kat_encapsulation_with_aes_drbg() {
     assert!(!ct.as_bytes().is_empty(), "ciphertext must not be empty");
 }
 
-#[cfg(not(feature = "aes-drbg"))]
-#[test]
-fn test_feature_disabled() {
-    println!("=== KAT with AES-CTR-DRBG Feature Disabled Test ===");
-
-    // Assert the condition rather than printing it: this file's whole point is that the aes-drbg
-    // paths are cfg-gated, so if the feature were somehow on while this test compiled, the gating
-    // is broken and we want to know.
-    assert!(
-        !cfg!(feature = "aes-drbg"),
-        "test_feature_disabled compiled with the aes-drbg feature enabled -- cfg gating is wrong"
-    );
-}
+// `test_feature_disabled` was DELETED here (2026-08-09), on the second pass.
+//
+// It existed only to exist: gated on `#[cfg(not(feature = "aes-drbg"))]` and asserting that the
+// feature is off. That is a tautology -- the cfg the compiler already evaluated to compile the
+// test is the thing being asserted. My first repair of this file replaced its bare `println!`
+// with `assert!(!cfg!(feature = "aes-drbg"))`, which turned it from a test that could not fail
+// into one that could not compile: clippy's `assertions_on_constants` fires under `-D warnings`
+// because both sides are compile-time constants, and CI rejected it.
+//
+// There is no runtime property here to test. The cfg attribute IS the guarantee.

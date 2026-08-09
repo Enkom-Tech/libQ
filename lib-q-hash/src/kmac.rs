@@ -768,4 +768,53 @@ mod tests {
         let mut out = vec![0u8; MAX_SP800185_FIXED_OUTPUT_BYTES + 1];
         assert!(kmac.finalize(&mut out).is_none());
     }
+
+    /// Structural (non-timing) pin on `Kmac128::verify`'s `ct_eq`-based comparison
+    /// (`kmac.rs`, `verify`). Does NOT measure wall-clock timing -- that is unmeasurable
+    /// in a unit test and out of scope per card t_043571b4. What this pins is the code
+    /// shape: `verify` must reject a mismatch regardless of which byte differs, exhaustively
+    /// over every position in a short tag, which a comparison that scans only a prefix (the
+    /// class of bug this test is designed to catch) would fail partway through.
+    #[test]
+    fn test_kmac128_verify_rejects_mismatch_at_every_byte_position() {
+        let key = b"key";
+        let data = b"data";
+        let mut kmac = Kmac128::new(key, b"custom");
+        kmac.update(data);
+        let mut good = [0u8; 32];
+        kmac.finalize(&mut good).unwrap();
+
+        for i in 0..good.len() {
+            let mut bad = good;
+            bad[i] ^= 0x01;
+            let mut kmac2 = Kmac128::new(key, b"custom");
+            kmac2.update(data);
+            assert!(
+                !bool::from(kmac2.verify(&bad)),
+                "mismatch at byte {i} was not rejected"
+            );
+        }
+    }
+
+    /// A truncated or over-long `expected` must be rejected outright, never compared
+    /// prefix-wise -- this is the length pre-check at the top of `verify`.
+    #[test]
+    fn test_kmac128_verify_rejects_wrong_length_expected() {
+        let key = b"key";
+        let data = b"data";
+        let mut kmac = Kmac128::new(key, b"custom");
+        kmac.update(data);
+        let mut good = [0u8; 32];
+        kmac.finalize(&mut good).unwrap();
+
+        let mut kmac2 = Kmac128::new(key, b"custom");
+        kmac2.update(data);
+        assert!(!bool::from(kmac2.verify(&good[..16])));
+
+        let mut over_long = good.to_vec();
+        over_long.push(0);
+        let mut kmac3 = Kmac128::new(key, b"custom");
+        kmac3.update(data);
+        assert!(!bool::from(kmac3.verify(&over_long)));
+    }
 }
