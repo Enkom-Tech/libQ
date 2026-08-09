@@ -514,7 +514,11 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         result
     }
 
-    /// Serialize to NIST `CRYPTO_SECRETKEYBYTES` layout: `dk_pke` ‖ `sigma` ‖ `ek_pke`.
+    /// Serialize to this crate's `dk_pke` ‖ `sigma` ‖ `ek_pke` layout (field order matches the
+    /// upstream HQC reference's `CRYPTO_SECRETKEYBYTES` layout, but field *sizes* are this
+    /// workspace's own and the resulting length is not byte-identical to upstream's — see
+    /// [`lib_q_types::hqc::kem_nist_secret_key_bytes`] for the measured deltas). Only round-trips
+    /// with [`Self::from_nist_bytes`]; does not interoperate with genuine upstream-produced keys.
     #[cfg(feature = "alloc")]
     pub fn to_nist_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(P::NIST_SECRET_KEY_BYTES);
@@ -524,9 +528,10 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         out
     }
 
-    /// Parse NIST `CRYPTO_SECRETKEYBYTES` (`dk_pke` ‖ `sigma` ‖ `ek_pke`).
+    /// Parse this crate's `dk_pke` ‖ `sigma` ‖ `ek_pke` layout produced by [`Self::to_nist_bytes`].
+    /// Not upstream-`CRYPTO_SECRETKEYBYTES`-compatible — see that method's doc comment.
     ///
-    /// `seed_kem` is not part of the NIST wire format; a zero placeholder is stored because
+    /// `seed_kem` is not part of this wire format; a zero placeholder is stored because
     /// decapsulation only needs `(ek_pke, dk_pke, sigma)`.
     #[cfg(feature = "alloc")]
     pub fn from_nist_bytes(bytes: &[u8]) -> Result<Self, HqcKemError> {
