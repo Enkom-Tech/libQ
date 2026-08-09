@@ -70,14 +70,29 @@ pub fn mlkem_decaps_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
     (fixed, random)
 }
 
+/// Deterministic per-index FIPS 204 `rnd` value, so the "random" class actually varies `rnd`.
+#[cfg(feature = "mldsa")]
+fn varying_rnd(i: usize) -> [u8; 32] {
+    let mut rnd = [0u8; 32];
+    rnd[..8].copy_from_slice(&(i as u64).to_le_bytes());
+    rnd[8] = 0x42;
+    rnd
+}
+
 /// Collect fixed-vs-random wall-clock timings for ML-DSA signing (TVLA-style smoke harness).
 ///
-/// The `fixed` class signs with one fixed signing key. The `random` class rotates signing keys.
+/// The `fixed` class signs with one fixed signing key and one fixed `rnd`. The `random` class
+/// rotates signing keys **and** varies the FIPS 204 signing randomness `rnd`.
+///
+/// Holding `rnd` fixed in both classes (as this harness previously did) makes the measurement
+/// structurally blind to any behaviour that depends on `rnd` varying — including whether the
+/// `hardened` masking shares are refreshed per signature (card `t_c801e460`). See
+/// [`mldsa_sign_rnd_tvla_timings`] for the class pair that isolates `rnd` alone.
 #[cfg(feature = "mldsa")]
 pub fn mldsa_sign_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
     let msg = b"lib-q-sca-tvla";
     let ctx = b"";
-    let rnd = [0x42u8; 32];
+    let fixed_rnd = [0x42u8; 32];
 
     let fixed_kp = portable::generate_key_pair([0x11u8; 32]);
     let random_kps: Vec<_> = (0..samples)
@@ -86,7 +101,7 @@ pub fn mldsa_sign_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
 
     let fixed = crate::sample_wall_times(
         || {
-            let sig = portable::sign(&fixed_kp.signing_key, msg, ctx, rnd).expect("sign");
+            let sig = portable::sign(&fixed_kp.signing_key, msg, ctx, fixed_rnd).expect("sign");
             std::hint::black_box(sig);
         },
         samples,
@@ -94,14 +109,59 @@ pub fn mldsa_sign_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
     let mut random_idx = 0usize;
     let random = crate::sample_wall_times(
         || {
-            let sig =
-                portable::sign(&random_kps[random_idx].signing_key, msg, ctx, rnd).expect("sign");
+            let sig = portable::sign(
+                &random_kps[random_idx].signing_key,
+                msg,
+                ctx,
+                varying_rnd(random_idx),
+            )
+            .expect("sign");
             std::hint::black_box(sig);
             random_idx = (random_idx + 1) % random_kps.len();
         },
         samples,
     );
     (fixed, random)
+}
+
+/// Collect fixed-vs-random wall-clock timings for ML-DSA signing **varying only `rnd`**.
+///
+/// Both classes use the SAME signing key. The `fixed` class repeats the FIPS 204 deterministic
+/// `rnd = 0^32`; the `random` class varies `rnd` per sample. This isolates the input whose
+/// variability [`mldsa_sign_tvla_timings`] used to suppress, and is the class pair to use when
+/// screening the `hardened` masking countermeasure, whose shares must be refreshed per signature.
+#[cfg(feature = "mldsa")]
+pub fn mldsa_sign_rnd_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
+    let msg = b"lib-q-sca-tvla-rnd";
+    let ctx = b"";
+    let kp = portable::generate_key_pair([0x11u8; 32]);
+    // FIPS 204 deterministic signing.
+    let deterministic_rnd = [0u8; 32];
+
+    let fixed = crate::sample_wall_times(
+        || {
+            let sig = portable::sign(&kp.signing_key, msg, ctx, deterministic_rnd).expect("sign");
+            std::hint::black_box(sig);
+        },
+        samples,
+    );
+    let mut idx = 0usize;
+    let random = crate::sample_wall_times(
+        || {
+            let sig = portable::sign(&kp.signing_key, msg, ctx, varying_rnd(idx)).expect("sign");
+            std::hint::black_box(sig);
+            idx = idx.wrapping_add(1);
+        },
+        samples,
+    );
+    (fixed, random)
+}
+
+/// CI-friendly first-order TVLA screen for ML-DSA signing with only `rnd` varying.
+#[cfg(feature = "mldsa")]
+pub fn mldsa_sign_rnd_tvla_screen(samples: usize) -> Option<bool> {
+    let (fixed, random) = mldsa_sign_rnd_tvla_timings(samples);
+    screen_fixed_vs_random(&fixed, &random)
 }
 
 /// CI-friendly first-order TVLA screen for ML-KEM decapsulation.

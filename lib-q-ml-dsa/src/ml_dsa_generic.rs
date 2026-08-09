@@ -227,7 +227,8 @@ pub(crate) mod ml_dsa_44 {
                 &mut t0_as_ntt_b,
                 seed_for_signing,
                 &randomness,
-            );
+            )
+            .map_err(|()| SigningError::MaskEntropyUnavailable)?;
         }
 
         // Sample matrix A.
@@ -1085,7 +1086,8 @@ pub(crate) mod ml_dsa_65 {
                 &mut t0_as_ntt_b,
                 seed_for_signing,
                 &randomness,
-            );
+            )
+            .map_err(|()| SigningError::MaskEntropyUnavailable)?;
         }
 
         // Sample matrix A.
@@ -1988,7 +1990,8 @@ pub(crate) mod ml_dsa_87 {
                 &mut t0_as_ntt_b,
                 seed_for_signing,
                 &randomness,
-            );
+            )
+            .map_err(|()| SigningError::MaskEntropyUnavailable)?;
         }
 
         // Sample matrix A.
