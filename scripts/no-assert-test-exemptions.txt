@@ -50,6 +50,7 @@
 
 lib-q-aead/src/lib.rs:test_security_context_new | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-aead/src/security/memory.rs:test_memory_barrier | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
+lib-q-core/tests/wasm_smoke.rs:wasm_smoke_skipped_on_native_host | wasm-only test stub; real assertions live in the wasm32 sibling fn in the same file
 lib-q-aead/tests/wasm_smoke.rs:wasm_smoke_skipped_on_native_host | wasm-only test stub; real assertions live in the wasm32 sibling fn in the same file
 lib-q-blind-pcs/tests/wasm_smoke.rs:wasm_smoke_skipped_on_native_host | wasm-only test stub; real assertions live in the wasm32 sibling fn in the same file
 lib-q-cb-kem/tests/wasm_smoke.rs:wasm_smoke_skipped_on_native_host | wasm-only test stub; real assertions live in the wasm32 sibling fn in the same file
