@@ -205,6 +205,21 @@ if [[ "$CRATE" == "lib-q-ml-dsa" && "$ML_DSA_SIMD256" != true ]]; then
   CMD="$CMD --exclude-files 'lib-q-ml-dsa\\src\\ml_dsa_generic\\instantiations\\avx2.rs'"
 fi
 
+# lib-q-rocca-s: `simd/neon.rs` is `#[cfg(all(feature = "simd-neon", target_arch = "aarch64"))]`,
+# so on an x86_64 runner it cannot execute -- yet tarpaulin still counts its lines and reports
+# 0/88. That is a measurement artifact, not missing tests, and it is the same shape already
+# excluded for lib-q-keccak/advanced_simd.rs and lib-q-ml-dsa/src/simd/avx2.rs.
+#
+# It only started mattering when `simd` joined lib-q-rocca-s's default features (so consumers get
+# the constant-time AES backend instead of the secret-indexed S-box table -- card t_3d6e8d50).
+# Before that the module was not built at all; after, those 88 dead-on-x86 lines dragged the crate
+# from 98.21% to 78.43% and broke its floor. Excluding them measures what the runner can actually
+# run. aarch64 CI, if it is ever added, will drop this branch and measure NEON properly.
+if [[ "$CRATE" == "lib-q-rocca-s" && "$(uname -m 2>/dev/null)" != "aarch64" && "$(uname -m 2>/dev/null)" != "arm64" ]]; then
+  CMD="$CMD --exclude-files 'lib-q-rocca-s/src/simd/neon.rs'"
+  CMD="$CMD --exclude-files 'lib-q-rocca-s\\src\\simd\\neon.rs'"
+fi
+
 # lib-q-hqc: only the two files whose function bodies carry `#[target_feature(enable = "avx2",
 # enable = "pclmulqdq")]` are excluded, plus the feature-gated wasm binding.
 # NOT the whole simd/avx2 directory: that module is gated on `#[cfg(target_arch = "x86_64")]`

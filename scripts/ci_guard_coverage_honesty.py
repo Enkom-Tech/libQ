@@ -649,6 +649,16 @@ SRC_EXCLUDE_ALLOWLIST = {
     "lib-q-keccak/src/advanced_simd.rs",
     "lib-q-keccak/src/x86.rs",
     "lib-q-keccak/src/x86_simd_avx512.rs",
+    # `#[cfg(all(feature = "simd-neon", target_arch = "aarch64"))]`, so on an x86_64 runner it is
+    # not merely untested -- it is not executable at all, and tarpaulin reports a flat 0/88.
+    # Excluded only on non-aarch64 hosts (see the `uname -m` guard in run-coverage.sh), so an
+    # aarch64 runner would measure NEON for real rather than silently skipping it.
+    #
+    # This became load-bearing when `simd` joined lib-q-rocca-s's default features so consumers
+    # actually get the constant-time AES backend instead of a secret-indexed S-box table
+    # (t_3d6e8d50). Those 88 dead-on-x86 lines took the crate 98.21% -> 78.43% and broke its floor.
+    # The tests did not get worse; the denominator gained code this runner cannot reach.
+    "lib-q-rocca-s/src/simd/neon.rs",
     # Built only under `feature = "simd256"`; the default gate builds the portable backend.
     # Measured instead by the non-gated `--ml-dsa-simd256` pass in coverage.yml.
     "lib-q-ml-dsa/src/simd/avx2.rs",
