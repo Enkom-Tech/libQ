@@ -17,6 +17,10 @@ param([int]$StartAt = 0)
 Set-Location (Join-Path $PSScriptRoot "..")
 
 $packages = @(
+    # fn-dsa-comm FIRST: lib-q-types derives the FN-DSA sizes from its `const fn` formulas, so it
+    # is now a versioned dependency of lib-q-types and must reach crates.io before it. Mirrors
+    # cd.yml, where its job was moved above publish-rust-lib-q-types for the same reason.
+    "lib-q-fn-dsa-comm",
     "lib-q-types",
     "lib-q-core", "lib-q-keccak",
     "lib-q-sha3",
@@ -26,7 +30,7 @@ $packages = @(
     "lib-q-k12", "lib-q-intrinsics",
     "lib-q-hash",
     "lib-q-random",
-    "lib-q-fn-dsa-comm", "lib-q-fn-dsa-kgen", "lib-q-fn-dsa-sign", "lib-q-fn-dsa-vrfy", "lib-q-fn-dsa-alg",
+    "lib-q-fn-dsa-kgen", "lib-q-fn-dsa-sign", "lib-q-fn-dsa-vrfy", "lib-q-fn-dsa-alg",
     "lib-q-fn-dsa",
     "lib-q-ml-kem", "lib-q-hqc", "lib-q-slh-dsa", "lib-q-lattice-zkp", "lib-q-mayo",
     "lib-q-cb-kem",
