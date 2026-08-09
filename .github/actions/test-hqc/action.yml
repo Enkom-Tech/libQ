@@ -75,12 +75,17 @@ runs:
         cargo clippy --all-targets --all-features -- -D warnings
         echo "Clippy linting completed"
     
-    - name: Build with no default features
+    # "no default features" here means a MINIMAL feature set, not a no_std build. This runs on
+    # the host, so `std` is required: without it lib-q-core compiles as no_std and the link fails
+    # with "no global memory allocator found" / "unwinding panics are not supported without std".
+    # It used to pass only because `hqc128` hard-forced `lib-q-core/std`; that was removed so the
+    # crate could genuinely build bare-metal. Real no_std coverage is the thumbv7em step below.
+    - name: Build with a minimal feature set (host)
       shell: bash
       run: |
-        echo "Building with no default features..."
+        echo "Building with a minimal feature set..."
         cd ${{ inputs.working-directory }}
-        cargo build --no-default-features --features "alloc,hqc128"
+        cargo build --no-default-features --features "std,alloc,hqc128"
         echo "Build completed"
     
     - name: Build with all features
@@ -91,12 +96,13 @@ runs:
         cargo build --features "${{ inputs.features }}"
         echo "Build with features completed"
     
-    - name: Run tests with no default features
+    # Same reasoning as the build step above -- and a test binary needs std regardless.
+    - name: Run tests with a minimal feature set (host)
       shell: bash
       run: |
-        echo "Running tests with no default features..."
+        echo "Running tests with a minimal feature set..."
         cd ${{ inputs.working-directory }}
-        cargo test --no-default-features --features "alloc,hqc128"
+        cargo test --no-default-features --features "std,alloc,hqc128"
         echo "Tests completed"
     
     - name: Run tests with all features
@@ -107,14 +113,21 @@ runs:
         cargo test --features "${{ inputs.features }}"
         echo "Tests with features completed"
     
-    - name: Test no_std compatibility
+    # A REAL no_std check. This step previously ran three host-target builds and called that
+    # "no_std compatibility"; a host build links std whatever features you pass, so it could
+    # never have detected a no_std regression -- and once `hqc128` stopped forcing
+    # `lib-q-core/std` it stopped even compiling. Cross-compiling to a bare-metal target is what
+    # actually exercises the property. lib-q-hqc is not covered by the workspace thumbv7em job,
+    # so this is its only genuine no_std gate. All three feature sets verified to build.
+    - name: Test no_std compatibility (thumbv7em-none-eabi)
       shell: bash
       run: |
-        echo "Testing no_std compatibility..."
+        echo "Testing no_std compatibility on a bare-metal target..."
+        rustup target add thumbv7em-none-eabi
         cd ${{ inputs.working-directory }}
-        cargo build --no-default-features --features "alloc,hqc128"
-        cargo build --no-default-features --features "aes-drbg,hqc128"
-        cargo build --no-default-features --features "bearssl-aes,hqc128"
+        cargo check --no-default-features --features "no_std,hqc128" --target thumbv7em-none-eabi
+        cargo check --no-default-features --features "no_std,aes-drbg,hqc128" --target thumbv7em-none-eabi
+        cargo check --no-default-features --features "no_std,bearssl-aes,hqc128" --target thumbv7em-none-eabi
         echo "no_std compatibility test completed"
     
     - name: Test WASM compatibility
@@ -182,12 +195,16 @@ runs:
         echo "Testing all HQC parameter sets..."
         cd ${{ inputs.working-directory }}
         
-        # Test each parameter set individually
+        # Test each parameter set individually. `std` is required on every line: these are host
+        # test binaries, and since `hqc128`/`hqc192`/`hqc256` stopped hard-forcing
+        # `lib-q-core/std` (so the crate could build bare-metal), omitting it makes lib-q-core
+        # compile as no_std and the link fails before a single test runs. Bare-metal coverage is
+        # the thumbv7em step above, not this one.
         for params in hqc128 hqc192 hqc256; do
           echo "Testing $params..."
-          cargo test --no-default-features --features "alloc,$params"
-          cargo test --no-default-features --features "aes-drbg,$params"
-          cargo test --no-default-features --features "bearssl-aes,$params"
+          cargo test --no-default-features --features "std,alloc,$params"
+          cargo test --no-default-features --features "std,aes-drbg,$params"
+          cargo test --no-default-features --features "std,bearssl-aes,$params"
         done
         
         echo "All HQC parameter sets tested successfully"
