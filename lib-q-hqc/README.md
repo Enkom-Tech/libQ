@@ -95,8 +95,7 @@ cargo test -p lib-q-hqc --test integration_test --features alloc,hqc128
 cargo test -p lib-q-hqc --features "simd-avx2,alloc,hqc128" --test simd_correctness
 ```
 
-See [tests/README.md](tests/README.md) for the test layout. Diagnostic and historical
-debug tests live under `tests/archive/`.
+See [tests/README.md](tests/README.md) for the test layout.
 
 ## SIMD (AVX2)
 

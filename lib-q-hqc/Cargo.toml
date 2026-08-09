@@ -179,7 +179,6 @@ bearssl-aes = ["aes", "alloc"]                                      # BearSSL AE
 debug-drbg-interop = ["aes-drbg", "bearssl-aes"]                   # Compare DRBG implementations
 debug-drbg-state = []                                               # Log DRBG state transitions
 debug-drbg-state-defmt = ["debug-drbg-state", "defmt"]             # DRBG state logging with defmt
-archive-tests = []                                                  # Enable archived diagnostic tests
 
 # Performance optimizations
 simd-avx2 = []                                                      # AVX2 SIMD with runtime detection
