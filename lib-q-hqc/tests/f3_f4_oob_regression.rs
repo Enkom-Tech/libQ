@@ -11,8 +11,13 @@
 //! call is rejected instead of reading/writing out of bounds.
 
 use lib_q_hqc::Hqc128Kem;
+// `Avx2` is exported behind `#[cfg(target_arch = "x86_64")]`, so importing it unconditionally
+// breaks the wasm32 build -- which is exactly how this file first turned CI red: `wasm-pack test
+// --node` failed with `E0432: unresolved import lib_q_hqc::simd::Avx2`. The F4 test below is
+// x86_64-only for the same reason; F3 is architecture-independent and always runs.
+#[cfg(target_arch = "x86_64")]
+use lib_q_hqc::simd::Avx2;
 use lib_q_hqc::simd::{
-    Avx2,
     PolynomialOps,
     Portable,
 };
@@ -61,6 +66,7 @@ fn test_vect_add_rejects_len_exceeding_any_single_buffer() {
 /// `min(output.len(), a.len(), b.len())` bytes and leave any excess `output` tail
 /// untouched, matching the portable implementation's behavior on the same inputs.
 #[test]
+#[cfg(target_arch = "x86_64")]
 fn avx2_vect_add_matches_portable_when_inputs_are_shorter_than_output() {
     let mut output_avx2 = vec![0xAAu8; 64];
     let mut output_portable = vec![0xAAu8; 64];
