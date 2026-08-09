@@ -1,7 +1,7 @@
 //! Dudect-style timing smoke for `hardened` HQC KEM decapsulation.
 
 use lib_q_hqc::hqc_kem::HqcKem;
-use lib_q_hqc::params_correct::Hqc1Params;
+use lib_q_hqc::params::Hqc1Params;
 use lib_q_random::new_secure_rng;
 use lib_q_sca_test::dudect::timing_passes_loose;
 

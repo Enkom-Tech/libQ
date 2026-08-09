@@ -5,7 +5,7 @@
 
 use core::fmt;
 
-use crate::params_correct::HqcParams;
+use crate::params::HqcParams;
 use crate::reed_muller::{
     ReedMuller,
     ReedMullerError,
@@ -384,7 +384,7 @@ mod tests {
     use alloc::string::ToString;
 
     use super::*;
-    use crate::params_correct::Hqc1Params;
+    use crate::params::Hqc1Params;
 
     /// `ConcatenatedCodeError::Display` is never invoked anywhere in the crate. `DecodingFailed`
     /// is never constructed by any real path; the two `*Error(inner)` wrapping variants and the

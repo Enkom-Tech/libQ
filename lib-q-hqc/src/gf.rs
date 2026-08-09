@@ -16,12 +16,12 @@
 //!
 //! All three HQC parameter sets (`Hqc1Params`, `Hqc3Params`, `Hqc5Params`) use the same field:
 //! `M = 8`, `GF_POLY = 0x11D`. The functions here are hard-coded to exactly that field — they
-//! are not generic over [`crate::params_correct::HqcParams`] — and the `const _: () = assert!(..)`
+//! are not generic over [`crate::params::HqcParams`] — and the `const _: () = assert!(..)`
 //! block below pins that assumption at compile time: if a future parameter set ever used a
 //! different `M`/`GF_POLY`, the crate would fail to build rather than silently computing wrong
 //! field arithmetic.
 
-use crate::params_correct::{
+use crate::params::{
     Hqc1Params,
     Hqc3Params,
     Hqc5Params,

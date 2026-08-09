@@ -21,7 +21,7 @@ use criterion::{
     criterion_main,
 };
 #[cfg(feature = "alloc")]
-use lib_q_hqc::params_correct::{
+use lib_q_hqc::params::{
     Hqc1Params,
     Hqc3Params,
     Hqc5Params,
@@ -41,7 +41,7 @@ fn benchmark_hqc_kem_operations(c: &mut Criterion) {
     // --- Key generation ---
 
     group.bench_function("HQC-128_keygen", |b| {
-        use lib_q_hqc::hqc_correct::Hqc128Kem;
+        use lib_q_hqc::hqc_core::Hqc128Kem;
         use lib_q_random::LibQRng;
         let mut rng = LibQRng::new_secure().unwrap();
         let kem = Hqc128Kem::new().unwrap();
@@ -49,7 +49,7 @@ fn benchmark_hqc_kem_operations(c: &mut Criterion) {
     });
 
     group.bench_function("HQC-192_keygen", |b| {
-        use lib_q_hqc::hqc_correct::Hqc192Kem;
+        use lib_q_hqc::hqc_core::Hqc192Kem;
         use lib_q_random::LibQRng;
         let mut rng = LibQRng::new_secure().unwrap();
         let kem = Hqc192Kem::new().unwrap();
@@ -57,7 +57,7 @@ fn benchmark_hqc_kem_operations(c: &mut Criterion) {
     });
 
     group.bench_function("HQC-256_keygen", |b| {
-        use lib_q_hqc::hqc_correct::Hqc256Kem;
+        use lib_q_hqc::hqc_core::Hqc256Kem;
         use lib_q_random::LibQRng;
         let mut rng = LibQRng::new_secure().unwrap();
         let kem = Hqc256Kem::new().unwrap();
@@ -67,7 +67,7 @@ fn benchmark_hqc_kem_operations(c: &mut Criterion) {
     // --- Encapsulation (keypair built once, outside the timed closure) ---
 
     group.bench_function("HQC-128_encapsulate", |b| {
-        use lib_q_hqc::hqc_correct::Hqc128Kem;
+        use lib_q_hqc::hqc_core::Hqc128Kem;
         use lib_q_random::LibQRng;
         let mut rng = LibQRng::new_secure().unwrap();
         let kem = Hqc128Kem::new().unwrap();
@@ -80,7 +80,7 @@ fn benchmark_hqc_kem_operations(c: &mut Criterion) {
     // encapsulation.
 
     group.bench_function("HQC-128_decapsulate", |b| {
-        use lib_q_hqc::hqc_correct::Hqc128Kem;
+        use lib_q_hqc::hqc_core::Hqc128Kem;
         use lib_q_random::LibQRng;
         let mut rng = LibQRng::new_secure().unwrap();
         let kem = Hqc128Kem::new().unwrap();
@@ -99,7 +99,7 @@ fn benchmark_memory_usage(c: &mut Criterion) {
 
     group.bench_function("hqc_parameter_sizes", |b| {
         b.iter(|| {
-            use lib_q_hqc::params_correct::HqcParams;
+            use lib_q_hqc::params::HqcParams;
             let hqc1_n = Hqc1Params::N;
             let hqc3_n = Hqc3Params::N;
             let hqc5_n = Hqc5Params::N;

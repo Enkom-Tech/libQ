@@ -27,7 +27,7 @@
 //!
 //!   cargo test --release -p lib-q-hqc --test reed_solomon_constant_time -- --nocapture
 
-use lib_q_hqc::params_correct::{
+use lib_q_hqc::params::{
     Hqc1Params,
     Hqc3Params,
     Hqc5Params,

@@ -27,7 +27,7 @@ use crate::hqc_pke::{
     HqcPkeSecretKey,
 };
 use crate::internal::shake256::Shake256Xof;
-use crate::params_correct::HqcParams;
+use crate::params::HqcParams;
 
 // Domain separators for hash functions (2025 specification)
 // According to HQC 2025 spec Section 3.1, each hash function uses its own domain separator
@@ -675,7 +675,7 @@ impl From<HqcPkeError> for HqcKemError {
 #[cfg(test)]
 mod tests {
     //! `HqcKem<P>` had no direct unit tests at all before this module: every existing test
-    //! reaches it only indirectly through `hqc_correct::{Hqc1, Hqc3, Hqc5}` or `provider.rs`,
+    //! reaches it only indirectly through `hqc_core::{Hqc1, Hqc3, Hqc5}` or `provider.rs`,
     //! which always go through `keygen()` (RNG-seeded) and `encapsulate()` (RNG-seeded m/salt).
     //! `keygen_with_seed`, `encapsulate_with_m_salt`, `to_nist_bytes`, and `from_nist_bytes` are
     //! never called anywhere else under default features (confirmed by grep) -- they're the KAT
@@ -687,7 +687,7 @@ mod tests {
     use alloc::string::ToString;
 
     use super::*;
-    use crate::params_correct::{
+    use crate::params::{
         Hqc1Params,
         Hqc3Params,
         Hqc5Params,

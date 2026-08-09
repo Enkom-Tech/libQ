@@ -6,7 +6,7 @@
 use core::fmt;
 
 use crate::gf as ctgf;
-use crate::params_correct::HqcParams;
+use crate::params::HqcParams;
 
 /// Branch-free "not equal to zero" mask over `u8`: returns `0xFF` if `x != 0`, else `0x00`.
 /// Standard "is this word nonzero" trick via `wrapping_neg`, matching the idiom used throughout
@@ -614,7 +614,7 @@ mod tests {
     use alloc::string::ToString;
 
     use super::*;
-    use crate::params_correct::Hqc1Params;
+    use crate::params::Hqc1Params;
 
     /// `ReedSolomonError::Display` is never invoked anywhere in the crate (no caller ever
     /// formats one; production code only matches/propagates the enum), and
@@ -822,7 +822,7 @@ mod tests {
     #[test]
     fn test_reed_solomon_decode_beyond_capacity_does_not_panic_hqc3_hqc5() {
         {
-            let rs = ReedSolomon::<crate::params_correct::Hqc3Params>::new().unwrap();
+            let rs = ReedSolomon::<crate::params::Hqc3Params>::new().unwrap();
             let message = [0xAAu8; 24];
             let mut codeword = [0u8; 56];
             rs.encode(&message, &mut codeword).unwrap();
@@ -836,7 +836,7 @@ mod tests {
             );
         }
         {
-            let rs = ReedSolomon::<crate::params_correct::Hqc5Params>::new().unwrap();
+            let rs = ReedSolomon::<crate::params::Hqc5Params>::new().unwrap();
             let message = [0x55u8; 32];
             let mut codeword = [0u8; 90];
             rs.encode(&message, &mut codeword).unwrap();

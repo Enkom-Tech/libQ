@@ -19,7 +19,7 @@ use crate::hqc_kem::{
     HqcKemSecretKey,
     HqcKemSharedSecret,
 };
-use crate::params_correct::{
+use crate::params::{
     Hqc1Params,
     Hqc3Params,
     Hqc5Params,
@@ -447,7 +447,7 @@ impl From<HqcKemError> for HqcError {
 // corrected replacement using `lib_q_random::LibQRng` (which gets `CryptoRng` via rand_core's
 // blanket impl over `TryCryptoRng`, matching how `provider.rs` drives the same trait). Their
 // purpose is unchanged: HQC-3 and HQC-5 (`Hqc192`/`Hqc256`) had no full generate/encapsulate/
-// decapsulate cycle exercised directly against `hqc_correct.rs` (HQC-1's cycle and HQC-3's
+// decapsulate cycle exercised directly against `hqc_core.rs` (HQC-1's cycle and HQC-3's
 // `derive_public_key`-only round trip are covered via `provider.rs`'s tests and
 // `tests/integration_test.rs`, but not HQC-5's encapsulate/decapsulate).
 #[cfg(all(test, feature = "random"))]
@@ -547,12 +547,12 @@ mod tests {
 
     /// This file's local `HqcError` (distinct from `crate::error::HqcError` -- an explicit `pub
     /// use error::HqcError` in `lib.rs` shadows this one for the crate's public glob re-export,
-    /// so this type is reachable only as `hqc_correct::HqcError`) has a `Display` impl and a
+    /// so this type is reachable only as `hqc_core::HqcError`) has a `Display` impl and a
     /// `From<HqcKemError>` impl that are never invoked anywhere in the crate: every
     /// `HqcCore::generate_keypair`/`encapsulate`/`decapsulate` here uses
     /// `.map_err(HqcError::KemError)` -- the enum variant used directly as a function pointer,
     /// which does NOT go through `impl From<HqcKemError> for HqcError` -- and nothing ever
-    /// formats a `hqc_correct::HqcError` (confirmed: `grep -rn "hqc_correct::HqcError\.\|HqcError::from"
+    /// formats a `hqc_core::HqcError` (confirmed: `grep -rn "hqc_core::HqcError\.\|HqcError::from"
     /// lib-q-hqc/src` outside this file finds nothing). Construct-and-check directly.
     #[test]
     fn test_local_hqc_error_display_and_from_hqc_kem_error() {

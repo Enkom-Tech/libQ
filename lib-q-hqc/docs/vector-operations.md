@@ -17,7 +17,7 @@ For AVX2 multiply and runtime dispatch, see [SIMD architecture](simd-architectur
 | Multiply | `vect_mul` | \(\mathrm{GF}(2)[x]/(x^N-1)\); AVX2 Toom when available, else schoolbook |
 | Add / truncate | `vect_add`, `vect_truncate` | XOR; truncate to `P::N1N2` bits for concatenated-code payloads |
 
-Parameters are defined per security level in [`src/params_correct.rs`](../src/params_correct.rs) (`Hqc1Params`, `Hqc3Params`, `Hqc5Params`).
+Parameters are defined per security level in [`src/params.rs`](../src/params.rs) (`Hqc1Params`, `Hqc3Params`, `Hqc5Params`).
 
 ## PKE call graph
 

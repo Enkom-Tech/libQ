@@ -4,7 +4,7 @@
 //! implementation with the libQ architecture.
 
 use lib_q_hqc::hqc_kem::*;
-use lib_q_hqc::params_correct::*;
+use lib_q_hqc::params::*;
 use lib_q_random::LibQRng;
 
 fn main() {

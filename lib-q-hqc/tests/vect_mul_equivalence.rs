@@ -6,7 +6,7 @@ use lib_q_hqc::hqc_pke::{
     HqcPke,
     schoolbook_vect_mul_mod_xnm1,
 };
-use lib_q_hqc::params_correct::{
+use lib_q_hqc::params::{
     Hqc1Params,
     Hqc3Params,
     Hqc5Params,

@@ -293,7 +293,7 @@ fn test_error_correction_equivalence() {
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 #[test]
 fn test_hqc_parameter_sets() {
-    use lib_q_hqc::params_correct::{
+    use lib_q_hqc::params::{
         Hqc1Params,
         Hqc3Params,
         Hqc5Params,
@@ -310,7 +310,7 @@ fn test_hqc_parameter_sets() {
 }
 
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
-fn test_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(name: &str) {
+fn test_parameter_set<P: lib_q_hqc::params::HqcParams>(name: &str) {
     let n_bytes = P::VEC_N_SIZE_BYTES;
     let mut output_avx2 = vec![0u8; n_bytes];
     let mut output_portable = vec![0u8; n_bytes];

@@ -41,7 +41,7 @@ use std::path::Path;
 
 use lib_q_hqc::hqc_kem::HqcKem;
 use lib_q_hqc::internal::shake256::Shake256Xof;
-use lib_q_hqc::params_correct::{
+use lib_q_hqc::params::{
     Hqc1Params,
     Hqc3Params,
     Hqc5Params,

@@ -22,7 +22,7 @@ use crate::concatenated_code::{
     ConcatenatedCodeError,
 };
 use crate::internal::shake256::Shake256Xof;
-use crate::params_correct::HqcParams;
+use crate::params::HqcParams;
 
 /// HQC PKE implementation
 pub struct HqcPke<P: HqcParams> {
@@ -1078,7 +1078,7 @@ pub fn schoolbook_vect_mul_mod_xnm1(
 mod tests {
     //! `hqc_pke.rs` had no `#[cfg(test)] mod` at all before this: its `keygen`/`encrypt`/
     //! `decrypt` are already driven end-to-end (for all 3 parameter sets) via
-    //! `hqc_correct.rs`'s and `provider.rs`'s round-trip tests, so this module intentionally
+    //! `hqc_core.rs`'s and `provider.rs`'s round-trip tests, so this module intentionally
     //! does NOT duplicate that -- it targets `HqcPkeError`'s `Display`/`From` impls, which (like
     //! every sibling error type in this crate) are never invoked by production code: `keygen`/
     //! `encrypt`/`decrypt` use `.map_err(HqcPkeError::CodeError)`, the constructor form, not the
