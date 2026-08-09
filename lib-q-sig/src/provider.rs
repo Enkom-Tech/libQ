@@ -857,4 +857,43 @@ mod tests {
             "provider should verify its own ML-DSA-44 signatures"
         );
     }
+
+    /// Every FN-DSA parameter set must survive keygen -> sign -> verify through the provider.
+    ///
+    /// Regression test. `lib-q-core`'s hand-maintained key-size table recorded the FN-DSA-1024
+    /// secret key as 2561 bytes when `sign_key_size(10)` derives 2305 -- 2561 is that formula
+    /// evaluated with logn=9's `nbits_fg`. The provider gates on an exact `!=`, so it rejected an
+    /// FN-DSA-1024 key the library had just generated and FN-DSA-1024 signing was dead end to
+    /// end. Nothing caught it because every existing provider test used FnDsa512 only, which is
+    /// why this one is parameterised over BOTH sets rather than just adding a 1024 copy: a size
+    /// table is only checked when something compares it to a real key.
+    #[test]
+    #[cfg(feature = "fn-dsa")]
+    fn fn_dsa_round_trips_through_the_provider_at_every_parameter_set() {
+        let provider =
+            LibQSignatureProvider::new().expect("provider construction should succeed");
+        let message = b"fn-dsa provider round trip";
+
+        for algorithm in [Algorithm::FnDsa512, Algorithm::FnDsa1024] {
+            let keypair = match provider.generate_keypair(algorithm, None) {
+                Ok(kp) => kp,
+                // These arms mirror the other provider tests: without `std` the backend is not
+                // built, and that is not what this test is about.
+                Err(Error::NotImplemented { .. }) |
+                Err(Error::RandomGenerationFailed { .. }) => continue,
+                Err(e) => panic!("{algorithm:?} keygen failed: {e:?}"),
+            };
+
+            let signature = provider
+                .sign(algorithm, keypair.secret_key(), message, None)
+                .unwrap_or_else(|e| {
+                    panic!("{algorithm:?}: provider rejected a key it just generated: {e:?}")
+                });
+
+            let is_valid = provider
+                .verify(algorithm, keypair.public_key(), message, &signature)
+                .unwrap_or_else(|e| panic!("{algorithm:?} verify errored: {e:?}"));
+            assert!(is_valid, "{algorithm:?}: provider must verify its own signature");
+        }
+    }
 }

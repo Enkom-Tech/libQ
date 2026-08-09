@@ -218,7 +218,14 @@ impl SecurityConstants {
             }
             Algorithm::FnDsa1024 => {
                 if is_secret {
-                    2561 // FN-DSA-1024 secret key size (logn=10)
+                    // 2305, per fn-dsa-comm's `sign_key_size(10)`:
+                    //   n = 1024, nbits_fg = 5 (logn >= 10)  ->  1 + (5 * 1024 * 2) / 8 + 1024
+                    // This read 2561 for a long time, which is the same formula evaluated with
+                    // logn=9's nbits_fg = 6 (1 + 1536 + 1024) -- the wrong branch of the match.
+                    // Because the provider gates on an exact `!=`, that made
+                    // LibQSignatureProvider reject an FN-DSA-1024 key the library had just
+                    // generated, so FN-DSA-1024 signing was dead through lib-q-sig.
+                    2305 // FN-DSA-1024 secret key size (logn=10)
                 } else {
                     1793 // FN-DSA-1024 public key size (logn=10)
                 }
