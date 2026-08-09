@@ -44,8 +44,12 @@ const PIN_PROFILE_DIGEST: &str = "a3a566b1112bf8e9e210357b5bbfcc9cd25189d27125de
 /// the FO encryption samplers were made **constant-time** (fixed byte budgets, branch-free
 /// rejection, and constant-time compaction; see `kem.rs`, with `e` and `f` each drawn as one flat
 /// fixed-budget block). The emitted coefficients are the same distribution, but the fixed
-/// consumption boundaries shift where `f`/`g` begin in the XOF stream, changing the wire.
-const PIN_CT_DIGEST: &str = "bd96da294e7d7318feeec12a9473f7b9f7ac53f3e913a247385d1e76a27e5a6c";
+/// consumption boundaries shift where `f`/`g` begin in the XOF stream, changing the wire. →
+/// `44c97ce8…` on 2026-08-09 (card t_79295151): `Ciphertext::to_bytes` now prepends a leading
+/// `WIRE_VERSION_V1` byte so `from_bytes` can reject an unrecognized future wire revision instead
+/// of silently misparsing it; the profile digest and shared secret are unaffected (neither is
+/// derived from `to_bytes`).
+const PIN_CT_DIGEST: &str = "44c97ce84313de0074ca9c0ddbae682c278957e13e969c45033d0d0aebf7fb7c";
 /// The shared secret `KDF(pk, μ, ct)` for that ciphertext (updated with the ciphertext, same change).
 const PIN_SHARED_SECRET: &str = "4cb5bdfec4c2075dbbee32b4a06076107126770e2fb0a83056fd0516bda2e240";
 

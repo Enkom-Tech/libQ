@@ -43,6 +43,14 @@ pub enum ThresholdKemError {
     /// emitted on this key until it is rotated (reshared). Bounds exposure to the malformed-ct
     /// insider probe for untrusted senders; see `THRESHOLD_SECURITY.md` §5–§6.
     BudgetExhausted,
+    /// A [`crate::Ciphertext`] or [`crate::PartialDecap`] blob's leading wire-version byte does not
+    /// match [`crate::profile::WIRE_VERSION_V1`]. Distinct from [`Self::EncodingCiphertext`] /
+    /// [`Self::EncodingPartial`] so a future wire revision fails loudly instead of being silently
+    /// misparsed as `V1` (the two encodings may share a length).
+    UnsupportedWireVersion {
+        /// The version byte actually found on the wire.
+        found: u8,
+    },
 }
 
 impl fmt::Display for ThresholdKemError {
@@ -62,6 +70,9 @@ impl fmt::Display for ThresholdKemError {
             Self::InvalidCiphertext => write!(f, "ciphertext failed the FO re-encryption check"),
             Self::BudgetExhausted => {
                 write!(f, "per-key decapsulation budget exhausted; rotate key")
+            }
+            Self::UnsupportedWireVersion { found } => {
+                write!(f, "unsupported wire version {found}")
             }
         }
     }

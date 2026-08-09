@@ -117,13 +117,16 @@ pub struct Ciphertext {
 }
 
 impl Ciphertext {
-    /// Serialized length in bytes: `(KAPPA + 1)·RQ_BYTES`.
-    pub const BYTES: usize = (KAPPA + 1) * RQ_BYTES;
+    /// Serialized length in bytes: `1` (wire-version byte) `+ (KAPPA + 1)·RQ_BYTES`.
+    pub const BYTES: usize = 1 + (KAPPA + 1) * RQ_BYTES;
 
-    /// Canonical little-endian serialization (`p` blocks, then `v`).
+    /// Canonical little-endian serialization: [`crate::profile::WIRE_VERSION_V1`], then `p` blocks,
+    /// then `v`. The leading version byte lets [`Ciphertext::from_bytes`] reject a future wire
+    /// revision instead of silently misparsing it (see [`ThresholdKemError::UnsupportedWireVersion`]).
     #[must_use]
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::BYTES);
+        out.push(crate::profile::WIRE_VERSION_V1);
         for pk in &self.p {
             rq_write_le_bytes(pk, &mut out);
         }
@@ -131,20 +134,26 @@ impl Ciphertext {
         out
     }
 
-    /// Parse from exactly [`Ciphertext::BYTES`] bytes; rejects non-canonical coefficients.
+    /// Parse from exactly [`Ciphertext::BYTES`] bytes; rejects an unrecognized leading version byte
+    /// ([`ThresholdKemError::UnsupportedWireVersion`]) and non-canonical coefficients.
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ThresholdKemError> {
         if bytes.len() != Self::BYTES {
             return Err(ThresholdKemError::EncodingCiphertext);
         }
+        let version = bytes[0];
+        if version != crate::profile::WIRE_VERSION_V1 {
+            return Err(ThresholdKemError::UnsupportedWireVersion { found: version });
+        }
+        let body = &bytes[1..];
         let mut p = Vec::with_capacity(KAPPA);
         for k in 0..KAPPA {
             let start = k * RQ_BYTES;
             p.push(
-                rq_from_le_bytes(&bytes[start..start + RQ_BYTES])
+                rq_from_le_bytes(&body[start..start + RQ_BYTES])
                     .ok_or(ThresholdKemError::EncodingCiphertext)?,
             );
         }
-        let v = rq_from_le_bytes(&bytes[KAPPA * RQ_BYTES..(KAPPA + 1) * RQ_BYTES])
+        let v = rq_from_le_bytes(&body[KAPPA * RQ_BYTES..(KAPPA + 1) * RQ_BYTES])
             .ok_or(ThresholdKemError::EncodingCiphertext)?;
         Ok(Ciphertext { p, v })
     }

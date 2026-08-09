@@ -19,6 +19,7 @@ use lib_q_threshold_kem_lattice::{
     SecretShare,
     ThresholdKemError,
     ThresholdKemLatticePublicKey,
+    WIRE_VERSION_V1,
     combine,
     decapsulate_reference,
     encapsulate,
@@ -32,6 +33,14 @@ use zeroize::Zeroizing;
 
 const THRESHOLD: u8 = 3;
 const PARTIES: u8 = 5;
+
+/// A canonical (all-zero-coefficient) `V1` ciphertext blob: the wire-version byte set, everything
+/// else zero.
+fn zero_ct_bytes() -> Vec<u8> {
+    let mut bytes = vec![0u8; Ciphertext::BYTES];
+    bytes[0] = WIRE_VERSION_V1;
+    bytes
+}
 
 #[test]
 fn trusted_dealer_encap_decap_roundtrip() {
@@ -196,6 +205,30 @@ fn partial_decap_serialization_roundtrips() {
     assert_eq!(
         PartialDecap::from_bytes(&[0u8; 3]).err(),
         Some(lib_q_threshold_kem_lattice::ThresholdKemError::EncodingPartial)
+    );
+}
+
+#[test]
+fn from_bytes_rejects_unknown_wire_version() {
+    // Ciphertext: a correctly-length blob whose leading byte is not WIRE_VERSION_V1 must fail with
+    // the DISTINCT UnsupportedWireVersion error, not the generic EncodingCiphertext.
+    let mut ct_bytes = zero_ct_bytes();
+    ct_bytes[0] = WIRE_VERSION_V1.wrapping_add(1);
+    assert_eq!(
+        Ciphertext::from_bytes(&ct_bytes).unwrap_err(),
+        ThresholdKemError::UnsupportedWireVersion {
+            found: WIRE_VERSION_V1.wrapping_add(1)
+        }
+    );
+
+    // PartialDecap: same distinct rejection.
+    let mut pd_bytes = vec![0u8; PartialDecap::BYTES];
+    pd_bytes[0] = WIRE_VERSION_V1.wrapping_add(1);
+    assert_eq!(
+        PartialDecap::from_bytes(&pd_bytes).unwrap_err(),
+        ThresholdKemError::UnsupportedWireVersion {
+            found: WIRE_VERSION_V1.wrapping_add(1)
+        }
     );
 }
 
@@ -378,14 +411,14 @@ fn deserialization_rejects_invalid_inputs() {
         Ciphertext::from_bytes(&vec![0u8; Ciphertext::BYTES + 1]).unwrap_err(),
         ThresholdKemError::EncodingCiphertext
     );
-    let mut bytes = vec![0u8; Ciphertext::BYTES];
-    bytes[..6].fill(0xFF); // first coefficient = 2^48 - 1 ≥ q: non-canonical
+    let mut bytes = zero_ct_bytes();
+    bytes[1..7].fill(0xFF); // first coefficient (after the version byte) = 2^48 - 1 ≥ q: non-canonical
     assert_eq!(
         Ciphertext::from_bytes(&bytes).unwrap_err(),
         ThresholdKemError::EncodingCiphertext
     );
-    // An all-zero buffer is canonical and must decode.
-    let zero_ct = Ciphertext::from_bytes(&vec![0u8; Ciphertext::BYTES]).expect("zero ct decodes");
+    // An all-zero-coefficient V1 buffer is canonical and must decode.
+    let zero_ct = Ciphertext::from_bytes(&zero_ct_bytes()).expect("zero ct decodes");
 
     // Public key blob: wrong length and non-canonical coefficient.
     const T0_BYTES: usize = 6 * 6144; // MU · RQ_BYTES
@@ -422,7 +455,7 @@ fn deserialization_rejects_invalid_inputs() {
 
 #[test]
 fn structural_and_subset_validation_rejects_bad_inputs() {
-    let zero_ct = Ciphertext::from_bytes(&vec![0u8; Ciphertext::BYTES]).expect("zero ct");
+    let zero_ct = Ciphertext::from_bytes(&zero_ct_bytes()).expect("zero ct");
     // share_bytes is never decoded on these paths — validation fires first.
     let share = |index: u8| SecretShare {
         index,
