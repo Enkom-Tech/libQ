@@ -122,6 +122,16 @@ jobs:
       - name: Install tarpaulin (nightly, built from source against patched llvm-profparser fork)
         if: matrix.rust != 'stable'
         shell: bash
+        env:
+          # Clear the job-level `-D warnings`. It is libQ's policy for libQ's own code; here we are
+          # compiling a THIRD-PARTY tool from source, and cargo applies `--cap-lints allow` only to
+          # registry dependencies, never to the root package of a `cargo install --path` build. So
+          # any new lint that current nightly adds turns tarpaulin's own source into a hard error
+          # and fails this job for a reason that has nothing to do with libQ. Observed in run
+          # 31316800728: `unused import: syn::*` (x5) plus deprecated `u64::max_value()`,
+          # "-D deprecated implied by -D warnings" -> "could not compile cargo-tarpaulin (lib) due
+          # to 6 previous errors". The version pin below is what guards this build, not lints.
+          RUSTFLAGS: ""
         run: |
           set -euo pipefail
           # TEMPORARY (card t_93dc6b27): cargo-tarpaulin's llvm-profparser dependency cannot parse
