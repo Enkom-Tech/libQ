@@ -94,8 +94,16 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
     for i in 0..rows_in_a {
         let current_true_hints_seen = hint_serialized[max_ones_in_hint + i] as usize;
 
+        // FIPS 204 Algorithm 21 (HintBitUnpack) rejects when `y[omega + i] < Index` OR
+        // `y[omega + i] > omega` -- both bounds are on the CURRENT counter. Bounding
+        // `previous_true_hints_seen` instead is one iteration stale: `previous` only ever holds a
+        // value that some earlier round already accepted, so the largest `current` is never
+        // checked at all. `current` then drives `for j in previous..current` below, which indexes
+        // `hint_serialized[j]` -- a byte, so up to 254 -- into a buffer of length omega + k.
+        // Attacker-supplied signature bytes therefore panic the verifier out of bounds
+        // (reproduced in release: "the len is 61 but the index is 61" for ML-DSA-65).
         if (current_true_hints_seen < previous_true_hints_seen) ||
-            (previous_true_hints_seen > max_ones_in_hint)
+            (current_true_hints_seen > max_ones_in_hint)
         {
             // the true hints seen should be increasing
             return Err(VerificationError::MalformedHintError);
@@ -177,6 +185,44 @@ mod malformed_hint_coverage {
             &mut signer_response,
             &mut hint,
         )
+    }
+
+    /// A hint count above omega must be REJECTED, not indexed with.
+    ///
+    /// Regression test. The bound in `deserialize` was applied to the previous row's counter
+    /// rather than the current one, so the largest counter was never checked; the copy loop then
+    /// indexed `hint_serialized[j]` for j up to that counter -- a byte, so as high as 254 -- into
+    /// a buffer only `omega + k` long. Before the fix this test did not fail an assertion, it
+    /// PANICKED ("index out of bounds: the len is 61 but the index is 61" for ML-DSA-65), which
+    /// is a remote DoS: the input is an attacker-supplied signature and `verify` is the entry
+    /// point. Keep the counts non-decreasing so this exercises the omega bound specifically and
+    /// not the ordering check above it.
+    #[test]
+    fn rejects_hint_count_above_omega_without_panicking() {
+        let mut buf = [0u8; SIGNATURE_SIZE];
+        let h0 = hint_byte_offset();
+        // Hint-index bytes: strictly increasing, so the per-row monotonicity check below the
+        // bound cannot fire first and mask what we are testing.
+        for (j, slot) in buf
+            .iter_mut()
+            .skip(h0)
+            .take(MAX_ONES_IN_HINT)
+            .enumerate()
+        {
+            *slot = j as u8;
+        }
+        // The FIRST row's counter must exceed the whole hint buffer (omega + k), not merely
+        // omega. A counter of only omega+1 is caught on the NEXT iteration by the stale
+        // `previous > omega` test even in the buggy code, which makes such a case pass either
+        // way -- a vacuous regression test. These values keep the counter bytes strictly
+        // increasing too, so the copy loop reaches j == omega + k and indexes off the end.
+        for i in 0..ROWS_IN_A {
+            buf[h0 + MAX_ONES_IN_HINT + i] = (MAX_ONES_IN_HINT + ROWS_IN_A + 1 + i) as u8;
+        }
+        assert!(matches!(
+            deserialize_all(&buf),
+            Err(VerificationError::MalformedHintError)
+        ));
     }
 
     #[test]
