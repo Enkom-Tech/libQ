@@ -267,7 +267,39 @@ pub trait PRNG: Copy + Clone {
     not(feature = "no_avx2"),
     any(target_arch = "x86_64", target_arch = "x86")
 ))]
-cpufeatures::new!(cpuid_avx2, "avx2");
+// `cpufeatures::new!` expands to `const UNINIT: u8 = u8::max_value();` (cpufeatures 0.3.0
+// src/lib.rs:40 -- 0.2.17 has it too, so there is no version to upgrade to). Current nightly
+// makes that deprecation fire, and `-D warnings` turns it into a hard error.
+//
+// `--cap-lints allow` does not save us here, and that is the whole reason this attribute is
+// needed: cargo caps lints for a REGISTRY dependency's own compilation, but this macro expands
+// INTO this crate, so the deprecated call is linted as our source. Observed on nightly
+// 1.99.0 (771916f90, LLVM 23.1.0) in the Test Coverage (nightly) job of run 31320711706:
+//   error: use of deprecated associated function `core::num::<impl u8>::max_value`
+//    --> lib-q-fn-dsa/fn-dsa-comm/src/lib.rs:270:1
+//   = note: this error originates in the macro `cpufeatures::new`
+//
+// The attribute must sit on an enclosing MODULE, not on the macro invocation. A lint attribute
+// written directly on `cpufeatures::new!(...)` does NOT reach the expansion -- rustc reports it
+// as `unused_attributes`, which is itself an error under `-D warnings`. That spelling looks like
+// a fix and is not one; it was tried here first and rejected on exactly that warning. Lint
+// levels are lexically scoped, so a module wrapper does reach the expansion. The wrapper is also
+// why the re-export exists: `cpufeatures::new!` expands to a PRIVATE `mod`, so the generated
+// `get` is not reachable from the parent without it.
+//
+// Kept as narrow as possible: it covers this one generated module, so a future deprecation in
+// our own code still fails the build. Remove once cpufeatures ships the `u8::MAX` fix.
+#[allow(deprecated)]
+mod cpuid_avx2_detect {
+    cpufeatures::new!(cpuid_avx2, "avx2");
+    pub(super) use cpuid_avx2::get;
+}
+
+#[cfg(all(
+    not(feature = "no_avx2"),
+    any(target_arch = "x86_64", target_arch = "x86")
+))]
+use cpuid_avx2_detect::get as cpuid_avx2_get;
 
 /// Runtime check for AVX2 support (x86 and x86_64 only).
 ///
@@ -278,7 +310,7 @@ cpufeatures::new!(cpuid_avx2, "avx2");
     any(target_arch = "x86_64", target_arch = "x86")
 ))]
 pub fn has_avx2() -> bool {
-    cpuid_avx2::get()
+    cpuid_avx2_get()
 }
 
 /// Fallback for non-x86 targets or when `no_avx2` feature is enabled.
