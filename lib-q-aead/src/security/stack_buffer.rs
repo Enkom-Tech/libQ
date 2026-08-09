@@ -32,9 +32,26 @@ impl<const N: usize> Default for UninitStackBuffer<N> {
 
 impl<const N: usize> UninitStackBuffer<N> {
     /// Create a new uninitialized stack buffer
+    ///
+    /// # Soundness
+    /// The backing storage is zero-initialized up front (not left truly
+    /// uninitialized). This is deliberate: `resize()` is a safe method that
+    /// raises `used` without writing anything, and `as_slice()`/
+    /// `as_mut_slice()` then construct `&[u8]`/`&mut [u8]` over the range
+    /// `0..used`. If the underlying bytes were genuinely uninitialized,
+    /// those safe methods would materialize references to uninitialized
+    /// memory, which is immediate undefined behaviour for `u8` regardless of
+    /// whether the bytes are ever read. Zeroing here (via
+    /// `MaybeUninit::zeroed()`, which is a valid all-zero bit pattern for
+    /// `u8`) guarantees every byte in `0..N` is initialized for the whole
+    /// lifetime of the buffer, so every safe accessor is sound no matter
+    /// what sequence of `resize`/`append`/`clear` calls precedes it. For a
+    /// stack buffer of at most `MAX_STACK_BUFFER_SIZE` (32 KiB) bytes the
+    /// cost of this upfront zeroing is negligible next to the cryptographic
+    /// work the buffer is used for.
     pub fn new() -> Self {
         Self {
-            data: unsafe { MaybeUninit::uninit().assume_init() },
+            data: unsafe { MaybeUninit::zeroed().assume_init() },
             used: 0,
         }
     }
@@ -353,6 +370,42 @@ pub mod utils {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Regression test for the F2 finding: `resize()` used to raise `used`
+    /// without initializing the newly-covered bytes, and `as_slice()` /
+    /// `as_mut_slice()` then constructed references over that uninitialized
+    /// range -- undefined behaviour for `u8`, entirely from safe code, with
+    /// no `unsafe` anywhere in this test.
+    ///
+    /// A plain debug/release run of this test cannot go red for UB of this
+    /// shape: reading "uninitialized" stack memory is not guaranteed to trip
+    /// any assertion (the bytes are typically some leftover, still-in-range
+    /// `u8` value), so this is deliberately also run under Miri
+    /// (`cargo +nightly miri test -p lib-q-aead stack_buffer::tests::uninit_resize_then_as_slice_is_sound`),
+    /// which is the tool that actually detects "constructed a reference to
+    /// uninitialized memory". Before the fix (backing storage left as
+    /// `MaybeUninit::uninit()`), Miri fails this test with
+    /// `Undefined Behavior: constructing invalid value at .value[0]: encountered uninitialized memory, but expected an integer`.
+    /// After the fix (backing storage zero-initialized in `new()`), Miri
+    /// passes cleanly.
+    #[test]
+    fn uninit_resize_then_as_slice_is_sound() {
+        let mut b = UninitStackBuffer::<32>::new();
+        b.resize(32).unwrap();
+        // No `unsafe` here: this is exactly the safe-API trigger from F2.
+        let s = b.as_slice();
+        // Since `new()` zero-initializes the backing storage, every byte
+        // covered by `resize` is a well-defined `0`, not "whatever happened
+        // to be on the stack".
+        assert_eq!(s, &[0u8; 32]);
+
+        let m = b.as_mut_slice();
+        assert_eq!(m, &[0u8; 32]);
+
+        // Drop -> clear() -> secure_zero_slice(as_mut_slice()) also touches
+        // the same range; make sure that path is exercised too.
+        drop(b);
+    }
 
     #[test]
     fn test_stack_buffer_creation() {

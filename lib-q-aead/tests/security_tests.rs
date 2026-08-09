@@ -130,7 +130,8 @@ fn test_memory_safety_operations() {
 
     // Test secure zero
     let mut data = [1, 2, 3, 4, 5];
-    secure_zero(&mut data);
+    // SAFETY: `[i32; 5]` has an all-zero valid representation.
+    unsafe { secure_zero(&mut data) };
     assert_eq!(data, [0; 5]);
 
     // Test secure zero slice
@@ -141,7 +142,8 @@ fn test_memory_safety_operations() {
     // Test secure copy
     let src = [1, 2, 3, 4, 5];
     let mut dst = [0; 5];
-    secure_copy(&mut dst, &src);
+    // SAFETY: `[i32; 5]` is `Copy` and has no padding-sensitive invariant.
+    unsafe { secure_copy(&mut dst, &src) };
     assert_eq!(dst, src);
 
     // Test secure copy slice
@@ -153,7 +155,8 @@ fn test_memory_safety_operations() {
     // Test secure move
     let mut src = [1, 2, 3, 4, 5];
     let mut dst = [0; 5];
-    secure_move(&mut dst, &mut src);
+    // SAFETY: `[i32; 5]` is `Copy` and has an all-zero valid representation.
+    unsafe { secure_move(&mut dst, &mut src) };
     assert_eq!(dst, [1, 2, 3, 4, 5]);
     assert_eq!(src, [0; 5]);
 
@@ -168,8 +171,11 @@ fn test_memory_safety_operations() {
     let a = [1, 2, 3, 4, 5];
     let b = [1, 2, 3, 4, 5];
     let c = [1, 2, 3, 4, 6];
-    assert!(secure_compare(&a, &b));
-    assert!(!secure_compare(&a, &c));
+    // SAFETY: `[i32; 5]` has no padding.
+    unsafe {
+        assert!(secure_compare(&a, &b));
+        assert!(!secure_compare(&a, &c));
+    }
 
     // Test secure compare slice
     let a = [1, 2, 3, 4, 5];
