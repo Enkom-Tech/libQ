@@ -309,9 +309,9 @@ impl HqcParams for Hqc3Params {
     const N2: usize = 640;
     const N1N2: usize = 35840;
     const K: usize = 24;
-    const OMEGA: usize = 103; // NIST Oct 2024 specification
+    const OMEGA: usize = 100; // HQC v5.0.0 specification (src/ref/hqc-3/parameters.h PARAM_OMEGA)
     const OMEGA_E: usize = 114;
-    const OMEGA_R: usize = 115;
+    const OMEGA_R: usize = 114; // HQC v5.0.0 specification (PARAM_OMEGA_R)
     const DELTA: usize = 16;
     const M: usize = 8;
     const GF_POLY: u16 = 0x11D;
@@ -523,7 +523,7 @@ impl HqcParams for Hqc5Params {
     const N2: usize = 640;
     const N1N2: usize = 57600;
     const K: usize = 32;
-    const OMEGA: usize = 134; // NIST Oct 2024 specification
+    const OMEGA: usize = 131; // HQC v5.0.0 specification (src/ref/hqc-5/parameters.h PARAM_OMEGA)
     const OMEGA_E: usize = 149;
     const OMEGA_R: usize = 149;
     const DELTA: usize = 29;

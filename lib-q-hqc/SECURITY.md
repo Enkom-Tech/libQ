@@ -23,8 +23,14 @@ and mirrored in `params_correct`:
 | Set | N1 | N2 | OMEGA | DELTA | Public key (B) | Ciphertext (B) |
 |-----|----|----|-------|-------|----------------|----------------|
 | HQC-128 | 46 | 384 | 66 | 15 | 2241 | 4433 |
-| HQC-192 | 56 | 640 | 103 | 16 | 4514 | 8978 |
-| HQC-256 | 90 | 640 | 134 | 29 | 7237 | 14421 |
+| HQC-192 | 56 | 640 | 100 | 16 | 4514 | 8978 |
+| HQC-256 | 90 | 640 | 131 | 29 | 7237 | 14421 |
+
+The `OMEGA` column above was fixed 2026-08-09 (card `t_71d4f79a`) from 103/134 (HQC-192/256) to the
+v5.0.0 reference's 100/131 (`Hqc3Params::OMEGA_R` was also fixed from 115 to the reference's 114);
+those wrong values gave the secret support `(x, y)` the wrong Hamming weight, verified against the
+upstream `intermediates_values` oracle in `kats/reference-intermediates/`. This is a breaking
+wire-format change for HQC-192/256 keys, ciphertexts, and shared secrets — see `CHANGELOG.md`.
 
 The HQC-192/256 public key sizes above were fixed from 4522/7245 (card `t_1558e72f`): those were
 the HQC round-3 (2020 submission) values, which used a 40-byte `seed_ek` (40 + 4482 = 4522,

@@ -67,8 +67,9 @@ fn test_hqc3_parameters() {
     assert_eq!(Hqc3Params::N, 35851, "HQC-3 N parameter");
     assert_eq!(Hqc3Params::N1, 56, "HQC-3 N1 parameter");
     assert_eq!(Hqc3Params::N2, 640, "HQC-3 N2 parameter");
-    assert_eq!(Hqc3Params::OMEGA, 103, "HQC-3 OMEGA parameter");
-    assert_eq!(Hqc3Params::OMEGA_R, 115, "HQC-3 OMEGA_R parameter");
+    // HQC v5.0.0 (src/ref/hqc-3/parameters.h): PARAM_OMEGA=100, PARAM_OMEGA_R=114.
+    assert_eq!(Hqc3Params::OMEGA, 100, "HQC-3 OMEGA parameter");
+    assert_eq!(Hqc3Params::OMEGA_R, 114, "HQC-3 OMEGA_R parameter");
 
     // Verify derived parameters
     assert_eq!(
@@ -114,7 +115,8 @@ fn test_hqc5_parameters() {
     assert_eq!(Hqc5Params::N, 57637, "HQC-5 N parameter");
     assert_eq!(Hqc5Params::N1, 90, "HQC-5 N1 parameter");
     assert_eq!(Hqc5Params::N2, 640, "HQC-5 N2 parameter");
-    assert_eq!(Hqc5Params::OMEGA, 134, "HQC-5 OMEGA parameter");
+    // HQC v5.0.0 (src/ref/hqc-5/parameters.h): PARAM_OMEGA=131, PARAM_OMEGA_R=149.
+    assert_eq!(Hqc5Params::OMEGA, 131, "HQC-5 OMEGA parameter");
     assert_eq!(Hqc5Params::OMEGA_R, 149, "HQC-5 OMEGA_R parameter");
 
     // Verify derived parameters

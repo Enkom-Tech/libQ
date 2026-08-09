@@ -35,20 +35,20 @@ fn test_parameter_verification_against_reference() {
         utils_rejection_threshold: 16767881,
     };
 
-    // Official HQC-3 parameters from reference implementation (NIST Oct 2024 spec -- see
-    // lib-q-hqc/src/params_correct.rs's Hqc3Params::OMEGA*; this table was stale against an
-    // earlier spec revision, found via card t_f0d676d1's no-assert-test sweep: this test
-    // computed `all_match` but never asserted it, so the stale 100/114/114 values silently
-    // "matched" nothing and the drift was invisible)
+    // Official HQC-3 parameters from the HQC v5.0.0 reference implementation
+    // (gitlab.com/pqc-hqc/hqc tag v5.0.0, commit f46e542, src/ref/hqc-3/parameters.h). Corrected
+    // 2026-08-09 (card t_71d4f79a): omega/omega_r were previously 103/115, matching
+    // `Hqc3Params::OMEGA`/`OMEGA_R` before those were themselves fixed to the v5.0.0 values
+    // (100/114) in the same change.
     let hqc3_official = Hqc3OfficialParams {
         n: 35851,
         n1: 56,
         n2: 640,
         n1n2: 35840,
         k: 24,
-        omega: 103,
+        omega: 100,
         omega_e: 114,
-        omega_r: 115,
+        omega_r: 114,
         delta: 16,
         m: 8,
         gf_poly: 0x11D,
@@ -59,15 +59,16 @@ fn test_parameter_verification_against_reference() {
         utils_rejection_threshold: 16742417,
     };
 
-    // Official HQC-5 parameters from reference implementation (NIST Oct 2024 spec -- see
-    // Hqc5Params::OMEGA in params_correct.rs; same stale-table issue as HQC-3 above)
+    // Official HQC-5 parameters from the HQC v5.0.0 reference implementation
+    // (src/ref/hqc-5/parameters.h). Corrected 2026-08-09 (card t_71d4f79a): omega was previously
+    // 134, matching `Hqc5Params::OMEGA` before it was fixed to the v5.0.0 value (131).
     let hqc5_official = Hqc5OfficialParams {
         n: 57637,
         n1: 90,
         n2: 640,
         n1n2: 57600,
         k: 32,
-        omega: 134,
+        omega: 131,
         omega_e: 149,
         omega_r: 149,
         delta: 29,

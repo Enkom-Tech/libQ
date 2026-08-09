@@ -126,9 +126,9 @@ Zeroes and masks limbs so only the low `P::N1N2` bits of a vector remain (concat
 | Parameter | HQC-128 (`Hqc1Params`) | HQC-192 (`Hqc3Params`) | HQC-256 (`Hqc5Params`) |
 |-----------|------------------------|------------------------|------------------------|
 | `N` | 17669 | 35851 | 57637 |
-| `OMEGA` (dk sparse weight) | 66 | 103 | 134 |
+| `OMEGA` (dk sparse weight) | 66 | 100 | 131 |
 | `OMEGA_E` (`e` weight) | 75 | 114 | 149 |
-| `OMEGA_R` (`r1`, `r2` weight) | 75 | 115 | 149 |
+| `OMEGA_R` (`r1`, `r2` weight) | 75 | 114 | 149 |
 | `VEC_N_SIZE_64` | 277 | 561 | 901 |
 | `VEC_N_SIZE_BYTES` | 2209 | 4482 | 7205 |
 | `N1N2` (truncate width, bits) | 17664 | 35840 | 57600 |
