@@ -14,19 +14,18 @@ use core::arch::x86_64::{
 
 /// AVX2-optimized vector addition (XOR)
 ///
-/// Computes `output = a ^ b` using AVX2 instructions.
+/// Computes `output[i] = a[i] ^ b[i]` for `i` in `0..min(output.len(), a.len(), b.len())`,
+/// using AVX2 instructions. This matches the portable implementation's behavior
+/// (`vect_add_portable`, which zips `a` and `b`): if `a`/`b` are shorter than `output`,
+/// only the overlapping prefix is written and any `output` tail beyond that is left
+/// untouched.
 ///
-/// # Safety
-///
-/// This function uses unsafe AVX2 intrinsics and requires:
-/// - x86_64 CPU with AVX2 support (Intel Haswell+ or AMD Excavator+)
-/// - OS support for AVX2 state management (XSAVE/XSAVEOPT)
-/// - All input slices must be valid and properly sized
-/// - Memory alignment handled internally with unaligned loads/stores
-///
-/// The function is safe to call when the above conditions are met and
-/// the `simd-avx2` feature is enabled. Runtime CPU feature detection
-/// should be performed before calling this function.
+/// This function performs its own runtime AVX2 feature check and falls back to the
+/// portable implementation when AVX2 is not available, so it is sound to call directly
+/// regardless of whether the caller has already checked `has_avx2()` — see audit finding
+/// F4(b) (this function was previously safe but required CPU-feature detection "in prose"
+/// only, i.e. it could execute VEX-encoded AVX2 instructions and SIGILL on a CPU without
+/// AVX2).
 ///
 /// # Arguments
 /// * `output` - Output buffer
@@ -34,9 +33,30 @@ use core::arch::x86_64::{
 /// * `b` - Second input vector
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
 pub fn vect_add_avx2(output: &mut [u8], a: &[u8], b: &[u8]) {
-    unsafe {
-        let chunks = output.len() / 32;
+    if !crate::simd::runtime::has_avx2() {
+        // No AVX2 on this CPU: do not attempt to run VEX-encoded intrinsics (F4(b)).
+        super::super::portable::vect_add_portable(output, a, b);
+        return;
+    }
 
+    // SAFETY: `has_avx2()` was just confirmed true above, so the CPU supports the
+    // AVX2 intrinsics used in `vect_add_avx2_unchecked`.
+    unsafe { vect_add_avx2_unchecked(output, a, b) }
+}
+
+/// # Safety
+///
+/// The caller must ensure the CPU supports AVX2 (e.g. `crate::simd::runtime::has_avx2()`
+/// returned `true`). Length preconditions are enforced internally (F4(a)): the SIMD loop
+/// and its scalar remainder are both bounded by `min(output.len(), a.len(), b.len())`, so
+/// this never reads or writes past the end of any of the three slices, even when they
+/// have different lengths.
+#[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
+unsafe fn vect_add_avx2_unchecked(output: &mut [u8], a: &[u8], b: &[u8]) {
+    let len = output.len().min(a.len()).min(b.len());
+    let chunks = len / 32;
+
+    unsafe {
         for i in 0..chunks {
             let offset = i * 32;
             let vec_a = _mm256_loadu_si256(a.as_ptr().add(offset) as *const __m256i);
@@ -44,14 +64,14 @@ pub fn vect_add_avx2(output: &mut [u8], a: &[u8], b: &[u8]) {
             let result = _mm256_xor_si256(vec_a, vec_b);
             _mm256_storeu_si256(output.as_mut_ptr().add(offset) as *mut __m256i, result);
         }
+    }
 
-        // Handle remaining bytes
-        let remaining = output.len() % 32;
-        if remaining > 0 {
-            let offset = chunks * 32;
-            for j in 0..remaining {
-                output[offset + j] = a[offset + j] ^ b[offset + j];
-            }
+    // Handle remaining bytes (still bounded by `len`, not `output.len()`)
+    let remaining = len % 32;
+    if remaining > 0 {
+        let offset = chunks * 32;
+        for j in 0..remaining {
+            output[offset + j] = a[offset + j] ^ b[offset + j];
         }
     }
 }

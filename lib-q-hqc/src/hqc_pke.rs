@@ -750,6 +750,12 @@ impl<P: HqcParams> HqcPke<P> {
     }
 
     /// Vector addition in GF(2)
+    ///
+    /// `len` must not exceed the length of any of `output`, `a`, `b` — this is enforced
+    /// unconditionally (both the AVX2 and portable branches previously disagreed about
+    /// whether `len` was trustworthy: the portable fallback silently clamped per-index while
+    /// the AVX2 branch reconstructed raw byte slices of `len * 8` with no check at all, which
+    /// is an out-of-bounds read/write when `len` exceeds a buffer. See audit finding F3.)
     fn vect_add(
         &self,
         output: &mut [u64],
@@ -757,6 +763,10 @@ impl<P: HqcParams> HqcPke<P> {
         b: &[u64],
         len: usize,
     ) -> Result<(), HqcPkeError> {
+        if len > output.len() || len > a.len() || len > b.len() {
+            return Err(HqcPkeError::InvalidKey);
+        }
+
         #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
         {
             // Check if AVX2 is available at runtime
@@ -767,6 +777,9 @@ impl<P: HqcParams> HqcPke<P> {
                     PolynomialOps,
                 };
 
+                // SAFETY: `len <= output.len(), a.len(), b.len()` is checked above, so
+                // reinterpreting the first `len` u64 elements of each slice as `len * 8`
+                // bytes stays within each slice's allocation.
                 let a_bytes =
                     unsafe { core::slice::from_raw_parts(a.as_ptr() as *const u8, len * 8) };
                 let b_bytes =
@@ -782,9 +795,7 @@ impl<P: HqcParams> HqcPke<P> {
 
         // Fallback to portable implementation
         for i in 0..len {
-            if i < output.len() && i < a.len() && i < b.len() {
-                output[i] = a[i] ^ b[i];
-            }
+            output[i] = a[i] ^ b[i];
         }
         Ok(())
     }

@@ -32,7 +32,7 @@ pub type Vec128_64 = uint64x2_t;
 /// Store 128-bit vector to unaligned memory
 #[inline(always)]
 pub fn vst1q_u8(output: &mut [u8], vector: Vec128) {
-    debug_assert_eq!(output.len(), 16);
+    assert_eq!(output.len(), 16);
     unsafe {
         core::arch::aarch64::vst1q_u8(output.as_mut_ptr(), vector);
     }
@@ -41,14 +41,14 @@ pub fn vst1q_u8(output: &mut [u8], vector: Vec128) {
 /// Load 128-bit vector from unaligned memory
 #[inline(always)]
 pub fn vld1q_u8(input: &[u8]) -> Vec128 {
-    debug_assert_eq!(input.len(), 16);
+    assert_eq!(input.len(), 16);
     unsafe { core::arch::aarch64::vld1q_u8(input.as_ptr()) }
 }
 
 /// Store 128-bit vector of 32-bit integers to unaligned memory
 #[inline(always)]
 pub fn vst1q_u32(output: &mut [u32], vector: Vec128_32) {
-    debug_assert_eq!(output.len(), 4);
+    assert_eq!(output.len(), 4);
     unsafe {
         core::arch::aarch64::vst1q_u32(output.as_mut_ptr(), vector);
     }
@@ -57,7 +57,7 @@ pub fn vst1q_u32(output: &mut [u32], vector: Vec128_32) {
 /// Load 128-bit vector of 32-bit integers from unaligned memory
 #[inline(always)]
 pub fn vld1q_u32(input: &[u32]) -> Vec128_32 {
-    debug_assert_eq!(input.len(), 4);
+    assert_eq!(input.len(), 4);
     unsafe { core::arch::aarch64::vld1q_u32(input.as_ptr()) }
 }
 
@@ -227,4 +227,45 @@ pub fn vminq_u8(a: Vec128, b: Vec128) -> Vec128 {
 #[inline(always)]
 pub fn vminq_u32(a: Vec128_32, b: Vec128_32) -> Vec128_32 {
     unsafe { core::arch::aarch64::vminq_u32(a, b) }
+}
+
+// Regression tests for the F10 finding on the aarch64 side. Mirrors the
+// avx2.rs guard: the store/load wrappers now use unconditional `assert_eq!`
+// instead of `debug_assert_eq!`, so a wrong-length slice panics even in a
+// release build. This module only compiles/runs on `target_arch = "aarch64"`;
+// it was NOT executed in this session (dev environment is x86_64/Windows) -
+// the fix is identical in shape to the avx2.rs one, which WAS run red-then-green
+// (see mm256_storeu_si256_u8_rejects_wrong_length et al.), and this mirrors it
+// exactly for the equivalent aarch64 wrappers.
+#[cfg(all(test, feature = "simd128", target_arch = "aarch64"))]
+mod tests {
+    use super::*;
+
+    #[test]
+    #[should_panic]
+    fn vst1q_u8_rejects_wrong_length() {
+        let mut short = [0u8; 4];
+        vst1q_u8(&mut short, vdupq_n_u8(0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn vld1q_u8_rejects_wrong_length() {
+        let short = [0u8; 4];
+        let _ = vld1q_u8(&short);
+    }
+
+    #[test]
+    #[should_panic]
+    fn vst1q_u32_rejects_wrong_length() {
+        let mut short = [0u32; 1];
+        vst1q_u32(&mut short, vdupq_n_u32(0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn vld1q_u32_rejects_wrong_length() {
+        let short = [0u32; 1];
+        let _ = vld1q_u32(&short);
+    }
 }
