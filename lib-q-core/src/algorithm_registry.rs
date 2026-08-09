@@ -769,38 +769,7 @@ impl AlgorithmRegistry {
 
     #[cfg(not(feature = "alloc"))]
     pub fn algorithms_by_security_level(&self, level: u32) -> &'static [Algorithm] {
-        // In no_std mode, return a static slice based on security level
-        match level {
-            1 => &[
-                Algorithm::MlKem512,
-                Algorithm::MlDsa44,
-                Algorithm::FnDsa,
-                Algorithm::FnDsa512,
-                Algorithm::Saturnin,
-                Algorithm::Shake256Aead,
-                Algorithm::RomulusN,
-                Algorithm::RomulusM,
-            ],
-            3 => &[
-                Algorithm::MlKem768,
-                Algorithm::MlDsa65,
-                Algorithm::LatticeRingSignature,
-                Algorithm::LatticeBlindIssuance,
-                Algorithm::LatticeAnonymousToken,
-                Algorithm::LatticeNullifierRegistry,
-                Algorithm::LatticeWitnessNullifier,
-                Algorithm::LatticeDualRingLb,
-                Algorithm::MixOnionRouting,
-                Algorithm::SessionResumptionBinding,
-            ],
-            4 => &[Algorithm::DuplexSpongeAead, Algorithm::TweakAead],
-            5 => &[
-                Algorithm::MlKem1024,
-                Algorithm::MlDsa87,
-                Algorithm::FnDsa1024,
-            ],
-            _ => &[],
-        }
+        security_level_algorithms(level)
     }
 
     /// Get algorithm metadata
@@ -963,40 +932,92 @@ pub fn algorithms_by_security_level(level: u32) -> Vec<Algorithm> {
     AlgorithmRegistry::new().algorithms_by_security_level(level)
 }
 
-#[cfg(not(feature = "alloc"))]
-pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
-    // In no_alloc mode, return static slice directly without using registry
+// Single source of truth for the no_std (`not(feature = "alloc")`) security-level lookup.
+//
+// These lists exist because without `alloc` the lookup cannot build a `Vec`, so it has to return
+// a `&'static [Algorithm]`. They were previously written out twice, by hand, in the two
+// `algorithms_by_security_level` bodies below, and both had drifted badly from the metadata
+// table: level 5 listed 3 algorithms where the table says 9 (every Classic McEliece entry, HQC-256
+// and both SLH-DSA-256f entries were missing), level 1 listed 8 of 13, level 3 listed 10 of 14.
+//
+// That is the same failure as the original wrong-category defect and in the same unsafe
+// direction: a no_std caller asking for the Category 5 algorithms was silently offered a subset.
+// Both bodies now return these consts, and `no_std_security_level_lists_match_the_registry`
+// pins them against the metadata table so they cannot drift again.
+// Compiled for the no_std path that uses them, and for tests, where
+// `no_std_security_level_lists_match_the_registry` compares them against the metadata table.
+// Without the `test` arm the guard could not see them from a std test run; without the
+// `not(alloc)` arm the no_std lookup would have nothing to return.
+#[cfg(any(not(feature = "alloc"), test))]
+const SECURITY_LEVEL_1_ALGORITHMS: &[Algorithm] = &[
+    Algorithm::MlKem512,
+    Algorithm::CbKem348864,
+    Algorithm::Hqc128,
+    Algorithm::MlDsa44,
+    Algorithm::FnDsa,
+    Algorithm::FnDsa512,
+    Algorithm::SlhDsaSha256128fRobust,
+    Algorithm::SlhDsaShake256128fRobust,
+    Algorithm::Saturnin,
+    Algorithm::Shake256Aead,
+    Algorithm::RomulusN,
+    Algorithm::RomulusM,
+    Algorithm::RoccaS,
+];
+
+#[cfg(any(not(feature = "alloc"), test))]
+const SECURITY_LEVEL_3_ALGORITHMS: &[Algorithm] = &[
+    Algorithm::MlKem768,
+    Algorithm::CbKem460896,
+    Algorithm::Hqc192,
+    Algorithm::MlDsa65,
+    Algorithm::SlhDsaSha256192fRobust,
+    Algorithm::SlhDsaShake256192fRobust,
+    Algorithm::LatticeRingSignature,
+    Algorithm::LatticeBlindIssuance,
+    Algorithm::LatticeAnonymousToken,
+    Algorithm::LatticeNullifierRegistry,
+    Algorithm::LatticeWitnessNullifier,
+    Algorithm::LatticeDualRingLb,
+    Algorithm::MixOnionRouting,
+    Algorithm::SessionResumptionBinding,
+];
+
+// The AEAD entries registered at 4. NIST PQC categories do not apply to AEADs, and the other
+// AEADs in the table sit at 1, so this value is questionable on its own terms -- but that is a
+// separate question from the drift being fixed here, and these two are reproduced at whatever
+// the metadata table says rather than silently renumbered.
+#[cfg(any(not(feature = "alloc"), test))]
+const SECURITY_LEVEL_4_ALGORITHMS: &[Algorithm] =
+    &[Algorithm::DuplexSpongeAead, Algorithm::TweakAead];
+
+#[cfg(any(not(feature = "alloc"), test))]
+const SECURITY_LEVEL_5_ALGORITHMS: &[Algorithm] = &[
+    Algorithm::MlKem1024,
+    Algorithm::CbKem6688128,
+    Algorithm::CbKem6960119,
+    Algorithm::CbKem8192128,
+    Algorithm::Hqc256,
+    Algorithm::MlDsa87,
+    Algorithm::FnDsa1024,
+    Algorithm::SlhDsaSha256256fRobust,
+    Algorithm::SlhDsaShake256256fRobust,
+];
+
+#[cfg(any(not(feature = "alloc"), test))]
+fn security_level_algorithms(level: u32) -> &'static [Algorithm] {
     match level {
-        1 => &[
-            Algorithm::MlKem512,
-            Algorithm::MlDsa44,
-            Algorithm::FnDsa,
-            Algorithm::FnDsa512,
-            Algorithm::Saturnin,
-            Algorithm::Shake256Aead,
-            Algorithm::RomulusN,
-            Algorithm::RomulusM,
-        ],
-        3 => &[
-            Algorithm::MlKem768,
-            Algorithm::MlDsa65,
-            Algorithm::LatticeRingSignature,
-            Algorithm::LatticeBlindIssuance,
-            Algorithm::LatticeAnonymousToken,
-            Algorithm::LatticeNullifierRegistry,
-            Algorithm::LatticeWitnessNullifier,
-            Algorithm::LatticeDualRingLb,
-            Algorithm::MixOnionRouting,
-            Algorithm::SessionResumptionBinding,
-        ],
-        4 => &[Algorithm::DuplexSpongeAead, Algorithm::TweakAead],
-        5 => &[
-            Algorithm::MlKem1024,
-            Algorithm::MlDsa87,
-            Algorithm::FnDsa1024,
-        ],
+        1 => SECURITY_LEVEL_1_ALGORITHMS,
+        3 => SECURITY_LEVEL_3_ALGORITHMS,
+        4 => SECURITY_LEVEL_4_ALGORITHMS,
+        5 => SECURITY_LEVEL_5_ALGORITHMS,
         _ => &[],
     }
+}
+
+#[cfg(not(feature = "alloc"))]
+pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
+    security_level_algorithms(level)
 }
 
 #[cfg(test)]
@@ -1111,6 +1132,53 @@ mod tests {
     /// against EACH OTHER, so a future edit to one of them cannot drift. It walks whatever the
     /// registry reports as supported rather than a hand-written list, so an algorithm added
     /// later is covered without anyone remembering to extend this test.
+    /// The no_std lookup returns hand-written static lists because it cannot build a `Vec`.
+    /// Nothing compared them to the metadata table, and they had drifted: level 5 listed 3
+    /// algorithms where the table says 9, omitting every Classic McEliece entry, HQC-256 and both
+    /// SLH-DSA-256f entries. A no_std caller asking for the strongest algorithms was handed a
+    /// subset, silently, which is the same failure the wrong-category defect produced.
+    ///
+    /// This walks the metadata table rather than a hand-written expectation, so an algorithm
+    /// added later is covered without anyone remembering to extend the lists or this test.
+    #[test]
+    fn no_std_security_level_lists_match_the_registry() {
+        let registry = AlgorithmRegistry::new();
+
+        let mut levels_checked = 0usize;
+        for level in [1u32, 3, 4, 5] {
+            let mut expected: Vec<Algorithm> = registry
+                .algorithms
+                .values()
+                .filter(|meta| meta.enabled && meta.security_level == level)
+                .map(|meta| meta.algorithm)
+                .collect();
+            let mut actual: Vec<Algorithm> = security_level_algorithms(level).to_vec();
+
+            assert!(
+                !expected.is_empty(),
+                "level {level}: the metadata table has no enabled entry, so this comparison                  would pass while checking nothing"
+            );
+
+            expected.sort_by_key(|a| format!("{a:?}"));
+            actual.sort_by_key(|a| format!("{a:?}"));
+            assert_eq!(
+                actual, expected,
+                "level {level}: the no_std static list disagrees with the metadata table.                  These are duplicate copies of one table and must be changed together."
+            );
+            levels_checked += 1;
+        }
+
+        assert_eq!(
+            levels_checked, 4,
+            "expected to compare all four populated levels"
+        );
+
+        // A level the table does not populate must yield nothing rather than falling through to
+        // some other level's list.
+        assert!(security_level_algorithms(2).is_empty());
+        assert!(security_level_algorithms(99).is_empty());
+    }
+
     #[test]
     fn registry_and_types_agree_on_every_security_level() {
         let registry = AlgorithmRegistry::new();
