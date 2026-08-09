@@ -100,12 +100,34 @@ impl From<DualRingLbSignature> for DualRingOpeningProof {
 }
 
 /// Fiat–Shamir context: federation context plus per-index domain-separated digests.
+///
+/// **Framing note (card t_f0d676d1 / finding F25).** Earlier this function built its context by
+/// appending bytes directly after [`federation_signing_context`]'s raw output, which made this
+/// context a byte-prefix-extension of the base one: an attacker could choose a longer message for
+/// the base context that swallows this function's (fully public, attacker-computable) suffix,
+/// producing a byte-identical transcript string for two different `(ring, message)` framings
+/// across the two constructions (`tests/fs_context_collision.rs` exhibits this concretely against
+/// the pre-fix construction). To remove that framing hazard without relying on the base context
+/// happening to be the last field absorbed by any particular caller, this function now hashes the
+/// base context to a fixed 32-byte digest *before* appending the DualRing-LB-specific suffix, so
+/// this context is no longer a byte-extension of any other function's output — reproducing it
+/// requires a SHAKE256 preimage, not a choice of message.
 #[must_use]
 pub fn dualring_lb_signing_context(ring: &[AjtaiCommitment], message: &[u8]) -> Vec<u8> {
     let st = dualring_lb_challenge_state(ring, message);
-    let mut v = federation_signing_context(ring, message);
-    v.push(2);
+    let base_ctx = federation_signing_context(ring, message);
+    let mut h = lib_q_sha3::Shake256::default();
+    h.update(b"lib-q-ring-sig/dualring-lb-base-ctx-digest-v1");
+    h.update(&base_ctx);
+    let mut base_ctx_digest = [0u8; 32];
+    let mut r = h.finalize_xof();
+    XofReader::read(&mut r, &mut base_ctx_digest);
+
+    let mut v = Vec::with_capacity(
+        32 + DUALRING_LB_CTX_TAG.len() + 32 * st.per_member_challenge_digest.len(),
+    );
     v.extend_from_slice(DUALRING_LB_CTX_TAG);
+    v.extend_from_slice(&base_ctx_digest);
     for s in &st.per_member_challenge_digest {
         v.extend_from_slice(s);
     }
