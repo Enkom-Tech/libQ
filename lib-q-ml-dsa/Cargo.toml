@@ -60,6 +60,28 @@ name = "hardened_dudect_smoke"
 path = "tests/hardened_dudect_smoke.rs"
 required-features = ["hardened", "mldsa44", "dudect-smoke-tests"]
 
+# These three are `#![cfg(all(feature = "random", feature = "acvp"))]` and `acvp` is NOT a
+# default feature. Without a `[[test]]` entry cargo auto-discovers them, builds them under
+# default features, and the whole file evaluates to nothing -- so `cargo test -p lib-q-ml-dsa
+# --test determinism` prints "running 0 tests ... test result: ok", which reads as a pass. That
+# is how 20 tests here sat disabled without anyone noticing. Declaring the requirement makes an
+# explicit selection fail loudly instead. CI already supplies the features (ci.yml:317 and the
+# explicit `--test determinism` run at ci.yml:1852), so these do execute there.
+[[test]]
+name = "determinism"
+path = "tests/determinism.rs"
+required-features = ["random", "acvp"]
+
+[[test]]
+name = "mode_tests"
+path = "tests/mode_tests.rs"
+required-features = ["random", "acvp"]
+
+[[test]]
+name = "siggen_debug"
+path = "tests/siggen_debug.rs"
+required-features = ["random", "acvp"]
+
 [features]
 default = ["std", "mldsa44", "mldsa65", "mldsa87", "random"]
 
