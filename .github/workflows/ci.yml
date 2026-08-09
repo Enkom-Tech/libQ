@@ -123,6 +123,15 @@ jobs:
       - name: Guard against withdrawn crates reappearing
         run: bash ./scripts/ci-guard-withdrawn-crates.sh
 
+      # Every install-action tool must carry an exact @version. An unpinned tool resolves to
+      # @latest at run time, so a third party's release can turn CI red with no change on our side
+      # -- and for a MEASUREMENT tool it silently changes what the number means (tarpaulin 0.35.2
+      # vs 0.37.0 disagree by up to 44 points on the same crate, so a floor tuned against one is
+      # not a floor against the other). Written while unpinning the coverage nightly (t_93dc6b27);
+      # on first run it found three unpinned installs beyond the two that prompted it.
+      - name: Guard that CI tool installs are version-pinned
+        run: bash ./scripts/ci-guard-pinned-ci-tools.sh .
+
       # Every committed KAT vector must say where it came from, and a self-generated vector must
       # not be able to sit at a path called `official`/`nist`/`rfc`. lib-q-hqc shipped 9 KAT tests
       # reading `kats/official/*.rsp` whose every response value was written by the code under
@@ -1191,7 +1200,7 @@ jobs:
       - name: Install cross
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
-          tool: cross
+          tool: cross@0.2.5
 
       - name: Cache dependencies
         uses: actions/cache@v6
