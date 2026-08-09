@@ -286,7 +286,26 @@ cargo doc --all-features --no-deps --document-private-items
 
 # --- core-validation parity ---
 echo "========== fmt + clippy + audit + duplicate check =========="
-cargo fmt --all -- --check
+# `cargo fmt --all` aborts on Windows with "The filename or extension is too long. (os error 206)"
+# BEFORE CHECKING A SINGLE FILE -- it builds one giant rustfmt command line across ~77 members and
+# blows the command-length limit. It exits non-zero, so this reads as a formatting failure when
+# nothing was actually inspected. This script documents Git Bash use above, so it can hit that;
+# the WSL-only siblings (ci-wsl-mirror.sh, simulate-ci-wsl.sh, wsl-build-and-test.sh) cannot and
+# deliberately keep the bare call. scripts/rust-pre-push-health.sh has the full version of this.
+if ! cargo fmt --all -- --check; then
+  if [[ "${OS:-}" == "Windows_NT" || "$(uname -s)" == MINGW* || "$(uname -s)" == MSYS* ]]; then
+    echo "warn: cargo fmt --all failed on Windows; retrying per package (os error 206 workaround)" >&2
+    fmt_failed=0
+    while IFS= read -r pkg; do
+      [[ -z "$pkg" ]] && continue
+      cargo fmt -p "$pkg" -- --check || fmt_failed=1
+    done < <(cargo metadata --no-deps --format-version 1 |
+      python -c 'import json,sys; [print(p["name"]) for p in json.load(sys.stdin)["packages"]]')
+    [[ "$fmt_failed" -eq 0 ]] || exit 1
+  else
+    exit 1
+  fi
+fi
 cargo clippy --all-targets --all-features -- -D warnings
 cargo audit --deny warnings
 bash "$ROOT/scripts/check-integration-test-duplicates.sh"
