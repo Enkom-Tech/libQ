@@ -323,8 +323,20 @@ def load_exemptions(root: Path) -> set[str]:
 
 
 def tracked_rs_files(root: Path):
+    # Tracked AND untracked-but-not-ignored. Scanning only tracked files leaves a hole exactly
+    # the width of "a new test file": it is invisible to this guard until the commit that adds
+    # it, so the author's pre-commit run passes and CI fails afterwards. That happened with
+    # lib-q-core/tests/wasm_smoke.rs at 6b73868 -- the guard was run, returned OK because the
+    # file was still untracked, and only failed once committed. `--exclude-standard` keeps
+    # .gitignore'd paths (scratchpad/, target/) out.
     out = subprocess.run(
         ["git", "-C", str(root), "ls-files", "*.rs"],
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    out += subprocess.run(
+        ["git", "-C", str(root), "ls-files", "--others", "--exclude-standard", "*.rs"],
         capture_output=True,
         text=True,
         check=True,
