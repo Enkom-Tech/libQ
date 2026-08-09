@@ -10,7 +10,7 @@
 use alloc::vec;
 use core::fmt;
 
-use crate::params_correct::HqcParams;
+use crate::params::HqcParams;
 
 /// Reed-Muller codeword representation (128 bits = 16 bytes = 4 32-bit words)
 /// This matches the reference implementation's rm_codeword_t union
@@ -80,8 +80,8 @@ impl<P: HqcParams> ReedMuller<P> {
     #[cfg(feature = "alloc")]
     pub fn encode(&self, message: &[u8], codeword: &mut [u8]) -> Result<(), ReedMullerError> {
         let n2_bits = P::N2;
-        let n2_bytes = crate::params_correct::ceil_divide(n2_bits, 8);
-        let multiplicity = crate::params_correct::ceil_divide(n2_bits, 128);
+        let n2_bytes = crate::params::ceil_divide(n2_bits, 8);
+        let multiplicity = crate::params::ceil_divide(n2_bits, 128);
 
         if codeword.len() < n2_bytes {
             return Err(ReedMullerError::InvalidCodewordLength);
@@ -131,8 +131,8 @@ impl<P: HqcParams> ReedMuller<P> {
     #[cfg(feature = "alloc")]
     pub fn decode(&self, codeword: &[u8], message: &mut [u8]) -> Result<(), ReedMullerError> {
         let n2_bits = P::N2;
-        let n2_bytes = crate::params_correct::ceil_divide(n2_bits, 8);
-        let multiplicity = crate::params_correct::ceil_divide(n2_bits, 128);
+        let n2_bytes = crate::params::ceil_divide(n2_bits, 8);
+        let multiplicity = crate::params::ceil_divide(n2_bits, 128);
 
         if codeword.len() < n2_bytes {
             return Err(ReedMullerError::InvalidCodewordLength);
@@ -188,8 +188,8 @@ impl<P: HqcParams> ReedMuller<P> {
     #[cfg(not(feature = "alloc"))]
     pub fn encode(&self, message: &[u8], codeword: &mut [u8]) -> Result<(), ReedMullerError> {
         let n2_bits = P::N2;
-        let n2_bytes = crate::params_correct::ceil_divide(n2_bits, 8);
-        let multiplicity = crate::params_correct::ceil_divide(n2_bits, 128);
+        let n2_bytes = crate::params::ceil_divide(n2_bits, 8);
+        let multiplicity = crate::params::ceil_divide(n2_bits, 128);
 
         if codeword.len() < n2_bytes {
             return Err(ReedMullerError::InvalidCodewordLength);
@@ -247,8 +247,8 @@ impl<P: HqcParams> ReedMuller<P> {
     #[cfg(not(feature = "alloc"))]
     pub fn decode(&self, codeword: &[u8], message: &mut [u8]) -> Result<(), ReedMullerError> {
         let n2_bits = P::N2;
-        let n2_bytes = crate::params_correct::ceil_divide(n2_bits, 8);
-        let multiplicity = crate::params_correct::ceil_divide(n2_bits, 128);
+        let n2_bytes = crate::params::ceil_divide(n2_bits, 8);
+        let multiplicity = crate::params::ceil_divide(n2_bits, 128);
 
         if codeword.len() < n2_bytes {
             return Err(ReedMullerError::InvalidCodewordLength);
@@ -461,7 +461,7 @@ mod tests {
     use alloc::string::ToString;
 
     use super::*;
-    use crate::params_correct::Hqc1Params;
+    use crate::params::Hqc1Params;
 
     #[cfg(feature = "alloc")]
     /// `ReedMullerError::Display` is never invoked anywhere in the crate, and `DecodingFailed`
@@ -660,7 +660,7 @@ mod tests {
     fn test_reed_muller_encode_decode_roundtrip_hqc3_and_hqc5() {
         use alloc::vec::Vec;
 
-        use crate::params_correct::{
+        use crate::params::{
             Hqc3Params,
             Hqc5Params,
         };

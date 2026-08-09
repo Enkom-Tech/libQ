@@ -1,7 +1,7 @@
 //! Card t_1558e72f: HQC public keys must be `seed_ek (32 bytes) || s (CEIL(N/8) bytes)` per the
 //! HQC v5.0.0 (2025-08-22) specification (`PROVENANCE.md`'s cited reference). This test derives
 //! the expected length from `VEC_N_SIZE_BYTES` directly rather than comparing a constant to its
-//! own definition (see `params_correct.rs`'s prior tautological asserts for that failure mode),
+//! own definition (see `params.rs`'s prior tautological asserts for that failure mode),
 //! and adds a runtime leg so a serialization-only regression (constant right, encoder wrong) would
 //! also be caught.
 

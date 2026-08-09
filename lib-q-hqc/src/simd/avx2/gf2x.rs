@@ -27,7 +27,7 @@ use alloc::vec::Vec;
 use core::arch::x86_64::_mm256_setzero_si256;
 
 use crate::hqc_pke::HqcPkeError;
-use crate::params_correct::HqcParams;
+use crate::params::HqcParams;
 
 /// \(output = a \cdot b \bmod (x^N - 1)\); requires AVX2 + PCLMULQDQ.
 #[cfg(feature = "alloc")]
@@ -96,7 +96,7 @@ unsafe fn vect_mul_toom_avx2<P: HqcParams>(output: &mut [u64], a: &[u64], b: &[u
 mod tests {
     use super::*;
     use crate::hqc_pke::schoolbook_vect_mul_mod_xnm1;
-    use crate::params_correct::{
+    use crate::params::{
         Hqc1Params,
         HqcParams,
     };
@@ -136,12 +136,12 @@ mod tests {
     #[cfg(feature = "hqc192")]
     #[test]
     fn avx2_vect_mul_matches_schoolbook_hqc192() {
-        assert_avx2_matches_schoolbook::<crate::params_correct::Hqc3Params>(&[1u64, 7, 0xBEEF]);
+        assert_avx2_matches_schoolbook::<crate::params::Hqc3Params>(&[1u64, 7, 0xBEEF]);
     }
 
     #[cfg(feature = "hqc256")]
     #[test]
     fn avx2_vect_mul_matches_schoolbook_hqc256() {
-        assert_avx2_matches_schoolbook::<crate::params_correct::Hqc5Params>(&[3u64, 11, 0xFACADE]);
+        assert_avx2_matches_schoolbook::<crate::params::Hqc5Params>(&[3u64, 11, 0xFACADE]);
     }
 }

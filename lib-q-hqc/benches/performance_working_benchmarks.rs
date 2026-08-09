@@ -10,7 +10,7 @@ use criterion::{
     criterion_main,
 };
 #[cfg(feature = "alloc")]
-use lib_q_hqc::hqc_correct::{
+use lib_q_hqc::hqc_core::{
     Hqc128Kem,
     Hqc192Kem,
     Hqc256Kem,

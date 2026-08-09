@@ -56,7 +56,7 @@ Secret key layout: `ek_pke` ‖ `dk_pke` (32) ‖ `sigma` (16) ‖ `seed_kem` (4
 |--------|------|
 | `hqc_kem` | KEM encapsulation / decapsulation |
 | `hqc_pke` | Public-key encryption layer |
-| `params_correct` | Parameter sets HQC-1 / HQC-3 / HQC-5 |
+| `params` | Parameter sets HQC-1 / HQC-3 / HQC-5 |
 | `concatenated_code` | Reed–Solomon + Reed–Muller concatenated code |
 | `reed_solomon`, `reed_muller` | Constituent codes |
 | `internal` | Polynomial / vector primitives, SHAKE256 |
@@ -69,18 +69,18 @@ See [SIMD architecture](docs/simd-architecture.md) and [vector operations](docs/
 ## Usage
 
 ```rust
+use lib_q_hqc::hqc_kem::HqcKem;
+use lib_q_hqc::params::Hqc1Params;
 use lib_q_random::LibQRng;
-use lib_q_hqc::hqc_core_impl::*;
 
 let mut rng = LibQRng::new_deterministic([42u8; 32]);
-let keypair = Hqc128CoreImpl::generate_keypair(&mut rng);
+let kem = HqcKem::<Hqc1Params>::new().expect("create KEM");
 
-let (ciphertext, shared_secret1) = Hqc128CoreImpl::encapsulate(&keypair.public_key, &mut rng)
-    .expect("encapsulation");
-let shared_secret2 = Hqc128CoreImpl::decapsulate(&keypair.secret_key, &ciphertext)
-    .expect("decapsulation");
+let (public_key, secret_key) = kem.keygen(&mut rng).expect("keygen");
+let (ciphertext, shared_secret1) = kem.encapsulate(&public_key, &mut rng).expect("encapsulate");
+let shared_secret2 = kem.decapsulate(&secret_key, &ciphertext).expect("decapsulate");
 
-assert_eq!(shared_secret1.as_slice(), shared_secret2.as_slice());
+assert_eq!(shared_secret1.as_bytes(), shared_secret2.as_bytes());
 ```
 
 Integration tests exercise KEM round-trips with both pinned seeds (for reproducible

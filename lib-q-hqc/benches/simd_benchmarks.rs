@@ -264,7 +264,7 @@ fn benchmark_error_correction(c: &mut Criterion) {
 /// Benchmark HQC parameter set operations
 #[cfg(feature = "alloc")]
 fn benchmark_hqc_parameter_sets(c: &mut Criterion) {
-    use lib_q_hqc::params_correct::{
+    use lib_q_hqc::params::{
         Hqc1Params,
         Hqc3Params,
         Hqc5Params,
@@ -288,7 +288,7 @@ fn benchmark_hqc_parameter_sets(c: &mut Criterion) {
 /// the portable implementation — no "avx2" arm here, for the same reason as
 /// `benchmark_polynomial_multiplication`.
 #[cfg(feature = "alloc")]
-fn benchmark_parameter_set<P: lib_q_hqc::params_correct::HqcParams>(
+fn benchmark_parameter_set<P: lib_q_hqc::params::HqcParams>(
     group: &mut criterion::BenchmarkGroup<'_, criterion::measurement::WallTime>,
     name: &str,
 ) {
@@ -352,7 +352,7 @@ fn benchmark_throughput(c: &mut Criterion) {
 #[cfg(all(feature = "simd-avx2", feature = "alloc", target_arch = "x86_64"))]
 fn benchmark_vect_mul_avx2_vs_schoolbook(c: &mut Criterion) {
     use lib_q_hqc::hqc_pke::schoolbook_vect_mul_mod_xnm1;
-    use lib_q_hqc::params_correct::{
+    use lib_q_hqc::params::{
         Hqc1Params,
         HqcParams,
     };

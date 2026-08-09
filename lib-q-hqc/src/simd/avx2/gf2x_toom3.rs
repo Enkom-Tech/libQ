@@ -1,6 +1,6 @@
 //! Toom–Cook 3 + Karatsuba + PCLMUL multiply from `reference/hqc/src/x86_64/common/hqc-*/gf2x.c`.
 //!
-//! Buffer sizes follow `PARAM_N_MULT` / `VEC_N_256_SIZE_64` on [`crate::params_correct::HqcParams`].
+//! Buffer sizes follow `PARAM_N_MULT` / `VEC_N_256_SIZE_64` on [`crate::params::HqcParams`].
 
 #![allow(unsafe_code)]
 #![allow(unsafe_op_in_unsafe_fn)]
@@ -713,7 +713,7 @@ pub(crate) unsafe fn reduce_avx2_to_u64(
 #[cfg(test)]
 mod toom_dims_tests {
     use super::ToomDims;
-    use crate::params_correct::{
+    use crate::params::{
         Hqc1Params,
         Hqc3Params,
         Hqc5Params,

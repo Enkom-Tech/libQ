@@ -18,7 +18,7 @@ The implementation targets the [NIST HQC specification (2025-08-22)](https://pqc
 and `θ` (see `src/hqc_kem.rs` and `kats/regression-pins/PROVENANCE.md`). It supersedes the earlier
 [October 2024 specification](https://pqc-hqc.org/doc/hqc-specification_2024-10-30.pdf).
 Cryptographic object sizes are defined in [`lib-q-types::hqc`](../lib-q-types/src/hqc.rs)
-and mirrored in `params_correct`:
+and mirrored in `params`:
 
 | Set | N1 | N2 | OMEGA | DELTA | Public key (B) | Ciphertext (B) |
 |-----|----|----|-------|-------|----------------|----------------|

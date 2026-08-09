@@ -7,7 +7,7 @@
 #[cfg(all(feature = "aes-drbg", feature = "bearssl-aes"))]
 use lib_q_hqc::hqc_pke::HqcPke;
 #[cfg(all(feature = "aes-drbg", feature = "bearssl-aes"))]
-use lib_q_hqc::params_correct::Hqc1Params;
+use lib_q_hqc::params::Hqc1Params;
 
 #[cfg(all(feature = "aes-drbg", feature = "bearssl-aes"))]
 #[test]

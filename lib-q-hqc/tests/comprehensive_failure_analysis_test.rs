@@ -2,7 +2,7 @@
 use lib_q_hqc::{
     HqcParams,
     hqc_kem::HqcKem,
-    params_correct::{
+    params::{
         Hqc1Params,
         Hqc3Params,
         Hqc5Params,

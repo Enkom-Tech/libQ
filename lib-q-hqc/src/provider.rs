@@ -22,7 +22,7 @@ use lib_q_core::{
 #[cfg(all(feature = "alloc", feature = "random"))]
 use zeroize::Zeroizing;
 
-use crate::hqc_correct::{
+use crate::hqc_core::{
     Hqc1,
     Hqc3,
     Hqc5,
@@ -140,7 +140,7 @@ impl KemOperations for LibQHqcProvider {
         public_key: &lib_q_core::KemPublicKey,
         randomness: Option<&[u8]>,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
-        use crate::hqc_correct::{
+        use crate::hqc_core::{
             Hqc1PublicKey,
             Hqc3PublicKey,
             Hqc5PublicKey,
@@ -148,7 +148,7 @@ impl KemOperations for LibQHqcProvider {
         use crate::hqc_kem::HqcKemPublicKey;
         use crate::hqc_pke::HqcPkePublicKey;
         #[allow(unused_imports)] // HqcParams trait needed for associated constants access
-        use crate::params_correct::{
+        use crate::params::{
             Hqc1Params,
             Hqc3Params,
             Hqc5Params,
@@ -204,7 +204,7 @@ impl KemOperations for LibQHqcProvider {
         secret_key: &lib_q_core::KemSecretKey,
         ciphertext: &[u8],
     ) -> Result<Vec<u8>> {
-        use crate::hqc_correct::{
+        use crate::hqc_core::{
             Hqc1Ciphertext,
             Hqc1SecretKey,
             Hqc3Ciphertext,
@@ -222,7 +222,7 @@ impl KemOperations for LibQHqcProvider {
             HqcPkeSecretKey,
         };
         #[allow(unused_imports)] // HqcParams trait needed for associated constants access
-        use crate::params_correct::{
+        use crate::params::{
             Hqc1Params,
             Hqc3Params,
             Hqc5Params,
@@ -392,7 +392,7 @@ impl KemOperations for LibQHqcProvider {
         secret_key: &lib_q_core::KemSecretKey,
     ) -> Result<lib_q_core::KemPublicKey> {
         #[allow(unused_imports)] // HqcParams trait needed for associated constants access
-        use crate::params_correct::{
+        use crate::params::{
             Hqc1Params,
             Hqc3Params,
             Hqc5Params,
@@ -664,7 +664,7 @@ mod tests {
     }
 
     /// Full generate/encapsulate/decapsulate round trip for HQC-256 THROUGH THE PROVIDER (not
-    /// just `hqc_correct::Hqc5` directly). Previously only `generate_keypair` +
+    /// just `hqc_core::Hqc5` directly). Previously only `generate_keypair` +
     /// `derive_public_key` were exercised for HQC-256 in this file, leaving `encapsulate`'s and
     /// `decapsulate`'s `Algorithm::Hqc256` match arms (provider.rs's own secret-key/ciphertext
     /// byte-slicing, not just the underlying `Hqc5` call) untested.

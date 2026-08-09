@@ -23,7 +23,7 @@ pub const KEM_SEED_KEM_BYTES: usize = 48;
 
 /// Byte length of a serialized KEM public key (`seed_ek` ‖ `s`) for parameter `N` (in bits), per
 /// the HQC v5.0.0 (2025-08-22) specification. `PUBLIC_KEY_BYTES` must always equal this — see the
-/// `params_correct.rs` conformance test that checks it against `VEC_N_SIZE_BYTES` directly.
+/// `params.rs` conformance test that checks it against `VEC_N_SIZE_BYTES` directly.
 #[must_use]
 pub const fn kem_public_key_bytes(n_bits: usize) -> usize {
     PKE_EK_SEED_BYTES + n_bits.div_ceil(8)
@@ -111,7 +111,7 @@ mod tests {
     fn public_key_bytes_match_spec_literals() {
         // Card t_1558e72f: pin the literal HQC v5.0.0 (2025-08-22) values independently of
         // `kem_public_key_bytes`'s own formula (comparing a value to its own definition is a
-        // gate that cannot fail — see `lib-q-hqc::params_correct` for the independent check
+        // gate that cannot fail — see `lib-q-hqc::params` for the independent check
         // against `VEC_N_SIZE_BYTES`, which is not derived from this constant either).
         assert_eq!(HQC128_PUBLIC_KEY_BYTES, 2241);
         assert_eq!(HQC192_PUBLIC_KEY_BYTES, 4514);
