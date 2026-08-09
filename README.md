@@ -132,7 +132,7 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 - **`@lib-q/fn-dsa`** — FN-DSA (FIPS 206 not yet published)
 - **`@lib-q/hash`** — SHA-3–family hash façade
 - **`@lib-q/utils`** — Utilities
-- **`@lib-q/aead`** — Post-quantum AEAD (Saturnin, Rocca-S, Romulus, duplex-sponge)
+- **`@lib-q/aead`** — AEAD facade (Saturnin, Rocca-S, Romulus, duplex-sponge). Saturnin, Rocca-S, and duplex-sponge use 256-bit keys/tags for margin against Grover-style quantum key search; **Romulus is 128-bit key/nonce/tag** (~2^64 post-quantum margin), so it does not carry the same post-quantum margin as the rest of this list — see [lib-q-aead README](lib-q-aead/README.md#key-commitment-cmt-1) and [lib-q-romulus/SECURITY.md](lib-q-romulus/SECURITY.md)
 - **`@lib-q/hpke`** — Post-quantum HPKE (RFC 9180)
 - **`@lib-q/zkp`** — ZKP / STARK proofs (high-level JSON API)
 - **`@lib-q/random`** — Secure random bytes (`getrandom` / wasm_js)
@@ -222,7 +222,7 @@ npm install @lib-q/aead @lib-q/hpke @lib-q/zkp @lib-q/random @lib-q/hqc @lib-q/s
 ### Authenticated encryption
 - **Saturnin** (post-quantum symmetric suite: AEAD, block cipher, hash, and stream modes)
 - **Rocca-S** (AES-accelerated 256-bit AEAD; IETF draft-nakano-rocca-s; 128-bit nonce, 256-bit tag)
-- **Romulus** (NIST-submitted Skinny-based AEAD)
+- **Romulus** (NIST Lightweight Cryptography finalist, Skinny-based AEAD; **128-bit key/nonce/tag**, unlike the 256-bit key/tag used elsewhere in this list — under Grover that is a ~2^64 post-quantum margin, not the ~2^128 margin the other AEADs here target. Two modes: **Romulus-N** (nonce-respecting; nonce reuse breaks confidentiality) and **Romulus-M** (nonce-misuse-resistant, SIV-style — reusing a nonce does not enable forgery). For file encryption or any scenario where nonce reuse across re-encryptions is plausible, prefer Romulus-M. See [lib-q-romulus/SECURITY.md](lib-q-romulus/SECURITY.md) and [lib-q-aead README § Key commitment](lib-q-aead/README.md#key-commitment-cmt-1).)
 - **Duplex-sponge AEAD** (Keccak-duplex construction)
 - **Tweak-AEAD** (tweakable CTR AEAD over Keccak)
 
