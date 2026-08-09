@@ -1298,6 +1298,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-maul"
+version = "0.0.10"
+dependencies = [
+ "hex",
+ "lib-q-random",
+ "lib-q-sha3",
+ "rand_core 0.10.1",
+ "subtle",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-mayo"
 version = "0.0.10"
 dependencies = [

@@ -1,0 +1,39 @@
+[package]
+name = "lib-q-maul"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "RED / NOT-FOR-PRODUCTION: Maul, the compact lattice double-KEM (2K-KEM) of ePrint 2025/1755 (DAKE). Pre-standard, awaiting cryptographer sign-off; not published."
+keywords = ["cryptography", "post-quantum", "lattice", "kem"]
+categories = ["cryptography"]
+# NOT PUBLISHED. Maul is a pre-standard primitive and this is libQ's SECOND attempt at a
+# double-KEM (the first, `lib-q-double-kem`, was withdrawn as misimplemented). Card t_5bc0f630
+# gates publication on a human cryptographer's sign-off of the instantiation. Until that exists
+# this crate builds and tests in-tree but does not reach crates.io. See SECURITY.md.
+publish = false
+
+[dependencies]
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10", default-features = false, features = ["alloc"] }
+zeroize = { workspace = true, default-features = false, features = ["alloc"] }
+subtle = { workspace = true }
+rand_core = { workspace = true }
+
+[dev-dependencies]
+lib-q-random = { path = "../lib-q-random", version = "0.0.10", default-features = false, features = ["std"] }
+hex = { workspace = true }
+
+[features]
+default = ["std"]
+std = ["lib-q-sha3/std", "zeroize/std", "subtle/std"]
+
+[lib]
+name = "lib_q_maul"
+path = "src/lib.rs"
+crate-type = ["rlib"]
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(feature, values("std"))'] }
