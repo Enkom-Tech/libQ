@@ -142,135 +142,152 @@ fn set_hint(out_hint: &mut [[i32; 256]], i: usize, j: usize) {
     out_hint[i][j] = 1
 }
 
-#[cfg(all(test, feature = "mldsa44"))]
-mod malformed_hint_coverage {
-    use super::*;
-    use crate::constants::gamma1_ring_element_size;
-    use crate::constants::ml_dsa_44::{
-        BITS_PER_GAMMA1_COEFFICIENT,
-        COLUMNS_IN_A,
-        COMMITMENT_HASH_SIZE,
-        GAMMA1_EXPONENT,
-        MAX_ONES_IN_HINT,
-        ROWS_IN_A,
-        SIGNATURE_SIZE,
+// `deserialize` takes `rows_in_a`, `max_ones_in_hint`, `signature_size` and the rest as runtime
+// arguments, so a single decoder serves all three parameter sets. These regression tests
+// therefore run against 44, 65 and 87 rather than 44 alone.
+//
+// That is not redundancy. When the out-of-bounds hint panic was fixed, 44 and 65 had been
+// reproduced against the public entry point but 87 was only reasoned to be affected by code
+// inspection. An index bug whose bound depends on omega and k is exactly the shape that can be
+// live in one parameter set and latent in another, so covering all three replaces that inference
+// with an observation.
+macro_rules! malformed_hint_coverage_for {
+    ($mod_name:ident, $param_mod:ident, $feature:literal) => {
+        #[cfg(all(test, feature = $feature))]
+        mod $mod_name {
+            use super::*;
+            use crate::constants::gamma1_ring_element_size;
+            use crate::constants::$param_mod::{
+                BITS_PER_GAMMA1_COEFFICIENT,
+                COLUMNS_IN_A,
+                COMMITMENT_HASH_SIZE,
+                GAMMA1_EXPONENT,
+                MAX_ONES_IN_HINT,
+                ROWS_IN_A,
+                SIGNATURE_SIZE,
+            };
+            use crate::polynomial::PolynomialRingElement;
+            use crate::simd::portable::PortableSIMDUnit;
+
+            type S = PortableSIMDUnit;
+
+            fn gamma1_re_size() -> usize {
+                gamma1_ring_element_size(BITS_PER_GAMMA1_COEFFICIENT)
+            }
+
+            fn hint_byte_offset() -> usize {
+                COMMITMENT_HASH_SIZE + gamma1_re_size() * COLUMNS_IN_A
+            }
+
+            fn deserialize_all(serialized: &[u8]) -> Result<(), VerificationError> {
+                let mut commitment = [0u8; COMMITMENT_HASH_SIZE];
+                let mut signer_response = [PolynomialRingElement::<S>::zero(); COLUMNS_IN_A];
+                let mut hint = [[0i32; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
+                deserialize::<S>(
+                    COLUMNS_IN_A,
+                    ROWS_IN_A,
+                    COMMITMENT_HASH_SIZE,
+                    GAMMA1_EXPONENT,
+                    gamma1_re_size(),
+                    MAX_ONES_IN_HINT,
+                    SIGNATURE_SIZE,
+                    serialized,
+                    &mut commitment,
+                    &mut signer_response,
+                    &mut hint,
+                )
+            }
+
+            /// A hint count above omega must be REJECTED, not indexed with.
+            ///
+            /// Regression test. The bound in `deserialize` was applied to the previous row's counter
+            /// rather than the current one, so the largest counter was never checked; the copy loop then
+            /// indexed `hint_serialized[j]` for j up to that counter -- a byte, so as high as 254 -- into
+            /// a buffer only `omega + k` long. Before the fix this test did not fail an assertion, it
+            /// PANICKED ("index out of bounds: the len is 61 but the index is 61" for ML-DSA-65), which
+            /// is a remote DoS: the input is an attacker-supplied signature and `verify` is the entry
+            /// point. Keep the counts non-decreasing so this exercises the omega bound specifically and
+            /// not the ordering check above it.
+            #[test]
+            fn rejects_hint_count_above_omega_without_panicking() {
+                let mut buf = [0u8; SIGNATURE_SIZE];
+                let h0 = hint_byte_offset();
+                // Hint-index bytes: strictly increasing, so the per-row monotonicity check below the
+                // bound cannot fire first and mask what we are testing.
+                for (j, slot) in buf.iter_mut().skip(h0).take(MAX_ONES_IN_HINT).enumerate() {
+                    *slot = j as u8;
+                }
+                // The FIRST row's counter must exceed the whole hint buffer (omega + k), not merely
+                // omega. A counter of only omega+1 is caught on the NEXT iteration by the stale
+                // `previous > omega` test even in the buggy code, which makes such a case pass either
+                // way -- a vacuous regression test. These values keep the counter bytes strictly
+                // increasing too, so the copy loop reaches j == omega + k and indexes off the end.
+                for i in 0..ROWS_IN_A {
+                    buf[h0 + MAX_ONES_IN_HINT + i] = (MAX_ONES_IN_HINT + ROWS_IN_A + 1 + i) as u8;
+                }
+                assert!(matches!(
+                    deserialize_all(&buf),
+                    Err(VerificationError::MalformedHintError)
+                ));
+            }
+
+            #[test]
+            fn rejects_decreasing_per_row_hint_counts() {
+                let mut buf = [0u8; SIGNATURE_SIZE];
+                let h0 = hint_byte_offset();
+                buf[h0] = 10;
+                buf[h0 + 1] = 20;
+                buf[h0 + MAX_ONES_IN_HINT] = 2;
+                buf[h0 + MAX_ONES_IN_HINT + 1] = 1;
+                assert!(matches!(
+                    deserialize_all(&buf),
+                    Err(VerificationError::MalformedHintError)
+                ));
+            }
+
+            #[test]
+            fn rejects_non_monotonic_indices_within_row() {
+                let mut buf = [0u8; SIGNATURE_SIZE];
+                let h0 = hint_byte_offset();
+                buf[h0] = 50;
+                buf[h0 + 1] = 40;
+                buf[h0 + MAX_ONES_IN_HINT] = 2;
+                for r in 1..ROWS_IN_A {
+                    buf[h0 + MAX_ONES_IN_HINT + r] = 2;
+                }
+                assert!(matches!(
+                    deserialize_all(&buf),
+                    Err(VerificationError::MalformedHintError)
+                ));
+            }
+
+            #[test]
+            fn rejects_nonzero_padding_after_hints() {
+                let mut buf = [0u8; SIGNATURE_SIZE];
+                let h0 = hint_byte_offset();
+                buf[h0 + 5] = 7;
+                for r in 0..ROWS_IN_A {
+                    buf[h0 + MAX_ONES_IN_HINT + r] = 0;
+                }
+                assert!(matches!(
+                    deserialize_all(&buf),
+                    Err(VerificationError::MalformedHintError)
+                ));
+            }
+
+            #[test]
+            fn accepts_minimal_valid_hint_encoding() {
+                let mut buf = [0u8; SIGNATURE_SIZE];
+                let h0 = hint_byte_offset();
+                for r in 0..ROWS_IN_A {
+                    buf[h0 + MAX_ONES_IN_HINT + r] = 0;
+                }
+                assert!(deserialize_all(&buf).is_ok());
+            }
+        }
     };
-    use crate::polynomial::PolynomialRingElement;
-    use crate::simd::portable::PortableSIMDUnit;
-
-    type S = PortableSIMDUnit;
-
-    fn gamma1_re_size() -> usize {
-        gamma1_ring_element_size(BITS_PER_GAMMA1_COEFFICIENT)
-    }
-
-    fn hint_byte_offset() -> usize {
-        COMMITMENT_HASH_SIZE + gamma1_re_size() * COLUMNS_IN_A
-    }
-
-    fn deserialize_all(serialized: &[u8]) -> Result<(), VerificationError> {
-        let mut commitment = [0u8; COMMITMENT_HASH_SIZE];
-        let mut signer_response = [PolynomialRingElement::<S>::zero(); COLUMNS_IN_A];
-        let mut hint = [[0i32; COEFFICIENTS_IN_RING_ELEMENT]; ROWS_IN_A];
-        deserialize::<S>(
-            COLUMNS_IN_A,
-            ROWS_IN_A,
-            COMMITMENT_HASH_SIZE,
-            GAMMA1_EXPONENT,
-            gamma1_re_size(),
-            MAX_ONES_IN_HINT,
-            SIGNATURE_SIZE,
-            serialized,
-            &mut commitment,
-            &mut signer_response,
-            &mut hint,
-        )
-    }
-
-    /// A hint count above omega must be REJECTED, not indexed with.
-    ///
-    /// Regression test. The bound in `deserialize` was applied to the previous row's counter
-    /// rather than the current one, so the largest counter was never checked; the copy loop then
-    /// indexed `hint_serialized[j]` for j up to that counter -- a byte, so as high as 254 -- into
-    /// a buffer only `omega + k` long. Before the fix this test did not fail an assertion, it
-    /// PANICKED ("index out of bounds: the len is 61 but the index is 61" for ML-DSA-65), which
-    /// is a remote DoS: the input is an attacker-supplied signature and `verify` is the entry
-    /// point. Keep the counts non-decreasing so this exercises the omega bound specifically and
-    /// not the ordering check above it.
-    #[test]
-    fn rejects_hint_count_above_omega_without_panicking() {
-        let mut buf = [0u8; SIGNATURE_SIZE];
-        let h0 = hint_byte_offset();
-        // Hint-index bytes: strictly increasing, so the per-row monotonicity check below the
-        // bound cannot fire first and mask what we are testing.
-        for (j, slot) in buf.iter_mut().skip(h0).take(MAX_ONES_IN_HINT).enumerate() {
-            *slot = j as u8;
-        }
-        // The FIRST row's counter must exceed the whole hint buffer (omega + k), not merely
-        // omega. A counter of only omega+1 is caught on the NEXT iteration by the stale
-        // `previous > omega` test even in the buggy code, which makes such a case pass either
-        // way -- a vacuous regression test. These values keep the counter bytes strictly
-        // increasing too, so the copy loop reaches j == omega + k and indexes off the end.
-        for i in 0..ROWS_IN_A {
-            buf[h0 + MAX_ONES_IN_HINT + i] = (MAX_ONES_IN_HINT + ROWS_IN_A + 1 + i) as u8;
-        }
-        assert!(matches!(
-            deserialize_all(&buf),
-            Err(VerificationError::MalformedHintError)
-        ));
-    }
-
-    #[test]
-    fn rejects_decreasing_per_row_hint_counts() {
-        let mut buf = [0u8; SIGNATURE_SIZE];
-        let h0 = hint_byte_offset();
-        buf[h0] = 10;
-        buf[h0 + 1] = 20;
-        buf[h0 + MAX_ONES_IN_HINT] = 2;
-        buf[h0 + MAX_ONES_IN_HINT + 1] = 1;
-        assert!(matches!(
-            deserialize_all(&buf),
-            Err(VerificationError::MalformedHintError)
-        ));
-    }
-
-    #[test]
-    fn rejects_non_monotonic_indices_within_row() {
-        let mut buf = [0u8; SIGNATURE_SIZE];
-        let h0 = hint_byte_offset();
-        buf[h0] = 50;
-        buf[h0 + 1] = 40;
-        buf[h0 + MAX_ONES_IN_HINT] = 2;
-        for r in 1..ROWS_IN_A {
-            buf[h0 + MAX_ONES_IN_HINT + r] = 2;
-        }
-        assert!(matches!(
-            deserialize_all(&buf),
-            Err(VerificationError::MalformedHintError)
-        ));
-    }
-
-    #[test]
-    fn rejects_nonzero_padding_after_hints() {
-        let mut buf = [0u8; SIGNATURE_SIZE];
-        let h0 = hint_byte_offset();
-        buf[h0 + 5] = 7;
-        for r in 0..ROWS_IN_A {
-            buf[h0 + MAX_ONES_IN_HINT + r] = 0;
-        }
-        assert!(matches!(
-            deserialize_all(&buf),
-            Err(VerificationError::MalformedHintError)
-        ));
-    }
-
-    #[test]
-    fn accepts_minimal_valid_hint_encoding() {
-        let mut buf = [0u8; SIGNATURE_SIZE];
-        let h0 = hint_byte_offset();
-        for r in 0..ROWS_IN_A {
-            buf[h0 + MAX_ONES_IN_HINT + r] = 0;
-        }
-        assert!(deserialize_all(&buf).is_ok());
-    }
 }
+
+malformed_hint_coverage_for!(malformed_hint_coverage_44, ml_dsa_44, "mldsa44");
+malformed_hint_coverage_for!(malformed_hint_coverage_65, ml_dsa_65, "mldsa65");
+malformed_hint_coverage_for!(malformed_hint_coverage_87, ml_dsa_87, "mldsa87");
