@@ -1551,7 +1551,17 @@ jobs:
           - name: "HQC"
             action: test-hqc
             working-directory: lib-q-hqc
-            features: "alloc,hqc128,simd-avx2"
+            # `std` is required and was missing. This row RUNS tests on a host target, and a host
+            # build with no `std` anywhere in the graph cannot link: lib-q-core then compiles as
+            # no_std and fails with "no global memory allocator found" and "unwinding panics are
+            # not supported without std". It only passed historically because `hqc128` used to
+            # hard-force `lib-q-core/std`; that was removed so lib-q-hqc could genuinely build
+            # bare-metal, which left this row asking for a no_std graph on a std target.
+            #
+            # Real no_std coverage does NOT belong here -- `cargo check --no-default-features` on
+            # a host target is not a no_std check. It lives in the dedicated job that targets
+            # thumbv7em-none-eabi.
+            features: "std,alloc,hqc128,simd-avx2"
             rust-version: "stable"
             run-benchmarks: "false"  # Benchmarks run in performance-benches matrix (non-PR only)
             run-security-tests: "true"
