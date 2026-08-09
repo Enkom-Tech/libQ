@@ -6,6 +6,30 @@ crate in more detail than the root file carries.
 
 ## Unreleased
 
+### BREAKING — `qcb` is no longer a default feature (fe64036, 2026-08-06)
+
+`qcb` (and therefore `SaturninQcb`, `lib_q_saturnin::commit`, and `QCB_CTX_LABEL_V0`) has been
+removed from this crate's `default` feature set. **Reason:** a single repeated nonce under
+`SaturninQcb` is a universal forgery — catastrophic integrity loss, not merely a keystream leak
+(see `src/qcb.rs` module docs and `lib-q-romulus/SECURITY.md`'s nonce-reuse table) — and as of
+this change it has zero call sites in any consumer crate (GIP, uGrid, My-Grid, Bitlink all reach
+Saturnin through `SaturninAead`/CTR-Cascade, which degrades to a keystream leak on nonce reuse
+instead). A default-on mode with that failure mode and no callers was assessed as a liability, so
+it is now opt-in. The mode itself is unchanged and not deprecated — it remains the rate-1,
+per-block-parallel candidate for the Saturnin hardware programme.
+
+**Migration:** any downstream `Cargo.toml` that depended on `SaturninQcb`/`commit`/
+`QCB_CTX_LABEL_V0` being reachable without listing a feature must add `features = ["qcb"]`
+explicitly:
+
+```toml
+lib-q-saturnin = { version = "...", features = ["qcb"] }
+```
+
+No workspace crate in this repo enables `qcb`, so nothing in-tree needed this migration. This
+change landed on `main` after the `0.0.10` release (`0.0.10` still ships `qcb` as default); it
+will ship as a breaking change in the next release that includes it.
+
 ### Changed — security documentation only (2026-08-07 primary-source review; **no code change**)
 
 - **Adversarial review of the review (same day, same sources re-opened).** Four corrections to

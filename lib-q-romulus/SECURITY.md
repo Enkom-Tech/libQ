@@ -74,6 +74,19 @@ Sources: `lib-q-saturnin/src/commit.rs`, `lib-q-saturnin/tests/key_commitment.rs
 `lib-q-saturnin/tests/qcb_ctx_spec.rs`, `lib-q-saturnin/src/aead_short.rs`
 (`key_commitment_tests`), `lib-q-aead/tests/key_commitment.rs`. Card `t_16ddf21c`.
 
+### Nonce reuse consequence, per mode
+
+The rows above cover **key commitment** (CMT-1); the table below covers a different question —
+what happens on **nonce reuse** — because the two failure modes are not the same and one mode in
+the suite fails the second in a way none of the others do.
+
+| Mode | Nonce-reuse consequence |
+|---|---|
+| `SaturninQcb` (`lib-q-saturnin`, feature `qcb`, **opt-in, not default**) | **Catastrophic integrity loss: a single repeated nonce is a universal forgery**, not merely a keystream leak. Every tweak is `nonce ‖ pad ‖ block_index`, so a repeated nonce collides the entire tweak schedule between two messages; three chosen-plaintext queries at one repeated nonce yield a valid, authenticating ciphertext for a chosen, never-queried plaintext. The CTX committing tag (see CMT-1 table above) does **not** mitigate this — all of `T'`'s inputs are unchanged by the base-tag collision. `SaturninQcb` is the only AEAD in this suite that loses integrity this way; it is Cargo-feature opt-in specifically because of this property, and has zero call sites in any consumer crate. See `lib-q-saturnin/src/qcb.rs` module docs. |
+| `SaturninAead` (CTR-Cascade), `SaturninAeadCtx`, `Shake256Aead`, `DuplexSpongeAead`, `TweakAead`, `RoccaSAead`, `RomulusN`/`RomulusM` | Keystream leak (the standard CTR/stream-cipher consequence of nonce reuse) — integrity is retained; forged ciphertexts still require breaking the underlying PRP/MAC. |
+| `SaturninShortAead` | Nonce reuse is non-catastrophic in the CTR sense, but see the CMT-1 table above: this mode has a separate, demonstrated key-commitment break where the nonce itself supplies the (broken) redundancy. |
+| `SaturninSiv` (`lib-q-aead`, feature `saturnin-siv`) | **Nonce-misuse-resistant by design** (deterministic SIV): nonce reuse is non-catastrophic. The trade-off is that identical `(nonce, AD, plaintext)` tuples are linkable (equality of plaintexts is public) — see `lib-q-aead/src/saturnin_siv.rs`. This is the mode to reach for when unique nonces cannot be guaranteed (e.g. file re-encryption). **RED**: no cryptographer has reviewed this instantiation. |
+
 ### Nonce extension (XChaCha-style) — evaluated and deliberately not pursued
 
 Every libQ AEAD uses a **128-bit nonce**. XChaCha20-Poly1305 exists to stretch a 96-bit nonce to
