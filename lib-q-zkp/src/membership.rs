@@ -230,6 +230,15 @@ fn pad_root(root: &WideDigest, extra: usize) -> WideDigest {
     cur
 }
 
+/// `Some(1 << bits)` when the shift is representable in a `usize`, `None` otherwise.
+///
+/// Used on `degree_bits` values taken straight off the wire: a bare `1usize << bits` panics
+/// ("attempt to shift left with overflow") under `overflow-checks` and silently wraps in a plain
+/// release build, both before any verifier-side bound on `degree_bits` has run.
+fn pow2_checked(bits: usize) -> Option<usize> {
+    u32::try_from(bits).ok().and_then(|b| 1usize.checked_shl(b))
+}
+
 // ---------------------------------------------------------------------------
 // Prove / verify
 // ---------------------------------------------------------------------------
@@ -353,7 +362,13 @@ pub fn verify_unlinkable_membership_with_config(
     // making `merkle_tree_depth()` an unauthenticated property. (Soundness against the
     // *statement* already rests on the verifier-supplied canonical root; this binds the
     // declared depth so the metadata cannot lie. Non-ZK config ⇒ `1 << degree_bits` == height.)
-    if (1usize << stark_proof.degree_bits) != padded {
+    //
+    // `degree_bits` is a raw postcard field of the attacker's proof and this runs BEFORE
+    // `StarkVerifier::verify`, where the `MAX_DEGREE_BITS` / `degree_fits_two_adicity` guards
+    // live (`crate::stark`). A bare `1usize << degree_bits` therefore panics with "attempt to
+    // shift left with overflow" under `overflow-checks` and silently wraps otherwise; a shift
+    // that does not fit simply cannot equal `padded`, so treat it as a mismatch.
+    if pow2_checked(stark_proof.degree_bits) != Some(padded) {
         return Ok(false);
     }
 
@@ -533,7 +548,11 @@ pub fn verify_unlinkable_membership_zk_with_config(
 
     // Depth-confusion guard (ZK): the hiding prover uses ONE extra degree bit for randomization,
     // so the proof's trace degree is `padded * 2`.
-    if (1usize << stark_proof.degree_bits) != padded * 2 {
+    //
+    // Checked shift for the same reason as the transparent arm above: `degree_bits` is an
+    // unvalidated postcard field and this compare runs upstream of `StarkVerifier::verify`'s
+    // own `degree_bits` guards.
+    if pow2_checked(stark_proof.degree_bits) != Some(padded * 2) {
         return Ok(false);
     }
 
@@ -1069,6 +1088,73 @@ mod tests {
         assert!(
             !verify_membership_envelope(&bad_stmt, &env),
             "wrong root must not verify"
+        );
+    }
+
+    /// F1 regression: `degree_bits` is attacker-controlled (it is just a postcard field) and the
+    /// depth-confusion guard shifts by it BEFORE `StarkVerifier::verify`'s own bounds run. A
+    /// `degree_bits >= usize::BITS` must be rejected as "not the declared depth", never shifted
+    /// (`attempt to shift left with overflow` under `overflow-checks`, silent wrap otherwise).
+    ///
+    /// The crafted proof is a REAL proof whose `degree_bits` field is rewritten, so every earlier
+    /// check (proof_type, metadata, depth, postcard decode) passes and control actually reaches
+    /// the shift.
+    #[test]
+    fn verify_rejects_out_of_range_degree_bits_without_shift_overflow() {
+        let (tree, secrets) = build(6);
+        let w = witness_for(&tree, &secrets, 4, 2);
+        let cfg = membership_fast_config();
+        let (nullifier, proof) =
+            prove_unlinkable_membership_with_config(&w, cfg.clone()).expect("prove");
+
+        let mut stark_proof = proof
+            .to_stark_proof::<MembershipConfig>()
+            .expect("decode real proof");
+        stark_proof.degree_bits = usize::MAX;
+        let tampered = ZkpProof::from_stark_proof(&stark_proof, proof.metadata.clone())
+            .expect("re-serialize tampered proof");
+
+        assert!(
+            !verify_unlinkable_membership_with_config(
+                &tampered,
+                &tree.root(),
+                &w.ctx,
+                &nullifier,
+                cfg
+            )
+            .expect("verify must return, not panic"),
+            "out-of-range degree_bits must be rejected"
+        );
+    }
+
+    /// F1 regression, ZK arm (`membership.rs:536`, `1usize << degree_bits != padded * 2`).
+    #[test]
+    fn verify_zk_rejects_out_of_range_degree_bits_without_shift_overflow() {
+        let (tree, secrets) = build(6);
+        let w = witness_for(&tree, &secrets, 4, 2);
+        let (nullifier, proof) = prove_unlinkable_membership_zk_with_config(
+            &w,
+            membership_zk_config_with_seed_bytes(3, 2, 1, [11u8; 32], [22u8; 32]),
+        )
+        .expect("zk prove");
+
+        let mut stark_proof = proof
+            .to_stark_proof::<MembershipZkConfig>()
+            .expect("decode real zk proof");
+        stark_proof.degree_bits = usize::MAX;
+        let tampered = ZkpProof::from_stark_proof(&stark_proof, proof.metadata.clone())
+            .expect("re-serialize tampered zk proof");
+
+        assert!(
+            !verify_unlinkable_membership_zk_with_config(
+                &tampered,
+                &tree.root(),
+                &w.ctx,
+                &nullifier,
+                membership_zk_config_with_seed_bytes(3, 2, 1, [0u8; 32], [1u8; 32])
+            )
+            .expect("verify must return, not panic"),
+            "out-of-range degree_bits must be rejected (zk arm)"
         );
     }
 }

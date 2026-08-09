@@ -19,6 +19,7 @@ use lib_q_stark_field::{
     BasedVectorSpace,
     Field,
     PrimeCharacteristicRing,
+    TwoAdicField,
 };
 use lib_q_stark_matrix::dense::RowMajorMatrixView;
 use lib_q_stark_matrix::stack::VerticalPair;
@@ -196,6 +197,7 @@ pub fn verify<SC, A>(
 ) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
+    Val<SC>: TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
 {
     verify_with_preprocessed(config, air, proof, public_values, None)
@@ -211,6 +213,7 @@ pub fn verify_with_preprocessed<SC, A>(
 ) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC: StarkGenericConfig,
+    Val<SC>: TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolder<'a, SC>>,
 {
     let Proof {
@@ -233,7 +236,8 @@ where
 
     let pcs = config.pcs();
     let degree = 1 << degree_bits;
-    let trace_domain = pcs.natural_domain_for_degree(degree);
+    // NOTE: no domain may be constructed from `degree`/`degree_bits` until the
+    // `degree_fits_two_adicity` guard below has run — see its doc comment.
     let (preprocessed_width, preprocessed_commit) =
         process_preprocessed_trace::<SC, A>(air, opened_values, preprocessed_vk)?;
 
@@ -252,6 +256,18 @@ where
     let log_num_quotient_chunks =
         get_log_num_quotient_chunks::<Val<SC>, A>(air, layout, config.is_zk());
     let num_quotient_chunks = 1 << (log_num_quotient_chunks + config.is_zk());
+
+    // Reject BEFORE constructing any domain: `MAX_DEGREE_BITS` alone (24) is field-independent
+    // and does not keep `degree_bits + log_num_quotient_chunks + is_zk` under the field's
+    // two-adicity, so an attacker-chosen `degree_bits` in that gap panics
+    // `natural_domain_for_degree`/`create_disjoint_domain` below (an unauthenticated,
+    // deserialization-only remote DoS). Mirrors `lib-q-stark/src/verifier.rs` (card t_00ab900a),
+    // whose guard was never copied here. See `degree_fits_two_adicity`.
+    if !degree_fits_two_adicity::<Val<SC>>(*degree_bits, log_num_quotient_chunks, config.is_zk()) {
+        return Err(VerificationError::InvalidProofShape);
+    }
+
+    let trace_domain = pcs.natural_domain_for_degree(degree);
     let mut challenger = config.initialise_challenger();
     let init_trace_domain = pcs.natural_domain_for_degree(degree >> (config.is_zk()));
 
@@ -422,8 +438,36 @@ where
 }
 
 /// DoS limits for verifier input validation.
+///
+/// `MAX_DEGREE_BITS` is **field-independent** and on its own is NOT sufficient to prevent panics:
+/// domain construction (`Pcs::natural_domain_for_degree`, `PolynomialSpace::create_disjoint_domain`)
+/// panics once the requested log-size exceeds the field's two-adicity, and the verifier derives
+/// log-sizes of `degree_bits + log_num_quotient_chunks + is_zk`. See [`degree_fits_two_adicity`]
+/// for the field-aware bound that must be checked before any domain is built from an untrusted
+/// `degree_bits`.
 const MAX_DEGREE_BITS: usize = 24;
 const MAX_PROOF_QUOTIENT_CHUNKS: usize = 256;
+
+/// Returns `true` iff every domain the verifier derives from `degree_bits` — the trace domain
+/// (`degree_bits`), the quotient domain (`degree_bits + log_num_quotient_chunks`), its per-chunk
+/// splits, and their zk-randomized re-domainings — fits within the field's two-adicity, i.e. none
+/// of the downstream `TwoAdicMultiplicativeCoset::new` calls (via `natural_domain_for_degree` /
+/// `create_disjoint_domain`, which `unwrap_or_else(|| panic!(..))`) can fail.
+///
+/// This MUST be checked before constructing any domain from a `degree_bits` that came from
+/// untrusted proof bytes. Same check as `lib-q-stark/src/verifier.rs::degree_fits_two_adicity`
+/// and `lib-q-zkp/src/stark.rs::degree_fits_two_adicity`; this crate is a third, independent
+/// verifier that had no such guard at all.
+fn degree_fits_two_adicity<F: TwoAdicField>(
+    degree_bits: usize,
+    log_num_quotient_chunks: usize,
+    is_zk: usize,
+) -> bool {
+    degree_bits
+        .checked_add(log_num_quotient_chunks)
+        .and_then(|n| n.checked_add(is_zk))
+        .is_some_and(|n| n <= F::TWO_ADICITY)
+}
 
 #[derive(Debug)]
 pub enum VerificationError<PcsErr>

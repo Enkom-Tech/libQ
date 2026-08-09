@@ -34,6 +34,7 @@ use lib_q_stark_commit::{
 use lib_q_stark_field::{
     BasedVectorSpace,
     PrimeCharacteristicRing,
+    TwoAdicField,
 };
 use lib_q_stark_matrix::dense::RowMajorMatrixView;
 use lib_q_stark_matrix::stack::VerticalPair;
@@ -58,7 +59,30 @@ use crate::symbolic::get_log_num_quotient_chunks;
 
 /// DoS upper bound on `degree_bits` per instance, consistent with the
 /// `lib-q-plonky-uni-stark` verifier's two-adicity-bounded limit.
+///
+/// This bound is **field-independent** and on its own is NOT sufficient to prevent panics: domain
+/// construction panics once the requested log-size exceeds the field's two-adicity, and this
+/// verifier derives log-sizes of `degree_bits + log_num_quotient_chunks + is_zk` per instance. See
+/// [`degree_fits_two_adicity`].
 const MAX_DEGREE_BITS: usize = 24;
+
+/// Returns `true` iff every domain derived from one instance's `degree_bits` -- its trace domain,
+/// its quotient domain (`degree_bits + log_num_quotient_chunks`), the per-chunk splits and their
+/// zk-randomized re-domainings -- fits within the field's two-adicity, i.e. none of the downstream
+/// `natural_domain_for_degree` / `create_disjoint_domain` calls (which panic once the requested
+/// log-size exceeds `F::TWO_ADICITY`) can fail.
+///
+/// Same check as `lib-q-stark/src/verifier.rs::degree_fits_two_adicity`, applied per instance.
+fn degree_fits_two_adicity<F: TwoAdicField>(
+    degree_bits: usize,
+    log_num_quotient_chunks: usize,
+    is_zk: usize,
+) -> bool {
+    degree_bits
+        .checked_add(log_num_quotient_chunks)
+        .and_then(|n| n.checked_add(is_zk))
+        .is_some_and(|n| n <= F::TWO_ADICITY)
+}
 
 #[instrument(skip_all)]
 pub fn verify_batch<SC, A>(
@@ -70,6 +94,7 @@ pub fn verify_batch<SC, A>(
 ) -> Result<(), VerificationError<PcsError<SC>>>
 where
     SC: SGC,
+    Val<SC>: TwoAdicField,
     A: Air<SymbolicAirBuilder<Val<SC>>> + for<'a> Air<VerifierConstraintFolderWithLookups<'a, SC>>,
     Challenge<SC>: BasedVectorSpace<Val<SC>>,
 {
@@ -150,6 +175,18 @@ where
 
         let n_chunks = 1 << (log_num_chunks + config.is_zk());
         num_quotient_chunks.push(n_chunks);
+    }
+
+    // Reject BEFORE constructing any domain: `MAX_DEGREE_BITS` (24) is field-independent and does
+    // not keep `degree_bits + log_num_quotient_chunks + is_zk` under the field's two-adicity, so an
+    // attacker-chosen per-instance `degree_bits` in that gap panics the *infallible*
+    // `natural_domain_for_degree` / `create_disjoint_domain` below (an unauthenticated,
+    // deserialization-only remote DoS). Mirrors `lib-q-stark/src/verifier.rs` (card t_00ab900a),
+    // whose guard was never copied here. See `degree_fits_two_adicity`.
+    for (&ext_db, &log_num_chunks) in degree_bits.iter().zip(log_num_quotient_chunks_vec.iter()) {
+        if !degree_fits_two_adicity::<Val<SC>>(ext_db, log_num_chunks, config.is_zk()) {
+            return Err(VerificationError::InvalidProofShape);
+        }
     }
 
     for (i, air) in airs.iter().enumerate() {

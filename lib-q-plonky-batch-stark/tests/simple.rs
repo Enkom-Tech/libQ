@@ -445,3 +445,90 @@ fn uni_stark_round_trip() {
         prove_with_preprocessed(&config, &air, trace.clone(), &public_values, None).expect("prove");
     verify_with_preprocessed(&config, &air, &proof, &public_values, None).expect("verify");
 }
+
+/// An AIR whose hinted constraint degree forces `log_num_quotient_chunks = 9`, so a `degree_bits`
+/// still inside `MAX_DEGREE_BITS` (24) pushes this instance's quotient domain past the field's
+/// two-adicity (`Complex<Mersenne31>`: 32). Same width/public-value count as `FibAir` so a real
+/// `FibAir` proof can be re-verified against it.
+#[derive(Clone)]
+struct HighDegreeAir;
+
+impl BaseAir<Val> for HighDegreeAir {
+    fn width(&self) -> usize {
+        2
+    }
+    fn num_public_values(&self) -> usize {
+        3
+    }
+    fn max_constraint_degree(&self) -> Option<usize> {
+        Some(513) // log2_ceil(513 - 1) == 9
+    }
+}
+
+impl<AB: lib_q_stark_air::AirBuilder<F = Val>> Air<AB> for HighDegreeAir {
+    fn eval(&self, builder: &mut AB) {
+        let main = builder.main();
+        let c0 = main.current_slice()[0].clone();
+        builder.assert_zero(c0.into() * builder.is_first_row());
+    }
+}
+
+/// F3 regression: the per-instance `degree_bits` in a `BatchProof` is attacker-controlled, and the
+/// existing `MAX_DEGREE_BITS` (24) cap is field-independent. With an instance needing 9
+/// quotient-chunk bits, `24 + 9 = 33` exceeds `Complex<Mersenne31>::TWO_ADICITY` (32) and the
+/// *infallible* `natural_domain_for_degree` / `create_disjoint_domain` used to panic inside
+/// `verify_batch`. It must return `Err` instead.
+///
+/// The proof is a real `FibAir` proof (so the length checks, the `MAX_DEGREE_BITS` cap and the
+/// zk-offset check all pass) with only `degree_bits[0]` rewritten; the per-instance shape
+/// validation runs after the domains are built, so control really does reach them.
+#[test]
+fn batch_verify_rejects_degree_bits_exceeding_two_adicity() {
+    let shake256 = Shake256Hash {};
+    let hash = MyHash::new(shake256);
+    let compress = MyCompress::new(shake256);
+    let val_mmcs = ValMmcs::new(hash, compress);
+    let challenge_mmcs = ChallengeMmcs::new(val_mmcs.clone());
+    let dft = Dft::default();
+    let fri_params = create_test_fri_params(challenge_mmcs, 2);
+    let pcs = MyPcs::new(dft, val_mmcs, fri_params);
+    let base_challenger = BaseChallenger::from_hasher(Vec::new(), Shake256Hash);
+    let challenger = Challenger::new(base_challenger);
+    let config = StarkConfig::new(pcs, challenger);
+
+    let trace = generate_fib_trace(0, 1, 1 << 4);
+    let public_values = vec![Val::from_u64(0), Val::from_u64(1), Val::from_u64(987)];
+
+    let air = FibAir;
+    let prover_data = ProverData::empty(1);
+    let instance = StarkInstance {
+        air: &air,
+        trace: &trace,
+        public_values: public_values.clone(),
+        lookups: Vec::new(),
+    };
+    let mut proof = prove_batch(&config, &[instance], &prover_data).expect("prove_batch");
+    proof.degree_bits[0] = 24; // == MAX_DEGREE_BITS, so the existing cap accepts it
+
+    // Re-shape the opened values to what `HighDegreeAir` expects, so the per-instance shape
+    // validation (which runs BEFORE the domains are built) passes and control reaches the
+    // domain construction that is the subject of this test: 2^9 quotient chunks.
+    {
+        let base = &mut proof.opened_values.instances[0].base_opened_values;
+        let chunk = base.quotient_chunks[0].clone();
+        base.quotient_chunks = vec![chunk; 1 << 9];
+    }
+
+    let airs: Vec<HighDegreeAir> = vec![HighDegreeAir];
+    let res = verify_batch(
+        &config,
+        &airs,
+        &proof,
+        &[public_values],
+        &prover_data.common,
+    );
+    assert!(
+        res.is_err(),
+        "degree_bits past the field's two-adicity must be rejected, not panic"
+    );
+}
