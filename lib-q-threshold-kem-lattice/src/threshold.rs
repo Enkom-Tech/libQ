@@ -300,9 +300,10 @@ fn prf_rq(seed: &[u8; 32], session: &[u8; 32]) -> Rq {
 
 /// Session identifier binding the zero-shares to this ciphertext.
 ///
-/// Absorbs exactly the bytes of `ct.to_bytes()` (the mask derivation is version-locked to that
-/// stream — parties on different encodings would derive non-cancelling masks), but element by
-/// element through one reused `RQ_BYTES` buffer instead of one full-ciphertext allocation.
+/// Absorbs the same `p`/`v` ring elements as [`Ciphertext::to_bytes`] (minus its leading
+/// wire-version byte, which this internal session id has no need to carry — all parties in one
+/// session already share a fixed, in-memory `Ciphertext`), element by element through one reused
+/// `RQ_BYTES` buffer instead of one full-ciphertext allocation.
 fn session_bytes(ct: &Ciphertext) -> [u8; 32] {
     let mut h = lib_q_sha3::Shake256::default();
     h.update(b"lib-q-threshold-kem-lattice/session/v1");

@@ -149,29 +149,38 @@ impl core::fmt::Debug for PartialDecap {
 }
 
 impl PartialDecap {
-    /// Serialized length in bytes: `1` (party index) + `RQ_BYTES` (the `value` ring element).
-    pub const BYTES: usize = 1 + RQ_BYTES;
+    /// Serialized length in bytes: `1` (wire-version byte) + `1` (party index) + `RQ_BYTES` (the
+    /// `value` ring element).
+    pub const BYTES: usize = 2 + RQ_BYTES;
 
-    /// Canonical little-endian serialization `index ‖ rq_le(value)` — for carrying a masked partial
-    /// over the wire to a distributed combiner. The masked `value` is uniform over `R_q`, so the bytes
-    /// reveal nothing about the emitting party's share.
+    /// Canonical little-endian serialization `version ‖ index ‖ rq_le(value)` — for carrying a
+    /// masked partial over the wire to a distributed combiner. The masked `value` is uniform over
+    /// `R_q`, so the bytes reveal nothing about the emitting party's share. The leading version byte
+    /// lets [`PartialDecap::from_bytes`] reject a future wire revision instead of silently
+    /// misparsing it (see [`ThresholdKemError::UnsupportedWireVersion`]).
     #[must_use]
     pub fn to_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::BYTES);
+        out.push(profile::WIRE_VERSION_V1);
         out.push(self.index);
         rq_write_le_bytes(&self.value, &mut out);
         out
     }
 
-    /// Parse from exactly [`PartialDecap::BYTES`] bytes; rejects a wrong length or non-canonical
+    /// Parse from exactly [`PartialDecap::BYTES`] bytes; rejects an unrecognized leading version
+    /// byte ([`ThresholdKemError::UnsupportedWireVersion`]), a wrong length, or a non-canonical
     /// coefficient ([`ThresholdKemError::EncodingPartial`]).
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, ThresholdKemError> {
         if bytes.len() != Self::BYTES {
             return Err(ThresholdKemError::EncodingPartial);
         }
-        let value = rq_from_le_bytes(&bytes[1..]).ok_or(ThresholdKemError::EncodingPartial)?;
+        let version = bytes[0];
+        if version != profile::WIRE_VERSION_V1 {
+            return Err(ThresholdKemError::UnsupportedWireVersion { found: version });
+        }
+        let value = rq_from_le_bytes(&bytes[2..]).ok_or(ThresholdKemError::EncodingPartial)?;
         Ok(PartialDecap {
-            index: bytes[0],
+            index: bytes[1],
             value,
         })
     }
