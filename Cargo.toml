@@ -42,6 +42,7 @@ members = [
     "lib-q-threshold-raccoon",
     "lib-q-threshold-kem-lattice",
     "lib-q-blind-token",
+    "lib-q-maul",
     # ZKP & lattice
     "lib-q-lattice-zkp",
     "lib-q-mve",
