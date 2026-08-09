@@ -19,7 +19,7 @@ pub type Vec256Float = __m256;
 /// Store 256-bit vector to unaligned memory as 8-bit integers
 #[inline(always)]
 pub fn mm256_storeu_si256_u8(output: &mut [u8], vector: Vec256) {
-    debug_assert_eq!(output.len(), 32);
+    assert_eq!(output.len(), 32);
     unsafe {
         _mm256_storeu_si256(output.as_mut_ptr() as *mut Vec256, vector);
     }
@@ -28,7 +28,7 @@ pub fn mm256_storeu_si256_u8(output: &mut [u8], vector: Vec256) {
 /// Store 256-bit vector to unaligned memory as 16-bit integers
 #[inline(always)]
 pub fn mm256_storeu_si256_i16(output: &mut [i16], vector: Vec256) {
-    debug_assert_eq!(output.len(), 16);
+    assert_eq!(output.len(), 16);
     unsafe {
         _mm256_storeu_si256(output.as_mut_ptr() as *mut Vec256, vector);
     }
@@ -37,7 +37,7 @@ pub fn mm256_storeu_si256_i16(output: &mut [i16], vector: Vec256) {
 /// Store 256-bit vector to unaligned memory as 32-bit integers
 #[inline(always)]
 pub fn mm256_storeu_si256_i32(output: &mut [i32], vector: Vec256) {
-    debug_assert_eq!(output.len(), 8);
+    assert_eq!(output.len(), 8);
     unsafe {
         _mm256_storeu_si256(output.as_mut_ptr() as *mut Vec256, vector);
     }
@@ -46,7 +46,7 @@ pub fn mm256_storeu_si256_i32(output: &mut [i32], vector: Vec256) {
 /// Store 128-bit vector to unaligned memory as 16-bit integers
 #[inline(always)]
 pub fn mm_storeu_si128(output: &mut [i16], vector: Vec128) {
-    debug_assert!(output.len() >= 8);
+    assert!(output.len() >= 8);
     unsafe {
         _mm_storeu_si128(output.as_mut_ptr() as *mut Vec128, vector);
     }
@@ -55,7 +55,7 @@ pub fn mm_storeu_si128(output: &mut [i16], vector: Vec128) {
 /// Store 128-bit vector to unaligned memory as 32-bit integers
 #[inline(always)]
 pub fn mm_storeu_si128_i32(output: &mut [i32], vector: Vec128) {
-    debug_assert_eq!(output.len(), 4);
+    assert_eq!(output.len(), 4);
     unsafe {
         _mm_storeu_si128(output.as_mut_ptr() as *mut Vec128, vector);
     }
@@ -64,7 +64,7 @@ pub fn mm_storeu_si128_i32(output: &mut [i32], vector: Vec128) {
 /// Store 128-bit vector to unaligned memory as bytes
 #[inline(always)]
 pub fn mm_storeu_bytes_si128(output: &mut [u8], vector: Vec128) {
-    debug_assert_eq!(output.len(), 16);
+    assert_eq!(output.len(), 16);
     unsafe {
         _mm_storeu_si128(output.as_mut_ptr() as *mut Vec128, vector);
     }
@@ -73,28 +73,28 @@ pub fn mm_storeu_bytes_si128(output: &mut [u8], vector: Vec128) {
 /// Load 128-bit vector from unaligned memory
 #[inline(always)]
 pub fn mm_loadu_si128(input: &[u8]) -> Vec128 {
-    debug_assert_eq!(input.len(), 16);
+    assert_eq!(input.len(), 16);
     unsafe { _mm_loadu_si128(input.as_ptr() as *const Vec128) }
 }
 
 /// Load 256-bit vector from unaligned memory as 8-bit integers
 #[inline(always)]
 pub fn mm256_loadu_si256_u8(input: &[u8]) -> Vec256 {
-    debug_assert_eq!(input.len(), 32);
+    assert_eq!(input.len(), 32);
     unsafe { _mm256_loadu_si256(input.as_ptr() as *const Vec256) }
 }
 
 /// Load 256-bit vector from unaligned memory as 16-bit integers
 #[inline(always)]
 pub fn mm256_loadu_si256_i16(input: &[i16]) -> Vec256 {
-    debug_assert_eq!(input.len(), 16);
+    assert_eq!(input.len(), 16);
     unsafe { _mm256_loadu_si256(input.as_ptr() as *const Vec256) }
 }
 
 /// Load 256-bit vector from unaligned memory as 32-bit integers
 #[inline(always)]
 pub fn mm256_loadu_si256_i32(input: &[i32]) -> Vec256 {
-    debug_assert_eq!(input.len(), 8);
+    assert_eq!(input.len(), 8);
     unsafe { _mm256_loadu_si256(input.as_ptr() as *const Vec256) }
 }
 
@@ -834,5 +834,84 @@ mod tests {
         let _: Vec256 = acc;
         let _: Vec128 = lane;
         let _: Vec256Float = ps;
+    }
+
+    // Regression tests for the F10 finding: these wrappers must reject a
+    // wrong-length slice unconditionally (i.e. even in a release build with
+    // debug-assertions off), not only via `debug_assert!`. Each test is a
+    // release-mode `--release` red test: before the fix (guard = debug_assert),
+    // `cargo test --release` runs these with debug-assertions compiled out, so
+    // the wrong-length call does NOT panic and `#[should_panic]` fails (the
+    // harness reports the test as FAILED because no panic occurred). After the
+    // fix (guard = assert!/assert_eq!, unconditional), the same `--release` run
+    // panics as expected and the test passes.
+    #[test]
+    #[should_panic]
+    fn mm256_storeu_si256_u8_rejects_wrong_length() {
+        let mut short = [0u8; 4];
+        mm256_storeu_si256_u8(&mut short, mm256_setzero_si256());
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm256_storeu_si256_i16_rejects_wrong_length() {
+        let mut short = [0i16; 3];
+        mm256_storeu_si256_i16(&mut short, mm256_setzero_si256());
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm256_storeu_si256_i32_rejects_wrong_length() {
+        let mut short = [0i32; 1];
+        mm256_storeu_si256_i32(&mut short, mm256_setzero_si256());
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm_storeu_si128_rejects_wrong_length() {
+        let mut short = [0i16; 2];
+        mm_storeu_si128(&mut short, mm_set_epi32(0, 0, 0, 0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm_storeu_si128_i32_rejects_wrong_length() {
+        let mut short = [0i32; 1];
+        mm_storeu_si128_i32(&mut short, mm_set_epi32(0, 0, 0, 0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm_storeu_bytes_si128_rejects_wrong_length() {
+        let mut short = [0u8; 3];
+        mm_storeu_bytes_si128(&mut short, mm_set_epi32(0, 0, 0, 0));
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm_loadu_si128_rejects_wrong_length() {
+        let short = [0u8; 3];
+        let _ = mm_loadu_si128(&short);
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm256_loadu_si256_u8_rejects_wrong_length() {
+        let short = [0u8; 4];
+        let _ = mm256_loadu_si256_u8(&short);
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm256_loadu_si256_i16_rejects_wrong_length() {
+        let short = [0i16; 3];
+        let _ = mm256_loadu_si256_i16(&short);
+    }
+
+    #[test]
+    #[should_panic]
+    fn mm256_loadu_si256_i32_rejects_wrong_length() {
+        let short = [0i32; 1];
+        let _ = mm256_loadu_si256_i32(&short);
     }
 }
