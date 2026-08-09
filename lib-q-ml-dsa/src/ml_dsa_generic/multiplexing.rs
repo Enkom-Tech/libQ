@@ -1,12 +1,12 @@
 use super::*;
 
-// The 5 `#[allow(dead_code)]` functions generated below (generate_key_pair, sign,
-// sign_pre_hashed_shake128, verify, verify_pre_hashed_shake128 — NOT `sign_internal`/
-// `verify_internal`, which the real dispatch path DOES call) are genuinely dead in every
-// configuration checked 2026-08-09 (x86_64 default, x86_64 --all-features, aarch64+simd128):
-// `ml_dsa_44.rs` etc. call `crate::ml_dsa_generic::ml_dsa_44::{generate_key_pair,sign,...}`
-// directly (bypassing this runtime avx2/neon-dispatch wrapper) for everything except
-// sign_internal/verify_internal. Kept, not deleted — a documented, unwired runtime-dispatch path.
+// `generate_key_pair`, `sign` and `verify` below are now wired: as of 2026-08-10,
+// `ml_dsa_44.rs`/`ml_dsa_65.rs`/`ml_dsa_87.rs`'s public `generate_key_pair`/`sign`/`verify` call
+// through this module (same as `sign_internal`/`verify_internal` already did), so the
+// avx2/neon runtime dispatch is genuinely reachable for them.
+// `sign_pre_hashed_shake128`/`verify_pre_hashed_shake128` are still NOT called from the public
+// API (which hardcodes portable for the pre-hashed HashML-DSA entry points) — genuinely dead,
+// hence they keep `#[allow(dead_code)]`.
 macro_rules! parameter_set {
     ($parameter_module:ident, $feature:literal) => {
         #[cfg(feature = $feature)]
@@ -46,7 +46,6 @@ macro_rules! parameter_set {
                 VERIFICATION_KEY_SIZE,
             };
 
-            #[allow(dead_code)]
             pub(crate) fn generate_key_pair(
                 randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
                 signing_key: &mut [u8; SIGNING_KEY_SIZE],
@@ -98,7 +97,6 @@ macro_rules! parameter_set {
                 )
             }
 
-            #[allow(dead_code)]
             pub(crate) fn sign(
                 signing_key: &[u8; SIGNING_KEY_SIZE],
                 message: &[u8],
@@ -202,7 +200,6 @@ macro_rules! parameter_set {
                 )
             }
 
-            #[allow(dead_code)]
             pub(crate) fn verify(
                 verification_key_serialized: &[u8; VERIFICATION_KEY_SIZE],
                 message: &[u8],

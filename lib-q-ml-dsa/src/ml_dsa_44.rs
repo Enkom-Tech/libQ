@@ -253,14 +253,11 @@ macro_rules! instantiate {
 pub fn generate_key_pair(randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE]) -> MLDSA44KeyPair {
     let mut signing_key = [0u8; ml_dsa_44::SIGNING_KEY_SIZE];
     let mut verification_key = [0u8; ml_dsa_44::VERIFICATION_KEY_SIZE];
-    crate::ml_dsa_generic::ml_dsa_44::generate_key_pair::<
-        crate::simd::portable::PortableSIMDUnit,
-        crate::samplex4::portable::PortableSampler,
-        crate::hash_functions::portable::Shake128X4,
-        crate::hash_functions::portable::Shake256,
-        crate::hash_functions::portable::Shake256Xof,
-        crate::hash_functions::portable::Shake256X4,
-    >(randomness, &mut signing_key, &mut verification_key);
+    crate::ml_dsa_generic::multiplexing::ml_dsa_44::generate_key_pair(
+        randomness,
+        &mut signing_key,
+        &mut verification_key,
+    );
 
     MLDSA44KeyPair {
         signing_key: MLDSASigningKey::new(signing_key),
@@ -284,14 +281,12 @@ pub fn sign(
     context: &[u8],
     randomness: [u8; SIGNING_RANDOMNESS_SIZE],
 ) -> Result<MLDSA44Signature, SigningError> {
-    crate::ml_dsa_generic::ml_dsa_44::sign::<
-        crate::simd::portable::PortableSIMDUnit,
-        crate::samplex4::portable::PortableSampler,
-        crate::hash_functions::portable::Shake128X4,
-        crate::hash_functions::portable::Shake256,
-        crate::hash_functions::portable::Shake256Xof,
-        crate::hash_functions::portable::Shake256X4,
-    >(signing_key.as_ref(), message, context, randomness)
+    crate::ml_dsa_generic::multiplexing::ml_dsa_44::sign(
+        signing_key.as_ref(),
+        message,
+        context,
+        randomness,
+    )
 }
 
 /// Sign with ML-DSA 44 (Algorithm 7 in FIPS204)
@@ -344,13 +339,7 @@ pub fn verify(
     context: &[u8],
     signature: &MLDSA44Signature,
 ) -> Result<(), VerificationError> {
-    crate::ml_dsa_generic::ml_dsa_44::verify::<
-        crate::simd::portable::PortableSIMDUnit,
-        crate::samplex4::portable::PortableSampler,
-        crate::hash_functions::portable::Shake128X4,
-        crate::hash_functions::portable::Shake256,
-        crate::hash_functions::portable::Shake256Xof,
-    >(
+    crate::ml_dsa_generic::multiplexing::ml_dsa_44::verify(
         verification_key.as_ref(),
         message,
         context,
