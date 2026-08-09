@@ -448,13 +448,37 @@ impl<P: HqcParams> HqcKemPublicKey<P> {
 }
 
 /// HQC KEM Secret Key
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HqcKemSecretKey<P: HqcParams> {
     ek_pke: HqcPkePublicKey<P>,
     dk_pke: HqcPkeSecretKey<P>,
     sigma: [u8; 16],    // PARAM_SECURITY_BYTES
     seed_kem: [u8; 48], // KAT seed (48 bytes for compatibility)
 }
+
+/// Constant-time over the secret fields.
+///
+/// `dk_pke`, `sigma` and `seed_kem` are secret, so they are folded with subtle's
+/// non-short-circuiting `&`; `ek_pke` is public and its comparison carries no secret timing.
+/// The derived `PartialEq` this replaces returned as soon as it found a differing byte, which
+/// reveals how many leading bytes of a guessed key were correct.
+impl<P: HqcParams> subtle::ConstantTimeEq for HqcKemSecretKey<P> {
+    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+        self.dk_pke.data.ct_eq(&other.dk_pke.data) &
+            self.sigma.ct_eq(&other.sigma) &
+            self.seed_kem.ct_eq(&other.seed_kem) &
+            subtle::Choice::from(u8::from(self.ek_pke == other.ek_pke))
+    }
+}
+
+impl<P: HqcParams> PartialEq for HqcKemSecretKey<P> {
+    fn eq(&self, other: &Self) -> bool {
+        use subtle::ConstantTimeEq as _;
+        self.ct_eq(other).into()
+    }
+}
+
+impl<P: HqcParams> Eq for HqcKemSecretKey<P> {}
 
 impl<P: HqcParams> HqcKemSecretKey<P> {
     pub fn new(
@@ -567,11 +591,28 @@ impl<P: HqcParams> HqcKemCiphertext<P> {
 }
 
 /// HQC KEM Shared Secret
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct HqcKemSharedSecret<P: HqcParams> {
     data: [u8; 32], // SHARED_SECRET_BYTES
     _params: core::marker::PhantomData<P>,
 }
+
+/// Constant-time. A shared secret is exactly what an attacker wants to confirm by guessing, so a
+/// short-circuiting `==` here would leak how many leading bytes of a guess were correct.
+impl<P: HqcParams> subtle::ConstantTimeEq for HqcKemSharedSecret<P> {
+    fn ct_eq(&self, other: &Self) -> subtle::Choice {
+        self.data.ct_eq(&other.data)
+    }
+}
+
+impl<P: HqcParams> PartialEq for HqcKemSharedSecret<P> {
+    fn eq(&self, other: &Self) -> bool {
+        use subtle::ConstantTimeEq as _;
+        self.ct_eq(other).into()
+    }
+}
+
+impl<P: HqcParams> Eq for HqcKemSharedSecret<P> {}
 
 impl<P: HqcParams> HqcKemSharedSecret<P> {
     pub fn new(data: [u8; 32]) -> Self {

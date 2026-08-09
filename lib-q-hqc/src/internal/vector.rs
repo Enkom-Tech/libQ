@@ -24,9 +24,28 @@ pub fn vect_add(result: &mut [u8], v1: &[u8], v2: &[u8]) -> Result<(), HqcError>
     Ok(())
 }
 
-/// Compare two vectors
+/// Compare two vectors in constant time.
+///
+/// This crate's `subtle` dependency is feature-gated (`subtle`/`hardened`), so this module
+/// (which is unconditionally compiled and publicly reachable as `lib_q_hqc::internal::vector`)
+/// cannot depend on it here. Instead this folds an OR-accumulated XOR mask over the full length
+/// of both inputs — the same arithmetic-mask shape the KEM's own inherent `vect_compare`
+/// (`hqc_kem.rs`) already uses on its FO re-encryption compare — so there is no early return on
+/// the first differing byte and no branch on secret-dependent data.
+///
+/// A function with this name matches the reference implementation's FO-rejection comparison
+/// (`reference/hqc/src/ref/vector.c`); it is not currently wired into decapsulation (the KEM has
+/// its own inherent `vect_compare`), but it must not be a timing oracle waiting to be reused.
 pub fn vect_compare(v1: &[u8], v2: &[u8]) -> Result<bool, HqcError> {
-    Ok(v1 == v2)
+    let max_len = v1.len().max(v2.len());
+    let mut diff: u8 = 0;
+    for i in 0..max_len {
+        let a = v1.get(i).copied().unwrap_or(0);
+        let b = v2.get(i).copied().unwrap_or(0);
+        diff |= a ^ b;
+    }
+    let len_matches = v1.len() == v2.len();
+    Ok(len_matches && diff == 0)
 }
 
 /// Resize vector by truncating or padding
@@ -169,6 +188,26 @@ mod tests {
         let v3 = [0, 1, 1, 0];
         assert!(vect_compare(&v1, &v2).unwrap());
         assert!(!vect_compare(&v1, &v3).unwrap());
+    }
+
+    #[test]
+    fn test_vect_compare_length_mismatch() {
+        // Different lengths must never compare equal, including when one is a prefix of the
+        // other (the padding-with-zero fold must not treat a missing tail as a matching zero).
+        assert!(!vect_compare(&[1, 0, 1, 0], &[1, 0, 1]).unwrap());
+        assert!(!vect_compare(&[1, 0, 1], &[1, 0, 1, 0]).unwrap());
+        assert!(vect_compare(&[] as &[u8], &[] as &[u8]).unwrap());
+        assert!(!vect_compare(&[0u8; 3], &[] as &[u8]).unwrap());
+    }
+
+    #[test]
+    fn test_vect_compare_differs_only_in_last_byte() {
+        // Regression guard for the fix away from short-circuiting `v1 == v2`: equality must
+        // still be decided correctly when only the LAST byte differs (the case a short-circuit
+        // implementation still gets right functionally, but only after touching every byte).
+        let v1 = [1u8, 2, 3, 4, 5];
+        let v2 = [1u8, 2, 3, 4, 9];
+        assert!(!vect_compare(&v1, &v2).unwrap());
     }
 
     #[test]
