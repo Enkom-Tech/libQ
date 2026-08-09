@@ -164,6 +164,9 @@ pub unsafe fn fast_loop_absorb_avx512(
     offset
 }
 
+// Public capability probe with no internal caller in any feature combination checked (default,
+// --all-features, --features multithreading) — verified 2026-08-09: removing the allow warns
+// "is never used" in every one. Kept as a `pub` diagnostic helper for downstream callers.
 #[allow(dead_code)]
 pub fn has_avx2() -> bool {
     #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
@@ -176,6 +179,8 @@ pub fn has_avx2() -> bool {
     }
 }
 
+// Same situation as `has_avx2` above: no internal caller in any config checked, verified
+// 2026-08-09. Kept as a `pub` diagnostic helper for downstream callers.
 #[allow(dead_code)]
 pub fn has_avx512f() -> bool {
     #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]

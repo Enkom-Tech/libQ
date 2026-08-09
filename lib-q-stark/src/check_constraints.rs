@@ -21,7 +21,6 @@ use tracing::instrument;
 ///
 /// This function is used in debug mode (via `#[cfg(debug_assertions)]`), in tests, and by
 /// recursive verifier regression tests that need to assert constraint satisfaction before prove.
-#[allow(dead_code)] // Used conditionally in debug mode and in tests
 #[allow(unsafe_code)] // Safe: bounds are guaranteed by loop invariants (row_index in [0, height))
 #[instrument(skip_all)]
 pub fn check_constraints<F, A>(air: &A, main: &RowMajorMatrix<F>, public_values: &[F])

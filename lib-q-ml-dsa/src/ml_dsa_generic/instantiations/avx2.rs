@@ -6,6 +6,11 @@ use crate::types::{
     *,
 };
 
+// The 6 `#[allow(dead_code)]` functions generated below are genuinely dead in the only
+// configuration where this module even compiles (x86_64 + `--all-features`, which is required
+// for `simd256`/avx2) — verified 2026-08-09. Same root cause as
+// `ml_dsa_generic/instantiations.rs`: the real dispatch path bypasses this macro's output. Kept,
+// not deleted; see that file's comment for detail.
 macro_rules! parameter_set {
     ($parameter_module:ident, $feature:literal) => {
         #[cfg(feature = $feature)]

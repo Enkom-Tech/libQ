@@ -78,9 +78,12 @@ impl ConstraintLayout {
 
 /// Tracks whether a constraint was emitted via `assert_zero` (base) or `assert_zero_ext` (ext).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-#[allow(dead_code)]
 enum ConstraintType {
     Base,
+    // Genuinely never constructed today (only `Base` is emitted) in every configuration checked
+    // (default and --all-features), verified 2026-08-09 with `cargo check`; kept for the enum's
+    // documented purpose (tracking assert_zero vs assert_zero_ext) rather than deleted.
+    #[allow(dead_code)]
     Ext,
 }
 
@@ -139,6 +142,9 @@ where
 /// An [`AirBuilder`] for evaluating constraints symbolically, and recording them for later use.
 #[derive(Debug)]
 pub struct SymbolicAirBuilder<F: Field> {
+    // Genuinely never read today in any configuration checked (default and --all-features),
+    // verified 2026-08-09 with `cargo check`; kept as recorded state for the builder's documented
+    // shape rather than deleted.
     #[allow(dead_code)]
     preprocessed: lib_q_stark_matrix::dense::RowMajorMatrix<SymbolicVariable<F>>,
     preprocessed_window: SymbolicWindow<SymbolicVariable<F>>,

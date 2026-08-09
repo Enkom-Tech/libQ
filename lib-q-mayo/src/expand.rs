@@ -20,6 +20,9 @@ pub fn shake256(parts: &[&[u8]], out: &mut [u8]) {
 
 /// AES-128-CTR keystream with zero IV/nonce: `out = E_k(0), E_k(1), ...`
 /// with the 128-bit counter incremented big-endian.
+// Genuinely unused outside `cfg(test)` (only test code calls this today; no non-test caller in
+// any feature combination) — verified 2026-08-09: `cargo check -p lib-q-mayo --all-features`
+// and default both warn `function `aes128_ctr` is never used` once this allow is removed.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn aes128_ctr(key: &[u8; 16], out: &mut [u8]) {
     use aes::cipher::{

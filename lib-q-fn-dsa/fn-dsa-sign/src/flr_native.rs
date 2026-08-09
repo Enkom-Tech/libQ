@@ -293,6 +293,10 @@ impl Flr {
         Self(j as f64)
     }
 
+    // CORRECTION 2026-08-09: the "specialized code may access directly" rationale below is
+    // stale/unverified — `cargo check --all-features` (which enables avx2) still warns this
+    // never used. It IS used, but only from `#[cfg(test)]` code (dead under default and
+    // --all-features, live under `--tests`).
     // Specialized code (e.g. AVX2 on x86_64) may access the inner f64
     // value directly.
     #[allow(dead_code)]
@@ -317,7 +321,8 @@ impl Flr {
 
     // Encode to 8 bytes (IEEE-754 binary64 format, little-endian).
     // This is meant for tests only; this function does not need to be
-    // constant-time.
+    // constant-time. Verified 2026-08-09: dead under default and --all-features, live under
+    // --tests.
     #[allow(dead_code)]
     pub(crate) fn encode(self) -> [u8; 8] {
         self.0.to_le_bytes()
@@ -325,7 +330,8 @@ impl Flr {
 
     // Decode from 8 bytes (IEEE-754 binary64 format, little-endian).
     // This is meant for tests only; this function does not need to be
-    // constant-time.
+    // constant-time. Verified 2026-08-09: dead under default and --all-features, live under
+    // --tests.
     #[allow(dead_code)]
     pub(crate) fn decode(src: &[u8]) -> Option<Self> {
         match src.len() {
@@ -344,7 +350,8 @@ impl Flr {
     }
 
     // Return self * 2.
-    // (used in some tests)
+    // (used in some tests) — verified 2026-08-09: dead under default and --all-features, live
+    // under --tests.
     #[allow(dead_code)]
     #[inline(always)]
     pub(crate) fn double(self) -> Self {
@@ -361,7 +368,8 @@ impl Flr {
     // 1 to 9 range (inclusive). The value of e is not considered secret.
     // This is a helper function used in the implementation of the FFT
     // and included in the Flr API because different implementations might
-    // do it very differently.
+    // do it very differently. Verified 2026-08-09: live under default features (used by the
+    // portable FFT path), dead under --all-features (the avx2 FFT path bypasses it).
     #[allow(dead_code)]
     pub(crate) fn slice_div2e(f: &mut [Flr], e: u32) {
         let ee = Self::INV_POW2[(e + 127) as usize];
@@ -526,6 +534,7 @@ impl Flr {
         self.0 /= other.0;
     }
 
+    // Verified 2026-08-09: dead under default and --all-features, live under --tests.
     #[allow(dead_code)]
     pub(crate) fn abs(self) -> Self {
         // This is for tests, thus it does not need to be constant-time.

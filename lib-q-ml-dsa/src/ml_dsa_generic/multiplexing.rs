@@ -1,5 +1,12 @@
 use super::*;
 
+// The 5 `#[allow(dead_code)]` functions generated below (generate_key_pair, sign,
+// sign_pre_hashed_shake128, verify, verify_pre_hashed_shake128 — NOT `sign_internal`/
+// `verify_internal`, which the real dispatch path DOES call) are genuinely dead in every
+// configuration checked 2026-08-09 (x86_64 default, x86_64 --all-features, aarch64+simd128):
+// `ml_dsa_44.rs` etc. call `crate::ml_dsa_generic::ml_dsa_44::{generate_key_pair,sign,...}`
+// directly (bypassing this runtime avx2/neon-dispatch wrapper) for everything except
+// sign_internal/verify_internal. Kept, not deleted — a documented, unwired runtime-dispatch path.
 macro_rules! parameter_set {
     ($parameter_module:ident, $feature:literal) => {
         #[cfg(feature = $feature)]

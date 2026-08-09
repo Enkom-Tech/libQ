@@ -185,8 +185,10 @@ pub struct AggregatedProof<C: StarkGenericConfig> {
 pub struct ProofAggregator<C: StarkGenericConfig> {
     /// Inner proofs to aggregate
     proofs: Vec<StarkProof<C>>,
-    /// STARK configuration (will be used in full recursive implementation)
-    #[allow(dead_code)]
+    /// STARK configuration; only read by the `recursive-proofs-experimental`-gated methods
+    /// (`aggregate`/`aggregate_single`). Verified 2026-08-09: dead (warns) under default
+    /// features, live (no warning) under `--all-features`.
+    #[cfg_attr(not(feature = "recursive-proofs-experimental"), allow(dead_code))]
     config: C,
 }
 
@@ -588,7 +590,10 @@ where
     }
 
     /// Serialize all proofs for aggregation using real challenges from verifier replay
-    #[allow(dead_code)]
+    ///
+    /// Only called from the `recursive-proofs-experimental`-gated `aggregate`/`aggregate_single`.
+    /// Verified 2026-08-09: dead (warns) under default features, live under `--all-features`.
+    #[cfg_attr(not(feature = "recursive-proofs-experimental"), allow(dead_code))]
     fn serialize_all_proofs<A>(
         &self,
         verifier: &StarkVerifier<C>,
@@ -648,7 +653,10 @@ where
     }
 
     /// Compute Merkle root of proof commitment hashes
-    #[allow(dead_code)]
+    ///
+    /// Only called from the `recursive-proofs-experimental`-gated `aggregate`/`aggregate_single`.
+    /// Verified 2026-08-09: dead (warns) under default features, live under `--all-features`.
+    #[cfg_attr(not(feature = "recursive-proofs-experimental"), allow(dead_code))]
     fn compute_proofs_merkle_root(
         &self,
         serialized_proofs: &[SerializedStarkProof<Val<C>, C::Challenge>],

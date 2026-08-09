@@ -157,6 +157,8 @@ pub mod incremental {
     }
 
     /// Squeeze three blocks for SHAKE-128.
+    // Genuinely dead in every configuration checked 2026-08-09 (x86_64 default, x86_64
+    // --all-features, aarch64+simd128) — no caller found. Kept, not deleted.
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
     #[allow(dead_code)]

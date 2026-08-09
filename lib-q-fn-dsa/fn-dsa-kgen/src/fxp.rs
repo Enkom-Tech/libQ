@@ -29,6 +29,12 @@ pub(crate) struct Fxr(pub(crate) u64);
 
 impl DefaultIsZeroes for Fxr {}
 
+// The 10 `#[allow(dead_code)]` items below (ONE, set_double/double, set_abs/abs, div2e, half,
+// mul2e, set_inv/inv) are part of the full `Fxr` fixed-point API ported from the fn-dsa reference
+// implementation; only a subset is called by this crate's keygen path in any configuration
+// checked (default, --all-features) — verified 2026-08-09, all 10 warn `never used`/`never
+// constructed` with the allow removed. Kept (not deleted) as the complete, auditable arithmetic
+// API rather than a keygen-trimmed subset.
 impl Fxr {
     pub(crate) const ZERO: Self = Self::from_i32(0);
 

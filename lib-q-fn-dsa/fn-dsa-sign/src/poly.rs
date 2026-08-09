@@ -29,7 +29,6 @@ use super::flr::Flr;
 //     FFT coefficients) are implicitly zero and are omitted.
 
 // Complex multiplication.
-#[allow(dead_code)]
 #[inline(always)]
 pub(crate) fn flc_mul(x_re: Flr, x_im: Flr, y_re: Flr, y_im: Flr) -> (Flr, Flr) {
     (x_re * y_re - x_im * y_im, x_re * y_im + x_im * y_re)

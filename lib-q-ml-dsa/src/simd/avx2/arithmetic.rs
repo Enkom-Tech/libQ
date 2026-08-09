@@ -21,6 +21,8 @@ use crate::simd::traits::{
               then to_i32x8 $result i = to_i32x8 $t i +! $FIELD_MODULUS
               else to_i32x8 $result i = to_i32x8 $t i)) =
 "#))]
+// Genuinely dead under --all-features (the only config where this avx2-gated module even
+// compiles) — verified 2026-08-09, no caller found. Kept, not deleted.
 #[allow(dead_code)]
 fn to_unsigned_representatives_ret(t: &Vec256) -> Vec256 {
     hax_lib::fstar!("reveal_opaque_arithmetic_ops #i32_inttype)");
@@ -41,6 +43,7 @@ fn to_unsigned_representatives_ret(t: &Vec256) -> Vec256 {
               then to_i32x8 tt_future i = to_i32x8 $t i +! $FIELD_MODULUS
               else to_i32x8 tt_future i = to_i32x8 $t i)) =
 "#))]
+// Same situation as `to_unsigned_representatives_ret` above — verified 2026-08-09.
 #[allow(dead_code)]
 fn to_unsigned_representatives(t: &mut Vec256) {
     *t = to_unsigned_representatives_ret(t);

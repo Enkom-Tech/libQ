@@ -109,6 +109,10 @@ impl<T: PRNG> Sampler<T> {
     }
 
     // SSE2 variant of next() (for 32-bit x86).
+    // NOT independently verified 2026-08-09 (SUSPECTED, not OBSERVED): this crate's target has
+    // no installed `i686-*` rustup target, so `cargo check --target i686-*` could not be run to
+    // confirm whether the allow is redundant or load-bearing on that arch. Left unchanged
+    // pending that check.
     #[cfg(all(target_arch = "x86", target_feature = "sse2"))]
     #[allow(dead_code)]
     pub(crate) fn next(&mut self, mu: Flr, isigma: Flr) -> i32 {

@@ -19,9 +19,6 @@
 //! HONESTY: this proves the gadget *computes Poseidon2 correctly and is fully constrained*.
 //! It does NOT establish the round-count / parameter soundness (obligation packet; tier RED).
 
-// Column-index helpers below document the layout; some are not yet referenced (RED/WIP gadget).
-#![allow(dead_code)]
-
 extern crate alloc;
 
 use alloc::vec::Vec;
@@ -56,19 +53,27 @@ const END_START: usize = PARTIAL_START + PARTIAL_ROUNDS;
 /// Total columns per row for the single-permutation Poseidon2 AIR (= 285).
 pub const POSEIDON2_ROW_WIDTH: usize = END_START + HALF_FULL_ROUNDS * FULL_ROUND_COLS;
 
+// Column-index helpers below document the layout; these 4 are not yet referenced anywhere
+// (RED/WIP gadget) — verified 2026-08-09: `cargo check --all-features` and default both warn
+// "is never used" for each with the allow removed. Kept (not deleted) as the documented column
+// layout for the not-yet-wired portion of this gadget.
 #[inline]
+#[allow(dead_code)]
 const fn begin_sbox_col(r: usize, i: usize) -> usize {
     BEGIN_START + r * FULL_ROUND_COLS + i
 }
 #[inline]
+#[allow(dead_code)]
 const fn begin_post_col(r: usize, i: usize) -> usize {
     BEGIN_START + r * FULL_ROUND_COLS + WIDTH + i
 }
 #[inline]
+#[allow(dead_code)]
 const fn partial_col(r: usize) -> usize {
     PARTIAL_START + r
 }
 #[inline]
+#[allow(dead_code)]
 const fn end_sbox_col(r: usize, i: usize) -> usize {
     END_START + r * FULL_ROUND_COLS + i
 }
