@@ -47,6 +47,9 @@ hex = { workspace = true, optional = true }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
+# Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
+# this crate asserts its own real computed sizes match, so drift fails CI on either side.
+lib-q-types = { path = "../lib-q-types", version = "0.0.10", default-features = false }
 wasm-bindgen-test = { workspace = true }
 hex-literal = { workspace = true }
 pastey = { workspace = true }

@@ -980,6 +980,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
+ "lib-q-types",
  "rand 0.10.2",
  "rand_core 0.10.1",
  "serde",
@@ -1324,6 +1325,7 @@ dependencies = [
  "lib-q-ring",
  "lib-q-sca-test",
  "lib-q-sha3",
+ "lib-q-types",
  "rand_core 0.10.1",
  "serde",
  "serde_json",
@@ -1346,6 +1348,7 @@ dependencies = [
  "lib-q-random",
  "lib-q-sca-test",
  "lib-q-sha3",
+ "lib-q-types",
  "num-rational",
  "rand_core 0.10.1",
  "serde",
@@ -1674,6 +1677,7 @@ dependencies = [
  "lib-q-core",
  "lib-q-random",
  "lib-q-sha3",
+ "lib-q-types",
  "num-bigint 0.5.1",
  "pastey",
  "pkcs8",
@@ -2083,6 +2087,7 @@ dependencies = [
 name = "lib-q-types"
 version = "0.0.10"
 dependencies = [
+ "lib-q-fn-dsa-comm",
  "serde",
  "wasm-bindgen",
 ]

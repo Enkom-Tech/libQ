@@ -3,7 +3,14 @@
 //! This module provides security-related constants used throughout the library
 //! for validation and configuration.
 
-use lib_q_types::hqc;
+use lib_q_types::{
+    cbkem,
+    fndsa,
+    hqc,
+    mldsa,
+    mlkem,
+    slhdsa,
+};
 
 use crate::api::Algorithm;
 use crate::error::Result;
@@ -101,59 +108,59 @@ impl SecurityConstants {
             // KEM algorithms
             Algorithm::MlKem512 => {
                 if is_secret {
-                    1632
+                    mlkem::MLKEM512_SECRET_KEY_BYTES
                 } else {
-                    800
+                    mlkem::MLKEM512_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::MlKem768 => {
                 if is_secret {
-                    2400
+                    mlkem::MLKEM768_SECRET_KEY_BYTES
                 } else {
-                    1184
+                    mlkem::MLKEM768_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::MlKem1024 => {
                 if is_secret {
-                    3168
+                    mlkem::MLKEM1024_SECRET_KEY_BYTES
                 } else {
-                    1568
+                    mlkem::MLKEM1024_PUBLIC_KEY_BYTES
                 }
             }
-            // CB-KEM algorithms
+            // CB-KEM algorithms — sizes from `lib_q_types::cbkem`.
             Algorithm::CbKem348864 => {
                 if is_secret {
-                    6492 // CB-KEM-348864 secret key size
+                    cbkem::CBKEM348864_SECRET_KEY_BYTES
                 } else {
-                    261120 // CB-KEM-348864 public key size
+                    cbkem::CBKEM348864_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::CbKem460896 => {
                 if is_secret {
-                    13608 // CB-KEM-460896 secret key size
+                    cbkem::CBKEM460896_SECRET_KEY_BYTES
                 } else {
-                    524160 // CB-KEM-460896 public key size
+                    cbkem::CBKEM460896_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::CbKem6688128 => {
                 if is_secret {
-                    13932 // CB-KEM-6688128 secret key size
+                    cbkem::CBKEM6688128_SECRET_KEY_BYTES
                 } else {
-                    1044992 // CB-KEM-6688128 public key size
+                    cbkem::CBKEM6688128_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::CbKem6960119 => {
                 if is_secret {
-                    13948 // CB-KEM-6960119 secret key size
+                    cbkem::CBKEM6960119_SECRET_KEY_BYTES
                 } else {
-                    1047319 // CB-KEM-6960119 public key size
+                    cbkem::CBKEM6960119_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::CbKem8192128 => {
                 if is_secret {
-                    14120 // CB-KEM-8192128 secret key size
+                    cbkem::CBKEM8192128_SECRET_KEY_BYTES
                 } else {
-                    1357824 // CB-KEM-8192128 public key size
+                    cbkem::CBKEM8192128_PUBLIC_KEY_BYTES
                 }
             }
 
@@ -180,98 +187,68 @@ impl SecurityConstants {
                 }
             }
 
-            // Signature algorithms
+            // Signature algorithms — sizes from `lib_q_types::mldsa`.
             Algorithm::MlDsa44 => {
                 if is_secret {
-                    2560 // ML-DSA-44 secret key size
+                    mldsa::MLDSA44_SECRET_KEY_BYTES
                 } else {
-                    1312 // ML-DSA-44 public key size
+                    mldsa::MLDSA44_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::MlDsa65 => {
                 if is_secret {
-                    4032 // ML-DSA-65 secret key size
+                    mldsa::MLDSA65_SECRET_KEY_BYTES
                 } else {
-                    1952 // ML-DSA-65 public key size
+                    mldsa::MLDSA65_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::MlDsa87 => {
                 if is_secret {
-                    4896 // ML-DSA-87 secret key size
+                    mldsa::MLDSA87_SECRET_KEY_BYTES
                 } else {
-                    2592 // ML-DSA-87 public key size
+                    mldsa::MLDSA87_PUBLIC_KEY_BYTES
                 }
             }
-            Algorithm::FnDsa => {
+            // FN-DSA — sizes from `lib_q_types::fndsa`, which derives them at compile time from
+            // `lib-q-fn-dsa-comm`'s own `sign_key_size`/`vrfy_key_size` `const fn`s (genuinely
+            // derived, not a hand-copied literal). This is the exact table that once read 2561
+            // instead of 2305 for FN-DSA-1024's secret key, which made
+            // `LibQSignatureProvider` reject every FN-DSA-1024 key the library generated.
+            Algorithm::FnDsa | Algorithm::FnDsa512 => {
                 if is_secret {
-                    1281 // FN-DSA-512 secret key size (logn=9)
+                    fndsa::FNDSA512_SECRET_KEY_BYTES
                 } else {
-                    897 // FN-DSA-512 public key size (logn=9)
-                }
-            }
-            Algorithm::FnDsa512 => {
-                if is_secret {
-                    1281 // FN-DSA-512 secret key size (logn=9)
-                } else {
-                    897 // FN-DSA-512 public key size (logn=9)
+                    fndsa::FNDSA512_PUBLIC_KEY_BYTES
                 }
             }
             Algorithm::FnDsa1024 => {
                 if is_secret {
-                    // 2305, per fn-dsa-comm's `sign_key_size(10)`:
-                    //   n = 1024, nbits_fg = 5 (logn >= 10)  ->  1 + (5 * 1024 * 2) / 8 + 1024
-                    // This read 2561 for a long time, which is the same formula evaluated with
-                    // logn=9's nbits_fg = 6 (1 + 1536 + 1024) -- the wrong branch of the match.
-                    // Because the provider gates on an exact `!=`, that made
-                    // LibQSignatureProvider reject an FN-DSA-1024 key the library had just
-                    // generated, so FN-DSA-1024 signing was dead through lib-q-sig.
-                    2305 // FN-DSA-1024 secret key size (logn=10)
+                    fndsa::FNDSA1024_SECRET_KEY_BYTES
                 } else {
-                    1793 // FN-DSA-1024 public key size (logn=10)
+                    fndsa::FNDSA1024_PUBLIC_KEY_BYTES
                 }
             }
 
-            // SLH-DSA algorithms
-            Algorithm::SlhDsaSha256128fRobust => {
+            // SLH-DSA algorithms — sizes from `lib_q_types::slhdsa`.
+            Algorithm::SlhDsaSha256128fRobust | Algorithm::SlhDsaShake256128fRobust => {
                 if is_secret {
-                    64 // SLH-DSA SHA256-128f secret key size (4 * N where N=16)
+                    slhdsa::SLHDSA_128F_SECRET_KEY_BYTES
                 } else {
-                    32 // SLH-DSA SHA256-128f public key size (2 * N where N=16)
+                    slhdsa::SLHDSA_128F_PUBLIC_KEY_BYTES
                 }
             }
-            Algorithm::SlhDsaSha256192fRobust => {
+            Algorithm::SlhDsaSha256192fRobust | Algorithm::SlhDsaShake256192fRobust => {
                 if is_secret {
-                    96 // SLH-DSA SHA256-192f secret key size (4 * N where N=24)
+                    slhdsa::SLHDSA_192F_SECRET_KEY_BYTES
                 } else {
-                    48 // SLH-DSA SHA256-192f public key size (2 * N where N=24)
+                    slhdsa::SLHDSA_192F_PUBLIC_KEY_BYTES
                 }
             }
-            Algorithm::SlhDsaSha256256fRobust => {
+            Algorithm::SlhDsaSha256256fRobust | Algorithm::SlhDsaShake256256fRobust => {
                 if is_secret {
-                    128 // SLH-DSA SHA256-256f secret key size (4 * N where N=32)
+                    slhdsa::SLHDSA_256F_SECRET_KEY_BYTES
                 } else {
-                    64 // SLH-DSA SHA256-256f public key size (2 * N where N=32)
-                }
-            }
-            Algorithm::SlhDsaShake256128fRobust => {
-                if is_secret {
-                    64 // SLH-DSA SHAKE256-128f secret key size (4 * N where N=16)
-                } else {
-                    32 // SLH-DSA SHAKE256-128f public key size (2 * N where N=16)
-                }
-            }
-            Algorithm::SlhDsaShake256192fRobust => {
-                if is_secret {
-                    96 // SLH-DSA SHAKE256-192f secret key size (4 * N where N=24)
-                } else {
-                    48 // SLH-DSA SHAKE256-192f public key size (2 * N where N=24)
-                }
-            }
-            Algorithm::SlhDsaShake256256fRobust => {
-                if is_secret {
-                    128 // SLH-DSA SHAKE256-256f secret key size (4 * N where N=32)
-                } else {
-                    64 // SLH-DSA SHAKE256-256f public key size (2 * N where N=32)
+                    slhdsa::SLHDSA_256F_PUBLIC_KEY_BYTES
                 }
             }
 
@@ -298,16 +275,16 @@ impl SecurityConstants {
     /// doesn't produce ciphertext or is not supported.
     pub fn get_expected_ciphertext_size(&self, algorithm: Algorithm) -> Result<usize> {
         let expected_size = match algorithm {
-            Algorithm::MlKem512 => 768,   // ML-KEM-512 ciphertext size
-            Algorithm::MlKem768 => 1088,  // ML-KEM-768 ciphertext size
-            Algorithm::MlKem1024 => 1568, // ML-KEM-1024 ciphertext size
+            Algorithm::MlKem512 => mlkem::MLKEM512_CIPHERTEXT_BYTES,
+            Algorithm::MlKem768 => mlkem::MLKEM768_CIPHERTEXT_BYTES,
+            Algorithm::MlKem1024 => mlkem::MLKEM1024_CIPHERTEXT_BYTES,
 
-            // CB-KEM algorithms
-            Algorithm::CbKem348864 => 96, // CB-KEM-348864 ciphertext size
-            Algorithm::CbKem460896 => 156, // CB-KEM-460896 ciphertext size
-            Algorithm::CbKem6688128 => 208, // CB-KEM-6688128 ciphertext size
-            Algorithm::CbKem6960119 => 194, // CB-KEM-6960119 ciphertext size
-            Algorithm::CbKem8192128 => 208, // CB-KEM-8192128 ciphertext size
+            // CB-KEM algorithms — sizes from `lib_q_types::cbkem`.
+            Algorithm::CbKem348864 => cbkem::CBKEM348864_CIPHERTEXT_BYTES,
+            Algorithm::CbKem460896 => cbkem::CBKEM460896_CIPHERTEXT_BYTES,
+            Algorithm::CbKem6688128 => cbkem::CBKEM6688128_CIPHERTEXT_BYTES,
+            Algorithm::CbKem6960119 => cbkem::CBKEM6960119_CIPHERTEXT_BYTES,
+            Algorithm::CbKem8192128 => cbkem::CBKEM8192128_CIPHERTEXT_BYTES,
 
             Algorithm::Hqc128 => hqc::HQC128_CIPHERTEXT_BYTES,
             Algorithm::Hqc192 => hqc::HQC192_CIPHERTEXT_BYTES,
@@ -335,20 +312,22 @@ impl SecurityConstants {
     /// doesn't produce signatures or is not supported.
     pub fn get_expected_signature_size(&self, algorithm: Algorithm) -> Result<usize> {
         let expected_size = match algorithm {
-            Algorithm::MlDsa44 => 2420,   // ML-DSA-44 signature size
-            Algorithm::MlDsa65 => 3309,   // ML-DSA-65 signature size
-            Algorithm::MlDsa87 => 4627,   // ML-DSA-87 signature size
-            Algorithm::FnDsa => 666,      // FN-DSA-512 signature size (logn=9)
-            Algorithm::FnDsa512 => 666,   // FN-DSA-512 signature size (logn=9)
-            Algorithm::FnDsa1024 => 1280, // FN-DSA-1024 signature size (logn=10)
+            Algorithm::MlDsa44 => mldsa::MLDSA44_SIGNATURE_BYTES,
+            Algorithm::MlDsa65 => mldsa::MLDSA65_SIGNATURE_BYTES,
+            Algorithm::MlDsa87 => mldsa::MLDSA87_SIGNATURE_BYTES,
+            Algorithm::FnDsa | Algorithm::FnDsa512 => fndsa::FNDSA512_SIGNATURE_BYTES,
+            Algorithm::FnDsa1024 => fndsa::FNDSA1024_SIGNATURE_BYTES,
 
-            // SLH-DSA signature sizes (actual sizes from implementation)
-            Algorithm::SlhDsaSha256128fRobust => 17088, // SLH-DSA SHA256-128f signature size
-            Algorithm::SlhDsaSha256192fRobust => 35664, // SLH-DSA SHA256-192f signature size
-            Algorithm::SlhDsaSha256256fRobust => 49856, // SLH-DSA SHA256-256f signature size
-            Algorithm::SlhDsaShake256128fRobust => 17088, // SLH-DSA SHAKE256-128f signature size
-            Algorithm::SlhDsaShake256192fRobust => 35664, // SLH-DSA SHAKE256-192f signature size
-            Algorithm::SlhDsaShake256256fRobust => 49856, // SLH-DSA SHAKE256-256f signature size
+            // SLH-DSA signature sizes — from `lib_q_types::slhdsa`.
+            Algorithm::SlhDsaSha256128fRobust | Algorithm::SlhDsaShake256128fRobust => {
+                slhdsa::SLHDSA_128F_SIGNATURE_BYTES
+            }
+            Algorithm::SlhDsaSha256192fRobust | Algorithm::SlhDsaShake256192fRobust => {
+                slhdsa::SLHDSA_192F_SIGNATURE_BYTES
+            }
+            Algorithm::SlhDsaSha256256fRobust | Algorithm::SlhDsaShake256256fRobust => {
+                slhdsa::SLHDSA_256F_SIGNATURE_BYTES
+            }
 
             _ => {
                 return Err(crate::error::Error::InvalidAlgorithm {

@@ -155,4 +155,61 @@ mod constants_line_coverage {
         let _ = ml_dsa_87::SIGNING_KEY_SIZE;
         let _: ml_dsa_87::MLDSA87Signature;
     }
+
+    // Conformance guard: `lib-q-core::SecurityConstants` reads these sizes from
+    // `lib_q_types::mldsa` (lib-q-core cannot depend on this crate without a cycle). This
+    // asserts the crate's own private formula-computed sizes still match that mirror.
+    #[cfg(feature = "mldsa44")]
+    #[test]
+    fn mldsa44_sizes_match_lib_q_types() {
+        use constants::ml_dsa_44;
+        assert_eq!(
+            ml_dsa_44::VERIFICATION_KEY_SIZE,
+            lib_q_types::mldsa::MLDSA44_PUBLIC_KEY_BYTES
+        );
+        assert_eq!(
+            ml_dsa_44::SIGNING_KEY_SIZE,
+            lib_q_types::mldsa::MLDSA44_SECRET_KEY_BYTES
+        );
+        assert_eq!(
+            ml_dsa_44::SIGNATURE_SIZE,
+            lib_q_types::mldsa::MLDSA44_SIGNATURE_BYTES
+        );
+    }
+
+    #[cfg(feature = "mldsa65")]
+    #[test]
+    fn mldsa65_sizes_match_lib_q_types() {
+        use constants::ml_dsa_65;
+        assert_eq!(
+            ml_dsa_65::VERIFICATION_KEY_SIZE,
+            lib_q_types::mldsa::MLDSA65_PUBLIC_KEY_BYTES
+        );
+        assert_eq!(
+            ml_dsa_65::SIGNING_KEY_SIZE,
+            lib_q_types::mldsa::MLDSA65_SECRET_KEY_BYTES
+        );
+        assert_eq!(
+            ml_dsa_65::SIGNATURE_SIZE,
+            lib_q_types::mldsa::MLDSA65_SIGNATURE_BYTES
+        );
+    }
+
+    #[cfg(feature = "mldsa87")]
+    #[test]
+    fn mldsa87_sizes_match_lib_q_types() {
+        use constants::ml_dsa_87;
+        assert_eq!(
+            ml_dsa_87::VERIFICATION_KEY_SIZE,
+            lib_q_types::mldsa::MLDSA87_PUBLIC_KEY_BYTES
+        );
+        assert_eq!(
+            ml_dsa_87::SIGNING_KEY_SIZE,
+            lib_q_types::mldsa::MLDSA87_SECRET_KEY_BYTES
+        );
+        assert_eq!(
+            ml_dsa_87::SIGNATURE_SIZE,
+            lib_q_types::mldsa::MLDSA87_SIGNATURE_BYTES
+        );
+    }
 }

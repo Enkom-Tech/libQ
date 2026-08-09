@@ -40,6 +40,9 @@ getrandom = { workspace = true, optional = true, default-features = false }
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
 
 [dev-dependencies]
+# Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
+# this crate asserts its own real computed sizes match, so drift fails CI on either side.
+lib-q-types = { path = "../lib-q-types", version = "0.0.10", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.10", features = ["std"] }
 rand_core = { workspace = true }
 hex = { workspace = true, features = ["serde"] }

@@ -858,6 +858,40 @@ mod tests {
         );
     }
 
+    /// Every ML-DSA parameter set must survive keygen -> sign -> verify through the provider.
+    ///
+    /// Mirrors `fn_dsa_round_trips_through_the_provider_at_every_parameter_set`: the prior
+    /// coverage here only ever exercised ML-DSA-44
+    /// (`test_provider_ml_dsa44_with_explicit_randomness_round_trip`), so a size-table drift on
+    /// ML-DSA-65/87 specifically (as opposed to -44) would not have been caught by any existing
+    /// provider test.
+    #[cfg(feature = "ml-dsa")]
+    #[test]
+    fn ml_dsa_round_trips_through_the_provider_at_every_parameter_set() {
+        let provider = LibQSignatureProvider::new().expect("provider construction should succeed");
+        let message = b"ml-dsa provider round trip";
+
+        for algorithm in [Algorithm::MlDsa44, Algorithm::MlDsa65, Algorithm::MlDsa87] {
+            let keypair = provider
+                .generate_keypair(algorithm, None)
+                .unwrap_or_else(|e| panic!("{algorithm:?} keygen failed: {e:?}"));
+
+            let signature = provider
+                .sign(algorithm, keypair.secret_key(), message, None)
+                .unwrap_or_else(|e| {
+                    panic!("{algorithm:?}: provider rejected a key it just generated: {e:?}")
+                });
+
+            let is_valid = provider
+                .verify(algorithm, keypair.public_key(), message, &signature)
+                .unwrap_or_else(|e| panic!("{algorithm:?} verify errored: {e:?}"));
+            assert!(
+                is_valid,
+                "{algorithm:?}: provider must verify its own signature"
+            );
+        }
+    }
+
     /// Every FN-DSA parameter set must survive keygen -> sign -> verify through the provider.
     ///
     /// Regression test. `lib-q-core`'s hand-maintained key-size table recorded the FN-DSA-1024

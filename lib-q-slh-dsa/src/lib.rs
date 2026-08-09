@@ -320,6 +320,64 @@ mod tests {
         let sig = sk.sign_with_rng(&mut rng, message);
         assert!(vk.verify(message, &sig).is_ok());
     }
+
+    // Conformance guard: `lib-q-core::SecurityConstants` reads these sizes from
+    // `lib_q_types::slhdsa` (lib-q-core cannot depend on this crate without a cycle). This
+    // asserts each parameter set's real type-level (`SkLen`/`VkLen`/`SigLen`) sizes still match
+    // that mirror.
+    #[test]
+    fn slh_dsa_sizes_match_lib_q_types() {
+        use typenum::Unsigned;
+
+        fn check<P: ParameterSet>(expected_pk: usize, expected_sk: usize, expected_sig: usize) {
+            assert_eq!(P::VkLen::USIZE, expected_pk);
+            assert_eq!(P::SkLen::USIZE, expected_sk);
+            assert_eq!(P::SigLen::USIZE, expected_sig);
+        }
+
+        use lib_q_types::slhdsa::{
+            SLHDSA_128F_PUBLIC_KEY_BYTES,
+            SLHDSA_128F_SECRET_KEY_BYTES,
+            SLHDSA_128F_SIGNATURE_BYTES,
+            SLHDSA_192F_PUBLIC_KEY_BYTES,
+            SLHDSA_192F_SECRET_KEY_BYTES,
+            SLHDSA_192F_SIGNATURE_BYTES,
+            SLHDSA_256F_PUBLIC_KEY_BYTES,
+            SLHDSA_256F_SECRET_KEY_BYTES,
+            SLHDSA_256F_SIGNATURE_BYTES,
+        };
+
+        check::<Sha2_128f>(
+            SLHDSA_128F_PUBLIC_KEY_BYTES,
+            SLHDSA_128F_SECRET_KEY_BYTES,
+            SLHDSA_128F_SIGNATURE_BYTES,
+        );
+        check::<Shake128f>(
+            SLHDSA_128F_PUBLIC_KEY_BYTES,
+            SLHDSA_128F_SECRET_KEY_BYTES,
+            SLHDSA_128F_SIGNATURE_BYTES,
+        );
+        check::<Sha2_192f>(
+            SLHDSA_192F_PUBLIC_KEY_BYTES,
+            SLHDSA_192F_SECRET_KEY_BYTES,
+            SLHDSA_192F_SIGNATURE_BYTES,
+        );
+        check::<Shake192f>(
+            SLHDSA_192F_PUBLIC_KEY_BYTES,
+            SLHDSA_192F_SECRET_KEY_BYTES,
+            SLHDSA_192F_SIGNATURE_BYTES,
+        );
+        check::<Sha2_256f>(
+            SLHDSA_256F_PUBLIC_KEY_BYTES,
+            SLHDSA_256F_SECRET_KEY_BYTES,
+            SLHDSA_256F_SIGNATURE_BYTES,
+        );
+        check::<Shake256f>(
+            SLHDSA_256F_PUBLIC_KEY_BYTES,
+            SLHDSA_256F_SECRET_KEY_BYTES,
+            SLHDSA_256F_SIGNATURE_BYTES,
+        );
+    }
 }
 
 /// Create a new secure RNG instance for no_std environments
