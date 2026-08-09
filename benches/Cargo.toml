@@ -10,7 +10,20 @@ description = "Benchmarks for lib-q post-quantum cryptography library"
 
 [[bench]]
 name = "lib"
+path = "lib.rs"
 harness = false
+
+# These exist because lib.rs already gates every benchmark body on them. Until this package
+# became a workspace member, it was never compiled by anything, so `#[cfg(feature = "ml-dsa")]`
+# and `#[cfg(feature = "ml-kem")]` were always FALSE and all six benchmarks were dead code -- the
+# always-false-cfg defect that ci-guard-nonexistent-feature-gates.sh exists to catch, hidden from
+# it because cargo could not load this package at all. Declaring them (and defaulting them on)
+# makes the benchmarks actually compile and run. lib-q is depended on with `features = ["full"]`,
+# so the underlying algorithms are present either way.
+[features]
+default = ["ml-dsa", "ml-kem"]
+ml-dsa = []
+ml-kem = []
 
 [dependencies]
 lib-q = { path = "../lib-q", version = "0.0.10", features = ["full"] }

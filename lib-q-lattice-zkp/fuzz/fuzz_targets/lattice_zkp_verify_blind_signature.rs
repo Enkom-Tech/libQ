@@ -5,6 +5,7 @@ use lib_q_lattice_zkp::{
     AjtaiOpening,
     AjtaiParameters,
     BlindSignature,
+    IssuerCommitmentParams,
     MlDsaCompatibleChallenge,
     OpeningProof,
     UnblindedBlindSignature,
@@ -49,7 +50,12 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let _ = MlDsaCompatibleChallenge::derive(&seed, tau);
 
     let params = AjtaiParameters::new(2, 1);
-    let key = AjtaiCommitmentKey { seed, params };
+    let key = AjtaiCommitmentKey { seed, params: params.clone() };
+    let issuer_params = IssuerCommitmentParams {
+        issuer_matrix_seed: seed,
+        params,
+        profile_id: 0,
+    };
 
     let m0 = poly_from_stream(&mut data);
     let m1 = poly_from_stream(&mut data);
@@ -96,5 +102,5 @@ libfuzzer_sys::fuzz_target!(|data: &[u8]| {
     let z_bound = (take_u32(&mut data) % 5_000_000) as i32 + 1;
     let base_ctx = data;
     let genuine_issuer_com = bundle.issuance.issuer_com.clone();
-    let _ = bundle.verify_blind_signature(&key, &genuine_issuer_com, base_ctx, tau, z_bound);
+    let _ = bundle.verify_blind_signature(&issuer_params, &genuine_issuer_com, base_ctx, tau, z_bound);
 });
