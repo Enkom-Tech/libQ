@@ -117,7 +117,7 @@ jobs:
           # Their floors are in the case statement below and MUST stay there: several measure
           # below the `*)` default of 70, so being in this list without a case entry would fail
           # every PR that touches them.
-          EXTENDED_CRATES="lib-q-saturnin lib-q-rocca-s lib-q-romulus lib-q-duplex-aead lib-q-tweak-aead lib-q-mac lib-q-prf lib-q-slh-dsa lib-q-mayo lib-q-hqc lib-q-random lib-q-mve lib-q-lattice-zkp lib-q-ring lib-q-ring-sig lib-q-transcript lib-q-blind-pcs lib-q-types lib-q-sca-test lib-q-fn-dsa-comm lib-q-fn-dsa-kgen lib-q-fn-dsa-sign lib-q-fn-dsa-vrfy"
+          EXTENDED_CRATES="lib-q-saturnin lib-q-rocca-s lib-q-romulus lib-q-duplex-aead lib-q-tweak-aead lib-q-mac lib-q-prf lib-q-slh-dsa lib-q-mayo lib-q-hqc lib-q-hqc-traits lib-q-random lib-q-mve lib-q-lattice-zkp lib-q-ring lib-q-ring-sig lib-q-transcript lib-q-blind-pcs lib-q-types lib-q-sca-test lib-q-fn-dsa-comm lib-q-fn-dsa-kgen lib-q-fn-dsa-sign lib-q-fn-dsa-vrfy"
           ALL_CRATES="$CORE_CRATES $CRYPTO_CRATES $UTIL_CRATES $STARK_PLONKY_CRATES $EXTENDED_CRATES"
           
           # Check which critical packages were modified
@@ -169,6 +169,8 @@ jobs:
             lib-q-romulus) echo "coverage-threshold=85" >> $GITHUB_OUTPUT ;;     # CI 90.35%
             lib-q-slh-dsa) echo "coverage-threshold=90" >> $GITHUB_OUTPUT ;;     # CI 95.49%
             lib-q-hqc) echo "coverage-threshold=85" >> $GITHUB_OUTPUT ;;     # CI 90.91%
+            # PROVISIONAL until CI measures it; see coverage.yml for the reasoning.
+            lib-q-hqc-traits) echo "coverage-threshold=90" >> $GITHUB_OUTPUT ;;     # Windows 100.00%
             lib-q-mve) echo "coverage-threshold=83" >> $GITHUB_OUTPUT ;;     # CI 88.52%
             lib-q-sca-test) echo "coverage-threshold=63" >> $GITHUB_OUTPUT ;;     # CI 68.22%
             lib-q-mayo) echo "coverage-threshold=89" >> $GITHUB_OUTPUT ;;     # CI 94.83%

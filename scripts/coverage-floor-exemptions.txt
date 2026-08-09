@@ -37,10 +37,16 @@ lib-q-fn-dsa-alg | tarpaulin reports "No coverable lines found"; 2 tests run and
 lib-q-stark-baby-bear | tarpaulin reports "No coverable lines found"; 33 tests run and pass
 
 # --- Genuinely untested -------------------------------------------------------------------
-# Measured 0.00%, 0/11 lines, and `running 0 tests`. Unlike the two above this is real: the
-# crate holds trait definitions in lib.rs and sign.rs and has no test of any kind. A floor of
-# 0 would enforce nothing, so the honest fix is tests, not a threshold.
-lib-q-hqc-traits | 0.00% (0/11), zero tests exist; needs tests before a floor can mean anything
+# (empty)
+#
+# lib-q-hqc-traits used to live here: 0.00%, 0/11 lines, `running 0 tests`. It was the only
+# entry in this file that represented a real testing gap rather than a measurement artifact,
+# and the honest fix was tests rather than a threshold. It now has them -- 100.00% (11/11) --
+# and is gated in coverage.yml's signatures-and-kem shard, so the line is gone.
+#
+# Keep this heading. A future entry belongs here only if the crate genuinely has no tests, and
+# it should read as debt: the two categories above are "cannot be measured", this one is
+# "has not been tested", and they call for opposite responses.
 
 # --- Deferred -----------------------------------------------------------------------------
 lib-q-zk-encryption-proof | RED crate awaiting cryptographer sign-off; instrumented build exceeds 10 min locally, so no measured floor yet
