@@ -91,11 +91,8 @@ fn labeled_extract_matches_rfc9180_section4_structure() {
 #[test]
 fn labeled_expand_matches_rfc9180_section4_structure() {
     let provider = PostQuantumProvider::new();
-    let cipher_suite = HpkeCipherSuite::new(
-        HpkeKem::MlKem768,
-        HpkeKdf::HkdfShake256,
-        HpkeAead::Shake256,
-    );
+    let cipher_suite =
+        HpkeCipherSuite::new(HpkeKem::MlKem768, HpkeKdf::HkdfShake256, HpkeAead::Shake256);
     let suite_id = hpke_core::create_suite_id(&cipher_suite).expect("suite_id");
 
     let prk = b"pseudo-random-key-material-32b!!";
@@ -161,7 +158,11 @@ fn suite_id_matches_rfc9180_section5_1_layout() {
         "suite_id must be concat(\"HPKE\", I2OSP(kem_id,2), I2OSP(kdf_id,2), I2OSP(aead_id,2)) \
          per RFC 9180 Section 5.1"
     );
-    assert_eq!(suite_id.len(), 10, "RFC 9180 Section 5.1 suite_id is exactly 10 bytes");
+    assert_eq!(
+        suite_id.len(),
+        10,
+        "RFC 9180 Section 5.1 suite_id is exactly 10 bytes"
+    );
 }
 
 /// RFC 9180 Section 5.1 `KeySchedule` pseudocode: the exact label strings used, in the exact
@@ -191,13 +192,25 @@ fn key_schedule_context_matches_rfc9180_section5_1_derivation() {
 
     // RFC 9180 Section 5.1: psk_id_hash = LabeledExtract("", "psk_id_hash", psk_id); psk_id is
     // empty in Base mode.
-    let psk_id_hash =
-        hpke_core::labeled_extract(cipher_suite.kdf, b"", &suite_id, "psk_id_hash", b"", &provider)
-            .expect("psk_id_hash");
+    let psk_id_hash = hpke_core::labeled_extract(
+        cipher_suite.kdf,
+        b"",
+        &suite_id,
+        "psk_id_hash",
+        b"",
+        &provider,
+    )
+    .expect("psk_id_hash");
     // info_hash = LabeledExtract("", "info_hash", info)
-    let info_hash =
-        hpke_core::labeled_extract(cipher_suite.kdf, b"", &suite_id, "info_hash", info, &provider)
-            .expect("info_hash");
+    let info_hash = hpke_core::labeled_extract(
+        cipher_suite.kdf,
+        b"",
+        &suite_id,
+        "info_hash",
+        info,
+        &provider,
+    )
+    .expect("info_hash");
 
     let mut expected_context = Vec::new();
     expected_context.push(mode.as_u8());
