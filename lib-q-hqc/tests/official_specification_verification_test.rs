@@ -35,16 +35,20 @@ fn test_parameter_verification_against_reference() {
         utils_rejection_threshold: 16767881,
     };
 
-    // Official HQC-3 parameters from reference implementation
+    // Official HQC-3 parameters from reference implementation (NIST Oct 2024 spec -- see
+    // lib-q-hqc/src/params_correct.rs's Hqc3Params::OMEGA*; this table was stale against an
+    // earlier spec revision, found via card t_f0d676d1's no-assert-test sweep: this test
+    // computed `all_match` but never asserted it, so the stale 100/114/114 values silently
+    // "matched" nothing and the drift was invisible)
     let hqc3_official = Hqc3OfficialParams {
         n: 35851,
         n1: 56,
         n2: 640,
         n1n2: 35840,
         k: 24,
-        omega: 100,
+        omega: 103,
         omega_e: 114,
-        omega_r: 114,
+        omega_r: 115,
         delta: 16,
         m: 8,
         gf_poly: 0x11D,
@@ -55,14 +59,15 @@ fn test_parameter_verification_against_reference() {
         utils_rejection_threshold: 16742417,
     };
 
-    // Official HQC-5 parameters from reference implementation
+    // Official HQC-5 parameters from reference implementation (NIST Oct 2024 spec -- see
+    // Hqc5Params::OMEGA in params_correct.rs; same stale-table issue as HQC-3 above)
     let hqc5_official = Hqc5OfficialParams {
         n: 57637,
         n1: 90,
         n2: 640,
         n1n2: 57600,
         k: 32,
-        omega: 131,
+        omega: 134,
         omega_e: 149,
         omega_r: 149,
         delta: 29,
@@ -188,6 +193,15 @@ fn verify_parameters(name: &str, official: &dyn OfficialParams) {
             name
         );
     }
+    // The whole point of this test is to gate on `all_match` -- printing a checkmark or
+    // cross mark to stdout and returning normally either way (the pre-existing shape) meant a
+    // drifted parameter constant reported "ok" to the harness and to CI. See card t_f0d676d1 /
+    // the lib-q-hqc kat_with_aes_drbg_test.rs incident (766cb0c), same defect class.
+    assert!(
+        all_match,
+        "{} parameters mismatch the official HQC specification (see the ❌ lines above)",
+        name
+    );
 }
 
 #[cfg(feature = "alloc")]
