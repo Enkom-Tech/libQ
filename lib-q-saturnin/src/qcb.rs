@@ -12,6 +12,23 @@
 //! adversaries whose nonces and tweaks are classical and pre-declared. See *Security model*
 //! below; do not paraphrase this as "QCB is quantum-secure" without both qualifiers.
 //!
+//! # ⚠ NONCE REUSE IS CATASTROPHIC INTEGRITY LOSS, NOT A KEYSTREAM LEAK ⚠
+//!
+//! **A single repeated nonce is a universal forgery.** Every tweak in this mode is
+//! `nonce ‖ pad ‖ block_index`, so repeating a nonce collides the *entire tweak schedule* between
+//! two messages, not just the keystream. Three chosen-plaintext queries at one repeated nonce are
+//! enough to produce a valid, authenticating ciphertext for a chosen plaintext that was never
+//! queried. The CTX committing-tag transform (see *Key commitment* below) does **not** mitigate
+//! this: all four of `T'`'s inputs (`label`, `K`, `N`, `T`, `A`) are unchanged by a nonce collision
+//! in the base tag `T`. Contrast with the rest of the Saturnin/libQ AEAD suite, where nonce reuse
+//! degrades gracefully to a keystream leak but a forgery still requires breaking the underlying
+//! PRP/MAC — `SaturninQcb` is the **only** mode in the suite that loses integrity outright on
+//! nonce reuse. This is why `qcb` is an opt-in Cargo feature (not in `default`) — see
+//! `Cargo.toml`. **Never reuse a nonce with this mode, ever, under any key.** If your workload
+//! cannot guarantee unique nonces (e.g. file re-encryption, crash-restart without persisted
+//! counters), do not use `SaturninQcb`; use a nonce-misuse-resistant mode instead
+//! (`lib-q-aead::SaturninSiv`).
+//!
 //! # Security model — an ideal-cipher claim, with classical tweaks
 //!
 //! **This is not a standard-model construction and must never be described as one.** The
@@ -285,6 +302,14 @@ const BLOCK: usize = TBC_BLOCK_BYTES;
 type OpenCoreResult = (Zeroizing<Vec<u8>>, Zeroizing<[u8; BLOCK]>, [u8; BLOCK]);
 
 /// Saturnin-QCB AEAD.
+///
+/// # ⚠ Nonce reuse is a universal forgery, not a keystream leak
+///
+/// Repeating a `(key, nonce)` pair against this type lets an adversary forge a valid, authenticating
+/// ciphertext for a chosen plaintext of their choice after as few as three chosen-plaintext queries.
+/// The CTX committing tag does not mitigate this. See the module-level docs for the full argument.
+/// `SaturninQcb` is opt-in (`qcb` Cargo feature, not in `default`) specifically because of this
+/// property. Never reuse a nonce with this type.
 ///
 /// Holds pre-built tweakable block ciphers for the five domains used by the mode, plus a
 /// pre-built [`SaturninHash`] for the CTX commitment tag (`crate::commit`), so that per-message
