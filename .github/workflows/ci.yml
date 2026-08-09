@@ -111,6 +111,18 @@ jobs:
           python3 ./scripts/ci_guard_coverage_floors.py --self-test
           python3 ./scripts/ci_guard_coverage_floors.py .
 
+      # A crate deleted for a soundness defect must not come back. lib-q-threshold-kem and
+      # lib-q-fhe were removed at 401eb2e because they are broken (raw Shamir shares of the
+      # ML-KEM-768 decapsulation key on the wire; a decrypt that never reads the key), and both
+      # still exist on two branches that cannot simply be deleted -- see card t_59609fc3.
+      #
+      # OBSERVED 2026-08-08: an agent hit GIP's stale path deps on these crates, which break the
+      # whole GIP workspace at manifest load, and fixed it by grafting the directories back out of
+      # a spike branch. Nothing linked against them so no result was corrupted, but that reflex is
+      # what this catches -- including the untracked case, which a `git ls-files` check misses.
+      - name: Guard against withdrawn crates reappearing
+        run: bash ./scripts/ci-guard-withdrawn-crates.sh
+
       # Every committed KAT vector must say where it came from, and a self-generated vector must
       # not be able to sit at a path called `official`/`nist`/`rfc`. lib-q-hqc shipped 9 KAT tests
       # reading `kats/official/*.rsp` whose every response value was written by the code under
