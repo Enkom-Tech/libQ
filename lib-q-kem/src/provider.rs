@@ -575,6 +575,38 @@ mod tests {
         }
     }
 
+    /// Analogous to `fn_dsa_round_trips_through_the_provider_at_every_parameter_set` in
+    /// `lib-q-sig/src/provider.rs`: exercise every ML-KEM parameter set through the provider,
+    /// not just ML-KEM-512, so a size-table drift on ML-KEM-768/1024 is caught here too.
+    #[test]
+    #[cfg(feature = "ml-kem")]
+    fn ml_kem_round_trips_through_the_provider_at_every_parameter_set() {
+        let provider = LibQKemProvider::new().unwrap();
+
+        for algorithm in [
+            Algorithm::MlKem512,
+            Algorithm::MlKem768,
+            Algorithm::MlKem1024,
+        ] {
+            let keypair = provider
+                .generate_keypair(algorithm, None)
+                .unwrap_or_else(|e| panic!("{algorithm:?} keygen failed: {e:?}"));
+
+            let (ciphertext, shared_secret1) = provider
+                .encapsulate(algorithm, &keypair.public_key, None)
+                .unwrap_or_else(|e| panic!("{algorithm:?} encapsulate failed: {e:?}"));
+
+            let shared_secret2 = provider
+                .decapsulate(algorithm, &keypair.secret_key, &ciphertext)
+                .unwrap_or_else(|e| panic!("{algorithm:?} decapsulate failed: {e:?}"));
+
+            assert_eq!(
+                shared_secret1, shared_secret2,
+                "{algorithm:?}: shared secrets should match"
+            );
+        }
+    }
+
     #[test]
     fn test_crypto_provider_trait_exposes_only_kem_operations() {
         let provider = LibQKemProvider::new().unwrap();

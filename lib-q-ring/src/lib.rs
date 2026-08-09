@@ -5,8 +5,10 @@
 //! scaling) is bit-compatible with the non-`hardened` path in `lib-q-ml-dsa`.
 #![forbid(unsafe_code)]
 #![allow(missing_docs)]
-// Only the explicit `no_std` feature enables `#![no_std]` (dependents often use `alloc` without `std`).
-#![cfg_attr(feature = "no_std", no_std)]
+// Conventional shape: no_std unless `std` is explicitly on, not gated behind an opt-in
+// `no_std` feature -- so `--no-default-features` alone gives a genuine no_std build. The
+// `no_std` feature remains as a convenience alias (alloc + bundled panic handler).
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

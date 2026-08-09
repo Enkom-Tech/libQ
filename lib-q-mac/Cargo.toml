@@ -45,6 +45,8 @@ serde_json = { workspace = true, features = ["std"] }
 default = ["alloc", "std"]
 alloc = ["lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-random/std", "lib-q-random/secure"]
+# `#![no_std]` itself now follows `not(feature = "std")` (see src/lib.rs); this feature is a
+# convenience alias that also wires in the bundled panic handler for embedded targets.
 no_std = ["alloc", "no_std_panic_handler"]
 no_std_panic_handler = []
 random = ["dep:lib-q-random", "lib-q-random/secure", "lib-q-random/getrandom"]

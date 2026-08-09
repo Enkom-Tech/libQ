@@ -24,6 +24,17 @@ use core::arch::x86_64::{
 ///
 /// Delegates to the generic implementation because single-state Keccak
 /// permutation does not vectorize correctly across 256-bit SIMD lanes.
+///
+/// # Safety
+///
+/// This is only ever compiled in when `cfg(target_feature = "avx2")` holds for the whole
+/// compilation unit (i.e. the toolchain was told, via `-C target-feature=+avx2` or a target
+/// whose baseline already includes it, that every instruction in this binary may assume
+/// AVX2). The body itself is a plain safe call into `crate::keccak_p` and touches no raw
+/// pointers or intrinsics, so the only real precondition is: **the CPU this binary actually
+/// executes on must support AVX2** — running an AVX2-compiled binary on a CPU without it is
+/// SIGILL. Callers that select this path via runtime feature detection (rather than a fixed
+/// `target-feature` compile flag) must have already confirmed AVX2 is present.
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
 pub unsafe fn p1600_avx2(state: &mut [u64; 25]) {
     crate::keccak_p(state, 24);
@@ -32,6 +43,13 @@ pub unsafe fn p1600_avx2(state: &mut [u64; 25]) {
 /// AVX-512 Keccak-p[1600,24] permutation entrypoint.
 ///
 /// Delegates to the generic implementation for the same reason as AVX2.
+///
+/// # Safety
+///
+/// Same contract as [`p1600_avx2`], for AVX-512F instead: this function only exists when the
+/// compilation unit's target features include `avx512f`. The precondition that must hold at
+/// the call site is that **the executing CPU supports AVX-512F**; otherwise the process
+/// receives SIGILL. The body is a plain call into `crate::keccak_p`, no raw pointers here.
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
 pub unsafe fn p1600_avx512(state: &mut [u64; 25]) {
     crate::keccak_p(state, 24);
@@ -41,6 +59,20 @@ pub unsafe fn p1600_avx512(state: &mut [u64; 25]) {
 ///
 /// XORs `lane_count` little-endian 64-bit words from `data` into `state`, then
 /// applies the 24-round permutation for each full block.
+///
+/// # Safety
+///
+/// - **CPU requirement**: as with [`p1600_avx2`], the executing CPU must support AVX2 —
+///   this function is only compiled in when the compilation unit's target features include
+///   `avx2`, and calling it on hardware that lacks the extension is SIGILL.
+/// - **Memory safety of the internal `unsafe` block**: `state` is `&mut [u64; 25]`, so its
+///   25-lane backing storage is always valid for the `state_ptr.add(lane)` writes below,
+///   since the loop only ever advances `lane` up to `lane_count.min(25)`. The
+///   `_mm256_loadu_si256`/`read_unaligned` reads from `data` are bounded by the enclosing
+///   `while offset + block_bytes <= data.len()` check, so `data_ptr.add(offset + lane * 8)`
+///   never reads past `data`'s end. Callers therefore only need to pass a `state` of the
+///   required length (guaranteed by the type) and are not required to pre-validate `data`'s
+///   length or `lane_count` themselves — the function clamps and bounds-checks both.
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
 pub unsafe fn fast_loop_absorb_avx2(
     state: &mut [u64; 25],
@@ -82,6 +114,18 @@ pub unsafe fn fast_loop_absorb_avx2(
 /// AVX-512 accelerated absorb loop.
 ///
 /// Same as [`fast_loop_absorb_avx2`] but processes 8 lanes per SIMD chunk.
+///
+/// # Safety
+///
+/// - **CPU requirement**: the executing CPU must support AVX-512F — this function is only
+///   compiled in when the compilation unit's target features include `avx512f`; calling it
+///   on hardware without that extension is SIGILL.
+/// - **Memory safety of the internal `unsafe` block**: identical reasoning to
+///   [`fast_loop_absorb_avx2`] — `lane_count` is clamped to `state`'s fixed length (25) before
+///   any pointer arithmetic, and every `data` access is bounded by the outer
+///   `offset + block_bytes <= data.len()` loop condition, so no out-of-bounds read of `data`
+///   or out-of-bounds write into `state` is possible regardless of caller-supplied
+///   `lane_count`.
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
 pub unsafe fn fast_loop_absorb_avx512(
     state: &mut [u64; 25],
