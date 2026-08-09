@@ -289,7 +289,7 @@ jobs:
           - shard: aead-and-primitives
             crates: "lib-q-saturnin lib-q-rocca-s lib-q-romulus lib-q-duplex-aead lib-q-tweak-aead lib-q-mac lib-q-prf"
           - shard: signatures-and-kem
-            crates: "lib-q-slh-dsa lib-q-mayo lib-q-hqc lib-q-random"
+            crates: "lib-q-slh-dsa lib-q-mayo lib-q-hqc lib-q-hqc-traits lib-q-random"
           - shard: zk-and-misc
             crates: "lib-q-mve lib-q-lattice-zkp lib-q-ring lib-q-ring-sig lib-q-transcript lib-q-blind-pcs lib-q-types lib-q-sca-test"
           - shard: fn-dsa-nested
@@ -342,6 +342,12 @@ jobs:
               lib-q-romulus)      THRESH=85 ;;  # CI 90.35%
               lib-q-slh-dsa)      THRESH=90 ;;  # CI 95.49%
               lib-q-hqc)          THRESH=85 ;;  # CI 90.91%
+              # PROVISIONAL. Measured 100.00% (11/11) on Windows, not yet on CI, so this is
+              # set low on purpose -- see the calibration note above: blind-pcs read 88.89%
+              # (16/18) on Windows and 100% (16/16) here, i.e. even an 18-line crate moved its
+              # denominator between environments. Tighten to CI-measured minus 5 after the
+              # first run reports a figure.
+              lib-q-hqc-traits)   THRESH=90 ;;  # Windows 100.00% (11/11); awaiting a CI figure
               lib-q-mve)          THRESH=83 ;;  # CI 88.52%
               lib-q-sca-test)     THRESH=63 ;;  # CI 68.22%
               lib-q-mayo)         THRESH=89 ;;  # CI 94.83%
