@@ -132,6 +132,17 @@ jobs:
       - name: Guard that CI tool installs are version-pinned
         run: bash ./scripts/ci-guard-pinned-ci-tools.sh .
 
+      # Cargo unifies features across a single invocation's dependency graph, including a
+      # package's own dev-dependencies against its own lib target. lib-q-sca-test's default
+      # features (mlkem, mldsa, privacy) turn `hardened` on for lib-q-ml-kem/lib-q-ml-dsa
+      # unconditionally, so a consumer that takes it as a dev-dependency WITH DEFAULT FEATURES
+      # gets its own `hardened` feature turned on by `cargo test`/`cargo bench` -- measuring the
+      # side-channel-masked path, not what users get. This already produced a wrong
+      # published-sounding number (the "ML-DSA ~7x slower" result; real figure ~1.7x on signing).
+      # See card t_42086971.
+      - name: Guard lib-q-sca-test dev-dependencies opt out of default features
+        run: bash ./scripts/ci-guard-sca-test-default-features.sh .
+
       # Every committed KAT vector must say where it came from, and a self-generated vector must
       # not be able to sit at a path called `official`/`nist`/`rfc`. lib-q-hqc shipped 9 KAT tests
       # reading `kats/official/*.rsp` whose every response value was written by the code under
@@ -1603,6 +1614,17 @@ jobs:
           run-security-tests: ${{ matrix.run-security-tests }}
           run-constant-time: ${{ matrix.run-constant-time }}
           test-algorithms: ${{ matrix.test-algorithms }}
+
+      # KAT (Known Answer Test) self-consistency harness for cbkem348864 (see
+      # lib-q-cb-kem/tests/katkem.rs module docs: this is a determinism
+      # self-check, not yet a comparison against an externally-sourced
+      # official vector file — no such file was obtainable at authoring time).
+      # Kept as an explicit step (not the composite action) so it cannot
+      # silently stop running if the composite action's own test list changes.
+      - name: Run CB-KEM KAT harness (cbkem348864, self-consistency)
+        if: matrix.action == 'test-cb-kem'
+        working-directory: lib-q-cb-kem
+        run: cargo test --release --features "cbkem348864,nist-aes-rng,alloc,std" --test katkem
       
       - name: Run SLH-DSA tests
         uses: ./.github/actions/test-slh-dsa
