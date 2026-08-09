@@ -19,7 +19,7 @@
 //! - **ML-DSA**: CRYSTALS-ML-DSA (Levels 1, 3, 4) — **NIST-approved**, published as FIPS 204.
 //!   - ML-DSA-44: Level 1 security (128-bit)
 //!   - ML-DSA-65: Level 3 security (192-bit)
-//!   - ML-DSA-87: Level 4 security (256-bit)
+//!   - ML-DSA-87: Level 5 security (256-bit)
 //! - **FN-DSA** (Levels 1, 5): the Falcon-based scheme NIST **selected** for standardization
 //!   (intended to become FIPS 206). FIPS 206 has **not been published** — there is no finalized
 //!   standard, and no public draft, to be "compliant" with.

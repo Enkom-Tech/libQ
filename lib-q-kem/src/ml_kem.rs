@@ -410,7 +410,9 @@ pub struct MlKem1024Impl {
 
 impl Default for MlKem1024Impl {
     fn default() -> Self {
-        Self::new(SecurityLevel::Level4)
+        // Level5, not Level4: FIPS 203 puts ML-KEM-1024 in Category 5, as the doc comment on
+        // the struct just above already said. The two disagreed on adjacent lines.
+        Self::new(SecurityLevel::Level5)
     }
 }
 
@@ -587,8 +589,8 @@ mod tests {
 
     #[test]
     fn test_ml_kem_1024_creation() {
-        let kem = MlKem1024Impl::new(SecurityLevel::Level4);
-        assert_eq!(kem.security_level(), SecurityLevel::Level4);
+        let kem = MlKem1024Impl::new(SecurityLevel::Level5);
+        assert_eq!(kem.security_level(), SecurityLevel::Level5);
     }
 
     #[test]

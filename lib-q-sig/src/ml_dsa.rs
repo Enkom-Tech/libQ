@@ -161,7 +161,7 @@ pub enum MlDsaVariant {
     MlDsa44,
     /// ML-DSA-65: Level 3 security (192-bit)
     MlDsa65,
-    /// ML-DSA-87: Level 4 security (256-bit)
+    /// ML-DSA-87: Level 5 security (256-bit)
     MlDsa87,
 }
 
@@ -181,7 +181,7 @@ impl MlDsa {
         Self::new(MlDsaVariant::MlDsa65)
     }
 
-    /// Create ML-DSA-87 instance (Level 4 security)
+    /// Create ML-DSA-87 instance (Level 5 security)
     pub fn ml_dsa_87() -> Self {
         Self::new(MlDsaVariant::MlDsa87)
     }

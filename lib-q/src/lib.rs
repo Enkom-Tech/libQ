@@ -19,7 +19,7 @@
 //!
 //! # Security Features
 //!
-//! - **Four-Tier Security**: Level 1 (128-bit), Level 3 (192-bit), Level 4 (256-bit), Level 5 (256-bit+)
+//! - **Tiered Security**: NIST categories 1 (128-bit), 3 (192-bit) and 5 (256-bit)
 //! - **Algorithm Diversity**: ML-KEM, HQC, ML-DSA, FN-DSA, Saturnin, Romulus (N/M)
 //! - **Input Validation**: Comprehensive validation of all cryptographic inputs
 //! - **Error Handling**: Secure error messages that don't leak sensitive information
