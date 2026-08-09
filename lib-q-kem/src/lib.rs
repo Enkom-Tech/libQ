@@ -10,7 +10,7 @@
 //! - **Security Validation**: Comprehensive input validation and security checks
 //! - **Algorithm Support**: ML-KEM plus two non-standardized KEM families (see below)
 //! - **Memory Safety**: Automatic zeroization of sensitive data
-//! - **no_std Support**: Works in constrained environments
+//! - **no_std Support**: available for some algorithm families — see the per-algorithm caveat below
 //!
 //! ## Supported Algorithms
 //!
@@ -27,8 +27,16 @@
 //!
 //! ## Feature Support
 //!
-//! All KEM algorithms support:
-//! - **no_std**: Works in constrained environments with external randomness
+//! - **no_std**: `hqc` builds genuinely `no_std` (verified against `thumbv7em-none-eabi`).
+//!   `cb-kem` also builds `no_std`, but — like its upstream `lib-q-cb-kem` crate — needs an
+//!   integrator-supplied `getrandom` custom backend for `ClassicalMcElieceRng` on bare-metal
+//!   targets (there is no default entropy source without `std`). **`ml-kem` does NOT currently
+//!   support `no_std` through this crate**: its Cargo feature unconditionally enables
+//!   `lib-q-ml-kem/std` (because that crate's `cdylib` crate-type needs std's allocator/panic/
+//!   unwind runtime on native targets), so any build with `--features ml-kem` pulls in `std`
+//!   regardless of this crate's own `default-features = false`. A bare `no_std` build of this
+//!   crate (no algorithm feature enabled) still builds and is useful only for the shared
+//!   `lib_q_core` re-exports.
 //! - **WASM**: JavaScript-compatible bindings for web environments
 //! - **Security validation**: Comprehensive input validation and security checks
 //! - **Memory safety**: Automatic zeroization of sensitive data

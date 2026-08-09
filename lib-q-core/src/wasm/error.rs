@@ -155,48 +155,12 @@ pub fn secure_deserialize<T: serde::de::DeserializeOwned>(value: &JsValue) -> Re
     }
 }
 
-#[cfg(test)]
-mod tests {
-    #[cfg(target_arch = "wasm32")]
-    use super::*;
-
-    #[test]
-    #[cfg(target_arch = "wasm32")]
-    fn test_error_conversion() {
-        let error = Error::InvalidAlgorithm { algorithm: "test" };
-        let js_error = error_to_js_value(error);
-        assert!(js_error.is_string());
-    }
-
-    #[test]
-    #[cfg(target_arch = "wasm32")]
-    fn test_algorithm_parsing() {
-        assert!(parse_algorithm_wasm("sha3-256").is_ok());
-        assert_eq!(
-            parse_algorithm_wasm("mldsa65").unwrap(),
-            crate::api::Algorithm::MlDsa65
-        );
-        assert_eq!(
-            parse_algorithm_wasm("ML-DSA-65").unwrap(),
-            crate::api::Algorithm::MlDsa65
-        );
-        assert_eq!(
-            parse_algorithm_wasm("slh-dsa-shake256-128f-robust").unwrap(),
-            crate::api::Algorithm::SlhDsaShake256128fRobust
-        );
-        assert_eq!(
-            parse_algorithm_wasm("SlhDsaShake256128fRobust").unwrap(),
-            crate::api::Algorithm::SlhDsaShake256128fRobust
-        );
-        assert!(parse_algorithm_wasm("invalid").is_err());
-        assert!(parse_algorithm_wasm(&"a".repeat(100)).is_err());
-    }
-
-    #[test]
-    #[cfg(target_arch = "wasm32")]
-    fn test_secure_serialization() {
-        let value = serde_json::json!({"test": "value"});
-        let result = secure_serialize(&value);
-        assert!(result.is_ok());
-    }
-}
+// NOTE: these functions build a `wasm_bindgen::JsValue`, which (per prior audit finding) ABORTS
+// the process natively — observed STATUS_STACK_BUFFER_OVERRUN — outside a real wasm32 runtime.
+// They previously had `#[test]` (not `#[wasm_bindgen_test]`) fns gated on
+// `cfg(target_arch = "wasm32")`: under `cargo test` on a native host that cfg is always false, so
+// the functions compiled but the harness reported "0 tests run" — a suite that looks green while
+// exercising nothing. There is no native-safe way to test them (constructing a `JsValue` is the
+// abort trigger), so the real tests now live in `tests/wasm_smoke.rs` as `#[wasm_bindgen_test]`,
+// run only under `wasm-pack test --node` on the `wasm32-unknown-unknown` target where a JS engine
+// actually backs `JsValue`. See that file for the executed assertions.
