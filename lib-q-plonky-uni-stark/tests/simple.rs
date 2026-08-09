@@ -281,6 +281,61 @@ fn test_wrong_public_values_rejected() {
     assert!(res.is_err(), "verifier must reject wrong public values");
 }
 
+/// An AIR whose (hinted) constraint degree forces `log_num_quotient_chunks = 9`, so that a
+/// `degree_bits` still inside `MAX_DEGREE_BITS` (24) pushes the quotient domain past the field's
+/// two-adicity (`Complex<Mersenne31>`: 32). Used by the F2 regression test below; the eval body is
+/// irrelevant, only `max_constraint_degree` is read before the domains are built.
+#[derive(Clone)]
+struct HighDegreeAir;
+
+impl BaseAir<Val> for HighDegreeAir {
+    fn width(&self) -> usize {
+        2
+    }
+    fn num_public_values(&self) -> usize {
+        3
+    }
+    fn max_constraint_degree(&self) -> Option<usize> {
+        Some(513) // log2_ceil(513 - 1) == 9
+    }
+}
+
+impl<AB: lib_q_stark_air::AirBuilder<F = Val>> Air<AB> for HighDegreeAir {
+    fn eval(&self, builder: &mut AB) {
+        let main = builder.main();
+        let c0 = main.current_slice()[0].clone();
+        builder.assert_zero(c0.into() * builder.is_first_row());
+    }
+}
+
+/// F2 regression: `degree_bits` is attacker-controlled proof data, and `MAX_DEGREE_BITS` (24) is
+/// field-independent. With an AIR needing 9 quotient-chunk bits, `24 + 9 = 33` exceeds
+/// `Complex<Mersenne31>::TWO_ADICITY` (32) and the *infallible* `natural_domain_for_degree` /
+/// `create_disjoint_domain` used to panic inside the verifier. The verifier must return
+/// `Err` instead.
+///
+/// The proof is a real one (so `MAX_DEGREE_BITS`, the zk-offset check and the quotient-chunk cap
+/// all pass) with only `degree_bits` rewritten; shape validation happens *after* the domains are
+/// built, so control really does reach them.
+#[test]
+fn test_verify_rejects_degree_bits_exceeding_two_adicity() {
+    let config = make_config();
+    let trace = generate_fib_trace(0, 1, 1 << 4);
+    let public_values = vec![
+        Val::from(Mersenne31::from_int(0u32)),
+        Val::from(Mersenne31::from_int(1u32)),
+        Val::from(Mersenne31::from_int(987u32)),
+    ];
+    let mut proof = prove(&config, &FibAir, trace, &public_values).expect("prove");
+    proof.degree_bits = 24; // == MAX_DEGREE_BITS, so the existing cap accepts it
+
+    let res = verify(&config, &HighDegreeAir, &proof, &public_values);
+    assert!(
+        res.is_err(),
+        "degree_bits past the field's two-adicity must be rejected, not panic"
+    );
+}
+
 /// AIR with one main column and one preprocessed column (constant row index).
 #[derive(Clone)]
 struct AirWithPreprocessed;

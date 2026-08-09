@@ -96,7 +96,14 @@ pub fn decode_recovery_zk_proof_v0(bytes: &[u8]) -> Result<RecoveryZkProofV0, Ai
         bytes[public_end + 3],
     ]) as usize;
     let proof_start = public_end + 4;
-    let proof_end = proof_start + proof_len;
+    // `proof_len` is an unvalidated `u32` off the wire: on a 32-bit target (wasm32 included, which
+    // this workspace ships) `proof_start + proof_len` can exceed `usize::MAX` — a panic under
+    // `overflow-checks` and a silent wrap otherwise. Reject instead.
+    let proof_end = proof_start
+        .checked_add(proof_len)
+        .ok_or_else(|| AirError::InvalidInput {
+            reason: "proof_len overflows usize".into(),
+        })?;
     if bytes.len() != proof_end {
         return Err(AirError::InvalidInput {
             reason: "envelope length mismatch".into(),
@@ -140,5 +147,26 @@ mod tests {
     fn rejects_oversize() {
         let huge = vec![0u8; RECOVERY_ZK_MAX_ENVELOPE + 1];
         assert!(decode_recovery_zk_proof_v0(&huge).is_err());
+    }
+
+    /// F4 regression: `proof_len` is an unvalidated wire `u32`, and `proof_start + proof_len`
+    /// used to be an unchecked add. On a 32-bit target (`wasm32-wasip1`, which this workspace
+    /// ships) `u32::MAX` overflows `usize` there — "attempt to add with overflow" under
+    /// `overflow-checks`, a silent wrap otherwise. Every earlier check (envelope cap, minimum
+    /// length, version, air_id, public_inputs_len) passes, so control reaches the add.
+    ///
+    /// On a 64-bit target the add cannot overflow, so this test is only RED on 32-bit; it is kept
+    /// unconditional because a decode must return `Err` (never panic) on every target.
+    #[test]
+    fn rejects_proof_len_that_overflows_usize() {
+        let mut enc =
+            encode_recovery_zk_proof_v0(RECOVERY_POLICY_AIR_ID, &sample_public(), &[0xAB; 8])
+                .unwrap();
+        let public_end = 4 + RECOVERY_PUBLIC_INPUTS_LEN;
+        enc[public_end..public_end + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(
+            decode_recovery_zk_proof_v0(&enc).is_err(),
+            "u32::MAX proof_len must be rejected, not added unchecked"
+        );
     }
 }

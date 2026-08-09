@@ -92,7 +92,13 @@ pub fn decode_recovery_zk_proof_v1(bytes: &[u8]) -> Result<RecoveryZkProofV1, Ai
         bytes[public_end + 3],
     ]) as usize;
     let proof_start = public_end + 4;
-    let proof_end = proof_start + proof_len;
+    // See `recovery_proof_v0.rs`: `proof_len` is an unvalidated wire `u32`, so on a 32-bit target
+    // this add can overflow (`overflow-checks` panic / silent wrap).
+    let proof_end = proof_start
+        .checked_add(proof_len)
+        .ok_or_else(|| AirError::InvalidInput {
+            reason: "proof_len overflows usize".into(),
+        })?;
     if bytes.len() != proof_end {
         return Err(AirError::InvalidInput {
             reason: "envelope length mismatch".into(),
@@ -104,4 +110,52 @@ pub fn decode_recovery_zk_proof_v1(bytes: &[u8]) -> Result<RecoveryZkProofV1, Ai
         public_inputs,
         proof_bytes: bytes[proof_start..proof_end].to_vec(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sample_public() -> RecoveryPolicyHybridPublicInputs {
+        RecoveryPolicyHybridPublicInputs {
+            policy_commitment: [3u8; 32],
+            threshold: 2,
+            zk_key_count: 2,
+            time_lock_min: 0,
+            time_lock_max: 86400,
+            freshness_epoch: 100,
+            crypto_suite_id: 1,
+            cleartext_key_count: 1,
+            cleartext_weight_sum: 1,
+        }
+    }
+
+    #[test]
+    fn roundtrip() {
+        let proof = alloc::vec![0xCD; 32];
+        let enc =
+            encode_recovery_zk_proof_v1(RECOVERY_POLICY_HYBRID_AIR_ID, &sample_public(), &proof)
+                .unwrap();
+        let dec = decode_recovery_zk_proof_v1(&enc).unwrap();
+        assert_eq!(dec.proof_bytes, proof);
+        assert_eq!(dec.public_inputs, sample_public());
+    }
+
+    /// F4 regression (v1 arm) — see `recovery_proof_v0.rs`'s copy of this test. Only RED on a
+    /// 32-bit target (`wasm32-wasip1`), where `proof_start + u32::MAX` overflows `usize`.
+    #[test]
+    fn rejects_proof_len_that_overflows_usize() {
+        let mut enc = encode_recovery_zk_proof_v1(
+            RECOVERY_POLICY_HYBRID_AIR_ID,
+            &sample_public(),
+            &[0xCD; 8],
+        )
+        .unwrap();
+        let public_end = 4 + RECOVERY_HYBRID_PUBLIC_INPUTS_LEN;
+        enc[public_end..public_end + 4].copy_from_slice(&u32::MAX.to_le_bytes());
+        assert!(
+            decode_recovery_zk_proof_v1(&enc).is_err(),
+            "u32::MAX proof_len must be rejected, not added unchecked"
+        );
+    }
 }
