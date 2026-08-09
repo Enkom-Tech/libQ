@@ -23,6 +23,9 @@ pub(crate) type FieldElementTimesMontgomeryR = i32;
 #[cfg(not(eurydice))]
 #[hax_lib::attributes]
 pub(crate) trait Repr: Copy + Clone {
+    // Genuinely dead (no caller) in every configuration checked 2026-08-09 (x86_64 default,
+    // x86_64 --all-features, aarch64+simd128). Kept, not deleted — part of the `hax`/formal-spec
+    // trait surface (`#[requires(true)]` is a hax_lib contract annotation).
     #[requires(true)]
     #[allow(dead_code)]
     fn repr(&self) -> [i32; COEFFICIENTS_IN_SIMD_UNIT];

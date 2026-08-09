@@ -119,6 +119,9 @@ pub fn simd_unit_invert_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) 
 #[hax_lib::ensures(|_| fstar!(r#"
     Libcrux_ml_dsa.Simd.Portable.Ntt.is_i32b_polynomial (2 * v $FIELD_MAX) ${re}_future
 "#) )]
+// Verified 2026-08-09: live under default features (portable NTT path), dead under
+// `--all-features`/`hardened` (masked/constant-time NTT path bypasses layer 0 here) — already
+// correctly narrow-scoped to just that feature.
 #[cfg_attr(feature = "hardened", allow(dead_code))]
 fn invert_ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[cfg_attr(tarpaulin, inline(never))]

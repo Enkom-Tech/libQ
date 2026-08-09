@@ -128,6 +128,8 @@ pub fn simd_unit_ntt_at_layer_2(simd_unit: &mut Coefficients, zeta: i32) {
 #[hax_lib::ensures(|_| fstar!(r#"
     is_i32b_polynomial (v $NTT_BASE_BOUND + 8 * v $FIELD_MAX) ${re}_future
 "#) )]
+// Same situation as `invert_ntt_at_layer_0` in invntt.rs — verified 2026-08-09: live under
+// default, dead under `--all-features`/`hardened`; already correctly narrow-scoped.
 #[cfg_attr(feature = "hardened", allow(dead_code))]
 fn ntt_at_layer_0(re: &mut [Coefficients; SIMD_UNITS_IN_RING_ELEMENT]) {
     #[cfg_attr(tarpaulin, inline(never))]

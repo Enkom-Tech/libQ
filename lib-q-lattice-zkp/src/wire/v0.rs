@@ -799,6 +799,12 @@ pub fn wire_byte_len(wire: &[u8]) -> usize {
 }
 
 /// Token header wire segment length.
+// Genuinely unreferenced today — no internal caller, and unlike its module siblings (e.g.
+// `WIRE_ENVELOPE_HEADER_LEN`) it is NOT re-exported from `lib.rs`, so `pub` alone does not save
+// it from the lint. Verified 2026-08-09: `cargo check --all-features` and default both warn
+// `constant `TOKEN_HEADER_WIRE_LEN` is never used` with the allow removed.
+// Kept as a documented wire-format constant for downstream/API consumers; not deleted per audit
+// policy (removing code, vs. the attribute, is out of scope here).
 #[allow(dead_code)]
 pub const TOKEN_HEADER_WIRE_LEN: usize = TOKEN_SERIAL_LEN + TOKEN_ORIGIN_LEN + TOKEN_EPOCH_LEN;
 

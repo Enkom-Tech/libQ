@@ -56,7 +56,6 @@ const MAX_PROOF_SIZE_BYTES: usize = 1 << 30; // 1 GB
 const MAX_PUBLIC_VALUES: usize = 1 << 20; // ~1 million public values
 
 /// Maximum number of commitments to prevent DoS attacks.
-#[allow(dead_code)] // Reserved for future DoS protection
 const MAX_COMMITMENTS: usize = 1 << 16; // ~65k commitments
 
 /// Maximum number of opened field elements to prevent memory exhaustion.
@@ -548,7 +547,6 @@ where
 /// Call with `zeta`, `zeta_next`, and `alpha` from the serialized proof (or from the
 /// verifier's challenger replay), and `domain_index` from the derived query positions
 /// (e.g. the first query index).
-#[allow(dead_code)] // used by lib-q-zkp for recursive aggregation
 #[allow(clippy::too_many_arguments)]
 pub fn initial_fri_eval_for_query<SC, A>(
     config: &SC,
@@ -712,7 +710,6 @@ where
 
 /// Returns all FRI reduced openings (log_height, ro) for the given query for use by recursive
 /// verifiers that need to apply roll-in terms at each round.
-#[allow(dead_code)] // used by lib-q-zkp
 #[allow(clippy::too_many_arguments)]
 #[allow(clippy::type_complexity)]
 pub fn all_fri_reduced_openings_for_query<SC, A>(

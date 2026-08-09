@@ -566,7 +566,9 @@ struct SHA3Core<const SZ: usize> {
 
 impl<const SZ: usize> SHA3Core<SZ> {
     // A custom compile-time check; it should prevent compilation from
-    // succeeding if SZ is not in {224, 256, 384, 512}.
+    // succeeding if SZ is not in {224, 256, 384, 512}. Never read at runtime by design (a
+    // static-assert pattern) — genuinely triggers dead_code in every configuration checked
+    // (default and --all-features) 2026-08-09; kept for the assertion's evaluation side effect.
     #[allow(dead_code)]
     const COMPILE_TIME_CHECKS: () = Self::compile_time_checks();
     const fn compile_time_checks() {
@@ -648,7 +650,9 @@ impl<const SZ: usize> Default for SHAKE<SZ> {
 
 impl<const SZ: usize> SHAKE<SZ> {
     // A custom compile-time check; it should prevent compilation from
-    // succeeded if SZ is not 128 or 256.
+    // succeeding if SZ is not 128 or 256. Never read at runtime by design (a static-assert
+    // pattern) — genuinely triggers dead_code in every configuration checked (default and
+    // --all-features) 2026-08-09; kept for the assertion's evaluation side effect.
     #[allow(dead_code)]
     const COMPILE_TIME_CHECKS: () = Self::compile_time_checks();
     const fn compile_time_checks() {

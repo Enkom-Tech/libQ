@@ -2,8 +2,11 @@
 #![allow(non_upper_case_globals)]
 // Depending on the target architecture, some explicit intrisics could be
 // used instead of the functions defined here.
-#![allow(dead_code)]
-
+// NOTE: the module-level `#![allow(dead_code)]` formerly here was verified redundant 2026-08-09
+// (`cargo check --target wasm32-unknown-unknown --all-features`, the actual production backend
+// for this file, and `cargo check --tests --all-features` on x86_64/emu_ref both compile clean
+// without it once the 4 genuinely-dead items below carry their own narrow `#[allow(dead_code)]`)
+// — removed.
 // ========================================================================
 // Floating-point operations: emulated
 // ========================================================================
@@ -276,7 +279,8 @@ impl Flr {
 
     // Encode to 8 bytes (IEEE-754 binary64 format, little-endian).
     // This is meant for tests only; this function does not need to be
-    // constant-time.
+    // constant-time. Verified 2026-08-09: dead (warns) on the wasm32 production backend, live
+    // (used by the emu_ref/emu_diff differential test) on the native x86_64 test build.
     #[allow(dead_code)]
     pub(crate) fn encode(self) -> [u8; 8] {
         self.0.to_le_bytes()
@@ -284,7 +288,8 @@ impl Flr {
 
     // Decode from 8 bytes (IEEE-754 binary64 format, little-endian).
     // This is meant for tests only; this function does not need to be
-    // constant-time.
+    // constant-time. Verified 2026-08-09: dead on the wasm32 production backend, live in the
+    // native x86_64 differential test build (same as `encode` above).
     #[allow(dead_code)]
     pub(crate) fn decode(src: &[u8]) -> Option<Self> {
         match src.len() {
@@ -308,7 +313,8 @@ impl Flr {
     }
 
     // Return self * 2.
-    // (used in some tests)
+    // (used in some tests) — verified 2026-08-09: dead on the wasm32 production backend, live in
+    // the native x86_64 differential test build.
     #[allow(dead_code)]
     #[inline]
     pub(crate) fn double(self) -> Self {
@@ -336,7 +342,6 @@ impl Flr {
     // This is a helper function used in the implementation of the FFT
     // and included in the Flr API because different implementations might
     // do it very differently.
-    #[allow(dead_code)]
     pub(crate) fn slice_div2e(f: &mut [Flr], e: u32) {
         // In the emulated implementation, division by 2^e is done by
         // subtracting e from the exponent; we must just take care not to
@@ -659,7 +664,8 @@ impl Flr {
         *self = Self::make(s, e, q);
     }
 
-    // Absolute value (used for tests, does not need to be constant-time).
+    // Absolute value (used for tests, does not need to be constant-time). Verified 2026-08-09:
+    // dead on the wasm32 production backend, live in the native x86_64 differential test build.
     #[allow(dead_code)]
     #[inline(always)]
     pub(crate) fn abs(self) -> Self {

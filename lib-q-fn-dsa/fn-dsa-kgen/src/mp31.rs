@@ -150,7 +150,10 @@ pub(crate) fn mp_Rx31(e: u32, p: u32, p0i: u32, R2: u32) -> u32 {
 }
 
 // Compute x/y mod p. If y is not invertible modulo p, then 0 is returned
-// (regardless of the value of x).
+// (regardless of the value of x). Ported from the fn-dsa reference `mp31` module; not called by
+// this crate's keygen path in any configuration checked (default, --all-features) — verified
+// 2026-08-09, warns `never used` with the allow removed. Kept as part of the complete, auditable
+// modular-arithmetic API.
 #[allow(dead_code)]
 pub(crate) fn mp_div(x: u32, y: u32, p: u32) -> u32 {
     // We use an extended binary GCD:
