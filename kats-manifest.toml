@@ -64,7 +64,7 @@
 # it exists to catch, just moved one level up.
 
 [scan]
-roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats"]
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats", "lib-q-cb-kem/data/kat"]
 # `lib-q-ml-dsa/tests/kats` REPLACED the narrower `lib-q-ml-dsa/tests/kats/acvp-1_1_0_36` root on
 # 2026-08-07. The subdirectory was registered deliberately at the time because the parent also holds
 # the six former `nistkats*.json` files, which could not then be registered (no way to satisfy
@@ -359,3 +359,34 @@ origin = "upstream"
 upstream_url = "https://raw.githubusercontent.com/cryspen/libcrux/5c3fc214252573b1383ab54528aba3d8c21486a2/libcrux-ml-dsa/tests/kats/nistkats_pre_hashed-87.json"
 upstream_sha256 = "5300d607dd885dddc6b0c52e7746ca458199c34cf81fdce8b711f5b0162e7942"
 sha256 = "5300d607dd885dddc6b0c52e7746ca458199c34cf81fdce8b711f5b0162e7942"
+
+# --- lib-q-cb-kem/data/kat/cbkem348864.rsp -- Classic McEliece designers' own reference C ------
+# Registered 2026-08-09 (card t_71d4f79a, "Classic McEliece half"). This is NOT a downloaded
+# pre-existing file (no such file exists: NIST/the classic.mceliece.org submission package ships
+# only the PQCgenKAT_kem-equivalent GENERATOR source, `Reference_Implementation/kem/<variant>/
+# nist/kat_kem.c` + `nist/rng.c`, not precomputed `.rsp` answer files, for any of its 10
+# parameter sets -- confirmed by extracting and grepping the live submission tarball). Instead
+# this file's bytes were produced by actually BUILDING and RUNNING that official generator: the
+# `mceliece-20221023.tar.gz` submission package's `Reference_Implementation/kem/mceliece348864`
+# C code, compiled with gcc against XKCP's `libXKCP.a`/`SimpleFIPS202.h`
+# (github.com/XKCP/XKCP, cloned fresh 2026-08-09, commit at clone time) for SHAKE256 (symlinked
+# to the historical `libkeccak.a`/`libkeccak.a.headers` names the reference `build` script
+# expects) and the system OpenSSL `libcrypto` (Ubuntu libssl-dev 3.0.2-0ubuntu1.26) for the
+# AES256-ECB primitive `nist/rng.c`'s CTR_DRBG uses, then executed (`./kat kem/mceliece348864`)
+# under WSL2 Ubuntu. KATNUM=10 (the value the reference package's own `KATNUM` file specifies).
+# This is a genuinely external oracle -- an independent C implementation by the scheme's own
+# designers, not lib-q-cb-kem's own code -- but it is deliberately labelled `origin =
+# "third-party"`, not `"upstream"`, because there is no separately-published upstream file with a
+# citable URL/hash to pin `upstream_sha256` against: WE generated these exact bytes by running
+# the designers' generator ourselves, so "upstream_sha256 == sha256" would just be comparing this
+# file to itself, not independent verification. `lib-q-cb-kem/tests/katkem.rs::official_kat_348864`
+# consumes this file and asserts byte-exact pk/sk/ct/ss agreement against lib_q_cb_kem's own
+# keypair/encapsulate/decapsulate for all 10 testcases -- verified passing before this entry was
+# added. The vector file's own leading `#`-comment (added by us, since the reference tool's raw
+# output only printed the bare `# kem/mceliece348864` line) restates this same provenance.
+
+[[kat]]
+path = "lib-q-cb-kem/data/kat/cbkem348864.rsp"
+origin = "third-party"
+source = "Generated 2026-08-09 by building and running the Classic McEliece designers' own Reference_Implementation/kem/mceliece348864 C code from the official submission package (https://classic.mceliece.org/nist/mceliece-20221023.tar.gz), linked against XKCP (github.com/XKCP/XKCP, cloned 2026-08-09) for SHAKE256 and system OpenSSL libcrypto for AES256-ECB, executed under WSL2 Ubuntu (libssl-dev 3.0.2-0ubuntu1.26). Not an official NIST-published .rsp -- no such file exists upstream for this scheme; this is the designers' own reference generator's output, a genuinely external oracle relative to lib-q-cb-kem."
+sha256 = "7fd5c689171d7c2ca753dbd6a90488fcc97df45b0d756b2b77f17c843a72f1e9"
