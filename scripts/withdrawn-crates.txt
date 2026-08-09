@@ -1,0 +1,15 @@
+# Crates withdrawn for SOUNDNESS defects, which must not reappear in the tree.
+# Enforced by scripts/ci-guard-withdrawn-crates.sh.
+#
+# Format:  <crate directory> | <why it was withdrawn>
+#
+# This is not a tidiness list. Everything here was deleted because using it is unsafe, and the
+# reason is recorded so that whoever trips this guard learns why restoring the directory is the
+# wrong fix. If a build fails for want of one of these, the dependent's manifest is what needs
+# changing.
+#
+# Removing a line means you have decided the crate is safe again. It never is, for these two --
+# both defects are total compromises with no patch, only replacement.
+
+lib-q-threshold-kem | partial_decap returns the party's raw Shamir share of the ML-KEM-768 decapsulation key; ML-KEM decapsulation is non-linear so the Shamir construction is unsound. t shares reconstruct the key. Successor: lib-q-threshold-kem-lattice. Deleted at 401eb2e
+lib-q-fhe | decrypt never reads the key -- it computes body[i] - mask, so anyone who can see the ciphertext recovers the plaintext. Not encryption. Deleted at 401eb2e
