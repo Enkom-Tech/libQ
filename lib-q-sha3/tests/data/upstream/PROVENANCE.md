@@ -80,8 +80,15 @@ lose coverage, so both sets run.
 
 ## Not covered here
 
-`cshake128.blb`, `cshake256.blb`, `cshake*_bytepad_block_aligned.blb` and the `turboshake*.blb`
-files in the parent directory are **not** from this upstream source and are out of scope for this
-document. The `turboshake*.blb` files do not decode under `blobby` 0.4 and no test references
-them; `sha3_224_kat_new.blb` decodes to the same two vectors as `sha3_224_kat.blb` and is also
+`cshake128.blb`, `cshake256.blb` and `cshake*_bytepad_block_aligned.blb` in the parent directory
+are **not** from this upstream source and are out of scope for this document.
+`sha3_224_kat_new.blb` decodes to the same two vectors as `sha3_224_kat.blb` and is also
 referenced by no test.
+
+UPDATE 2026-08-09 (card t_71d4f79a / t_f0d676d1): the `turboshake*.blb` files formerly at
+`tests/data/turboshake{128,256}_{6,7}.blb` were each one byte short of RustCrypto's real files and
+did not decode under `blobby` 0.4 — this doc used to record that as a dead end. They have been
+replaced with byte-exact copies and moved to `tests/data/turboshake/`, with their own provenance
+recorded in `tests/data/turboshake/PROVENANCE.md` and wired into `tests/turboshake_blobby_kats.rs`.
+The old broken copies never had a manifest entry or a filename collision with a *matching* upstream
+file — they are simply gone from this directory now.
