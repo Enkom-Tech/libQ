@@ -165,9 +165,8 @@ impl Operations for AVX2SIMDUnit {
 
     #[inline(always)]
     fn reduce(simd_units: &mut [Self; SIMD_UNITS_IN_RING_ELEMENT]) {
-        shift_left_then_reduce::<0>(&mut simd_units[0]);
-        shift_left_then_reduce::<0>(&mut simd_units[8]);
-        shift_left_then_reduce::<0>(&mut simd_units[16]);
-        shift_left_then_reduce::<0>(&mut simd_units[24]);
+        for unit in simd_units.iter_mut() {
+            shift_left_then_reduce::<0>(unit);
+        }
     }
 }
