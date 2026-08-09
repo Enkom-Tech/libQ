@@ -1314,13 +1314,24 @@ fn validate_kem_context_for_algorithm(
 
     // Validate algorithm security level compatibility
     let security_level = core_algorithm.security_level();
+    // NIST PQC defines categories 1-5. This previously accepted `1 | 3 | 4`, which hardcoded a
+    // WRONG value rather than a policy: ML-KEM-1024 is Category 5, but the registry used to
+    // report it as 4, and this arm was written to match that. Correcting the registry
+    // (ML-KEM-1024 4 -> 5) therefore made HPKE reject its own strongest KEM with "Unsupported
+    // security level for HPKE: 5" -- a downstream copy of the same bad table.
+    //
+    // The check is a sanity guard, not a policy: the `kem_algorithm` match above is already
+    // exhaustive over three valid ML-KEM variants, so the only thing this can catch is a
+    // category outside the standard's range (e.g. 0, meaning "unset"). Express that directly
+    // instead of enumerating the levels that happen to be in use today, so adding a Category 2
+    // or 4 KEM later does not fail here for no reason.
     match security_level {
-        1 | 3 | 4 => {
-            // These security levels are acceptable for HPKE (Level 1, 3, 4)
+        1..=5 => {
+            // A recognised NIST PQC category.
         }
         _ => {
             return Err(HpkeError::CryptoError(format!(
-                "Unsupported security level for HPKE: {} (expected 1, 3, or 4)",
+                "Unsupported security level for HPKE: {} (expected a NIST category, 1-5)",
                 security_level
             )));
         }

@@ -2,8 +2,15 @@
 //!
 //! These tests verify that HPKE works correctly with ML-KEM through the public `HpkeContext`
 //! API. The active [`HpkeCipherSuite`](lib_q_hpke::HpkeCipherSuite) must match the ML-KEM parameter
-//! set of the recipient keys. HQC key generation is available when the `hqc` feature is enabled,
-//! but HPKE seal/open for HQC stays `#[ignore]` until that KEM is wired into the HPKE cipher suite.
+//! set of the recipient keys.
+//!
+//! [`HpkeKem`] has no HQC variant: HQC is not, and cannot be, selected as an HPKE KEM through this
+//! crate's public API (see `docs/hpke-architecture.md`). HQC key generation is available elsewhere
+//! in the workspace when the `hqc` feature is enabled, but feeding an HQC keypair to `HpkeContext`
+//! (which only ever negotiates ML-KEM cipher suites) is a caller mistake, not an HQC code path.
+//! The tests below pin the actual behaviour of that mistake: `seal` rejects the oversized HQC
+//! public key with a clean `HpkeError` (key-size validation against the active ML-KEM suite) —
+//! it does not panic, and it does not silently fall back to a different KEM.
 
 #![cfg(feature = "std")]
 
@@ -99,11 +106,11 @@ fn test_hpke_with_ml_kem768() {
     );
 }
 
-/// Test HPKE with HQC-128
+/// HPKE has no HQC KEM: feeding an HQC-128 public key to the (ML-KEM-only) `HpkeContext` must be
+/// rejected with a clean error, not silently accepted and not a panic.
 #[test]
 #[cfg(all(feature = "ml-kem", feature = "hqc"))]
-#[ignore = "HPKE hpke_core/PostQuantumProvider is ML-KEM-only; HQC seal/open not wired"]
-fn test_hpke_with_hqc128() {
+fn test_hpke_rejects_hqc128_key_as_ml_kem() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
@@ -116,31 +123,25 @@ fn test_hpke_with_hqc128() {
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
-    let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
     let message = b"Hello, HPKE with HQC-128!";
     let info = b"test-info";
     let aad = b"test-aad";
 
-    let (encapsulated_key, ciphertext) = hpke_ctx
-        .seal(&recipient_pk, info, aad, message)
-        .expect("Seal operation should work");
-
-    let decrypted = hpke_ctx
-        .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
-        .expect("Open operation should work");
-
-    assert_eq!(
-        decrypted, message,
-        "Decrypted message should match original"
+    // `hpke_ctx`'s cipher suite defaults to ML-KEM-512; an HQC-128 key is the wrong size for it,
+    // so `seal` must return an error rather than succeeding or panicking.
+    let result = hpke_ctx.seal(&recipient_pk, info, aad, message);
+    assert!(
+        result.is_err(),
+        "HPKE seal must reject an HQC public key (HpkeKem has no HQC variant); \
+         got Ok, i.e. it silently treated the HQC key as valid ML-KEM input"
     );
 }
 
-/// Test HPKE with HQC-192
+/// Same rejection check for HQC-192.
 #[test]
 #[cfg(all(feature = "ml-kem", feature = "hqc"))]
-#[ignore = "HPKE hpke_core/PostQuantumProvider is ML-KEM-only; HQC seal/open not wired"]
-fn test_hpke_with_hqc192() {
+fn test_hpke_rejects_hqc192_key_as_ml_kem() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
@@ -153,31 +154,23 @@ fn test_hpke_with_hqc192() {
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
-    let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
     let message = b"Hello, HPKE with HQC-192!";
     let info = b"test-info";
     let aad = b"test-aad";
 
-    let (encapsulated_key, ciphertext) = hpke_ctx
-        .seal(&recipient_pk, info, aad, message)
-        .expect("Seal operation should work");
-
-    let decrypted = hpke_ctx
-        .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
-        .expect("Open operation should work");
-
-    assert_eq!(
-        decrypted, message,
-        "Decrypted message should match original"
+    let result = hpke_ctx.seal(&recipient_pk, info, aad, message);
+    assert!(
+        result.is_err(),
+        "HPKE seal must reject an HQC public key (HpkeKem has no HQC variant); \
+         got Ok, i.e. it silently treated the HQC key as valid ML-KEM input"
     );
 }
 
-/// Test HPKE with HQC-256
+/// Same rejection check for HQC-256.
 #[test]
 #[cfg(all(feature = "ml-kem", feature = "hqc"))]
-#[ignore = "HPKE hpke_core/PostQuantumProvider is ML-KEM-only; HQC seal/open not wired"]
-fn test_hpke_with_hqc256() {
+fn test_hpke_rejects_hqc256_key_as_ml_kem() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
 
@@ -190,23 +183,16 @@ fn test_hpke_with_hqc256() {
         .expect("Key generation should work");
 
     let recipient_pk = KemPublicKey::new(keypair.public_key().as_bytes().to_vec());
-    let recipient_sk = KemSecretKey::new(keypair.secret_key().as_bytes().to_vec());
 
     let message = b"Hello, HPKE with HQC-256!";
     let info = b"test-info";
     let aad = b"test-aad";
 
-    let (encapsulated_key, ciphertext) = hpke_ctx
-        .seal(&recipient_pk, info, aad, message)
-        .expect("Seal operation should work");
-
-    let decrypted = hpke_ctx
-        .open(&encapsulated_key, &recipient_sk, info, aad, &ciphertext)
-        .expect("Open operation should work");
-
-    assert_eq!(
-        decrypted, message,
-        "Decrypted message should match original"
+    let result = hpke_ctx.seal(&recipient_pk, info, aad, message);
+    assert!(
+        result.is_err(),
+        "HPKE seal must reject an HQC public key (HpkeKem has no HQC variant); \
+         got Ok, i.e. it silently treated the HQC key as valid ML-KEM input"
     );
 }
 
