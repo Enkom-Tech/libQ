@@ -12,4 +12,5 @@
 # both defects are total compromises with no patch, only replacement.
 
 lib-q-threshold-kem | partial_decap returns the party's raw Shamir share of the ML-KEM-768 decapsulation key; ML-KEM decapsulation is non-linear so the Shamir construction is unsound. t shares reconstruct the key. Successor: lib-q-threshold-kem-lattice. Deleted at 401eb2e
+lib-q-threshold-sig | it is not a signature scheme. Keygen copied each party's raw Shamir share into that party's PUBLISHED verifying key, so public and private material were byte-identical; the "public" group key was Lagrange interpolation of those verifying keys at zero, i.e. the Shamir master secret reconstructed from purely public data; and the accept/reject relation contained no secret input and no one-way step. Structural, not a parameter choice. Withdrawn at 8a865cc, sources deleted at 5dce9d4
 lib-q-fhe | decrypt never reads the key -- it computes body[i] - mask, so anyone who can see the ciphertext recovers the plaintext. Not encryption. Deleted at 401eb2e
