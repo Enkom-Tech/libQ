@@ -1,7 +1,31 @@
-//! RFC 9180 HPKE Test Vectors
+//! HPKE round-trip / self-consistency tests (NOT RFC 9180 conformance vectors).
 //!
-//! This module contains test vectors for HPKE compliance testing according to RFC 9180.
-//! These test vectors cover various scenarios including different modes, algorithms, and edge cases.
+//! # What this file is, and what it is not
+//!
+//! This file was previously named `rfc9180_test_vectors.rs` and its tests were named/documented
+//! as "RFC 9180 compliance" / "test vectors". That was inaccurate: every keypair here is
+//! generated at runtime (`kem_ctx.generate_keypair(...)`), and there are no externally-sourced
+//! expected outputs anywhere in this file. What is actually exercised is internal
+//! self-consistency: encrypt with the sender context, decrypt with the receiver context, and
+//! check the plaintext/exported-key round-trips. That is a legitimate and useful test, but it is
+//! not the same claim as "byte-exact RFC 9180 conformance", and naming it that way misleads a
+//! reader (or an auditor) into believing conformance to the RFC's published test vectors was
+//! checked here. It was not.
+//!
+//! # Why byte-exact RFC 9180 vectors are impossible for these suites
+//!
+//! RFC 9180's Appendix A test vectors are all built on the KEMs the RFC standardizes: X25519,
+//! X448, and NIST P-256/P-384/P-521 (all classical, non-PQ). libQ's HPKE KEMs are exclusively
+//! post-quantum (ML-KEM-512/768/1024). There is no RFC 9180 vector for any ML-KEM-based HPKE
+//! ciphersuite, and there cannot be one until (if ever) a PQ-KEM HPKE ciphersuite is standardized
+//! with its own published vectors. So a round-trip test using freshly generated PQ keys is the
+//! honest ceiling for *this file*'s scope; genuine RFC-vector conformance for the
+//! suite-independent machinery (LabeledExtract/LabeledExpand/suite_id/KeySchedule structure) is
+//! covered separately in `tests/rfc9180_key_schedule_structure_tests.rs`, which cites RFC section
+//! numbers and marks self-generated values as such.
+//!
+//! See card `t_71d4f79a` (self-generated vectors must never be presented as external/NIST ones)
+//! for the standing rule this rename exists to satisfy.
 
 #![cfg(feature = "std")]
 #![allow(clippy::manual_map, clippy::unnecessary_unwrap)]
@@ -183,9 +207,10 @@ pub fn generate_test_vectors() -> Vec<HpkeTestVector> {
     test_vectors
 }
 
-/// Test HPKE compliance with generated test vectors
+/// Round-trip / self-consistency test using runtime-generated keys (NOT RFC 9180 vectors — see
+/// module doc comment at the top of this file).
 #[test]
-fn test_hpke_rfc9180_compliance() {
+fn test_hpke_round_trip_self_consistency() {
     let provider = Box::new(LibQKemProvider::new().expect("Failed to create KEM provider"));
     let mut hpke_ctx = HpkeContext::with_provider(provider);
     let test_vectors = generate_test_vectors();
