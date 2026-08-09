@@ -305,7 +305,14 @@ jobs:
             features: "parallel"
             package: "lib-q-stark-rayon"
           - name: "lib-q-stark-dft no_std"
-            features: "alloc"
+            # Was "alloc" -- the dispatcher in .github/actions/rust-test/action.yml keys off
+            # whether "no_std" appears in FEATURES, not in the row's name, so this row fell
+            # through to a plain `cargo test` (which unifies dev-deps `criterion`/`rand,std`
+            # and links std transitively, masking any no_std violation) instead of the real
+            # `cargo check --profile dev-no-std --no-default-features` no_std path. Matching
+            # the shape used by the other genuine no_std rows below (lib-q-ring/lib-q-mac/
+            # lib-q-lattice-zkp) makes this row actually take that path.
+            features: "no_std"
             package: "lib-q-stark-dft"
           - name: "lib-q-stark-dft parallel"
             features: "alloc,parallel"

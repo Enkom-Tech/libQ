@@ -447,7 +447,36 @@ pub fn memory_barrier() {
 ///
 /// # Security
 /// This function uses secure memory operations to prevent data leakage.
-pub fn secure_fill<T>(data: &mut T, value: u8) {
+///
+/// # Safety
+/// Overwriting every byte of `*data` with `value` must produce a valid value
+/// of `T` for all `value` in `0..=255` the caller might pass. This is **not**
+/// true for most types: references, `Box`, `NonNull`, `NonZero*`, most
+/// `enum`s, and any niche-optimized or `#[repr(transparent)]` wrapper over
+/// such types have byte patterns (in particular the all-zero pattern, but
+/// also most non-zero ones) that are not legal values, so filling them is
+/// instant undefined behaviour. The caller must ensure `T` has no validity
+/// invariant that excludes an arbitrary repeated-byte pattern (e.g. `T` is
+/// `u8`/`[u8; N]`, or a plain `#[repr(C)]`/`#[repr(Rust)]` aggregate of such
+/// types with no niches). Prefer [`secure_fill_slice`] for byte buffers,
+/// which carries no such requirement.
+///
+/// # Regression test (F5-class)
+/// `secure_fill` had the same unbounded-generic-safe-fn shape that was fixed
+/// on `secure_zero`/`secure_copy`/`secure_compare`/`secure_move` (see F5 in
+/// the API-soundness audit). Making it `unsafe fn` closes the hole at the
+/// type system level: calling it without an `unsafe` block is now a compile
+/// error, pinned down by this `compile_fail` doctest so the fix cannot
+/// silently regress back to a safe fn.
+///
+/// ```compile_fail
+/// let mut r: &'static str = "k";
+/// // No `unsafe` block: must fail to compile now that `secure_fill` is
+/// // `unsafe fn`. Before the fix this compiled (and was UB at runtime for
+/// // most `value`s, since an arbitrary byte pattern is not a valid `&str`).
+/// lib_q_aead::security::memory::secure_fill(&mut r, 0x41);
+/// ```
+pub unsafe fn secure_fill<T>(data: &mut T, value: u8) {
     let size = size_of_val(data);
     let ptr = data as *mut T as *mut u8;
 
@@ -490,7 +519,41 @@ pub fn secure_fill_slice(data: &mut [u8], value: u8) {
 ///
 /// # Security
 /// This function uses secure memory operations to prevent data leakage.
-pub fn secure_xor<T>(a: &mut T, b: &T) {
+///
+/// # Safety
+/// This XORs `*a` with `*b` byte-by-byte and writes the result back into
+/// `*a`, including any padding bytes inserted by the compiler between/after
+/// fields. Two independent problems make this unsound for a general `T`:
+/// - Padding is not guaranteed to be initialized (`undef` for a
+///   `#[repr(Rust)]`/`#[repr(C)]` struct unless every byte is an explicit
+///   field), so reading it through `*b_ptr.add(i)` is undefined behaviour.
+/// - The XOR result is an arbitrary derived bit pattern that need not be a
+///   valid value of `T` (references, `NonZero*`, most `enum`s, niche-
+///   optimized types, ...), so writing it back through `*a_ptr.add(i)` can
+///   produce an instantly-invalid value.
+///
+/// The caller must ensure `T` has no padding and no validity invariant that
+/// excludes an arbitrary bit pattern (e.g. `T` is `u8`, `[u8; N]`, or another
+/// type whose every byte is a defined, initialized field with no gaps and no
+/// niches). Prefer [`secure_xor_slice`] for byte buffers, which carries no
+/// such requirement.
+///
+/// # Regression test (F5-class)
+/// `secure_xor` had the same unbounded-generic-safe-fn shape that was fixed
+/// on `secure_zero`/`secure_copy`/`secure_compare`/`secure_move` (see F5 in
+/// the API-soundness audit). Making it `unsafe fn` closes the hole at the
+/// type system level: calling it without an `unsafe` block is now a compile
+/// error, pinned down by this `compile_fail` doctest so the fix cannot
+/// silently regress back to a safe fn.
+///
+/// ```compile_fail
+/// let mut r: &'static str = "k";
+/// let s: &'static str = "k";
+/// // No `unsafe` block: must fail to compile now that `secure_xor` is
+/// // `unsafe fn`. Before the fix this compiled (and was UB at runtime).
+/// lib_q_aead::security::memory::secure_xor(&mut r, &s);
+/// ```
+pub unsafe fn secure_xor<T>(a: &mut T, b: &T) {
     let size = size_of_val(a);
     assert_eq!(size, size_of_val(b));
 
@@ -611,7 +674,8 @@ mod tests {
     #[test]
     fn test_secure_fill() {
         let mut data = [0u8; 5];
-        secure_fill(&mut data, 42);
+        // SAFETY: `[u8; 5]` accepts any repeated-byte pattern as a valid value.
+        unsafe { secure_fill(&mut data, 42) };
         assert_eq!(data, [42, 42, 42, 42, 42]);
     }
 
@@ -626,7 +690,8 @@ mod tests {
     fn test_secure_xor() {
         let mut a = [0b1010, 0b1100, 0b1111];
         let b = [0b1100, 0b1010, 0b0000];
-        secure_xor(&mut a, &b);
+        // SAFETY: `[i32; 3]` has no padding and accepts an arbitrary bit pattern.
+        unsafe { secure_xor(&mut a, &b) };
         assert_eq!(a, [0b0110, 0b0110, 0b1111]);
     }
 

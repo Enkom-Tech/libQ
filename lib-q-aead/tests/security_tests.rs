@@ -186,7 +186,8 @@ fn test_memory_safety_operations() {
 
     // Test secure fill
     let mut data = [0u8; 5];
-    secure_fill(&mut data, 42);
+    // SAFETY: `[u8; 5]` accepts any repeated-byte pattern as a valid value.
+    unsafe { secure_fill(&mut data, 42) };
     assert_eq!(data, [42; 5]);
 
     // Test secure fill slice
@@ -197,7 +198,8 @@ fn test_memory_safety_operations() {
     // Test secure XOR
     let mut a = [0b1010, 0b1100, 0b1111];
     let b = [0b1100, 0b1010, 0b0000];
-    secure_xor(&mut a, &b);
+    // SAFETY: `[i32; 3]` has no padding and accepts an arbitrary bit pattern.
+    unsafe { secure_xor(&mut a, &b) };
     assert_eq!(a, [0b0110, 0b0110, 0b1111]);
 
     // Test secure XOR slice
