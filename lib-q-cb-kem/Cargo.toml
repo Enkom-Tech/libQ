@@ -107,6 +107,9 @@ name = "kem_api"
 harness = false
 
 [dev-dependencies]
+# Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
+# this crate asserts its own real computed sizes match, so drift fails CI on either side.
+lib-q-types = { path = "../lib-q-types", version = "0.0.10", default-features = false }
 hex = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 

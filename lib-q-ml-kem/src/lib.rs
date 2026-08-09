@@ -355,6 +355,22 @@ pub const MLKEM1024_SECRET_KEY_SIZE: usize =
 /// Size in bytes of ML-KEM-1024 ciphertexts
 pub const MLKEM1024_CIPHERTEXT_SIZE: usize = <MlKem1024 as KemCore>::CiphertextSize::USIZE;
 
+// Conformance guard: `lib-q-core::SecurityConstants` reads these sizes from `lib-q-types`
+// (lib-q-core cannot depend on this crate without a cycle). These compile-time assertions make
+// sure that mirror never silently drifts from the real, type-system-derived sizes above.
+#[cfg(test)]
+const _: () = {
+    assert!(MLKEM512_PUBLIC_KEY_SIZE == lib_q_types::mlkem::MLKEM512_PUBLIC_KEY_BYTES);
+    assert!(MLKEM512_SECRET_KEY_SIZE == lib_q_types::mlkem::MLKEM512_SECRET_KEY_BYTES);
+    assert!(MLKEM512_CIPHERTEXT_SIZE == lib_q_types::mlkem::MLKEM512_CIPHERTEXT_BYTES);
+    assert!(MLKEM768_PUBLIC_KEY_SIZE == lib_q_types::mlkem::MLKEM768_PUBLIC_KEY_BYTES);
+    assert!(MLKEM768_SECRET_KEY_SIZE == lib_q_types::mlkem::MLKEM768_SECRET_KEY_BYTES);
+    assert!(MLKEM768_CIPHERTEXT_SIZE == lib_q_types::mlkem::MLKEM768_CIPHERTEXT_BYTES);
+    assert!(MLKEM1024_PUBLIC_KEY_SIZE == lib_q_types::mlkem::MLKEM1024_PUBLIC_KEY_BYTES);
+    assert!(MLKEM1024_SECRET_KEY_SIZE == lib_q_types::mlkem::MLKEM1024_SECRET_KEY_BYTES);
+    assert!(MLKEM1024_CIPHERTEXT_SIZE == lib_q_types::mlkem::MLKEM1024_CIPHERTEXT_BYTES);
+};
+
 #[cfg(test)]
 mod test {
     #[cfg(feature = "random")]

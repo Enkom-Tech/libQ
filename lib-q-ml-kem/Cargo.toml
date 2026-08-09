@@ -79,6 +79,9 @@ crate-type = ["cdylib", "rlib"]
 wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [dev-dependencies]
+# Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
+# this crate asserts its own real computed sizes match, so drift fails CI on either side.
+lib-q-types = { path = "../lib-q-types", version = "0.0.10", default-features = false }
 hex = { workspace = true, features = ["serde"] }
 hex-literal = { workspace = true }
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }

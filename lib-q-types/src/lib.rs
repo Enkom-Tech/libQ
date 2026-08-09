@@ -6,7 +6,12 @@
 #![deny(unsafe_code)]
 #![deny(unused_qualifications)]
 
+pub mod cbkem;
+pub mod fndsa;
 pub mod hqc;
+pub mod mldsa;
+pub mod mlkem;
+pub mod slhdsa;
 
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
