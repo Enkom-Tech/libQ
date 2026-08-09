@@ -182,6 +182,22 @@ jobs:
       - name: Guard against always-false (undefined-feature) cfg gates
         run: bash ./scripts/ci-guard-nonexistent-feature-gates.sh
 
+      # Closes the gap the two guards above cannot: a `#[test]` fn can compile, run, and be
+      # correctly enumerated by cargo -- and STILL never be able to report anything but "ok",
+      # because its body has no assert/panic/unwrap/expect/`?`/#[should_panic]. Found 2026-08 in
+      # lib-q-hqc/tests/kat_with_aes_drbg_test.rs (fixed at 766cb0c): a KEM round-trip test
+      # printed a check-mark or cross-mark on shared-secret mismatch with no assertion, so a
+      # decapsulation returning the WRONG shared secret reported "ok". The repo-wide sweep this
+      # guard was built for (card t_f0d676d1) found the same shape live in
+      # lib-q-hqc/tests/official_specification_verification_test.rs (an HQC-3/HQC-5 official-vs-
+      # implementation parameter check computed `all_match` but never asserted it, and two of its
+      # own hardcoded "official" constants had drifted stale against the NIST Oct 2024 spec by
+      # the time this guard caught it) -- both fixed. KNOWN_DEBT allowlist
+      # (scripts/no-assert-test-exemptions.txt) may only shrink. Static and stdlib-only: a
+      # brace/comment/string-aware text scan of every tracked .rs file, no cargo, no network.
+      - name: Guard against #[test] fns with no failure mechanism
+        run: bash ./scripts/ci-guard-no-assert-tests.sh .
+
       - name: Core validation
         uses: ./.github/actions/rust-build
         with:
