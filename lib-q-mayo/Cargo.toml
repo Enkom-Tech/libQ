@@ -28,7 +28,7 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.10", features = ["std"
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.10" }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.10", default-features = false }
 
 [[test]]
 name = "hardened_dudect_smoke"
