@@ -85,6 +85,27 @@ CI runs Clippy with `-D warnings` (see `.github/workflows/ci.yml`); use the comm
 - Constant-time verification tests
 - WASM compatibility tests
 
+### Verifying that a check actually checked something
+
+Most defects found in this repo's own tooling were checks that passed while the thing they
+protected was broken. Before reporting a gate as green, rule these out:
+
+- **A pipeline's exit code is the last command's, not yours.** `cmd 2>&1 | tail; echo $?` prints
+  `tail`'s status, so it says `0` even when `cmd` failed — this has masked a Python `SyntaxError`
+  and a guard that was actively reporting a violation. Capture the real code:
+  `cmd >/tmp/out 2>&1; echo "exit=$?"; tail -3 /tmp/out`, or use `${PIPESTATUS[0]}`, or
+  `set -o pipefail`.
+- **`test result: ok` does not mean tests ran.** A file gated behind a non-default feature with
+  no `[[test]]` entry in `Cargo.toml` compiles to nothing and prints
+  `running 0 tests ... test result: ok`. Read the count, and give such files a
+  `required-features` entry so an explicit `--test <name>` fails loudly instead.
+- **A `continue-on-error: true` step reports `conclusion: success` when it fails.** The real
+  result is in `outcome`, which the `gh` CLI does not surface. Read the step's log.
+- **A host-target `--no-default-features` build is not a `no_std` check.** std links on the host
+  whatever the features say. Cross-compile to `thumbv7em-none-eabi` to exercise the property.
+- **A search that finds nothing proves nothing until it has found something.** Positive-control
+  every grep against input you know matches, then trust the zero.
+
 ## Security Review Process
 
 ### Before Submitting
