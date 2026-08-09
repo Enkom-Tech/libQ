@@ -7,6 +7,10 @@ authors.workspace = true
 license.workspace = true
 repository.workspace = true
 description = "Benchmarks for lib-q post-quantum cryptography library"
+# In-repo benchmarks only -- never published to crates.io (mirrors examples/). Required now that
+# this is a workspace member: ci-guard-new-crates-and-npm.sh demands every member appear in a
+# cd.yml publish matrix unless it opts out here, and it caught this immediately on the first push.
+publish = false
 
 [[bench]]
 name = "lib"
