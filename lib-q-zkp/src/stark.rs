@@ -946,7 +946,24 @@ pub const fn default_fri_params_for_tests() -> (usize, usize, usize) {
 }
 
 /// ZK config for tests: uses HidingFriPcs so proofs are randomized (statistical ZK).
-/// Not for production; uses test FRI params (few queries, low PoW).
+///
+/// **Test-only, and doubly so.** Two independent reasons this must not be used to produce a real
+/// proof:
+///
+/// 1. The FRI parameters are the test ones -- few queries, low proof-of-work -- so the soundness
+///    error is far larger than any deployed profile would accept.
+/// 2. The blinding seeds are hardcoded to `(0, 1)`. Every caller therefore gets the SAME
+///    randomness, so the hiding PCS is deterministic and the statistical zero-knowledge it is
+///    there to provide does not hold across proofs.
+///
+/// The second point is the trap: a caller reading "HidingFriPcs ... statistical ZK" could
+/// reasonably conclude this is the zero-knowledge configuration to reach for. Use
+/// [`zk_config_with_seeds`] (or [`zk_config_with_seed_bytes`]) with fresh, unpredictable seeds.
+///
+/// This carries `#[doc(hidden)]` to match every one of its siblings --
+/// `default_fri_params_for_tests`, `zk_config_with_seeds`, `zk_config_with_params` -- which were
+/// all hidden while this one, alone in the family, was published in the API docs.
+#[doc(hidden)]
 pub fn zk_config() -> ZkConfig {
     zk_config_with_seeds(0, 1)
 }
