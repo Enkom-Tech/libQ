@@ -84,6 +84,11 @@ name = "pilot_insecure_prf_transcript_tests"
 path = "tests/pilot_insecure_prf_transcript_tests.rs"
 required-features = ["pilot-insecure-prf-transcript"]
 
+[[test]]
+name = "constant_time"
+path = "tests/constant_time.rs"
+required-features = ["pilot-insecure-prf-transcript"]
+
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(ring_sig_docs)',

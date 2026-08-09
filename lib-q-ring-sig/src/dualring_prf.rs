@@ -156,9 +156,14 @@ pub fn dualring_prf_sign_u256<R: Rng + CryptoRng>(
     let pk_gold = GoldKey256::from_uint(u256_from_le_bytes(&member.gold_key_le), &gold_params)
         .map_err(|_| DualringPrfError::InvalidInput)?;
 
-    if !bool::from(leg_key.as_uint().ct_eq(pk_leg.as_uint())) ||
-        !bool::from(gold_key.as_uint().ct_eq(pk_gold.as_uint()))
-    {
+    // `&` on the two `Choice`s rather than `||` on two `bool`s. Rust's `||` short-circuits, so
+    // writing this as `!bool::from(a) || !bool::from(b)` skipped the Gold-key comparison
+    // entirely whenever the Legendre key already mismatched. Each `ct_eq` was individually
+    // sound, but the pair did unequal work depending on which key was wrong, which leaks that
+    // distinction. Both comparisons are now always evaluated and combined without a branch.
+    let keys_match =
+        leg_key.as_uint().ct_eq(pk_leg.as_uint()) & gold_key.as_uint().ct_eq(pk_gold.as_uint());
+    if !bool::from(keys_match) {
         return Err(DualringPrfError::InvalidInput);
     }
 
