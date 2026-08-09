@@ -85,6 +85,8 @@ mod romulus_m;
 mod romulus_n;
 #[cfg(feature = "saturnin")]
 mod saturnin;
+#[cfg(feature = "saturnin-siv")]
+pub mod saturnin_siv;
 #[cfg(feature = "shake256")]
 mod shake256;
 #[cfg(feature = "tweak-aead")]
@@ -101,6 +103,11 @@ pub use romulus_m::RomulusMAead;
 pub use romulus_n::RomulusNAead;
 #[cfg(feature = "saturnin")]
 pub use saturnin::SaturninAead;
+// Saturnin-SIV is NOT registered in the global `AeadRegistry`: registration is keyed on a
+// `lib_q_types::Algorithm` variant, and adding one is a change to `lib-q-types`. It is exposed
+// as a standalone type until that variant exists.
+#[cfg(feature = "saturnin-siv")]
+pub use saturnin_siv::SaturninSiv;
 #[cfg(feature = "shake256")]
 pub use shake256::Shake256Aead;
 #[cfg(feature = "tweak-aead")]

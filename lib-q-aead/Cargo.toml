@@ -59,6 +59,18 @@ alloc = ["lib-q-core/alloc"]
 # Enables optional `zeroize` without `shake256`; also satisfies workspace `cargo metadata --features zeroize`.
 zeroize = ["dep:zeroize"]
 saturnin = ["dep:lib-q-saturnin", "lib-q-saturnin/aead", "lib-q-saturnin/alloc"]
+# Saturnin-SIV: deterministic, nonce-misuse-resistant AEAD (256-bit key + tag).
+# Needs Saturnin's CTR stream mode for encryption and KMAC256 (lib-q-hash) for both the KDF and
+# the synthetic tag; `alloc` because SIV is inherently two-pass and buffers the message.
+saturnin-siv = [
+    "alloc",
+    "dep:lib-q-saturnin",
+    "lib-q-saturnin/stream",
+    "lib-q-saturnin/alloc",
+    "dep:lib-q-hash",
+    "lib-q-hash/alloc",
+    "dep:zeroize",
+]
 shake256 = [
     "dep:lib-q-sha3",
     "lib-q-sha3/alloc",
@@ -138,6 +150,21 @@ required-features = ["shake256", "std"]
 name = "no_std_example"
 path = "examples/no_std_example.rs"
 required-features = ["shake256"]
+
+[[test]]
+name = "saturnin_siv"
+path = "tests/saturnin_siv.rs"
+required-features = ["saturnin-siv"]
+
+[[test]]
+name = "saturnin_siv_constant_time"
+path = "tests/saturnin_siv_constant_time.rs"
+required-features = ["saturnin-siv"]
+
+[[test]]
+name = "saturnin_siv_kat"
+path = "tests/saturnin_siv_kat.rs"
+required-features = ["saturnin-siv"]
 
 [[test]]
 name = "wasm_smoke"
