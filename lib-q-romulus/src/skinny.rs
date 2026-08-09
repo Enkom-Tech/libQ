@@ -3,20 +3,24 @@
 //! 128-bit block, 384-bit tweakey, 40 rounds. Layout matches the reference C
 //! implementation (`state[row][col]` with `state[i>>2][i&3]` ↔ linear index `i`).
 //!
-//! # Constant-time note (finding F5, card t_7f110663)
+//! # Constant-time note (finding F5, card t_7f110663) — FIXED
 //!
-//! [`sub_cell8`] applies the SKINNY-8 S-box via a 256-entry lookup table (`SBOX_8`)
-//! indexed by cipher state bytes, which are a function of the Romulus key and the
-//! tweakey schedule — the textbook AES/SKINNY-style cache-timing surface. Unlike
-//! `lib-q-rocca-s`'s AES round, there is **no hardware S-box instruction to fall back
-//! to** here: this table lookup runs on every build, on every platform.
+//! [`sub_cell8`] used to apply the SKINNY-8 S-box via a 256-entry lookup table
+//! (`SBOX_8`) indexed by cipher state bytes, which are a function of the Romulus key
+//! and the tweakey schedule — the textbook AES/SKINNY-style cache-timing surface.
+//! Unlike `lib-q-rocca-s`'s AES round, there is no hardware S-box instruction to fall
+//! back to here, so the table ran on every build, on every platform.
 //!
-//! The correct fix is a bitsliced SKINNY-8 S-box (the approach `lib-q-saturnin`
-//! already uses for its own S-box — see `lib-q-saturnin/src/core.rs::apply_sbox`,
-//! pure `^`/`&`/`|` on bitsliced state, no table). That rewrite was **not completed**
-//! as of this note; `tests::sub_cell8_is_not_yet_constant_time` is an `#[ignore]`d
-//! canary that documents (and fails when run with `--ignored`) that the gap is still
-//! open, so it stays visible rather than silently accepted.
+//! This is now replaced with a bitsliced, branch-free evaluation (the same house
+//! pattern `lib-q-saturnin` uses for its own S-box — see
+//! `lib-q-saturnin/src/core.rs::apply_sbox`, pure `^`/`&`/`|` on bitsliced state, no
+//! table). The 16 state cells are transposed into 8 bit-planes (one `u16` per input
+//! bit position, one bit per cell) and the S-box's Algebraic Normal Form — derived
+//! mechanically from `SBOX_8` via the standard Zhegalkin/Mobius transform, which is a
+//! bijective representation of the same Boolean function, not an approximation — is
+//! evaluated on all 16 cells at once using only `&`/`^`. No memory is indexed by
+//! secret data and no branch depends on secret data. `SBOX_8` is kept only as the
+//! `#[cfg(test)]` reference the exhaustive 256-input equivalence test checks against.
 
 #![deny(unsafe_code)]
 
@@ -49,6 +53,14 @@ pub(crate) fn skinny_128_384_plus_enc(block: &mut [u8; 16], userkey: &[u8; 48]) 
     }
 }
 
+/// Reference table for the SKINNY-8 S-box.
+///
+/// No longer used on the runtime encryption path (see the module-level constant-time
+/// note) — kept solely as the `#[cfg(test)]` oracle that
+/// `tests::sbox_bitslice_matches_table_exhaustively` checks the branch-free
+/// [`sub_cell8`] implementation against, and that `tests::sbox_is_a_bijection` sanity
+/// checks.
+#[cfg(test)]
 const SBOX_8: [u8; 256] = [
     0x65, 0x4C, 0x6A, 0x42, 0x4B, 0x63, 0x43, 0x6B, 0x55, 0x75, 0x5A, 0x7A, 0x53, 0x73, 0x5B, 0x7B,
     0x35, 0x8C, 0x3A, 0x81, 0x89, 0x33, 0x80, 0x3B, 0x95, 0x25, 0x98, 0x2A, 0x90, 0x23, 0x99, 0x2B,
@@ -80,14 +92,231 @@ const RC: [u8; 40] = [
 
 /// Apply the SKINNY-8 S-box to every state cell.
 ///
-/// **Not constant-time**: this is a secret-indexed 256-entry table lookup — see the
-/// module-level "Constant-time note" (finding F5 / card t_7f110663).
+/// Constant-time: branch-free bit-sliced evaluation of the S-box's Algebraic Normal
+/// Form over all 16 cells in parallel — no table indexed by secret data, no
+/// secret-dependent branch. See the module-level "Constant-time note" (finding F5 /
+/// card t_7f110663).
 fn sub_cell8(state: &mut [[u8; 4]; 4]) {
-    for row in state.iter_mut() {
-        for cell in row.iter_mut() {
-            *cell = SBOX_8[usize::from(*cell)];
+    let planes = cells_to_bitplanes(state);
+    let planes = sbox8_bitsliced(planes);
+    bitplanes_to_cells(&planes, state);
+}
+
+/// Transpose the 4x4 byte state into 8 bit-planes: `planes[b]` bit `i` holds bit `b`
+/// of cell `i` (linear index `i = 4*row + col`, matching the block layout used
+/// elsewhere in this module). Pure data movement over public indices — no lookup
+/// keyed by cell *value*.
+fn cells_to_bitplanes(state: &[[u8; 4]; 4]) -> [u16; 8] {
+    let mut planes = [0u16; 8];
+    for (i, byte) in state.iter().flatten().enumerate() {
+        for (b, plane) in planes.iter_mut().enumerate() {
+            *plane |= u16::from((byte >> b) & 1) << i;
         }
     }
+    planes
+}
+
+/// Inverse of [`cells_to_bitplanes`].
+fn bitplanes_to_cells(planes: &[u16; 8], state: &mut [[u8; 4]; 4]) {
+    for (i, byte) in state.iter_mut().flatten().enumerate() {
+        let mut v = 0u8;
+        for (b, &plane) in planes.iter().enumerate() {
+            v |= (((plane >> i) & 1) as u8) << b;
+        }
+        *byte = v;
+    }
+}
+
+/// The SKINNY-8 S-box, evaluated on 16 lanes (one `u16` bit-plane per input-bit
+/// position) at once via its Algebraic Normal Form.
+///
+/// Derived mechanically from `SBOX_8` by the standard Zhegalkin/Mobius transform
+/// (see `scratchpad/audit-triage/derive_sbox.py`): the ANF is a bijective
+/// representation of the same 8-bit-to-8-bit Boolean function, so this reproduces
+/// `SBOX_8` exactly (checked exhaustively for all 256 inputs by
+/// `tests::sbox_bitslice_matches_table_exhaustively`), while using only `&`/`^` — no
+/// memory access indexed by `b0..=b7`'s value, no branch on it.
+#[allow(clippy::many_single_char_names)]
+fn sbox8_bitsliced(planes: [u16; 8]) -> [u16; 8] {
+    let [b0, b1, b2, b3, b4, b5, b6, b7] = planes;
+
+    let mut y0 = !0u16;
+    y0 ^= b0;
+    y0 ^= b1;
+    y0 ^= b0 & b1;
+    y0 ^= b0 & b2;
+    y0 ^= b1 & b2;
+    y0 ^= b0 & b1 & b2;
+    y0 ^= b0 & b3;
+    y0 ^= b0 & b1 & b3;
+    y0 ^= b0 & b2 & b3;
+    y0 ^= b0 & b1 & b2 & b3;
+    y0 ^= b0 & b1 & b4;
+    y0 ^= b1 & b2 & b4;
+    y0 ^= b0 & b1 & b3 & b4;
+    y0 ^= b2 & b3 & b4;
+    y0 ^= b0 & b2 & b3 & b4;
+    y0 ^= b0 & b1 & b2 & b3 & b4;
+    y0 ^= b0 & b1 & b5;
+    y0 ^= b0 & b2 & b5;
+    y0 ^= b1 & b2 & b5;
+    y0 ^= b0 & b1 & b2 & b5;
+    y0 ^= b0 & b1 & b3 & b5;
+    y0 ^= b2 & b3 & b5;
+    y0 ^= b0 & b2 & b3 & b5;
+    y0 ^= b0 & b1 & b2 & b3 & b5;
+    y0 ^= b6;
+    y0 ^= b0 & b6;
+    y0 ^= b1 & b6;
+    y0 ^= b2 & b6;
+    y0 ^= b3 & b6;
+    y0 ^= b1 & b3 & b6;
+    y0 ^= b0 & b1 & b3 & b6;
+    y0 ^= b0 & b2 & b3 & b6;
+    y0 ^= b1 & b2 & b3 & b6;
+    y0 ^= b0 & b1 & b2 & b3 & b6;
+    y0 ^= b0 & b1 & b4 & b6;
+    y0 ^= b1 & b2 & b4 & b6;
+    y0 ^= b3 & b4 & b6;
+    y0 ^= b0 & b3 & b4 & b6;
+    y0 ^= b1 & b3 & b4 & b6;
+    y0 ^= b1 & b2 & b3 & b4 & b6;
+    y0 ^= b5 & b6;
+    y0 ^= b0 & b5 & b6;
+    y0 ^= b1 & b5 & b6;
+    y0 ^= b2 & b5 & b6;
+    y0 ^= b0 & b3 & b5 & b6;
+    y0 ^= b2 & b3 & b5 & b6;
+    y0 ^= b7;
+    y0 ^= b0 & b7;
+    y0 ^= b1 & b7;
+    y0 ^= b0 & b1 & b7;
+    y0 ^= b2 & b7;
+    y0 ^= b1 & b2 & b7;
+    y0 ^= b0 & b3 & b7;
+    y0 ^= b0 & b1 & b3 & b7;
+    y0 ^= b0 & b2 & b3 & b7;
+    y0 ^= b0 & b1 & b2 & b3 & b7;
+    y0 ^= b0 & b1 & b6 & b7;
+    y0 ^= b1 & b2 & b6 & b7;
+    y0 ^= b0 & b1 & b3 & b6 & b7;
+    y0 ^= b2 & b3 & b6 & b7;
+    y0 ^= b0 & b2 & b3 & b6 & b7;
+    y0 ^= b0 & b1 & b2 & b3 & b6 & b7;
+
+    let mut y1 = 0u16;
+    y1 ^= b1;
+    y1 ^= b2;
+    y1 ^= b1 & b2;
+    y1 ^= b0 & b1 & b4;
+    y1 ^= b2 & b4;
+    y1 ^= b0 & b2 & b4;
+    y1 ^= b0 & b1 & b2 & b4;
+    y1 ^= b1 & b3 & b4;
+    y1 ^= b1 & b2 & b3 & b4;
+    y1 ^= b1 & b5;
+    y1 ^= b2 & b5;
+    y1 ^= b1 & b2 & b5;
+    y1 ^= b6;
+    y1 ^= b0 & b6;
+    y1 ^= b0 & b1 & b6;
+    y1 ^= b0 & b2 & b6;
+    y1 ^= b0 & b1 & b2 & b6;
+    y1 ^= b3 & b6;
+    y1 ^= b1 & b3 & b6;
+    y1 ^= b2 & b3 & b6;
+    y1 ^= b1 & b2 & b3 & b6;
+    y1 ^= b0 & b4 & b6;
+    y1 ^= b2 & b4 & b6;
+    y1 ^= b3 & b4 & b6;
+    y1 ^= b2 & b3 & b4 & b6;
+    y1 ^= b5 & b6;
+    y1 ^= b7;
+    y1 ^= b0 & b1 & b7;
+    y1 ^= b2 & b7;
+    y1 ^= b0 & b2 & b7;
+    y1 ^= b0 & b1 & b2 & b7;
+    y1 ^= b1 & b3 & b7;
+    y1 ^= b1 & b2 & b3 & b7;
+    y1 ^= b0 & b1 & b6 & b7;
+    y1 ^= b2 & b6 & b7;
+    y1 ^= b0 & b2 & b6 & b7;
+    y1 ^= b0 & b1 & b2 & b6 & b7;
+    y1 ^= b1 & b3 & b6 & b7;
+    y1 ^= b1 & b2 & b3 & b6 & b7;
+
+    let mut y2 = !0u16;
+    y2 ^= b1;
+    y2 ^= b2;
+    y2 ^= b1 & b2;
+    y2 ^= b6;
+
+    let mut y3 = 0u16;
+    y3 ^= b0;
+    y3 ^= b1;
+    y3 ^= b2;
+    y3 ^= b0 & b3;
+    y3 ^= b2 & b3;
+
+    let mut y4 = 0u16;
+    y4 ^= b3;
+    y4 ^= b4;
+    y4 ^= b0 & b4;
+    y4 ^= b2 & b4;
+    y4 ^= b3 & b4;
+    y4 ^= b2 & b3 & b4;
+    y4 ^= b4 & b5;
+    y4 ^= b6;
+    y4 ^= b0 & b6;
+    y4 ^= b2 & b6;
+    y4 ^= b3 & b6;
+    y4 ^= b2 & b3 & b6;
+    y4 ^= b5 & b6;
+    y4 ^= b7;
+    y4 ^= b0 & b7;
+    y4 ^= b2 & b7;
+    y4 ^= b3 & b7;
+    y4 ^= b2 & b3 & b7;
+    y4 ^= b5 & b7;
+    y4 ^= b6 & b7;
+    y4 ^= b0 & b6 & b7;
+    y4 ^= b2 & b6 & b7;
+    y4 ^= b3 & b6 & b7;
+    y4 ^= b2 & b3 & b6 & b7;
+    y4 ^= b5 & b6 & b7;
+
+    let mut y5 = !0u16;
+    y5 ^= b0;
+    y5 ^= b2;
+    y5 ^= b3;
+    y5 ^= b2 & b3;
+
+    let mut y6 = !0u16;
+    y6 ^= b4;
+    y6 ^= b6;
+    y6 ^= b7;
+    y6 ^= b6 & b7;
+
+    let mut y7 = 0u16;
+    y7 ^= b0 & b4;
+    y7 ^= b2 & b4;
+    y7 ^= b3 & b4;
+    y7 ^= b2 & b3 & b4;
+    y7 ^= b5;
+    y7 ^= b0 & b6;
+    y7 ^= b2 & b6;
+    y7 ^= b3 & b6;
+    y7 ^= b2 & b3 & b6;
+    y7 ^= b0 & b7;
+    y7 ^= b2 & b7;
+    y7 ^= b3 & b7;
+    y7 ^= b2 & b3 & b7;
+    y7 ^= b0 & b6 & b7;
+    y7 ^= b2 & b6 & b7;
+    y7 ^= b3 & b6 & b7;
+    y7 ^= b2 & b3 & b6 & b7;
+
+    [y0, y1, y2, y3, y4, y5, y6, y7]
 }
 
 fn add_constants(state: &mut [[u8; 4]; 4], r: usize) {
@@ -163,28 +392,41 @@ fn mix_column(state: &mut [[u8; 4]; 4]) {
 mod tests {
     use super::*;
 
-    /// KNOWN GAP canary (finding F5, card t_7f110663) — NOT a timing measurement.
+    /// Primary evidence for finding F5 (card t_7f110663) being fixed: the bitsliced,
+    /// branch-free [`sbox8_bitsliced`] must agree with the reference `SBOX_8` table on
+    /// **every one of the 256 possible byte values**, exercised through the actual
+    /// runtime path (`sub_cell8` operating on all 16 state cells at once, not a
+    /// scalar shim), not just a sample.
     ///
-    /// `sub_cell8` still implements the SKINNY-8 S-box as `SBOX_8[secret_byte]`, a
-    /// table lookup on cipher state derived from the key/tweakey schedule, with no
-    /// hardware alternative to fall back to (unlike `lib-q-rocca-s`'s AES round).
-    /// Bitslicing it (as `lib-q-saturnin::core::apply_sbox` already does for its own
-    /// S-box) is the real fix and was not completed in this pass.
+    /// A prior session left `sub_cell8` as a secret-indexed table lookup with only an
+    /// `#[ignore]`d canary test (`sub_cell8_is_not_yet_constant_time`) documenting the
+    /// gap. That canary is removed now that the gap is closed; this test is its
+    /// replacement — it fails (rather than merely being skippable) if the bitsliced
+    /// implementation is ever wrong or regresses.
     ///
-    /// This test is `#[ignore]`d so it does not fail the normal green suite, but it
-    /// exists precisely so the gap is *visible on demand* (`cargo test -p
-    /// lib-q-romulus -- --ignored`) rather than silently accepted with only a doc
-    /// comment. Delete it only when `sub_cell8` is actually bitsliced.
+    /// Red-test check performed manually before landing (not committed): flipping the
+    /// `y0 ^= b7;` line to `y0 ^= b7 & 0;` (dropping that ANF term) made this test
+    /// fail immediately, observed output:
+    /// `sub_cell8(0x80) via bitslice = 0x37, want 0x36` (`assertion `left == right`
+    /// failed`, left: 55, right: 54). Reverting the line restored a pass on all 256
+    /// inputs. This confirms the test actually catches a wrong S-box rather than
+    /// passing vacuously.
     #[test]
-    #[ignore = "KNOWN GAP: SKINNY-8 sub_cell8 is a secret-indexed table lookup, not \
-                constant-time — bitslicing not yet implemented (F5 / t_7f110663)"]
-    fn sub_cell8_is_not_yet_constant_time() {
-        panic!(
-            "sub_cell8 (lib-q-romulus/src/skinny.rs) still uses SBOX_8[secret_byte] — a \
-             table-based S-box lookup on secret cipher state. This is the textbook \
-             cache-timing key-recovery surface. A constant-time (bitsliced) SKINNY-8 \
-             S-box has not yet been implemented. See finding F5 / card t_7f110663."
-        );
+    fn sbox_bitslice_matches_table_exhaustively() {
+        for x in 0u16..256 {
+            let byte = x as u8;
+            let mut state = [[byte; 4]; 4];
+            sub_cell8(&mut state);
+            let expected = SBOX_8[usize::from(byte)];
+            for row in state.iter() {
+                for &cell in row.iter() {
+                    assert_eq!(
+                        cell, expected,
+                        "sub_cell8({byte:#04x}) via bitslice = {cell:#04x}, want {expected:#04x}"
+                    );
+                }
+            }
+        }
     }
 
     /// The SKINNY 8-bit S-box must be a bijection on bytes: every output value 0..=255
