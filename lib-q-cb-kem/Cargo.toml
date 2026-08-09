@@ -119,6 +119,11 @@ name = "wasm_smoke"
 path = "tests/wasm_smoke.rs"
 required-features = ["wasm", "cbkem348864", "wasm_getrandom", "alloc", "zeroize"]
 
+[[test]]
+name = "katkem"
+path = "tests/katkem.rs"
+required-features = ["cbkem348864", "nist-aes-rng", "alloc", "std"]
+
 
 [package.metadata.docs.rs]
 ## Uses the #[doc(feature(...))] functionality to clearly show in the generated documentation
