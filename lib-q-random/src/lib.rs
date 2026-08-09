@@ -546,9 +546,6 @@ pub fn new_custom_rng<T: EntropySource + 'static>(entropy_source: T) -> LibQRng 
 
 #[cfg(test)]
 mod tests {
-    #[cfg(not(feature = "alloc"))]
-    use rand_core::Rng;
-
     use super::*;
 
     #[test]

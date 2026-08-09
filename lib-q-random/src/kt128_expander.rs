@@ -213,7 +213,18 @@ mod tests {
         let mut u = Kt128Expander::from_det_u64(0x0123_4567_89AB_CDEF);
         let mut uu = [0u8; 64];
         u.fill_bytes(&mut uu);
-        println!("zero_seed_64 = {zu:?}");
-        println!("u64_seed_64 = {uu:?}");
+        // `println!` needs `std`; this crate is `#![no_std]` without the `std` feature (see
+        // `lib.rs`'s `#![cfg_attr(not(feature = "std"), no_std)]`), which otherwise broke
+        // `cargo test --no-default-features` for the whole crate on this always-`#[ignore]`d,
+        // manual-use-only diagnostic test.
+        #[cfg(feature = "std")]
+        {
+            std::println!("zero_seed_64 = {zu:?}");
+            std::println!("u64_seed_64 = {uu:?}");
+        }
+        #[cfg(not(feature = "std"))]
+        {
+            let _ = (&zu, &uu);
+        }
     }
 }

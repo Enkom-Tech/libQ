@@ -206,38 +206,17 @@ pub fn create_aes_ctr_drbg_rng(entropy: [u8; 48]) -> Aes256CtrDrbg {
     Aes256CtrDrbg::instantiate(&entropy)
 }
 
-// Placeholder implementation when aes-drbg feature is not enabled
-#[cfg(not(feature = "aes-drbg"))]
-pub struct Aes256CtrDrbg;
-
-#[cfg(not(feature = "aes-drbg"))]
-impl Aes256CtrDrbg {
-    pub fn instantiate(_entropy_input: &[u8; 48]) -> Self {
-        panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
-    }
-}
-
-#[cfg(not(feature = "aes-drbg"))]
-impl TryRng for Aes256CtrDrbg {
-    type Error = core::convert::Infallible;
-
-    fn try_next_u32(&mut self) -> Result<u32, Self::Error> {
-        panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
-    }
-
-    fn try_next_u64(&mut self) -> Result<u64, Self::Error> {
-        panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
-    }
-
-    fn try_fill_bytes(&mut self, _dest: &mut [u8]) -> Result<(), Self::Error> {
-        panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
-    }
-}
-
-#[cfg(not(feature = "aes-drbg"))]
-impl TryCryptoRng for Aes256CtrDrbg {}
-
-#[cfg(not(feature = "aes-drbg"))]
-pub fn create_aes_ctr_drbg_rng(_entropy: [u8; 48]) -> Aes256CtrDrbg {
-    panic!("AES-CTR-DRBG requires the 'aes-drbg' feature to be enabled");
-}
+// There used to be a `#[cfg(not(feature = "aes-drbg"))]` "placeholder" `Aes256CtrDrbg` here whose
+// every method (`instantiate`, `TryRng::{try_next_u32,try_next_u64,try_fill_bytes}`,
+// `create_aes_ctr_drbg_rng`) unconditionally panicked (lead 11 in
+// `scratchpad/audit-triage/leads-10-15.md`).
+//
+// That block was dead code, not reachable API surface: this whole module is declared
+// `#[cfg(feature = "aes-drbg")] pub mod aes_ctr_drbg;` in `lib.rs`, so the module is only ever
+// compiled when `aes-drbg` IS enabled — at which point `cfg(not(feature = "aes-drbg"))` inside it
+// is always false. Verified directly: `cargo check -p lib-q-hqc --example _probe_reachability`
+// referencing `lib_q_hqc::aes_ctr_drbg::Aes256CtrDrbg` under default features (which do not
+// include `aes-drbg`) fails to compile with `E0433: cannot find aes_ctr_drbg in lib_q_hqc`,
+// rustc's own diagnostic confirming "the item is gated behind the `aes-drbg` feature" — i.e.
+// misuse without the feature was already a COMPILE error via the module gate, never a runtime
+// panic. The dead placeholder is simply removed rather than replaced.

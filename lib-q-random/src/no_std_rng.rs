@@ -155,7 +155,7 @@ impl NoStdRng {
 }
 
 impl TryRng for NoStdRng {
-    type Error = core::convert::Infallible;
+    type Error = Error;
 
     fn try_next_u32(&mut self) -> core::result::Result<u32, Self::Error> {
         let mut bytes = [0u8; 4];
@@ -190,25 +190,40 @@ impl TryRng for NoStdRng {
                     if let Err(e) = generate_custom_entropy(dest) {
                         #[cfg(feature = "getrandom")]
                         {
-                            getrandom::fill(dest).unwrap_or_else(|_| {
-                                panic!("both custom entropy and getrandom failed: {e:?}")
-                            });
+                            getrandom::fill(dest).map_err(|_| Error::EntropySourceUnavailable {
+                                source: "getrandom",
+                                context: Some(
+                                    "custom entropy source failed and getrandom fallback also failed",
+                                ),
+                            })?;
+                            let _ = e;
                         }
                         #[cfg(not(feature = "getrandom"))]
                         {
-                            panic!("custom entropy failed and getrandom not available: {e:?}");
+                            let _ = e;
+                            return Err(Error::EntropySourceUnavailable {
+                                source: "custom-entropy",
+                                context: Some(
+                                    "custom entropy source failed and the 'getrandom' feature is \
+                                     not enabled to fall back to",
+                                ),
+                            });
                         }
                     }
                 } else {
                     #[cfg(feature = "getrandom")]
                     {
-                        getrandom::fill(dest).expect("getrandom failed");
+                        getrandom::fill(dest).map_err(|_| Error::EntropySourceUnavailable {
+                            source: "getrandom",
+                            context: Some("no custom entropy source registered"),
+                        })?;
                     }
                     #[cfg(not(feature = "getrandom"))]
                     {
-                        panic!(
-                            "no custom entropy source registered and getrandom feature not enabled"
-                        );
+                        return Err(Error::FeatureNotAvailable {
+                            feature: "no_std RNG entropy source",
+                            required_features: &["custom-entropy source", "getrandom"],
+                        });
                     }
                 }
             }
@@ -216,11 +231,17 @@ impl TryRng for NoStdRng {
             {
                 #[cfg(feature = "getrandom")]
                 {
-                    getrandom::fill(dest).expect("getrandom failed");
+                    getrandom::fill(dest).map_err(|_| Error::EntropySourceUnavailable {
+                        source: "getrandom",
+                        context: None,
+                    })?;
                 }
                 #[cfg(not(feature = "getrandom"))]
                 {
-                    panic!("getrandom feature not enabled");
+                    return Err(Error::FeatureNotAvailable {
+                        feature: "no_std RNG entropy source",
+                        required_features: &["getrandom"],
+                    });
                 }
             }
         }
@@ -231,6 +252,49 @@ impl TryRng for NoStdRng {
 }
 
 impl TryCryptoRng for NoStdRng {}
+
+// `rand_core::Rng` is declared as `trait Rng: TryRng<Error = Infallible>` — that `Error =
+// Infallible` is a *supertrait* bound, not just a blanket-impl condition, so it is a hard compile
+// error to `impl Rng for NoStdRng` now that `try_fill_bytes` can genuinely fail and uses
+// `Error = crate::Error`. We provide the same convenience as free-standing inherent methods
+// instead: `Rng::fill_bytes`'s contract in `rand_core` explicitly permits panicking when filling
+// is impossible, so an infallible wrapper that unwraps the fallible `try_fill_bytes` is a
+// legitimate (and expected) implementation, not the defect this fix targets — the defect was
+// `try_fill_bytes` itself panicking despite returning `Result`. Method resolution prefers
+// inherent methods, so `rng.fill_bytes(..)` call sites (including this module's own doc
+// examples) keep working unchanged even though `NoStdRng` no longer implements the `Rng` trait.
+impl NoStdRng {
+    /// Infallible convenience wrapper over [`TryRng::try_next_u32`].
+    ///
+    /// # Panics
+    /// Panics if no entropy source is available (see [`TryRng::try_fill_bytes`]).
+    #[must_use]
+    pub fn next_u32(&mut self) -> u32 {
+        self.try_next_u32()
+            .unwrap_or_else(|e| panic!("NoStdRng::next_u32 failed: {e}"))
+    }
+
+    /// Infallible convenience wrapper over [`TryRng::try_next_u64`].
+    ///
+    /// # Panics
+    /// Panics if no entropy source is available (see [`TryRng::try_fill_bytes`]).
+    #[must_use]
+    pub fn next_u64(&mut self) -> u64 {
+        self.try_next_u64()
+            .unwrap_or_else(|e| panic!("NoStdRng::next_u64 failed: {e}"))
+    }
+
+    /// Infallible convenience wrapper over [`TryRng::try_fill_bytes`].
+    ///
+    /// # Panics
+    /// Panics if no entropy source is available (e.g. `getrandom` unavailable/failing and no
+    /// custom entropy source registered). Use [`TryRng::try_fill_bytes`] directly to handle this
+    /// as a recoverable error instead.
+    pub fn fill_bytes(&mut self, dst: &mut [u8]) {
+        self.try_fill_bytes(dst)
+            .unwrap_or_else(|e| panic!("NoStdRng::fill_bytes failed: {e}"));
+    }
+}
 
 impl fmt::Display for NoStdRng {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -246,9 +310,30 @@ impl fmt::Display for NoStdRng {
 
 #[cfg(test)]
 mod tests {
-    use rand_core::Rng;
-
     use super::*;
+
+    /// Regression (lead 10): `try_fill_bytes` can genuinely fail to obtain entropy (no
+    /// getrandom, no custom entropy source) — that is a runtime condition, not a bug, so the
+    /// fallible trait method must return `Err`, not `panic!`. Constructs a non-deterministic
+    /// `NoStdRng` directly (bypassing the public `new()`, which itself requires `getrandom`) so
+    /// this test can drive the "no entropy source available at all" branch regardless of which
+    /// entropy features are compiled in.
+    #[cfg(not(feature = "custom-entropy"))]
+    #[test]
+    fn test_try_fill_bytes_returns_err_not_panic_when_no_entropy_source() {
+        let mut rng = NoStdRng {
+            reseed_counter: 0,
+            bytes_generated: 0,
+            reseed_interval: 1024 * 1024,
+            deterministic_rng: None,
+        };
+        let mut dest = [0u8; 8];
+        let result = rng.try_fill_bytes(&mut dest);
+        assert!(
+            result.is_err(),
+            "try_fill_bytes must return Err when no entropy source is available, not panic"
+        );
+    }
 
     #[cfg(feature = "getrandom")]
     #[test]
