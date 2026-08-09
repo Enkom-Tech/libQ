@@ -23,7 +23,16 @@
 //! ## Feature Support
 //!
 //! All HQC algorithms support:
-//! - **no_std**: Works in constrained environments with external randomness
+//! - **no_std**: Works in constrained environments with external randomness, but requires the
+//!   `alloc` feature (a genuinely bare, alloc-free build is not offered). `HqcPke`,
+//!   `HqcPkePublicKey`, `HqcKemCiphertext` and `HqcKem`'s methods are built on `alloc::vec::Vec`
+//!   because HQC's parameter-sized polynomials need heap-sized buffers per security level —
+//!   the same position `lib-q-mac` occupies. Confirmed: `cargo check -p lib-q-hqc
+//!   --no-default-features --target thumbv7em-none-eabi` fails with 68 errors, all cascading
+//!   from those `Vec`-backed types being compiled out without `alloc`; adding just `--features
+//!   alloc` builds clean on the same target, and `--features no_std,hqc128` (or 192/256) also
+//!   builds clean. There is no code path today that avoids `Vec`, so treat `alloc` as mandatory
+//!   scaffolding, not an oversight to work around.
 //! - **WASM**: JavaScript-compatible bindings for web environments
 //! - **Security validation**: Comprehensive input validation and security checks
 //! - **Memory safety**: Automatic zeroization of sensitive data

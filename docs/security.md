@@ -160,7 +160,9 @@ Our post-quantum asymmetric primitives are drawn from NIST's Post-Quantum Crypto
 - **Romulus** (`lib-q-romulus`, NIST Lightweight Cryptography finalist, SKINNY-based AEAD):
   **128-bit key/nonce/tag**, unlike the 256-bit key/tag used by Saturnin, Rocca-S, and
   duplex-sponge elsewhere in this document — under Grover's algorithm that is a **~2^64**
-  post-quantum margin, not the **~2^128** margin the 256-bit modes target. Two modes:
+  post-quantum margin. The 256-bit modes are materially stronger, but do NOT quote
+  ~2^128 for them either: Saturnin's designers claim **224-bit, not 256** (LWC spec section 1.2),
+  and its hash-level claim is 2^112 classical collision. Two modes:
   **Romulus-N** (nonce-respecting; nonce reuse breaks confidentiality) and **Romulus-M**
   (nonce-misuse-resistant, SIV-style — reusing a nonce does not enable forgery, though it remains
   128-bit). See [lib-q-romulus/SECURITY.md](../lib-q-romulus/SECURITY.md) and
