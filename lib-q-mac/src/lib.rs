@@ -3,7 +3,11 @@
 //! Construction: keyed epsilon-AXU hash + quantum PRF (Boneh-Zhandry, ePrint 2026/271).
 //! Symmetric primitives only (SHAKE256 via [`lib_q_sha3`]).
 #![forbid(unsafe_code)]
-#![cfg_attr(feature = "no_std", no_std)]
+// Conventional shape: no_std unless the `std` feature is explicitly on (not gated behind an
+// opt-in `no_std` feature) -- so `--no-default-features` alone gives a genuine no_std build,
+// matching the rest of the ecosystem's expectation. The `no_std` feature still exists as a
+// convenience alias (pulls in `alloc` + the bundled panic handler for embedded targets).
+#![cfg_attr(not(feature = "std"), no_std)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

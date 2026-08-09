@@ -3,6 +3,27 @@
 /// See p. K12.2.2  p. 11,749 of the ARM Reference manual.
 /// Adapted from the Keccak-f1600 implementation in the XKCP/K12.
 /// see <https://github.com/XKCP/K12/blob/df6a21e6d1f34c1aa36e8d702540899c97dba5a0/lib/ARMv8Asha3/KeccakP-1600-ARMv8Asha3.S#L69>
+///
+/// # Safety
+///
+/// - **CPU requirement**: `#[target_feature(enable = "sha3")]` means the compiler is free to
+///   emit ARMv8.4-A crypto (SHA3/EOR3/RAX1/XAR/BCAX) instructions for this function's body.
+///   The caller must have already confirmed the executing core implements FEAT_SHA3 (e.g. via
+///   `std::arch::is_aarch64_feature_detected!("sha3")` or an equivalent build-time guarantee)
+///   before calling it — invoking it on a core without that extension is an illegal
+///   instruction (SIGILL), not merely slow.
+/// - **`round_count` bound**: the inline asm indexes `crate::RC[24 - round_count..]` to select
+///   the round-constant window (see `inout("x1")` below) and loads `round_count` itself into
+///   the `x8` loop counter. `round_count` MUST be `<= 24` (`RC`'s length) — a larger value
+///   underflows `24 - round_count` and panics on the out-of-range slice, and any value other
+///   than the caller's intended remaining-round count desynchronizes the round-constant
+///   sequence from the loop trip count, corrupting the permutation output silently rather than
+///   at compile time.
+/// - **`state` aliasing**: `state.as_mut_ptr()` is handed to the asm block as `x0` and both
+///   read (initial `ld1` loads) and written (implicit via the loop) through raw pointer
+///   arithmetic for the full 25-lane (200-byte) extent. The `&mut [u64; 25]` reference already
+///   guarantees `state` is valid, uniquely-owned, and exactly that length for the whole call,
+///   so no further aliasing precondition is needed as long as the reference itself is sound.
 #[cfg_attr(
     all(target_arch = "aarch64", feature = "arm64_sha3"),
     target_feature(enable = "sha3")

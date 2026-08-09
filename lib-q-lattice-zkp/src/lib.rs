@@ -2,9 +2,31 @@
 //!
 //! Wire **v0** (`lattice_zkp_wire_v0`) freezes profiles, encodings, and KAT fixtures. Security
 //! targets the same \(R_q = \mathbb{Z}_q\[X\]/(X^{256}+1)\) field as ML-DSA via [`lib_q_ring`].
+//!
+//! ## no_std: opt-in, not the default of `--no-default-features`
+//!
+//! `#![no_std]` here is gated behind the **opt-in** `no_std` Cargo feature
+//! (`cfg_attr(feature = "no_std", no_std)`), not the conventional `not(feature = "std")`.
+//! Concretely: `cargo build -p lib-q-lattice-zkp --no-default-features` (with no other
+//! feature flags) still links the standard library — it does **not** produce a no_std
+//! build. To actually get no_std, request the feature explicitly:
+//! `--no-default-features --features no_std`.
+//!
+//! This is intentional, not an oversight: this crate's Cargo.toml unconditionally enables
+//! `lib-q-ring/std` (`lib-q-ring = { ..., features = ["std"] }`, independent of this crate's
+//! own feature set). Flipping this crate's own `#![no_std]` gate to the conventional
+//! `not(feature = "std")` shape makes the *default* build (`default = ["alloc"]`, no `"std"`)
+//! go `#![no_std]` while still forcing its `lib-q-ring` dependency into its `std` shape —
+//! which breaks on a real no_std target (verified: `cargo check -p lib-q-lattice-zkp --target
+//! thumbv7em-none-eabi` fails inside `lib-q-ring`'s NTT code once `lib-q-ring/std` and a
+//! no_std-mode caller are combined this way). Fixing that properly means making the
+//! `lib-q-ring` dependency's `std`/`alloc` split conditional on this crate's own features —
+//! out of scope for a manifest-shape fix; tracked here instead of silently changed.
 #![forbid(unsafe_code)]
 #![allow(missing_docs)]
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used))]
+// NOTE: deliberately an OPT-IN feature, not `not(feature = "std")` -- see the
+// "no_std feature is opt-in" note in Cargo.toml for why the conventional shape is unsafe here.
 #![cfg_attr(feature = "no_std", no_std)]
 
 #[cfg(feature = "hardened")]

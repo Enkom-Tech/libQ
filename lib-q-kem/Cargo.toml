@@ -18,7 +18,7 @@ ignored = [
     "lib-q-sha3",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.10" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = false }
 
 # RustCrypto ML-KEM implementation (FIPS 203 standard)
 lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.10", optional = true, default-features = false }
@@ -53,7 +53,7 @@ std = [
     "lib-q-hqc?/std",
     "lib-q-cb-kem?/std",
 ]
-alloc = [] # Enable alloc support for Vec and other collections
+alloc = ["lib-q-core/alloc"] # Enable alloc support for Vec and other collections
 # Enable ml-kem (FIPS 203 standard) with modern dependencies.
 # `lib-q-ml-kem/std` is required because the dep declares `crate-type = ["cdylib", "rlib"]` and
 # a native cdylib needs std for the global allocator / panic handler / unwind runtime.

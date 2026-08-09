@@ -91,18 +91,25 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-// Re-export core types for public use
+// Re-export core types for public use.
+// `Algorithm`, `AlgorithmCategory`, `Error`, `Kem` and `Result` are available in lib-q-core
+// unconditionally; `KemContext`/`KemKeypair`/`KemOperations`/`KemPublicKey`/`KemSecretKey`
+// need `alloc` in lib-q-core (they carry owned buffers), so a bare no_std build with no
+// `alloc` feature (and thus no allocator available) must not pull them in.
 pub use lib_q_core::{
     Algorithm,
     AlgorithmCategory,
     Error,
     Kem,
+    Result,
+};
+#[cfg(feature = "alloc")]
+pub use lib_q_core::{
     KemContext,
     KemKeypair,
     KemOperations,
     KemPublicKey,
     KemSecretKey,
-    Result,
 };
 
 // Provider implementation
@@ -202,6 +209,7 @@ pub fn create_kem(algorithm: &str) -> Result<Box<dyn Kem>> {
 }
 
 /// Create a KEM context for the specified algorithm
+#[cfg(feature = "alloc")]
 pub fn create_kem_context(algorithm: Algorithm) -> Result<KemContext> {
     // Validate that this is a KEM algorithm
     if algorithm.category() != AlgorithmCategory::Kem {
