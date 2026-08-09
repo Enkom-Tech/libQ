@@ -202,30 +202,29 @@ get it from the `as_array` method.
 
 ## How does one run it?
 
-This library comes with two examples:
+This library comes with one example:
 
 ```bash
 $ cargo run --example basic
 ```
 
 The output annotates messages with Alice/Bob to illustrate which data is processed by which party.
-The `katkem` example implements the classic request/response file structure which is part of the NIST PQC framework.
 
-In order to validate a generated repsonse file, the corresponding Classic McEliece variant feature flag 
-needs to be passed as `cargo run` parameter.
+### KAT (Known Answer Test) harness
 
-```bash
-$ cargo run --example katkem PQCkemKAT_935.req PQCkemKAT_935.rsp
-$ cargo run --example katkem PQCkemKAT_935.rsp
-```
-
-The different variants can be enabled through feature flags:
+`tests/katkem.rs` implements the classic request/response file structure which is part of
+the NIST PQC framework, for the `cbkem348864` parameter set:
 
 ```bash
-$ cargo test --release --features "mceliece6960119" --package lib-q-cb-kem --lib -- tests::test_katkem PQCkemKAT_1450.req PQCkemKAT_1450.rsp
+$ cargo test --release --features "cbkem348864,nist-aes-rng,alloc,std" --package lib-q-cb-kem --test katkem
 ```
 
-`mceliece348864` is the default variant. You cannot enable two variants simultaneously.
+or via the convenience wrapper `tests/katkem.sh`. Only `cbkem348864` is wired up today; the
+other 9 parameter sets are not yet covered (see `tests/katkem.sh` for why, and how to extend
+it). Note this currently checks internal determinism/self-consistency, not agreement with an
+independently-sourced official vector file — see the module docs at the top of
+`tests/katkem.rs` for exactly what is and isn't verified, and how to plug in a genuine vector
+file (`CBKEM348864_KAT_RSP`) once one is obtained, via the `--ignored official_kat_348864` test.
 
 ## How fast is it?
 
