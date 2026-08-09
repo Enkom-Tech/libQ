@@ -72,13 +72,17 @@ Consumed by `tests/reference_intermediates_kat.rs`.
 
 ## Scope and known gaps (read before trusting a green run)
 
-* **Byte-exact and passing:** HQC-128 keygen (`seed_dk`, `sigma`, public key) and HQC-128
-  encaps/decaps (`c_kem`, `K`). This is genuine upstream conformance.
-* **RED, `#[ignore]`d:** HQC-192 and HQC-256 keygen. `Hqc3Params::OMEGA` is 103 vs upstream
-  `PARAM_OMEGA` 100, and `Hqc5Params::OMEGA` is 134 vs upstream 131 (`OMEGA_R` 115 vs 114 at
-  HQC-192). The keys are the right *length* and `pk[0..32] == seed_ek`, but `s` diverges from
-  byte 32. Tracked in `tests/reference_intermediates_kat.rs`;
-  `omega_deviation_from_reference_is_pinned` (not ignored) fails if the parameters change.
+* **Byte-exact and passing (all three security levels):** HQC-128/192/256 keygen (`seed_dk`,
+  `sigma` at HQC-128, public key) and HQC-128 encaps/decaps (`c_kem`, `K`).
+* **FIXED 2026-08-09 (card t_71d4f79a):** HQC-192 and HQC-256 keygen were previously RED because
+  `Hqc3Params::OMEGA` was 103 vs upstream `PARAM_OMEGA` 100, and `Hqc5Params::OMEGA` was 134 vs
+  upstream 131 (`OMEGA_R` was 115 vs 114 at HQC-192). A full parameter diff against upstream
+  `src/ref/hqc-{1,3,5}/parameters.h` + `src/common/hqc-{1,3,5}/api.h` at this same commit found no
+  other deviations (byte sizes, N/N1/N2/K/DELTA/M/GF_POLY/G/FFT/RS_POLY_COEFS/N_MU/rejection
+  threshold all matched already). `Hqc3Params`/`Hqc5Params` now carry the corrected values; all 5
+  tests in `tests/reference_intermediates_kat.rs` are green with none `#[ignore]`d; the drift guard
+  is `omega_matches_reference_v5_0_0` (renamed from `omega_deviation_from_reference_is_pinned`,
+  which used to pin the wrong values on purpose).
 * **Not covered:** the `PQCkemKAT_*.rsp` KEM-boundary vectors. Upstream reseeds the PRNG per row
   (`prng_init(seed48, NULL, 48, 0)`) and *draws* `seed_kem = SHAKE256(seed48 || 0x00)[0..32]`,
   whereas `HqcKem::keygen_with_seed` uses `seed48[0..32]` directly. Once fed the correctly derived

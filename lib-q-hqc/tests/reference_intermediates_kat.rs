@@ -172,66 +172,43 @@ fn hqc_128_keygen_matches_reference_intermediates() {
     check_keygen::<Hqc1Params>("hqc-1");
 }
 
-/// HQC-192 keygen conformance. **Currently RED — this crate's HQC-192 keys are not the
-/// reference's.** Not a test defect: `Hqc3Params::OMEGA` is 103 where upstream
-/// `src/ref/hqc-3/parameters.h` says `#define PARAM_OMEGA 100` (and `OMEGA_R` is 115 vs 114), so
-/// the secret support `(x, y)` has the wrong Hamming weight and `s = x + h*y` diverges. The
-/// public key is the right *length* (4514) and `pk[0..32] == seed_ek` matches; the first differing
-/// byte is 32 — libQ `8ba7a2ee7b00f528…` vs reference `8c75bb753c633439…`.
-/// Un-ignore the moment the parameters are corrected; `omega_deviation_from_reference_is_pinned`
-/// below fails if they change while this stays ignored.
+/// HQC-192 keygen conformance against upstream HQC v5.0.0
+/// (`src/ref/hqc-3/parameters.h`: `PARAM_OMEGA` = 100, `PARAM_OMEGA_R` = 114).
+/// Previously RED because `Hqc3Params::OMEGA`/`OMEGA_R` carried stale 103/115 values; corrected,
+/// see `omega_matches_reference_v5_0_0` below for the drift guard.
 #[test]
-#[ignore = "RED: Hqc3Params::OMEGA=103 vs reference PARAM_OMEGA=100 (see doc comment)"]
 fn hqc_192_keygen_matches_reference_intermediates() {
     check_keygen::<Hqc3Params>("hqc-3");
 }
 
-/// HQC-256 keygen conformance. **Currently RED**, same cause: `Hqc5Params::OMEGA` is 134 where
-/// upstream `src/ref/hqc-5/parameters.h` says `#define PARAM_OMEGA 131`. Public key length (7237)
-/// and `pk[0..32]` match; first differing byte is 32 — libQ `9d2099c025101429…` vs reference
-/// `2772698839ac1612…`.
+/// HQC-256 keygen conformance against upstream HQC v5.0.0
+/// (`src/ref/hqc-5/parameters.h`: `PARAM_OMEGA` = 131, `PARAM_OMEGA_R` = 149).
+/// Previously RED because `Hqc5Params::OMEGA` carried a stale 134 value; corrected, see
+/// `omega_matches_reference_v5_0_0` below for the drift guard.
 #[test]
-#[ignore = "RED: Hqc5Params::OMEGA=134 vs reference PARAM_OMEGA=131 (see doc comment)"]
 fn hqc_256_keygen_matches_reference_intermediates() {
     check_keygen::<Hqc5Params>("hqc-5");
 }
 
-/// Pin the known deviation so it cannot be silently changed.
+/// Pin `OMEGA`/`OMEGA_R` to the upstream HQC v5.0.0 values so they cannot silently drift again.
 ///
-/// The two `#[ignore]`d conformance tests above are ignored *because* of these values. If someone
-/// corrects the parameters to the upstream ones, this test goes red and points them at the
-/// conformance tests to un-ignore. If someone perturbs them further, it also goes red.
+/// Renamed from `omega_deviation_from_reference_is_pinned` (which pinned the *wrong*, deviating
+/// 103/115/134 values found before this crate was moved onto v5.0.0). This test now asserts the
+/// *correct* upstream constants; if either constant changes for any variant, this test — and the
+/// two keygen conformance tests above — will go red.
 ///
 /// Upstream v5.0.0 `src/ref/hqc-{1,3,5}/parameters.h`:
 /// `PARAM_OMEGA` = 66 / 100 / 131, `PARAM_OMEGA_R` = 75 / 114 / 149.
 #[test]
-fn omega_deviation_from_reference_is_pinned() {
-    // HQC-128 agrees with upstream, which is why its conformance tests pass.
+fn omega_matches_reference_v5_0_0() {
     assert_eq!(Hqc1Params::OMEGA, 66, "HQC-128 OMEGA (upstream: 66)");
     assert_eq!(Hqc1Params::OMEGA_R, 75, "HQC-128 OMEGA_R (upstream: 75)");
 
-    assert_eq!(
-        Hqc3Params::OMEGA,
-        103,
-        "HQC-192 OMEGA deviates from upstream 100; if this is now 100, un-ignore \
-         hqc_192_keygen_matches_reference_intermediates"
-    );
-    assert_eq!(
-        Hqc3Params::OMEGA_R,
-        115,
-        "HQC-192 OMEGA_R deviates from upstream 114"
-    );
-    assert_eq!(
-        Hqc5Params::OMEGA,
-        134,
-        "HQC-256 OMEGA deviates from upstream 131; if this is now 131, un-ignore \
-         hqc_256_keygen_matches_reference_intermediates"
-    );
-    assert_eq!(
-        Hqc5Params::OMEGA_R,
-        149,
-        "HQC-256 OMEGA_R matches upstream 149"
-    );
+    assert_eq!(Hqc3Params::OMEGA, 100, "HQC-192 OMEGA (upstream: 100)");
+    assert_eq!(Hqc3Params::OMEGA_R, 114, "HQC-192 OMEGA_R (upstream: 114)");
+
+    assert_eq!(Hqc5Params::OMEGA, 131, "HQC-256 OMEGA (upstream: 131)");
+    assert_eq!(Hqc5Params::OMEGA_R, 149, "HQC-256 OMEGA_R (upstream: 149)");
 }
 
 /// Full KEM conformance for HQC-128: ciphertext and shared secret byte-exact vs upstream.

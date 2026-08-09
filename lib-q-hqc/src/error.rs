@@ -147,7 +147,7 @@ pub enum HqcError {
     ///
     /// **When it occurs:** A polynomial weight is invalid for the operation.
     /// **Cause:** The weight parameter doesn't meet the requirements for the HQC parameter set.
-    /// **Resolution:** Ensure the weight is within valid ranges: HQC-128 (66), HQC-192 (103), or HQC-256 (134).
+    /// **Resolution:** Ensure the weight is within valid ranges: HQC-128 (66), HQC-192 (100), or HQC-256 (131).
     InvalidWeight,
 
     /// Allocation required (for no_std environments)

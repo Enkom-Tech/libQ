@@ -204,11 +204,11 @@ sha256 = "e6fb4dc01ea8c82cb20da71958711c558776c07ca2ca007277eec70ab9cc9678"
 # denies them anyway) -- it is the honest statement that nothing was spliced in.
 #
 # This registration also records the finding these vectors produced: at HQC-128 lib-q-hqc is
-# byte-exact against them (public key, ciphertext, shared secret), while HQC-192/256 keygen is RED
-# because `Hqc3Params::OMEGA`/`Hqc5Params::OMEGA` are 103/134 against upstream `PARAM_OMEGA`
-# 100/131. See lib-q-hqc/tests/reference_intermediates_kat.rs and the sidecar's "Scope and known
-# gaps" section. The hqc-3 and hqc-5 files are registered even though the tests consuming them are
-# currently `#[ignore]`d, so the oracle cannot drift while the defect is open.
+# byte-exact against them (public key, ciphertext, shared secret). HQC-192/256 keygen was RED
+# because `Hqc3Params::OMEGA`/`Hqc5Params::OMEGA` were 103/134 against upstream `PARAM_OMEGA`
+# 100/131 (and `Hqc3Params::OMEGA_R` was 115 vs upstream 114) -- FIXED 2026-08-09 (card t_71d4f79a):
+# lib-q-hqc is now byte-exact against these oracles at all three security levels. See
+# lib-q-hqc/tests/reference_intermediates_kat.rs (all 5 tests green, none `#[ignore]`d).
 
 [[kat]]
 path = "lib-q-hqc/kats/reference-intermediates/hqc-1/intermediates_values"
@@ -253,7 +253,10 @@ sha256 = "4828bba307d9e11630639be995b31c5c85ae9644cdab9881a51175c029953c58"
 path = "lib-q-hqc/kats/regression-pins/hqc-3/PQCkemKAT_4602_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-sha256 = "7f721a944040aab9b68e9e03f14dfad72444d51418f5b5d759d24afc2a692b34"
+# Regenerated 2026-08-09 (card t_71d4f79a): the prior file was self-generated under the wrong
+# Hqc3Params::OMEGA/OMEGA_R (103/115); now regenerated under the corrected HQC v5.0.0 values
+# (100/114). This is still this crate's own output, not an external oracle.
+sha256 = "e0e89d404f736b08e3c68b51597ada1c8c533a26b433e3b5f1dc24a0589760d0"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333.req"
@@ -265,7 +268,10 @@ sha256 = "4828bba307d9e11630639be995b31c5c85ae9644cdab9881a51175c029953c58"
 path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-sha256 = "248e0b460ee61fed0a748a8d23d6bfb6ca8fae06015a1b97595e01bacde12904"
+# Regenerated 2026-08-09 (card t_71d4f79a): the prior file was self-generated under the wrong
+# Hqc5Params::OMEGA (134); now regenerated under the corrected HQC v5.0.0 value (131). This is
+# still this crate's own output, not an external oracle.
+sha256 = "334b8b134ef98bb88ee8df2c6edc6522763fa4af49f29f597a9613db855faa2c"
 
 # --- lib-q-saturnin/tests/fixtures/ -- NIST LWC round-2 Saturnin submission KAT files ---------
 # All three verified 2026-08-06 by downloading the live NIST CSRC submission zip and hashing the
