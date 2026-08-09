@@ -1,15 +1,15 @@
 # Comprehensive Test Coverage Workflow
 # 
-# This workflow runs a full coverage analysis on the main branch and generates
-# coverage reports and badges. It complements the PR workflow which does a more
-# targeted coverage check.
+# This workflow runs per-crate coverage analysis on the main branch and uploads the
+# reports as an artifact. It complements the PR workflow which does a more targeted
+# coverage check. It publishes no badge -- see the note in the coverage job.
 #
 # For PR validation coverage, see the test-coverage job in pr.yml
 
 name: Test Coverage
 
 on:
-  # Run on main branch pushes for badge updates
+  # Run on main branch pushes
   push:
     branches: [main]
   # Run on pull requests to catch coverage regressions early
@@ -33,18 +33,22 @@ env:
   COVERAGE_THRESHOLD: "70"
 
 permissions:
-  # Least-privilege default; jobs that need more elevate locally (e.g. coverage badge commit).
+  # Least-privilege default; jobs that need more elevate locally.
   contents: read
 
 jobs:
   coverage:
     name: Test Coverage
     runs-on: ubuntu-latest
-    # Backstop so a pathologically slow workspace pass can't hold a runner for the default 6h.
-    # The gating per-crate step (~65m) + the bounded workspace pass (40m, below) + setup fit well under this.
+    # Backstop so a pathologically slow run can't hold a runner for the default 6h. Now just the
+    # gating per-crate step (~65m) plus setup; the 40m whole-workspace pass this also budgeted for
+    # was removed on 2026-08-09 (see the note further down) because it timed out every run.
     timeout-minutes: 150
     permissions:
-      contents: write
+      # read-only: this job publishes nothing. It previously carried `contents: write` for a
+      # coverage-badge commit that no step ever performed -- the badge was fetched into an
+      # untracked .github/badges/ and discarded. Removed with the badge steps on 2026-08-09.
+      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -163,8 +167,7 @@ jobs:
           mkdir -p combined-coverage \
             "combined-coverage/${{ matrix.rust }}/core" \
             "combined-coverage/${{ matrix.rust }}/crypto" \
-            "combined-coverage/${{ matrix.rust }}/utils" \
-            "combined-coverage/${{ matrix.rust }}/full"
+            "combined-coverage/${{ matrix.rust }}/utils"
           
           # Define critical cryptographic crates.
           # DELIBERATELY absent: the heavy lattice crates (lib-q-dkg, lib-q-threshold-raccoon,
@@ -238,58 +241,34 @@ jobs:
             fi
           done
       
-      # Aggregate workspace report for badges/artifacts only (denominator is entire repo; do not gate on this %).
-      # This pass instruments the WHOLE workspace under tarpaulin in debug — including the large STARK/plonky3
-      # suite and slow crypto crates (blind-token/fn-dsa keygen) added in the 0.0.8 cycle — so it can run for
-      # hours. It is purely informational (badge/artifact); the real gate is the per-crate step above, which
-      # stays fatal. Bound it and never let it fail the workflow: a slow/incomplete badge must not turn a green
-      # gated run red. On timeout the badge step falls back to a 0% reading (see Extract coverage percentage).
-      - name: Run coverage for entire workspace
-        timeout-minutes: 40
-        continue-on-error: true
-        run: |
-          bash scripts/run-coverage.sh --threshold 0 --output-dir "coverage-full" --toolchain ${{ matrix.rust }}
-          
-          # Copy to combined directory
-          cp -r "coverage-full" "combined-coverage/${{ matrix.rust }}/full"
-          
+      # REMOVED (2026-08-09): the whole-workspace coverage pass and the two badge steps it fed.
+      #
+      # The pass was `timeout-minutes: 40` + `continue-on-error: true`, and it timed out on EVERY
+      # run, on both toolchains -- verified in run 31324463920:
+      #   ##[error]The action 'Run coverage for entire workspace' has timed out after 40 minutes.
+      # `continue-on-error` then reported that step as `conclusion: success`, which is why nobody
+      # noticed. Because the step was killed, its `cp coverage-full combined-coverage/.../full`
+      # never ran, so it contributed nothing to the uploaded artifact either.
+      #
+      # Downstream, `extract-coverage-percent.sh coverage-full` found no report and fell back to
+      # `percentage=0, color=red`, so the badge said 0% while the per-crate gates were passing at
+      # 79-100%. That badge was then written to `.github/badges/coverage.svg`, which is not tracked,
+      # not committed by any step, not uploaded as an artifact and not referenced by any README --
+      # a shields.io fetch on every run whose output was discarded when the job ended.
+      #
+      # Net effect of removal: ~80 CI-minutes saved per push (40 x two toolchains), one misleading
+      # 0% badge gone, and no measurement lost. The real gate is the per-crate step above, which is
+      # fatal and unaffected; the artifact keeps its core/crypto/utils reports.
+      #
+      # If a workspace-wide number is wanted later, it needs a budget that can actually finish (the
+      # debug-instrumented STARK/plonky3 and blind-token/fn-dsa keygen suites are what blow the 40
+      # minutes) and a badge destination that is actually published.
       - name: Upload coverage reports
         uses: actions/upload-artifact@v7
         with:
           name: coverage-reports-${{ matrix.rust }}
           path: combined-coverage/
           
-      - name: Extract coverage percentage
-        id: extract-coverage
-        run: |
-          set -euo pipefail
-          if COVERAGE=$(bash scripts/extract-coverage-percent.sh coverage-full); then
-            echo "percentage=${COVERAGE}" >> $GITHUB_OUTPUT
-            if awk -v c="${COVERAGE}" 'BEGIN { exit !(c + 0 < 50) }'; then
-              echo "color=red" >> $GITHUB_OUTPUT
-            elif awk -v c="${COVERAGE}" 'BEGIN { exit !(c + 0 < 60) }'; then
-              echo "color=yellow" >> $GITHUB_OUTPUT
-            else
-              echo "color=green" >> $GITHUB_OUTPUT
-            fi
-          else
-            echo "percentage=0" >> $GITHUB_OUTPUT
-            echo "color=red" >> $GITHUB_OUTPUT
-          fi
-          
-      - name: Download coverage badge (Shields.io)
-        env:
-          COVERAGE_PCT: ${{ steps.extract-coverage.outputs.percentage }}
-          COVERAGE_COLOR: ${{ steps.extract-coverage.outputs.color }}
-        run: |
-          set -euo pipefail
-          mkdir -p .github/badges
-          # https://shields.io/ — static/v1 avoids path parsing issues with "66.32%".
-          # Network fetch at CI time (unlike a locally rendered SVG).
-          MSG=$(python3 -c "import os, urllib.parse; print(urllib.parse.quote(os.environ['COVERAGE_PCT'] + '%', safe=''))")
-          curl -fsSL "https://img.shields.io/static/v1?label=coverage&message=${MSG}&color=${COVERAGE_COLOR}" \
-            -o .github/badges/coverage.svg
-
   # ---------------------------------------------------------------------------------------
   # Crates that had NO coverage floor anywhere until 2026-08-08.
   #
