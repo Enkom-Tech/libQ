@@ -8,12 +8,20 @@
 //! submission package ships only the *generator* C source
 //! (`Reference_Implementation/kem/<variant>/nist/kat_kem.c` + `nist/rng.c`, the
 //! canonical `PQCgenKAT_kem.c` + AES256-CTR-DRBG `rng.c` pair) — not precomputed
-//! answer files. Producing genuine vectors independent of this Rust implementation
-//! requires compiling that official C reference code (it links OpenSSL's
-//! `libcrypto` for AES) and running its `kat_kem` binary. That toolchain
-//! (OpenSSL dev headers) was not available in the environment this harness was
-//! authored in, so no independently-sourced vector file is checked into this
-//! crate. See `CBKEM348864_KAT_RSP` below for how to plug one in once obtained.
+//! answer files.
+//!
+//! `lib-q-cb-kem/data/kat/cbkem348864.rsp` (10 testcases, KATNUM=10) was produced
+//! by actually building and running that official generator: the designers'
+//! `Reference_Implementation/kem/mceliece348864` C code from the
+//! `mceliece-20221023.tar.gz` submission package, linked against the XKCP
+//! (github.com/XKCP/XKCP, cloned 2026-08-09) `libXKCP.a`/`SimpleFIPS202` for
+//! SHAKE256 and OpenSSL `libcrypto` for the AES256-ECB primitive used by
+//! `nist/rng.c`'s CTR_DRBG, compiled and executed inside WSL2 Ubuntu (gcc,
+//! libssl-dev 3.0.2, 2026-08-09). This is a genuinely external oracle — an
+//! independent C implementation by the scheme's own designers, not lib-q-cb-kem's
+//! own code — even though NIST itself never published these exact bytes for this
+//! build. It is NOT "NIST official" in the sense of a NIST-hosted `.rsp`; see
+//! `scripts/kats-manifest.toml` for the precise provenance wording.
 //!
 //! ## What this harness actually verifies today
 //!
@@ -25,12 +33,13 @@
 //! checks the run is internally deterministic (same seeds byte-exact reproduce
 //! the same file) and that encaps/decaps agree. This is a self-consistency
 //! check, NOT a comparison against an external, independently-generated
-//! oracle — do not read a pass here as "matches NIST's published vectors".
+//! oracle by itself — `official_kat_348864` below is the one that does that.
 //!
-//! `official_kat_348864` is the harness that *would* do the real check: it
-//! looks for a genuine vector file named by the `CBKEM348864_KAT_RSP` env var
-//! (or `data/kat/cbkem348864.rsp` by default) and FAILS LOUDLY with instructions
-//! if it is absent, rather than silently skipping or fabricating a result.
+//! `official_kat_348864` regenerates this crate's own output for each seed found
+//! in `data/kat/cbkem348864.rsp` (or the file named by `CBKEM348864_KAT_RSP`) and
+//! asserts byte-exact agreement of pk/sk/ct/ss against the externally-sourced
+//! reference vectors. It still FAILS LOUDLY with instructions if no vector file
+//! is present, rather than silently skipping or fabricating a result.
 
 #![cfg(all(feature = "cbkem348864", feature = "nist-aes-rng", feature = "alloc"))]
 
@@ -214,13 +223,11 @@ fn self_consistency_roundtrip_348864() {
     let _ = fs::remove_dir_all(&dir);
 }
 
-/// The harness that would perform a genuine, externally-sourced KAT check.
-/// FAILS LOUDLY (does not skip, does not fabricate) when no real vector file
-/// is present, per this crate's KAT-provenance policy.
+/// The harness that performs a genuine, externally-sourced KAT check against
+/// `data/kat/cbkem348864.rsp` (see module docs for its provenance). FAILS
+/// LOUDLY (does not skip, does not fabricate) when no real vector file is
+/// present, per this crate's KAT-provenance policy.
 #[test]
-#[ignore = "requires an externally-sourced NIST KAT vector file (CBKEM348864_KAT_RSP); \
-            not available in this environment, see module docs — run explicitly with \
-            `cargo test --release --features cbkem348864,nist-aes-rng,alloc,std --test katkem -- --ignored official_kat_348864`"]
 fn official_kat_348864() {
     #[allow(clippy::disallowed_methods, reason = "test-only opt-in vector path")]
     let path = std::env::var("CBKEM348864_KAT_RSP")
