@@ -28,6 +28,7 @@ use wasm_bindgen::prelude::*;
 use crate::api::{
     Algorithm,
     AlgorithmCategory,
+    CryptoProvider,
 };
 use crate::contexts::{
     AeadContext,
@@ -993,9 +994,30 @@ impl WasmCryptoProvider {
     }
 
     /// Check if an algorithm is supported
-    pub fn is_algorithm_supported(&self, _algorithm: &str) -> bool {
-        // This would check against the actual provider implementation
-        true // Placeholder
+    ///
+    /// An algorithm is supported only if its name parses to a known [`Algorithm`]
+    /// AND the wrapped provider actually exposes an implementation for that
+    /// algorithm's category (mirrors `WasmProviderManager::is_algorithm_supported`).
+    pub fn is_algorithm_supported(&self, algorithm: &str) -> bool {
+        // Reuse the same string->Algorithm mapping `parse_algorithm_wasm` uses, without going
+        // through its JsValue-producing error path (JsValue construction aborts outside a real
+        // wasm32 runtime, which is why this deliberately calls the underlying conversion instead).
+        if algorithm.len() > 64 || algorithm.chars().any(|c| c.is_control()) {
+            return false;
+        }
+        let algorithm =
+            match crate::wasm::conversions::WasmConversions::string_to_algorithm(algorithm) {
+                Ok(alg) => alg,
+                Err(_) => return false,
+            };
+
+        match algorithm.category() {
+            AlgorithmCategory::Kem => self.inner.kem().is_some(),
+            AlgorithmCategory::Signature => self.inner.signature().is_some(),
+            AlgorithmCategory::Hash => self.inner.hash().is_some(),
+            AlgorithmCategory::Aead => self.inner.aead().is_some(),
+            AlgorithmCategory::PrivacyProtocol => false,
+        }
     }
 
     /// Get supported algorithms by category
@@ -1058,6 +1080,19 @@ mod tests {
         let provider = WasmCryptoProvider::new();
         let info = provider.info();
         assert!(info.contains("lib-Q") || info == "{}");
+    }
+
+    #[test]
+    fn test_wasm_crypto_provider_rejects_unknown_algorithm() {
+        let provider = WasmCryptoProvider::new();
+        assert!(!provider.is_algorithm_supported("not-a-real-algorithm"));
+        assert!(!provider.is_algorithm_supported(""));
+    }
+
+    #[test]
+    fn test_wasm_crypto_provider_accepts_known_algorithm() {
+        let provider = WasmCryptoProvider::new();
+        assert!(provider.is_algorithm_supported("sha3-256"));
     }
 
     #[test]

@@ -117,28 +117,7 @@ impl WasmProviderManager {
 
         #[cfg(feature = "wasm")]
         {
-            let info = serde_json::json!({
-                "name": algorithm.to_string(),
-                "category": algorithm.category().to_string(),
-                "security_level": 256, // Placeholder
-                "key_sizes": {
-                    "public_key": 1024, // Placeholder
-                    "secret_key": 1024, // Placeholder
-                    "signature": 1024, // Placeholder
-                    "nonce": 12, // Placeholder
-                    "key": 32 // Placeholder
-                },
-                "message_limits": {
-                    "max_size": 1024 * 1024 // Placeholder
-                },
-                "features": {
-                    "kem": algorithm.category() == AlgorithmCategory::Kem,
-                    "signature": algorithm.category() == AlgorithmCategory::Signature,
-                    "hash": algorithm.category() == AlgorithmCategory::Hash,
-                    "aead": algorithm.category() == AlgorithmCategory::Aead,
-                    "privacy_protocol": algorithm.category() == AlgorithmCategory::PrivacyProtocol
-                }
-            });
+            let info = Self::algorithm_info_json(algorithm);
 
             match serde_wasm_bindgen::to_value(&info) {
                 Ok(value) => Ok(value),
@@ -149,6 +128,57 @@ impl WasmProviderManager {
         {
             Err(JsValue::from_str("WASM feature not enabled"))
         }
+    }
+
+    /// Build the algorithm-info JSON payload from real per-algorithm sources.
+    ///
+    /// Every numeric field here is sourced from [`crate::security::SecurityConstants`] — the same
+    /// table used elsewhere in this crate (e.g. key-size validation) — rather than a second,
+    /// independent hardcoded table that could drift from it (as happened with FN-DSA-1024's secret
+    /// key size). A field is `null` when the algorithm genuinely does not have that property (e.g.
+    /// a hash algorithm has no `signature` size) or when this crate has no per-algorithm source of
+    /// truth for it at all (there is no claimed-security-level table, so `security_level` is always
+    /// `null` — inventing a number here is exactly the defect being fixed).
+    fn algorithm_info_json(algorithm: Algorithm) -> serde_json::Value {
+        let constants = crate::security::SecurityConstants::new();
+
+        let public_key = constants.get_expected_key_size(algorithm, false).ok();
+        let secret_key = constants.get_expected_key_size(algorithm, true).ok();
+        let signature = constants.get_expected_signature_size(algorithm).ok();
+        let ciphertext = constants.get_expected_ciphertext_size(algorithm).ok();
+
+        // Only AEAD algorithms have a message-size ceiling sourced from this crate; other
+        // categories have no per-algorithm message-limit source, so leave it null there.
+        let max_message_size = if algorithm.category() == AlgorithmCategory::Aead {
+            Some(constants.max_aead_message_size())
+        } else {
+            None
+        };
+
+        serde_json::json!({
+            "name": algorithm.to_string(),
+            "category": algorithm.category().to_string(),
+            // No per-algorithm claimed-security-level table exists anywhere in this crate.
+            // Reporting a fixed number (the previous "256" placeholder) would fabricate the same
+            // kind of drift this fix removes, so this is honestly reported as unknown.
+            "security_level": serde_json::Value::Null,
+            "key_sizes": {
+                "public_key": public_key,
+                "secret_key": secret_key,
+                "signature": signature,
+                "ciphertext": ciphertext
+            },
+            "message_limits": {
+                "max_size": max_message_size
+            },
+            "features": {
+                "kem": algorithm.category() == AlgorithmCategory::Kem,
+                "signature": algorithm.category() == AlgorithmCategory::Signature,
+                "hash": algorithm.category() == AlgorithmCategory::Hash,
+                "aead": algorithm.category() == AlgorithmCategory::Aead,
+                "privacy_protocol": algorithm.category() == AlgorithmCategory::PrivacyProtocol
+            }
+        })
     }
 
     /// Get all supported algorithms
@@ -432,6 +462,53 @@ impl WasmProviderFactory {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// Regression for lead 16: `get_algorithm_info` used to report a hardcoded
+    /// `public_key`/`secret_key`/`signature` size of 1024 for every algorithm and a hardcoded
+    /// `security_level` of 256 for every algorithm, so ML-KEM-512 and ML-DSA-87 were reported as
+    /// having identical key sizes. This exercises the pure-Rust JSON builder directly (no JsValue
+    /// involved) so it can run natively — `get_algorithm_info` itself round-trips the same value
+    /// through `serde_wasm_bindgen::to_value`, which is wasm32-only.
+    #[test]
+    fn test_algorithm_info_reports_real_distinct_key_sizes() {
+        let kem_info = WasmProviderManager::algorithm_info_json(Algorithm::MlKem512);
+        let sig_info = WasmProviderManager::algorithm_info_json(Algorithm::MlDsa87);
+
+        let kem_pk = kem_info["key_sizes"]["public_key"].as_u64().unwrap();
+        let sig_pk = sig_info["key_sizes"]["public_key"].as_u64().unwrap();
+
+        // Different algorithms must report different key sizes.
+        assert_ne!(
+            kem_pk, sig_pk,
+            "ML-KEM-512 and ML-DSA-87 must not report the same public key size"
+        );
+
+        // Each reported size must match the crate's real source of truth exactly.
+        let constants = crate::security::SecurityConstants::new();
+        assert_eq!(
+            kem_pk as usize,
+            constants
+                .get_expected_key_size(Algorithm::MlKem512, false)
+                .unwrap()
+        );
+        assert_eq!(
+            sig_pk as usize,
+            constants
+                .get_expected_key_size(Algorithm::MlDsa87, false)
+                .unwrap()
+        );
+
+        // A hash algorithm has no keys/signature — those fields must be honestly null, not 1024.
+        let hash_info = WasmProviderManager::algorithm_info_json(Algorithm::Sha3_256);
+        assert!(hash_info["key_sizes"]["public_key"].is_null());
+        assert!(hash_info["key_sizes"]["secret_key"].is_null());
+        assert!(hash_info["key_sizes"]["signature"].is_null());
+
+        // No per-algorithm claimed-security-level table exists; it must be null, not 256.
+        assert!(kem_info["security_level"].is_null());
+        assert!(sig_info["security_level"].is_null());
+    }
 
     #[test]
     #[cfg(target_arch = "wasm32")]
