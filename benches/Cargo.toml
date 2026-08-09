@@ -30,7 +30,14 @@ ml-dsa = []
 ml-kem = []
 
 [dependencies]
-lib-q = { path = "../lib-q", version = "0.0.10", features = ["full"] }
+# NOT `features = ["full"]`. `full` includes `wasm`, and because this package is a workspace
+# member, cargo unifies its features into every workspace-wide `cargo test` -- which switched
+# `wasm` on for the whole workspace and made lib-q-sig's `#[cfg(feature = "wasm")]` doctests
+# compile AND RUN natively, where `js_sys` aborts the process. That turned the scheduled CI red
+# on two matrix rows (lib-q-sig/src/lib.rs line 142 and ml_dsa.rs line 58) with a panic inside
+# js-sys, and it was NOT obvious from this manifest that a bench dependency could do that.
+# Only what the benchmarks actually exercise.
+lib-q = { path = "../lib-q", version = "0.0.10", features = ["std", "ml-dsa", "ml-kem"] }
 
 [dev-dependencies]
 criterion = { workspace = true }
