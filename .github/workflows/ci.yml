@@ -307,8 +307,14 @@ jobs:
           - name: "lib-q-mayo-hardened"
             features: "std,mayo2,hardened,dudect-smoke-tests"
             package: "lib-q-mayo"
+          # `random` is required, not cosmetic. tests/mode_tests.rs is
+          # `#![cfg(all(feature = "random", feature = "acvp"))]` and its fips_mode_tests module
+          # additionally needs `fips-mode`. This row had fips-mode+acvp but no random, and the
+          # ml-dsa-cross-mode row below has random+acvp but no fips-mode -- so no row supplied
+          # all three, and the three fips_mode_tests never executed in CI at all. They did not
+          # fail; the file compiled to nothing and reported "running 0 tests ... ok".
           - name: "ml-dsa-fips"
-            features: "std,fips-mode,mldsa44,mldsa65,mldsa87,acvp"
+            features: "std,random,fips-mode,mldsa44,mldsa65,mldsa87,acvp"
             package: "lib-q-ml-dsa"
           - name: "ml-dsa-hardened"
             features: "std,hardened,mldsa44,mldsa65,mldsa87,dudect-smoke-tests"
