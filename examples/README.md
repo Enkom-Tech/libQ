@@ -55,7 +55,7 @@ Integration test using the main `libq` crate (with `ml-dsa` / `slh-dsa` on the e
 
 - **ML-DSA-44**: Level 1 security (128-bit)
 - **ML-DSA-65**: Level 3 security (192-bit) 
-- **ML-DSA-87**: Level 4 security (256-bit)
+- **ML-DSA-87**: Level 5 security (256-bit)
 
 ### Key Sizes (ML-DSA-65)
 - **Public key size**: 1952 bytes

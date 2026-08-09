@@ -72,7 +72,11 @@ const ML_KEM_CONFIGS: &[MlKemTestConfig] = &[
     ),
     MlKemTestConfig::new(
         Algorithm::MlKem1024,
-        SecurityLevel::Level4,
+        // FIPS 203 puts ML-KEM-1024 in NIST Category 5. This said Level4, matching the wrong
+        // value the registry used to report -- a fifth copy of that table (see b4119d9), and the
+        // one that turned the correction into a red Test Coverage run on BOTH stable and
+        // nightly.
+        SecurityLevel::Level5,
         1568, // MLKEM1024_PUBLIC_KEY_SIZE
         3168, // MLKEM1024_SECRET_KEY_SIZE
         1568, // MLKEM1024_CIPHERTEXT_SIZE
