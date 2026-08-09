@@ -10,12 +10,12 @@
 //! Both are now checked unconditionally (not `debug_assert`), so the over-long/mismatched
 //! call is rejected instead of reading/writing out of bounds.
 
+use lib_q_hqc::Hqc128Kem;
 use lib_q_hqc::simd::{
     Avx2,
-    Portable,
     PolynomialOps,
+    Portable,
 };
-use lib_q_hqc::Hqc128Kem;
 
 /// F3 red/green target: `test_vect_add` must reject a `len` that exceeds any of the three
 /// buffers, rather than silently reading/writing past their end.

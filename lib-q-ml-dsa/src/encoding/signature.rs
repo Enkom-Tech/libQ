@@ -203,12 +203,7 @@ mod malformed_hint_coverage {
         let h0 = hint_byte_offset();
         // Hint-index bytes: strictly increasing, so the per-row monotonicity check below the
         // bound cannot fire first and mask what we are testing.
-        for (j, slot) in buf
-            .iter_mut()
-            .skip(h0)
-            .take(MAX_ONES_IN_HINT)
-            .enumerate()
-        {
+        for (j, slot) in buf.iter_mut().skip(h0).take(MAX_ONES_IN_HINT).enumerate() {
             *slot = j as u8;
         }
         // The FIRST row's counter must exceed the whole hint buffer (omega + k), not merely

@@ -870,8 +870,7 @@ mod tests {
     #[test]
     #[cfg(feature = "fn-dsa")]
     fn fn_dsa_round_trips_through_the_provider_at_every_parameter_set() {
-        let provider =
-            LibQSignatureProvider::new().expect("provider construction should succeed");
+        let provider = LibQSignatureProvider::new().expect("provider construction should succeed");
         let message = b"fn-dsa provider round trip";
 
         for algorithm in [Algorithm::FnDsa512, Algorithm::FnDsa1024] {
@@ -879,8 +878,9 @@ mod tests {
                 Ok(kp) => kp,
                 // These arms mirror the other provider tests: without `std` the backend is not
                 // built, and that is not what this test is about.
-                Err(Error::NotImplemented { .. }) |
-                Err(Error::RandomGenerationFailed { .. }) => continue,
+                Err(Error::NotImplemented { .. }) | Err(Error::RandomGenerationFailed { .. }) => {
+                    continue;
+                }
                 Err(e) => panic!("{algorithm:?} keygen failed: {e:?}"),
             };
 
@@ -893,7 +893,10 @@ mod tests {
             let is_valid = provider
                 .verify(algorithm, keypair.public_key(), message, &signature)
                 .unwrap_or_else(|e| panic!("{algorithm:?} verify errored: {e:?}"));
-            assert!(is_valid, "{algorithm:?}: provider must verify its own signature");
+            assert!(
+                is_valid,
+                "{algorithm:?}: provider must verify its own signature"
+            );
         }
     }
 }
