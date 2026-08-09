@@ -16,6 +16,52 @@ Result, measured 2026-08-09:
 
 This supersedes the claim previously made in `fn-dsa/src/lib.rs` that the in-repo KAT digests differ from upstream because of dependency versions, AVX2 codegen or "compiler optimization differences". The construction is seed-deterministic; that explanation was never available, and measurement shows 160 of the 180 digests do not differ at all.
 
+## Why this crate does not (and cannot, without reimplementing Falcon keygen) vendor the Falcon round-3 CTR-DRBG KAT
+
+The upstream-oracle harness above closes the "does this implementation match a byte-exact oracle"
+question, but its oracle is Rust `fn-dsa` 0.3.0 driven by SHAKE256-seeded `FakeRng1`/`FakeRng2`
+fakes — **not** the official NIST Falcon round-3 `PQCsignKAT_falcon{512,1024}.rsp` vectors, which
+are produced by seeding the NIST AES-256 CTR_DRBG (`lib-q-cb-kem/src/nist_aes_rng.rs` implements
+this DRBG and is conformance-tested against its own KAT) from the `.rsp` file's 48-byte seed. This
+section records why that gap was investigated (2026-08) and found **not closeable by a test-only
+seam**, so it should not be re-opened without new information. Full trace:
+`scratchpad/lane-fndsa-ctrdrbg.md`.
+
+**The reference's chain (OBSERVED against PQClean's `falcon-512/clean/pqclean.c`, which vendors the
+round-3 submission's core untouched):** `crypto_sign_keypair` draws a single 48-byte seed via
+`randombytes()` (the CTR_DRBG in the KAT harness), does one `inner_shake256_init` +
+`inner_shake256_inject(seed)` + `inner_shake256_flip`, and passes that **single, continuously
+squeezed** SHAKE256 instance directly into `Zf(keygen)` as the sampler's PRNG. Signing does the
+same with its own 48-byte seed (plus a separate 40-byte public nonce). One hop: CTR_DRBG → 48
+bytes → one SHAKE256 instance → sampler.
+
+**This crate's chain (OBSERVED in `fn-dsa-kgen/src/lib.rs`):** the public seed API
+(`lib-q-fn-dsa`'s `generate_keypair_from_seed`/`sign_from_seed`) already differs superficially
+(32-byte seed expanded via KangarooTwelve, not SHAKE256-over-48-bytes) — but the decisive
+divergence is one level deeper and present in the vendored `fn-dsa-kgen`/`fn-dsa-sign` crates
+themselves, regardless of what outer RNG is supplied: `keygen_inner`
+(`fn-dsa-kgen/src/lib.rs:244-245`) draws only **32 bytes** from the outer `rng` via
+`rng.fill_bytes(&mut seed)`, then `keygen_from_seed` (`fn-dsa-kgen/src/lib.rs:328-332`) builds a
+**second, inner** `SHAKE256_PRNG` (or `SHAKE256x4`) seeded from *that* 32-byte value, and it is
+this inner PRNG — not the outer one — that actually drives `gauss::sample_f`. Signing has the
+equivalent two-hop shape. So this implementation is architecturally **two hops** (outer RNG → 32
+bytes → fresh inner SHAKE256 PRNG → sampler) where the reference is **one hop** (CTR_DRBG → 48
+bytes → the same SHAKE256 instance, continuously squeezed → sampler, no reseed). This is upstream
+Pornin `fn-dsa`'s own design (present verbatim pre-fork), consistent with the later FN-DSA/FIPS 206
+draft lineage's 32-byte internal seed convention rather than round-3 Falcon's 48-byte
+`randombytes()` seed.
+
+**Consequence:** no `TryRng`/`Rng` shim wrapping `nist_aes_rng::AesState` — however faithfully it
+reproduces the reference's *outer* SHAKE256-over-48-bytes step — can reproduce the official
+`.rsp` vectors through this crate's existing `keygen`/`sign` entry points, because the algorithm
+only ever consumes 32 bytes from that outer source before re-deriving all further randomness
+internally. Closing this gap for real means replacing `fn-dsa-kgen`'s/`fn-dsa-sign`'s internal
+`keygen_from_seed`/sampler-driving PRNG with the reference's exact one-hop construction — i.e.
+reimplementing Falcon's C reference keygen/sign PRNG consumption, not adding a test seam. That is
+out of scope for a KAT harness and was not attempted. The official round-3 `.rsp` corpus was
+correspondingly not fetched (a WebSearch surfaced only third-party mirrors, which were not used —
+this repo does not vendor vectors it cannot honestly attribute).
+
 ## In-repository vectors
 
 - The 90+90 `KAT` digest arrays in `fn-dsa/src/lib.rs` are maintained in this repository and are a **regression pin**, not conformance evidence, on their own. (As of the measurement above, 79/90 and 81/90 of them happen to equal upstream's — but that is a measured fact recorded here, not a property the arrays themselves assert.)
