@@ -18,7 +18,15 @@ ignored = [
 ]
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = false, optional = true }
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.10", default-features = false, features = ["std"] }
+# NOTE: no `features = ["std"]` here. It was unconditional, which forced lib-q-ring's std even
+# in this crate's own no_std builds. That was harmless while lib-q-ring gated no_std behind an
+# opt-in feature, but once ring moved to the conventional `cfg_attr(not(feature = "std"), no_std)`
+# (3ee611b) it made ring a std crate in every configuration, and
+# `cargo check -p lib-q-lattice-zkp --no-default-features --features no_std --target
+# thumbv7em-none-eabi` failed with "can't find crate for `std` ... required by lib_q_ring because
+# it does not declare #![no_std]". It was also redundant: the `std` feature below already adds
+# `lib-q-ring/std` when this crate is built with std.
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.10", default-features = false }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10", default-features = false }
 lib-q-random = { path = "../lib-q-random", version = "0.0.10", optional = true, default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
@@ -49,7 +57,7 @@ proptest = { workspace = true }
 rand_core = { workspace = true }
 
 [features]
-default = ["alloc"]
+default = ["std"]
 alloc = ["lib-q-ring/alloc", "lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-ring/std", "lib-q-random/std", "lib-q-random/secure"]
 # Panic handler comes from `lib-q-ring/no_std` (do not add a second handler in this crate).
