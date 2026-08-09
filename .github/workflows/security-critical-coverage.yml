@@ -42,7 +42,11 @@ jobs:
       - name: Install cargo-tarpaulin
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
-          tool: cargo-tarpaulin
+          # Pinned deliberately. `cargo-tarpaulin` (unpinned) resolves to @latest, so an upstream
+          # release can break this job with no change on our side -- which is exactly how the
+          # nightly coverage job broke (card t_93dc6b27). coverage.yml already pins 0.37.0; these
+          # two jobs were the last unpinned installs in the repo. Bump both together.
+          tool: cargo-tarpaulin@0.37.0
 
       - name: Generate scoped Cobertura
         run: |
@@ -104,7 +108,11 @@ jobs:
       - name: Install cargo-tarpaulin
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
-          tool: cargo-tarpaulin
+          # Pinned deliberately. `cargo-tarpaulin` (unpinned) resolves to @latest, so an upstream
+          # release can break this job with no change on our side -- which is exactly how the
+          # nightly coverage job broke (card t_93dc6b27). coverage.yml already pins 0.37.0; these
+          # two jobs were the last unpinned installs in the repo. Bump both together.
+          tool: cargo-tarpaulin@0.37.0
 
       - name: Generate scoped Cobertura
         run: |

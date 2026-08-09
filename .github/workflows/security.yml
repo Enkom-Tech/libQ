@@ -210,7 +210,7 @@ jobs:
       - name: Install cargo-outdated
         uses: taiki-e/install-action@67729d5c413db75907f0ad1e39bb04b9c868ff60 # v2.85.7
         with:
-          tool: cargo-outdated
+          tool: cargo-outdated@0.19.0
       
       - name: Check for outdated dependencies
         # Informational only; the step already tolerates cargo failure, and the runner is

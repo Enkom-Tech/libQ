@@ -61,6 +61,28 @@ jobs:
         #   * Both the passing Aug-5 run and the failing runs installed cargo-tarpaulin 0.37.0, so
         #     tarpaulin did not move either. The only remaining variable is the nightly toolchain.
         #
+        # ROOT CAUSE, established 2026-08-09 -- no longer "by elimination". Reproduced locally with
+        # a THREE-LINE crate (one fn, one test), which rules out this repo entirely:
+        #   $ cargo +nightly tarpaulin --engine llvm      # rustc 1.99.0-nightly (771916f90)
+        #   ERROR llvm_profparser::instrumentation_profile::raw_profile:
+        #         consistency check for reading counts failed
+        #   ERROR cargo_tarpaulin: parser failure: Nom(Satisfy)
+        # The `Nom(Satisfy)` is a symptom; the parser is choking on the .profraw FORMAT VERSION:
+        #   stable  (rustc 1.96.0, LLVM 22.1.2) -> profraw header version 0x0a (10)  -> parses
+        #   nightly (rustc 1.99.0, LLVM 23.1.0) -> profraw header version 0x0b (11)  -> fails
+        # LLVM 23 bumped INSTR_PROF_RAW_VERSION to 11 and tarpaulin's llvm-profparser does not yet
+        # read v11. So this is upstream in llvm-profparser, and it unblocks when a cargo-tarpaulin
+        # release ships v11 support -- not on any date-based guess. As of 2026-08-09 no issue for
+        # it exists on xd009642/tarpaulin or xd009642/llvm-profparser, and 0.37.0 (2026-07-04) is
+        # still the latest release, so nobody upstream is tracking it yet.
+        #
+        # DO NOT "fix" this by switching the nightly row to `--engine ptrace`. That engine DOES
+        # succeed on current nightly (verified in the same probe), so it is a tempting one-line
+        # unpin -- but ptrace and llvm are different measurement engines that report different
+        # numbers for the same crate, so the nightly row would stop being comparable to the floors,
+        # which are all calibrated against llvm. That trades a visibly pinned job for a silently
+        # wrong one.
+        #
         # Pinned rather than marked continue-on-error deliberately: a job that cannot fail is the
         # exact defect this repo has spent weeks removing (see ci-guard-no-vacuous-tests.sh). A
         # pinned nightly still runs every test and still fails on a real regression; it just stops
