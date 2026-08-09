@@ -111,6 +111,9 @@ path = "src/lib.rs"
 # wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers. The `no_std` feature enables the aborting panic handler for standalone `cargo check` of this crate.
 crate-type = ["cdylib", "rlib"]
 
+[dev-dependencies]
+wasm-bindgen-test = { workspace = true }
+
 [package.metadata.docs.rs]
 all-features = true
 rustdoc-args = ["--cfg", "docsrs"]

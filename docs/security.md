@@ -151,6 +151,20 @@ Our post-quantum asymmetric primitives are drawn from NIST's Post-Quantum Crypto
   - Designed for IoT and constrained devices
   - Provides authenticated encryption and hashing modes
   - Superior post-quantum security compared to classical alternatives
+  - **Saturnin-SIV** (`lib-q-aead`, feature `saturnin-siv`): a **256-bit, misuse-resistant**
+    (SIV-style) AEAD built from KMAC256-derived keys + Saturnin-CTR. It is the only AEAD in this
+    repo combining full 256-bit post-quantum margin with nonce-misuse resistance — Romulus-M
+    (below) is misuse-resistant but only at 128-bit strength, and the other 256-bit Saturnin modes
+    (CTR-Cascade/Short) are nonce-respecting only. Prefer it for file encryption or any scenario
+    where nonce reuse across re-encryptions is plausible and 256-bit margin is required.
+- **Romulus** (`lib-q-romulus`, NIST Lightweight Cryptography finalist, SKINNY-based AEAD):
+  **128-bit key/nonce/tag**, unlike the 256-bit key/tag used by Saturnin, Rocca-S, and
+  duplex-sponge elsewhere in this document — under Grover's algorithm that is a **~2^64**
+  post-quantum margin, not the **~2^128** margin the 256-bit modes target. Two modes:
+  **Romulus-N** (nonce-respecting; nonce reuse breaks confidentiality) and **Romulus-M**
+  (nonce-misuse-resistant, SIV-style — reusing a nonce does not enable forgery, though it remains
+  128-bit). See [lib-q-romulus/SECURITY.md](../lib-q-romulus/SECURITY.md) and
+  [lib-q-aead README § Key commitment](../lib-q-aead/README.md#key-commitment-cmt-1).
 ### Forbidden Classical Algorithms
 The following classical algorithms are explicitly forbidden in lib-Q:
 
