@@ -64,7 +64,7 @@
 # it exists to catch, just moved one level up.
 
 [scan]
-roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats", "lib-q-cb-kem/data/kat"]
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats", "lib-q-cb-kem/data/kat", "lib-q-sha3/tests/data/turboshake"]
 # `lib-q-ml-dsa/tests/kats` REPLACED the narrower `lib-q-ml-dsa/tests/kats/acvp-1_1_0_36` root on
 # 2026-08-07. The subdirectory was registered deliberately at the time because the parent also holds
 # the six former `nistkats*.json` files, which could not then be registered (no way to satisfy
@@ -97,7 +97,16 @@ exclude = ["lib-q-ml-dsa/tests/kats/requirements.txt"]
 # "json" added 2026-08-07 for the ML-DSA ACVP vectors. Scoped by [scan].roots, so it does not
 # sweep unrelated JSON. Note the root is the acvp-1_1_0_36 SUBdirectory, deliberately, not its
 # parent -- see the ML-DSA section at the bottom for why.
-extensions = ["rsp", "req", "kat", "txt", "json"]
+# "blb" added 2026-08-09 for the TurboSHAKE vectors below. The old comment in this file (just above
+# the [scan] table) used to say "9 of them share a name with github.com/RustCrypto/hashes and NONE
+# matches its bytes, and that is unexplained" -- that was about
+# `lib-q-sha3/tests/data/turboshake{128,256}_{6,7}.blb`, each of which was one byte short of the
+# real RustCrypto file and did not decode under `blobby`. They have since been replaced with
+# byte-exact copies (verified against a live, pinned RustCrypto/hashes commit) and MOVED to their
+# own subdirectory, `lib-q-sha3/tests/data/turboshake/`, registered as its own root below --
+# deliberately not the parent `tests/data/`, which still holds ~15 other unregistered `.blb` files
+# each needing its own provenance pass before being swept in.
+extensions = ["rsp", "req", "kat", "txt", "json", "blb"]
 # ...or its filename (case-insensitive) ends with one of these suffixes.
 filename_suffixes = ["_kat.txt"]
 
@@ -390,3 +399,54 @@ path = "lib-q-cb-kem/data/kat/cbkem348864.rsp"
 origin = "third-party"
 source = "Generated 2026-08-09 by building and running the Classic McEliece designers' own Reference_Implementation/kem/mceliece348864 C code from the official submission package (https://classic.mceliece.org/nist/mceliece-20221023.tar.gz), linked against XKCP (github.com/XKCP/XKCP, cloned 2026-08-09) for SHAKE256 and system OpenSSL libcrypto for AES256-ECB, executed under WSL2 Ubuntu (libssl-dev 3.0.2-0ubuntu1.26). Not an official NIST-published .rsp -- no such file exists upstream for this scheme; this is the designers' own reference generator's output, a genuinely external oracle relative to lib-q-cb-kem."
 sha256 = "7fd5c689171d7c2ca753dbd6a90488fcc97df45b0d756b2b77f17c843a72f1e9"
+
+# --- lib-q-sha3/tests/data/turboshake/ -- RFC 9861 TurboSHAKE128/256 vectors, via RustCrypto ----
+# Registered 2026-08-09 (card t_71d4f79a / t_f0d676d1). TurboSHAKE128/256 had NO known-answer
+# vectors at all -- only property tests, with a comment arguing that was "more robust than
+# hardcoded test vectors", the wrong call for a standardized primitive since a property test cannot
+# detect divergence from the standard. RFC 9861 ("KangarooTwelve and TurboSHAKE") was fetched
+# directly (https://www.rfc-editor.org/rfc/rfc9861.txt): a TurboSHAKE256 D=`06` inline example and
+# an RFC-quoted KT128 value (which decomposes into a TurboSHAKE128 D=`07` call) were both found
+# byte-for-byte inside the decoded `.blb` contents -- see
+# lib-q-sha3/tests/data/turboshake/PROVENANCE.md for exactly which vectors, and why the rest were
+# not individually hand-matched (most vectors here come from the same RFC section's broader KAT
+# tradition, not the short excerpt it spells out inline). The files themselves are vendored
+# byte-for-byte from RustCrypto's `turboshake` crate (named `turbo-shake` before PR #843), whose own
+# test harness packs the RFC 9861 vectors into `blobby` 0.4 containers -- verified against a LIVE,
+# PINNED commit (the crate has no tagged release yet: `0.1.0 UNRELEASED`), not a filename-only
+# match. This is the fix for the *previous* state of these paths: `tests/data/turboshake*.blb` used
+# to exist flat under `tests/data/` but were each one byte short of RustCrypto's real files and did
+# not decode under `blobby` (see this file's `[scan]` comment above and
+# lib-q-sha3/tests/data/upstream/PROVENANCE.md's 2026-08-09 update) -- they have been replaced and
+# moved to their own subdirectory, registered as its own root precisely so the other ~15
+# unregistered `.blb` files under the parent `tests/data/` are not swept in without their own
+# per-file investigation. Binary containers cannot carry a `#`-comment header, so CHECK 5 reads
+# these entries' provenance from the PROVENANCE.md sidecar in this same directory, not a header.
+
+[[kat]]
+path = "lib-q-sha3/tests/data/turboshake/turboshake128_6.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/6327a61bc3116ba245097ff25a79b9450f583d03/turboshake/tests/data/turboshake128_6.blb"
+upstream_sha256 = "4ac164c7c0304e1910ed771bc6aac0481f626eed34544deaeb03eb9debd77365"
+sha256 = "4ac164c7c0304e1910ed771bc6aac0481f626eed34544deaeb03eb9debd77365"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/turboshake/turboshake128_7.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/6327a61bc3116ba245097ff25a79b9450f583d03/turboshake/tests/data/turboshake128_7.blb"
+upstream_sha256 = "ee31dee95ee7d5ec6c4d304c3193806a1196dea7f26b3db3dfe12866ce772a61"
+sha256 = "ee31dee95ee7d5ec6c4d304c3193806a1196dea7f26b3db3dfe12866ce772a61"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/turboshake/turboshake256_6.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/6327a61bc3116ba245097ff25a79b9450f583d03/turboshake/tests/data/turboshake256_6.blb"
+upstream_sha256 = "3045c29d7726656b17cb13cef257b6ec22f0749a7f2cfe1f0576b15cb4935624"
+sha256 = "3045c29d7726656b17cb13cef257b6ec22f0749a7f2cfe1f0576b15cb4935624"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/turboshake/turboshake256_7.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/6327a61bc3116ba245097ff25a79b9450f583d03/turboshake/tests/data/turboshake256_7.blb"
+upstream_sha256 = "358249455ae45d148f6e9af3d3afa64974360366bffb6b64aa24280ca49337e5"
+sha256 = "358249455ae45d148f6e9af3d3afa64974360366bffb6b64aa24280ca49337e5"
