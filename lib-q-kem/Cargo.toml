@@ -33,7 +33,7 @@ lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.10", optional = true, defaul
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10", optional = true, default-features = false }
 
 # Random dependencies for the ml-kem feature
-lib-q-random = { path = "../lib-q-random", version = "0.0.10", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.10", optional = true, default-features = false }
 
 # WASM bindings
 wasm-bindgen = { workspace = true, optional = true }
@@ -55,13 +55,16 @@ std = [
 ]
 alloc = ["lib-q-core/alloc"] # Enable alloc support for Vec and other collections
 # Enable ml-kem (FIPS 203 standard) with modern dependencies.
-# `lib-q-ml-kem/std` is required because the dep declares `crate-type = ["cdylib", "rlib"]` and
-# a native cdylib needs std for the global allocator / panic handler / unwind runtime.
+# `lib-q-ml-kem` itself builds no_std clean (`cargo check -p lib-q-ml-kem --no-default-features
+# --target thumbv7em-none-eabi` is warning-only: dropped `cdylib` crate-type, no errors), so this
+# feature does NOT force `lib-q-ml-kem/std` — only the crate's own `std` feature below does, so
+# `no_std` consumers of just `ml-kem` stay `no_std`. `lib-q-random` is pulled with `alloc` (not
+# `secure`/`std`): `new_secure_rng()` in `src/ml_kem.rs` only requires `lib-q-random/alloc`.
 ml-kem = [
     "dep:lib-q-ml-kem",
-    "lib-q-ml-kem/std",
     "dep:lib-q-sha3",
     "dep:lib-q-random",
+    "lib-q-random?/alloc",
     "alloc",
 ]
 

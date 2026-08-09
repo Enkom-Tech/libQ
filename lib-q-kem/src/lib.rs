@@ -30,13 +30,15 @@
 //! - **no_std**: `hqc` builds genuinely `no_std` (verified against `thumbv7em-none-eabi`).
 //!   `cb-kem` also builds `no_std`, but — like its upstream `lib-q-cb-kem` crate — needs an
 //!   integrator-supplied `getrandom` custom backend for `ClassicalMcElieceRng` on bare-metal
-//!   targets (there is no default entropy source without `std`). **`ml-kem` does NOT currently
-//!   support `no_std` through this crate**: its Cargo feature unconditionally enables
-//!   `lib-q-ml-kem/std` (because that crate's `cdylib` crate-type needs std's allocator/panic/
-//!   unwind runtime on native targets), so any build with `--features ml-kem` pulls in `std`
-//!   regardless of this crate's own `default-features = false`. A bare `no_std` build of this
-//!   crate (no algorithm feature enabled) still builds and is useful only for the shared
-//!   `lib_q_core` re-exports.
+//!   targets (there is no default entropy source without `std`). `ml-kem` also builds genuinely
+//!   `no_std` (verified against `thumbv7em-none-eabi`): the underlying `lib-q-ml-kem` crate is
+//!   `no_std`-capable on its own (its `std` feature only controls whether the crate links `std`
+//!   at all — the `cdylib` crate-type note there is about *that* crate's own native/WASM output,
+//!   not about consumers depending on it as an `rlib`), so this crate's `ml-kem` feature no
+//!   longer forces `lib-q-ml-kem/std`. The RNG plumbing (`lib_q_random::new_secure_rng`) only
+//!   needs `lib-q-random/alloc`, which `ml-kem` also pulls. A bare `no_std` build of this crate
+//!   (no algorithm feature enabled) still builds and is useful only for the shared `lib_q_core`
+//!   re-exports.
 //! - **WASM**: JavaScript-compatible bindings for web environments
 //! - **Security validation**: Comprehensive input validation and security checks
 //! - **Memory safety**: Automatic zeroization of sensitive data
