@@ -349,8 +349,12 @@ mod tests {
     //
     // Signatures are cryptographically valid and verify correctly. Interoperability at the
     // shipping parameter sets is not affected -- and, per the above, is not merely asserted here
-    // but measured byte-for-byte against an external implementation. (FIPS 206 itself has not been
-    // published, so no implementation -- this one included -- can claim conformance to it yet.)
+    // but measured byte-for-byte against an external implementation.
+    //
+    // (FIPS 206 not yet published, so no implementation -- this one included -- can claim
+    // conformance to it. The qualifier has to sit on the same line as the standard's name:
+    // ci-guard-standards-claims.sh is line-based, and splitting "FIPS 206" from "not yet
+    // published" across two lines reads to it as an unqualified attribution.)
     #[cfg(feature = "shake256x4")]
     const KAT: [[&str; 10]; 9] = [
         [

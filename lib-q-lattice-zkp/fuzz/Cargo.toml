@@ -9,8 +9,15 @@ publish = false
 cargo-fuzz = true
 
 [dependencies]
-lib-q-lattice-zkp = { path = "..", default-features = false, features = ["alloc"] }
-lib-q-ring = { path = "../../lib-q-ring", version = "0.0.10", default-features = false, features = ["alloc"] }
+# `std`, not `alloc`. A libfuzzer-sys harness is a std binary, so every dependency in its graph
+# must supply a panic handler, a global allocator and unwinding. Pinning these to `alloc` built
+# lib-q-ring as no_std and failed with "`#[panic_handler]` function required", "no global memory
+# allocator found" and "unwinding panics are not supported without std". This used to work only
+# because lib-q-lattice-zkp set `features = ["std"]` on lib-q-ring unconditionally; that was
+# removed so the crate could actually build no_std, which left this harness as the one consumer
+# still relying on it.
+lib-q-lattice-zkp = { path = "..", default-features = false, features = ["std"] }
+lib-q-ring = { path = "../../lib-q-ring", version = "0.0.10", default-features = false, features = ["std"] }
 libfuzzer-sys = "0.4.12"
 
 [[bin]]

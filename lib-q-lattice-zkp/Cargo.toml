@@ -61,10 +61,8 @@ default = ["std"]
 alloc = ["lib-q-ring/alloc", "lib-q-sha3/alloc"]
 std = ["alloc", "lib-q-ring/std", "lib-q-random/std", "lib-q-random/secure"]
 # Panic handler comes from `lib-q-ring/no_std` (do not add a second handler in this crate).
-# NOTE (no_std feature is opt-in, not `not(feature = "std")`): the `lib-q-ring` dependency
-# above unconditionally sets `features = ["std"]`, independent of this crate's own feature
-# set. `--no-default-features` alone (default = ["alloc"], no "std") is therefore NOT a
-# no_std build -- see the module doc in src/lib.rs for why the conventional
+# NOTE (no_std feature is opt-in, not `not(feature = "std")`): `--no-default-features` alone is
+# NOT a no_std build -- see the module doc in src/lib.rs for why the conventional
 # `not(feature = "std")` shape breaks (verified on thumbv7em-none-eabi). Use
 # `--no-default-features --features no_std` to actually get no_std.
 no_std = ["alloc", "lib-q-ring/no_std"]
