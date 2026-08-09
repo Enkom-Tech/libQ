@@ -36,11 +36,11 @@ wasm = [
 # Explicit gate for the optional `getrandom` dependency (workspace `--features getrandom`, CI, etc.).
 # Optional deps referenced only as `dep:getrandom` do not get an implicit feature name.
 getrandom = ["dep:getrandom"]
-# Same for `subtle` (used by `hardened`); workspace `cargo metadata --features subtle` requires a named feature.
-subtle = ["dep:subtle"]
+# `subtle` is an unconditional dependency (constant-time `PartialEq`/`ConstantTimeEq` on
+# secret-bearing types such as `DecapsulationKey`, not just the `hardened` masking path).
 # Atomic side-channel hardening gate: masks decapsulation path, NTT randomisation, subtle comparisons.
 # Partial enabling is unsafe; do not split into separate CT/masking features.
-hardened = ["random", "subtle", "getrandom"]
+hardened = ["random", "getrandom"]
 # PKCS#8 / SPKI key serialization (draft-ietf-lamps-kyber-certificates). Off by default; pulls the
 # pure-Rust `der` codec only. Encodes the FIPS-203 expanded decapsulation key (`expandedKey` arm)
 # and decodes either the `seed [0]` or `expandedKey` arm.
@@ -52,7 +52,7 @@ rand_core = { workspace = true }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10" }
 lib-q-random = { path = "../lib-q-random", version = "0.0.10", optional = true }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
-subtle = { workspace = true, optional = true, default-features = false }
+subtle = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
 wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize"] }
 js-sys = { workspace = true, optional = true }

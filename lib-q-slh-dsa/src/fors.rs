@@ -6,6 +6,10 @@ use hybrid_array::{
     Array,
     ArraySize,
 };
+use subtle::{
+    Choice,
+    ConstantTimeEq,
+};
 use typenum::Unsigned;
 
 use crate::hypertree::HypertreeParams;
@@ -25,9 +29,23 @@ pub struct ForsMTSig<P: ForsParams> {
 }
 
 // Hand-written to avoid the `derive` adding a spurious `P: PartialEq/Eq` bound.
+//
+// Also constant-time: `sk` is the revealed FORS secret-key leaf, so both fields are compared
+// via `ConstantTimeEq` and folded with `&` (not `&&`) — a derived/slice `==` is `memcmp`-backed
+// and short-circuits on the first differing byte, which would leak how many leading bytes of
+// `sk`/`auth` matched.
+impl<P: ForsParams> ConstantTimeEq for ForsMTSig<P> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        let mut acc = self.sk.as_slice().ct_eq(other.sk.as_slice());
+        for (a, b) in self.auth.iter().zip(other.auth.iter()) {
+            acc &= a.as_slice().ct_eq(b.as_slice());
+        }
+        acc
+    }
+}
 impl<P: ForsParams> PartialEq for ForsMTSig<P> {
     fn eq(&self, other: &Self) -> bool {
-        self.sk == other.sk && self.auth == other.auth
+        self.ct_eq(other).into()
     }
 }
 impl<P: ForsParams> Eq for ForsMTSig<P> {}

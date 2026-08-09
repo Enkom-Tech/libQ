@@ -51,7 +51,11 @@ defmt = { version = "1.1.0", optional = true }                 # no_std logging
 serde = { workspace = true, features = ["derive"], optional = true }
 serde-big-array = { version = "0.5.1", optional = true }       # Large array serialization
 zeroize = { workspace = true, optional = true, default-features = false, features = ["alloc"] } # Secure memory clearing
-subtle = { workspace = true, optional = true, default-features = false }
+# Unconditional, not optional: HqcKemSecretKey and HqcKemSharedSecret compare in
+# constant time in EVERY build, not only under `hardened`. A shared secret is precisely what an
+# attacker wants to confirm by guessing, so a short-circuiting `==` there is a timing oracle in
+# the default configuration -- which is the configuration users get.
+subtle = { workspace = true, default-features = false }
 aes = { workspace = true, default-features = false, optional = true } # AES for DRBG
 
 [dev-dependencies]
@@ -145,7 +149,7 @@ serialization = ["serde", "serde-big-array"]                        # Serde seri
 
 # Security hardening
 zeroize = ["dep:zeroize"]                                           # Automatic memory zeroization
-subtle = ["dep:subtle"]
+subtle = []  # retained as a no-op for compatibility; subtle is now an unconditional dependency
 # Atomic side-channel hardening gate (decapsulation CT compare/select). Do not split.
 hardened = ["random", "zeroize", "subtle"]
 security-hardened = ["zeroize", "hqc", "hardened"]                  # Full security hardening

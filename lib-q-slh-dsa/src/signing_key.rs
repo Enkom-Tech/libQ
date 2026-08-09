@@ -26,6 +26,10 @@ use pkcs8::{
     },
 };
 use rand_core::CryptoRng;
+use subtle::{
+    Choice,
+    ConstantTimeEq,
+};
 use typenum::{
     U,
     U16,
@@ -60,8 +64,24 @@ use crate::{
 
 // NewTypes for ensuring hash argument order correctness
 /// Secret key seed for SLH-DSA
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct SkSeed<N: ArraySize>(pub(crate) Array<u8, N>);
+
+// Hand-written (not `#[derive(PartialEq)]`) so equality on this secret seed is constant-time:
+// derived `PartialEq` on a byte array is `memcmp`-backed and short-circuits on the first
+// differing byte, which is a timing oracle on secret key material.
+impl<N: ArraySize> ConstantTimeEq for SkSeed<N> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.as_slice().ct_eq(other.0.as_slice())
+    }
+}
+impl<N: ArraySize> PartialEq for SkSeed<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
+impl<N: ArraySize> Eq for SkSeed<N> {}
+
 impl<N: ArraySize> AsRef<[u8]> for SkSeed<N> {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
@@ -83,8 +103,24 @@ impl<N: ArraySize> SkSeed<N> {
 }
 
 /// Secret key PRF for SLH-DSA
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
 pub struct SkPrf<N: ArraySize>(pub(crate) Array<u8, N>);
+
+// Hand-written (not `#[derive(PartialEq)]`) so equality on this secret PRF key is
+// constant-time: derived `PartialEq` on a byte array is `memcmp`-backed and short-circuits on
+// the first differing byte, which is a timing oracle on secret key material.
+impl<N: ArraySize> ConstantTimeEq for SkPrf<N> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.as_slice().ct_eq(other.0.as_slice())
+    }
+}
+impl<N: ArraySize> PartialEq for SkPrf<N> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
+impl<N: ArraySize> Eq for SkPrf<N> {}
+
 impl<N: ArraySize> AsRef<[u8]> for SkPrf<N> {
     fn as_ref(&self) -> &[u8] {
         self.0.as_ref()
@@ -197,11 +233,19 @@ pub struct SigningKey<P: ParameterSet> {
 
 // Hand-written to avoid the `derive` adding a spurious `P: PartialEq/Eq` bound; the hash
 // suite `P` is not `Eq`, but the key material is.
+//
+// Also constant-time on the secret fields: `sk_seed`/`sk_prf` are compared via `ConstantTimeEq`
+// and folded with `&` (not `&&`), so the comparison neither short-circuits on `sk_seed` nor
+// skips `sk_prf` when `sk_seed` already differs. `verifying_key` is public key material, so it
+// is compared with ordinary `==`.
+impl<P: ParameterSet> ConstantTimeEq for SigningKey<P> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.sk_seed.ct_eq(&other.sk_seed) & self.sk_prf.ct_eq(&other.sk_prf)
+    }
+}
 impl<P: ParameterSet> PartialEq for SigningKey<P> {
     fn eq(&self, other: &Self) -> bool {
-        self.sk_seed == other.sk_seed &&
-            self.sk_prf == other.sk_prf &&
-            self.verifying_key == other.verifying_key
+        bool::from(self.ct_eq(other)) && self.verifying_key == other.verifying_key
     }
 }
 impl<P: ParameterSet> Eq for SigningKey<P> {}
@@ -602,5 +646,45 @@ mod tests {
         let short = [0u8; 15]; // Shake128f wants 16
         let ok = [0u8; 16];
         let _ = SigningKey::<Shake128f>::slh_keygen_internal(&short, &ok, &ok);
+    }
+
+    // --- F2 constant-time-equality regression tests -------------------------------------------
+    //
+    // These prove the CODE SHAPE (the type implements `ConstantTimeEq` and `PartialEq` is
+    // defined in terms of it), not timing: wall-clock timing is not reliably measurable in a
+    // unit test. See scratchpad/audit-triage/fix-ct-partialeq.md for why a timing-based test was
+    // deliberately not written here.
+
+    /// Compile-time assertion that `T` implements `subtle::ConstantTimeEq`. Fails to compile
+    /// (not a runtime failure) if the bound is not satisfied.
+    fn assert_impls_constant_time_eq<T: subtle::ConstantTimeEq>() {}
+
+    #[test]
+    fn sk_seed_sk_prf_signing_key_implement_constant_time_eq() {
+        assert_impls_constant_time_eq::<super::SkSeed<hybrid_array::typenum::U16>>();
+        assert_impls_constant_time_eq::<super::SkPrf<hybrid_array::typenum::U16>>();
+        assert_impls_constant_time_eq::<SigningKey<Shake128f>>();
+    }
+
+    #[test]
+    fn signing_key_partial_eq_delegates_to_ct_eq() {
+        use subtle::ConstantTimeEq;
+
+        let mut rng = new_secure_rng().expect("Failed to create secure RNG");
+        let sk_a = SigningKey::<Shake128f>::new(&mut rng);
+        let sk_b = SigningKey::<Shake128f>::new(&mut rng);
+
+        // `==` and `ct_eq` must agree in both directions (reflexive true, distinct false), i.e.
+        // `PartialEq::eq` is exactly `bool::from(self.ct_eq(other) & ...)`, not an independent
+        // (and potentially short-circuiting) implementation.
+        assert_eq!(sk_a == sk_a, bool::from(sk_a.ct_eq(&sk_a)));
+        assert_eq!(sk_a == sk_b, bool::from(sk_a.ct_eq(&sk_b)));
+        assert_eq!(sk_a, sk_a);
+        assert_ne!(sk_a, sk_b);
+    }
+
+    #[test]
+    fn fors_mt_sig_implements_constant_time_eq() {
+        assert_impls_constant_time_eq::<crate::fors::ForsMTSig<Shake128f>>();
     }
 }

@@ -5,6 +5,10 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
+use subtle::{
+    Choice,
+    ConstantTimeEq,
+};
 use zeroize::{
     Zeroize,
     ZeroizeOnDrop,
@@ -47,7 +51,7 @@ pub(crate) type SharedKey = B32;
 
 /// A `DecapsulationKey` provides the ability to generate a new key pair, and decapsulate an
 /// encapsulated shared key.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub struct DecapsulationKey<P>
 where
     P: KemParams,
@@ -55,6 +59,33 @@ where
     dk_pke: DecryptionKey<P>,
     ek: EncapsulationKey<P>,
     z: B32,
+}
+
+// Hand-written (rather than `#[derive(PartialEq)]`) so the comparison of the secret material
+// (`dk_pke`, the implicit-rejection seed `z`) is constant-time: derived/slice `PartialEq` is
+// `memcmp`-backed and short-circuits on the first differing byte, which is a timing oracle on a
+// decapsulation key. `ek` (the public encapsulation key) is compared with ordinary `==` since it
+// carries no secret.
+impl<P> ConstantTimeEq for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.dk_pke
+            .as_bytes()
+            .as_slice()
+            .ct_eq(other.dk_pke.as_bytes().as_slice()) &
+            self.z.as_slice().ct_eq(other.z.as_slice())
+    }
+}
+
+impl<P> PartialEq for DecapsulationKey<P>
+where
+    P: KemParams,
+{
+    fn eq(&self, other: &Self) -> bool {
+        bool::from(self.ct_eq(other)) && self.ek == other.ek
+    }
 }
 
 impl<P> Drop for DecapsulationKey<P>
@@ -456,6 +487,40 @@ mod test {
         codec_test::<MlKem512Params>();
         codec_test::<MlKem768Params>();
         codec_test::<MlKem1024Params>();
+    }
+
+    // --- F2 constant-time-equality regression tests -------------------------------------------
+    //
+    // These prove the CODE SHAPE (the type implements `ConstantTimeEq` and `PartialEq` is
+    // defined in terms of it), not timing: wall-clock timing is not reliably measurable in a
+    // unit test. See scratchpad/audit-triage/fix-ct-partialeq.md for why a timing-based test was
+    // deliberately not written here.
+
+    /// Compile-time assertion that `T` implements `subtle::ConstantTimeEq`. Fails to compile
+    /// (not a runtime failure) if the bound is not satisfied.
+    #[cfg(feature = "random")]
+    fn assert_impls_constant_time_eq<T: ConstantTimeEq>() {}
+
+    #[test]
+    #[cfg(feature = "random")]
+    fn decapsulation_key_implements_constant_time_eq() {
+        assert_impls_constant_time_eq::<DecapsulationKey<MlKem512Params>>();
+    }
+
+    #[test]
+    #[cfg(feature = "random")]
+    fn decapsulation_key_partial_eq_delegates_to_ct_eq() {
+        let mut rng = lib_q_random::LibQRng::new_secure().expect("Failed to create secure RNG");
+        let dk_a = DecapsulationKey::<MlKem512Params>::generate(&mut rng);
+        let dk_b = DecapsulationKey::<MlKem512Params>::generate(&mut rng);
+
+        // `==` and `ct_eq` must agree in both directions (reflexive true, distinct false), i.e.
+        // `PartialEq::eq` is exactly `bool::from(self.ct_eq(other) & ...)`, not an independent
+        // (and potentially short-circuiting) implementation.
+        assert_eq!(dk_a == dk_a, bool::from(dk_a.ct_eq(&dk_a)));
+        assert_eq!(dk_a == dk_b, bool::from(dk_a.ct_eq(&dk_b)));
+        assert_eq!(dk_a, dk_a);
+        assert_ne!(dk_a, dk_b);
     }
 
     #[cfg(feature = "random")]
