@@ -436,11 +436,13 @@ mod tests {
     fn test_algorithm_security_levels() {
         // NIST PQC security categories (FIPS 203 for ML-KEM, FIPS 204 for ML-DSA):
         // ML-KEM-1024 and ML-DSA-87 are Category 5, not Category 4. This test was
-        // previously pinned at 4, which encoded a defect (card t_e3457ac8). Note:
-        // `Algorithm::security_level()` is implemented in lib-q-types (out of scope
-        // for this change, confined to lib-q-core) and, as of this fix, still
-        // returns 4 for these two entries — an identical, independent copy of the
-        // same defect that needs a matching fix in lib-q-types.
+        // previously pinned at 4, which encoded a defect (card t_e3457ac8).
+        //
+        // The note that used to sit here said `Algorithm::security_level()` in
+        // lib-q-types was an unfixed second copy still returning 4. That was true
+        // when written and was resolved at b4119d9, which corrected seven algorithms
+        // across all five duplicated tables. `security_level()` is the lib-q-types
+        // implementation, so these assertions exercise that copy, not the registry.
         assert_eq!(Algorithm::MlKem512.security_level(), 1);
         assert_eq!(Algorithm::MlKem768.security_level(), 3);
         assert_eq!(Algorithm::MlKem1024.security_level(), 5);
