@@ -86,4 +86,10 @@ pub enum VerificationError {
 pub enum SigningError {
     RejectionSamplingError,
     ContextTooLongError,
+    /// `hardened` only: the OS entropy source needed to refresh the secret-key masking shares was
+    /// unavailable, so signing was refused. There is deliberately no fallback to a key-derived
+    /// static mask — a mask that is identical on every signature provides no first-order
+    /// side-channel protection (card `t_c801e460`).
+    #[cfg(feature = "hardened")]
+    MaskEntropyUnavailable,
 }
