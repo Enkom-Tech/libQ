@@ -35,6 +35,32 @@ fn bad_tag_never_yields_plaintext() {
     }
 }
 
+/// Structural (non-timing) proof that the constant-time hardware AES backend is
+/// actually *wired in* by default on architectures that have one — finding F4 /
+/// card t_3d6e8d50. This does NOT measure wall-clock timing (that is unmeasurable in
+/// a unit test and explicitly out of scope per card t_043571b4); it checks the
+/// compile-time feature selection, which is exactly what the wiring bug broke:
+/// `simd` was not in `default` and `lib-q-aead`'s `rocca-s` feature never enabled it,
+/// so every consumer silently got the non-constant-time scalar S-box table
+/// (`round.rs::SBOX`) even on AES-NI hardware.
+///
+/// This test FAILS if that regresses: strip `simd`/`simd-aesni`/`simd-neon` from a
+/// `std` build on x86/x86_64/aarch64 (e.g. `cargo test -p lib-q-rocca-s --no-default-features
+/// --features std,aead,alloc`) and it will report the wiring gap instead of passing silently.
+#[test]
+fn simd_backend_is_wired_on_hardware_capable_targets() {
+    #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
+    {
+        assert!(
+            lib_q_rocca_s::_internals::simd_feature_wired(),
+            "std build on a hardware-AES-capable target ({}) does not have the `simd` \
+             feature wired in — every caller will run the non-constant-time scalar AES \
+             S-box table unconditionally (see round.rs doc comment, finding F4).",
+            std::env::consts::ARCH
+        );
+    }
+}
+
 #[test]
 fn good_tag_succeeds_after_full_schedule() {
     let a = RoccaSAead::new();

@@ -18,16 +18,24 @@ lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = fa
 zeroize = { workspace = true, default-features = false, features = ["alloc", "derive"], optional = true }
 
 [features]
-default = ["std", "aead", "alloc"]
+# `simd` is in `default` so that a plain `std` build gets the constant-time hardware
+# AES backend instead of the table-based scalar S-box (see `src/round.rs` module doc
+# and finding F4 / card t_3d6e8d50). The `simd-*` features are runtime-dispatched
+# (`runtime::has_aes()`), so enabling them on a CPU without AES-NI/ARMv8-AES is a
+# harmless no-op that falls back to the scalar path — there is no correctness or
+# portability cost to having them on by default.
+default = ["std", "aead", "alloc", "simd"]
 std = ["alloc", "lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]
 
 # AEAD mode (the only mode Rocca-S provides).
 aead = ["dep:zeroize"]
 
-# Performance: runtime-dispatched hardware AES round.
+# Performance / constant-time: runtime-dispatched hardware AES round.
 # Both backends use runtime CPU feature detection (`is_x86_feature_detected!` /
 # `is_aarch64_feature_detected!`), which lives in `std::arch`, so both require `std`.
+# A genuine `no_std` build (no `std` feature) CANNOT have either backend — see
+# `build.rs`, which emits a `cargo:warning` making that gap loud instead of silent.
 simd = ["simd-aesni", "simd-neon"]
 simd-aesni = ["std"]
 simd-neon = ["std"]
