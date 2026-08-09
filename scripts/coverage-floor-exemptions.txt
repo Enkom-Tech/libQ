@@ -49,4 +49,20 @@ lib-q-stark-baby-bear | tarpaulin reports "No coverable lines found"; 33 tests r
 # "has not been tested", and they call for opposite responses.
 
 # --- Deferred -----------------------------------------------------------------------------
-lib-q-zk-encryption-proof | RED crate awaiting cryptographer sign-off; instrumented build exceeds 10 min locally, so no measured floor yet
+# The reason below is a CORRECTION. It previously read "instrumented build exceeds 10 min
+# locally", which was a guess from two runs that were killed at a 10-minute tool timeout. What
+# was actually measured on 2026-08-09:
+#   * DEBUG tarpaulin does not merely take a while -- a run was left going for 4h45m and produced
+#     no output at all before being killed. It is not a matter of waiting longer.
+#   * Plain `cargo test --release` is fine: 98 passed in 356s. So the crate's tests are healthy;
+#     it is instrumentation that kills it. Several individual tests run over 60s, and one is
+#     already `#[ignore]`d as "heavy: production FRI params over the full N=1024 e-provenance
+#     batch".
+#   * RELEASE tarpaulin (--release --timeout 900, the shape security-critical-coverage.yml uses
+#     for lib-q-threshold-kem-lattice) gets much further -- roughly 24 tests -- then dies on
+#     `encryption_proof::tests::e_provenance_round_trip_test_params` with
+#     `ERROR cargo_tarpaulin: Test failed during run` and NO panic message, i.e. the test process
+#     aborted rather than failing an assertion. That test passes fine un-instrumented.
+# So the next step is diagnosing that abort (a stack/memory limit under llvm instrumentation is
+# the obvious suspect for STARK proving), not raising a timeout again.
+lib-q-zk-encryption-proof | RED crate awaiting cryptographer sign-off; DEBUG tarpaulin produces no output in 4h45m and RELEASE tarpaulin aborts on e_provenance_round_trip_test_params, though `cargo test --release` passes 98 tests in 356s -- instrumentation, not the tests
