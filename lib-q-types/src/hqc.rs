@@ -35,7 +35,22 @@ pub const fn kem_secret_key_serialized_len(ek_pke_len: usize) -> usize {
     ek_pke_len + PKE_DK_SEED_BYTES + KEM_SIGMA_BYTES + KEM_SEED_KEM_BYTES
 }
 
-/// NIST / reference `CRYPTO_SECRETKEYBYTES` wire layout: `dk_pke` ‖ `sigma` ‖ `ek_pke`.
+/// libQ's own `dk_pke` ‖ `sigma` ‖ `ek_pke` secret-key layout, named after (but **not
+/// byte-identical to**) the upstream HQC reference's `CRYPTO_SECRETKEYBYTES` wire format.
+///
+/// The field order matches upstream's, but the field *sizes* are this workspace's own
+/// (`PKE_DK_SEED_BYTES` = 32, `KEM_SIGMA_BYTES` = 16, both fixed across all three security
+/// levels), not upstream's per-level sizing. A same-seed comparison against the official HQC
+/// v5.0.0 reference implementation (commit `f46e542`) measured the resulting constants as
+/// numerically smaller than upstream's `CRYPTO_SECRETKEYBYTES` at all three levels — HQC-128:
+/// 2289 vs 2321, HQC-192: 4562 vs 4602, HQC-256: 7285 vs 7333 (deltas -32/-40/-48) — see
+/// `lib-q-hqc/kats/regression-pins/PROVENANCE.md` ("Known divergence...") for the measurement.
+/// This is a tracked, open, low-severity naming/documentation gap, not a length-check defect:
+/// nothing in this workspace parses real upstream-produced NIST-format secret-key bytes through
+/// this constant (`HqcKemSecretKey::from_nist_bytes` round-trips only against
+/// `HqcKemSecretKey::to_nist_bytes`, both using this crate's own sizing, with an exact `!=`
+/// length check). Do not treat a value returned here as compatible with genuine upstream HQC
+/// `CRYPTO_SECRETKEYBYTES`-sized keys.
 #[must_use]
 pub const fn kem_nist_secret_key_bytes(public_key_len: usize) -> usize {
     PKE_DK_SEED_BYTES + KEM_SIGMA_BYTES + public_key_len
