@@ -2,6 +2,21 @@
 //!
 //! 128-bit block, 384-bit tweakey, 40 rounds. Layout matches the reference C
 //! implementation (`state[row][col]` with `state[i>>2][i&3]` ↔ linear index `i`).
+//!
+//! # Constant-time note (finding F5, card t_7f110663)
+//!
+//! [`sub_cell8`] applies the SKINNY-8 S-box via a 256-entry lookup table (`SBOX_8`)
+//! indexed by cipher state bytes, which are a function of the Romulus key and the
+//! tweakey schedule — the textbook AES/SKINNY-style cache-timing surface. Unlike
+//! `lib-q-rocca-s`'s AES round, there is **no hardware S-box instruction to fall back
+//! to** here: this table lookup runs on every build, on every platform.
+//!
+//! The correct fix is a bitsliced SKINNY-8 S-box (the approach `lib-q-saturnin`
+//! already uses for its own S-box — see `lib-q-saturnin/src/core.rs::apply_sbox`,
+//! pure `^`/`&`/`|` on bitsliced state, no table). That rewrite was **not completed**
+//! as of this note; `tests::sub_cell8_is_not_yet_constant_time` is an `#[ignore]`d
+//! canary that documents (and fails when run with `--ignored`) that the gap is still
+//! open, so it stays visible rather than silently accepted.
 
 #![deny(unsafe_code)]
 
@@ -63,6 +78,10 @@ const RC: [u8; 40] = [
     0x31, 0x23, 0x06, 0x0D, 0x1B, 0x36, 0x2D, 0x1A,
 ];
 
+/// Apply the SKINNY-8 S-box to every state cell.
+///
+/// **Not constant-time**: this is a secret-indexed 256-entry table lookup — see the
+/// module-level "Constant-time note" (finding F5 / card t_7f110663).
 fn sub_cell8(state: &mut [[u8; 4]; 4]) {
     for row in state.iter_mut() {
         for cell in row.iter_mut() {
@@ -143,6 +162,30 @@ fn mix_column(state: &mut [[u8; 4]; 4]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// KNOWN GAP canary (finding F5, card t_7f110663) — NOT a timing measurement.
+    ///
+    /// `sub_cell8` still implements the SKINNY-8 S-box as `SBOX_8[secret_byte]`, a
+    /// table lookup on cipher state derived from the key/tweakey schedule, with no
+    /// hardware alternative to fall back to (unlike `lib-q-rocca-s`'s AES round).
+    /// Bitslicing it (as `lib-q-saturnin::core::apply_sbox` already does for its own
+    /// S-box) is the real fix and was not completed in this pass.
+    ///
+    /// This test is `#[ignore]`d so it does not fail the normal green suite, but it
+    /// exists precisely so the gap is *visible on demand* (`cargo test -p
+    /// lib-q-romulus -- --ignored`) rather than silently accepted with only a doc
+    /// comment. Delete it only when `sub_cell8` is actually bitsliced.
+    #[test]
+    #[ignore = "KNOWN GAP: SKINNY-8 sub_cell8 is a secret-indexed table lookup, not \
+                constant-time — bitslicing not yet implemented (F5 / t_7f110663)"]
+    fn sub_cell8_is_not_yet_constant_time() {
+        panic!(
+            "sub_cell8 (lib-q-romulus/src/skinny.rs) still uses SBOX_8[secret_byte] — a \
+             table-based S-box lookup on secret cipher state. This is the textbook \
+             cache-timing key-recovery surface. A constant-time (bitsliced) SKINNY-8 \
+             S-box has not yet been implemented. See finding F5 / card t_7f110663."
+        );
+    }
 
     /// The SKINNY 8-bit S-box must be a bijection on bytes: every output value 0..=255
     /// appears exactly once. A corrupted table entry (typo, copy/paste duplicate) breaks

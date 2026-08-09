@@ -46,7 +46,15 @@ serde-wasm-bindgen = { workspace = true, optional = true }
 
 [features]
 default = ["alloc", "std", "shake256"]
-std = ["lib-q-core/std", "once_cell/std"]
+# `lib-q-rocca-s?/simd` (weak-dep syntax): ONLY takes effect if the optional
+# `lib-q-rocca-s` dependency is ALSO enabled (via the `rocca-s` feature below) —
+# it does not pull the dependency in on its own. This closes the F4 / t_3d6e8d50
+# wiring gap (rocca-s's default `simd` was never propagated through this facade,
+# so every consumer ran the non-constant-time scalar AES S-box table) while staying
+# safe for genuine `no_std` consumers: without `std` here, `simd` (which requires
+# `std::arch` CPU-feature detection) is never requested, so a no_std build of this
+# facade cannot be broken by force-linking `std` into rocca-s.
+std = ["lib-q-core/std", "once_cell/std", "lib-q-rocca-s?/simd"]
 alloc = ["lib-q-core/alloc"]
 # Enables optional `zeroize` without `shake256`; also satisfies workspace `cargo metadata --features zeroize`.
 zeroize = ["dep:zeroize"]
