@@ -233,7 +233,7 @@ impl KemOperations for LibQHqcProvider {
             Algorithm::Hqc128 => {
                 // Parse secret key: ek_pke (PUBLIC_KEY_BYTES) + dk_pke (32) + sigma (16) + seed_kem (48)
                 let sk_bytes = &secret_key.data;
-                if sk_bytes.len() < Hqc1Params::SECRET_KEY_BYTES {
+                if sk_bytes.len() != Hqc1Params::SECRET_KEY_BYTES {
                     return Err(Error::InvalidKeySize {
                         expected: Hqc1Params::SECRET_KEY_BYTES,
                         actual: sk_bytes.len(),
@@ -258,7 +258,7 @@ impl KemOperations for LibQHqcProvider {
 
                 // Parse ciphertext: c_pke (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES) + salt (16)
                 let pke_ct_size = Hqc1Params::VEC_N_SIZE_BYTES + Hqc1Params::VEC_N1N2_SIZE_BYTES;
-                if ciphertext.len() < pke_ct_size + 16 {
+                if ciphertext.len() != pke_ct_size + 16 {
                     return Err(Error::InvalidKeySize {
                         expected: pke_ct_size + 16,
                         actual: ciphertext.len(),
@@ -283,7 +283,7 @@ impl KemOperations for LibQHqcProvider {
             Algorithm::Hqc192 => {
                 // Parse secret key
                 let sk_bytes = &secret_key.data;
-                if sk_bytes.len() < Hqc3Params::SECRET_KEY_BYTES {
+                if sk_bytes.len() != Hqc3Params::SECRET_KEY_BYTES {
                     return Err(Error::InvalidKeySize {
                         expected: Hqc3Params::SECRET_KEY_BYTES,
                         actual: sk_bytes.len(),
@@ -308,7 +308,7 @@ impl KemOperations for LibQHqcProvider {
 
                 // Parse ciphertext: c_pke (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES) + salt (16)
                 let pke_ct_size = Hqc3Params::VEC_N_SIZE_BYTES + Hqc3Params::VEC_N1N2_SIZE_BYTES;
-                if ciphertext.len() < pke_ct_size + 16 {
+                if ciphertext.len() != pke_ct_size + 16 {
                     return Err(Error::InvalidKeySize {
                         expected: pke_ct_size + 16,
                         actual: ciphertext.len(),
@@ -333,7 +333,7 @@ impl KemOperations for LibQHqcProvider {
             Algorithm::Hqc256 => {
                 // Parse secret key
                 let sk_bytes = &secret_key.data;
-                if sk_bytes.len() < Hqc5Params::SECRET_KEY_BYTES {
+                if sk_bytes.len() != Hqc5Params::SECRET_KEY_BYTES {
                     return Err(Error::InvalidKeySize {
                         expected: Hqc5Params::SECRET_KEY_BYTES,
                         actual: sk_bytes.len(),
@@ -358,7 +358,7 @@ impl KemOperations for LibQHqcProvider {
 
                 // Parse ciphertext: c_pke (VEC_N_SIZE_BYTES + VEC_N1N2_SIZE_BYTES) + salt (16)
                 let pke_ct_size = Hqc5Params::VEC_N_SIZE_BYTES + Hqc5Params::VEC_N1N2_SIZE_BYTES;
-                if ciphertext.len() < pke_ct_size + 16 {
+                if ciphertext.len() != pke_ct_size + 16 {
                     return Err(Error::InvalidKeySize {
                         expected: pke_ct_size + 16,
                         actual: ciphertext.len(),
@@ -403,7 +403,7 @@ impl KemOperations for LibQHqcProvider {
             Algorithm::Hqc128 => {
                 // Validate secret key size
                 let sk_bytes = &secret_key.data;
-                if sk_bytes.len() < Hqc1Params::SECRET_KEY_BYTES {
+                if sk_bytes.len() != Hqc1Params::SECRET_KEY_BYTES {
                     return Err(Error::InvalidKeySize {
                         expected: Hqc1Params::SECRET_KEY_BYTES,
                         actual: sk_bytes.len(),
@@ -419,7 +419,7 @@ impl KemOperations for LibQHqcProvider {
             Algorithm::Hqc192 => {
                 // Validate secret key size
                 let sk_bytes = &secret_key.data;
-                if sk_bytes.len() < Hqc3Params::SECRET_KEY_BYTES {
+                if sk_bytes.len() != Hqc3Params::SECRET_KEY_BYTES {
                     return Err(Error::InvalidKeySize {
                         expected: Hqc3Params::SECRET_KEY_BYTES,
                         actual: sk_bytes.len(),
@@ -434,7 +434,7 @@ impl KemOperations for LibQHqcProvider {
             Algorithm::Hqc256 => {
                 // Validate secret key size
                 let sk_bytes = &secret_key.data;
-                if sk_bytes.len() < Hqc5Params::SECRET_KEY_BYTES {
+                if sk_bytes.len() != Hqc5Params::SECRET_KEY_BYTES {
                     return Err(Error::InvalidKeySize {
                         expected: Hqc5Params::SECRET_KEY_BYTES,
                         actual: sk_bytes.len(),
