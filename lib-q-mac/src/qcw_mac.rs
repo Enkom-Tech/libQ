@@ -52,14 +52,25 @@ pub struct QcwMac;
 
 impl QcwMac {
     /// Produce an authentication tag for `(msg, ad)`.
+    ///
+    /// The tag is always [`QCW_MAC_TAG_BYTES`] long; prefer [`QcwMac::sign_tag`], which says so
+    /// in the type and needs no allocator.
+    #[cfg(feature = "alloc")]
     #[must_use]
     pub fn sign(key: &QcwMacKey, msg: &[u8], ad: &[u8]) -> alloc::vec::Vec<u8> {
+        Self::sign_tag(key, msg, ad).to_vec()
+    }
+
+    /// Produce an authentication tag for `(msg, ad)` without allocating.
+    ///
+    /// This carries the implementation; [`QcwMac::sign`] only copies the result into a `Vec`.
+    #[must_use]
+    pub fn sign_tag(key: &QcwMacKey, msg: &[u8], ad: &[u8]) -> [u8; QCW_MAC_TAG_BYTES] {
         let axu = epsilon_axu(&key.key, ad, msg);
         // Unreachable by construction: MAC_LABEL is a module-private 3-byte constant, checked
         // against QPRF_MAX_LABEL_BYTES at compile time (see the `const _` assert above).
         qprf_tag(&key.key, MAC_LABEL, &axu)
             .expect("MAC_LABEL is a 3-byte constant, within QPRF_MAX_LABEL_BYTES")
-            .to_vec()
     }
 
     /// Constant-time tag verification.
@@ -68,7 +79,7 @@ impl QcwMac {
         if tag.len() != QCW_MAC_TAG_BYTES {
             return false;
         }
-        let expected = Self::sign(key, msg, ad);
+        let expected = Self::sign_tag(key, msg, ad);
         bool::from(expected.as_slice().ct_eq(tag))
     }
 }

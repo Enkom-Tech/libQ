@@ -25,12 +25,34 @@ pub const QPRF_MAX_LABEL_BYTES: usize = u8::MAX as usize; // 255
 /// Returns [`crate::error::MacError::LabelTooLong`] if `label.len() > QPRF_MAX_LABEL_BYTES`: the
 /// single-byte length prefix cannot encode a longer label without wrapping (see
 /// [`QPRF_MAX_LABEL_BYTES`]).
+#[cfg(feature = "alloc")]
 pub fn qprf_eval(
     key: &[u8; 32],
     label: &[u8],
     input: &[u8],
     out_len: usize,
 ) -> Result<alloc::vec::Vec<u8>, crate::error::MacError> {
+    let mut out = alloc::vec![0u8; out_len];
+    qprf_eval_into(key, label, input, &mut out)?;
+    Ok(out)
+}
+
+/// Expand a keyed quantum PRF into a caller-supplied buffer, filling it completely.
+///
+/// This is the allocation-free form of [`qprf_eval`] and carries the whole implementation;
+/// `qprf_eval` is a thin wrapper that owns the buffer. Bare-metal callers should use this or
+/// [`qprf_tag`], both of which are available without the `alloc` feature.
+///
+/// # Errors
+/// Returns [`crate::error::MacError::LabelTooLong`] if `label.len() > QPRF_MAX_LABEL_BYTES`: the
+/// single-byte length prefix cannot encode a longer label without wrapping (see
+/// [`QPRF_MAX_LABEL_BYTES`]).
+pub fn qprf_eval_into(
+    key: &[u8; 32],
+    label: &[u8],
+    input: &[u8],
+    out: &mut [u8],
+) -> Result<(), crate::error::MacError> {
     if label.len() > QPRF_MAX_LABEL_BYTES {
         return Err(crate::error::MacError::LabelTooLong);
     }
@@ -41,9 +63,8 @@ pub fn qprf_eval(
     shake.update(label);
     shake.update(input);
     let mut reader = shake.finalize_xof();
-    let mut out = alloc::vec![0u8; out_len];
-    reader.read(&mut out);
-    Ok(out)
+    reader.read(out);
+    Ok(())
 }
 
 /// Fixed-length qPRF tag (32 bytes).
@@ -55,8 +76,9 @@ pub fn qprf_tag(
     label: &[u8],
     input: &[u8],
 ) -> Result<[u8; QCW_MAC_TAG_BYTES], crate::error::MacError> {
-    let v = qprf_eval(key, label, input, QCW_MAC_TAG_BYTES)?;
+    // Stack buffer, not `qprf_eval`: this returns a fixed-size array, so allocating to produce
+    // it made the one API that is usable bare-metal depend on `alloc` for no reason.
     let mut tag = [0u8; QCW_MAC_TAG_BYTES];
-    tag.copy_from_slice(&v);
+    qprf_eval_into(key, label, input, &mut tag)?;
     Ok(tag)
 }
