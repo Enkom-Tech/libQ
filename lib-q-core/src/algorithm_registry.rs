@@ -74,9 +74,9 @@ impl AlgorithmRegistry {
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::MlKem1024,
             category: AlgorithmCategory::Kem,
-            security_level: 4,
+            security_level: 5,
             name: "ML-KEM-1024",
-            description: "CRYSTALS-ML-KEM Level 4 (256-bit security)",
+            description: "CRYSTALS-ML-KEM Level 5 (256-bit security)",
             enabled: true,
         });
 
@@ -102,18 +102,18 @@ impl AlgorithmRegistry {
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::CbKem6688128,
             category: AlgorithmCategory::Kem,
-            security_level: 4,
+            security_level: 5,
             name: "CB-KEM 6688128",
-            description: "CB-KEM Level 4 (256-bit security)",
+            description: "CB-KEM Level 5 (256-bit security)",
             enabled: true,
         });
 
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::CbKem6960119,
             category: AlgorithmCategory::Kem,
-            security_level: 4,
+            security_level: 5,
             name: "CB-KEM 6960119",
-            description: "CB-KEM Level 4 (256-bit security)",
+            description: "CB-KEM Level 5 (256-bit security)",
             enabled: true,
         });
 
@@ -148,9 +148,9 @@ impl AlgorithmRegistry {
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::Hqc256,
             category: AlgorithmCategory::Kem,
-            security_level: 4,
+            security_level: 5,
             name: "HQC-256",
-            description: "HQC Level 4 (256-bit security)",
+            description: "HQC Level 5 (256-bit security)",
             enabled: true,
         });
 
@@ -176,9 +176,9 @@ impl AlgorithmRegistry {
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::MlDsa87,
             category: AlgorithmCategory::Signature,
-            security_level: 4,
+            security_level: 5,
             name: "ML-DSA-87",
-            description: "CRYSTALS-ML-DSA Level 4 (256-bit security)",
+            description: "CRYSTALS-ML-DSA Level 5 (256-bit security)",
             enabled: true,
         });
 
@@ -231,9 +231,9 @@ impl AlgorithmRegistry {
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::SlhDsaSha256256fRobust,
             category: AlgorithmCategory::Signature,
-            security_level: 4,
+            security_level: 5,
             name: "SLH-DSA-SHA256-256f-Robust",
-            description: "SLH-DSA SHA256 Level 4 (256-bit security)",
+            description: "SLH-DSA SHA256 Level 5 (256-bit security)",
             enabled: true,
         });
 
@@ -258,9 +258,9 @@ impl AlgorithmRegistry {
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::SlhDsaShake256256fRobust,
             category: AlgorithmCategory::Signature,
-            security_level: 4,
+            security_level: 5,
             name: "SLH-DSA-SHAKE256-256f-Robust",
-            description: "SLH-DSA SHAKE256 Level 4 (256-bit security)",
+            description: "SLH-DSA SHAKE256 Level 5 (256-bit security)",
             enabled: true,
         });
 
@@ -793,13 +793,12 @@ impl AlgorithmRegistry {
                 Algorithm::MixOnionRouting,
                 Algorithm::SessionResumptionBinding,
             ],
-            4 => &[
+            4 => &[Algorithm::DuplexSpongeAead, Algorithm::TweakAead],
+            5 => &[
                 Algorithm::MlKem1024,
                 Algorithm::MlDsa87,
-                Algorithm::DuplexSpongeAead,
-                Algorithm::TweakAead,
+                Algorithm::FnDsa1024,
             ],
-            5 => &[Algorithm::FnDsa1024],
             _ => &[],
         }
     }
@@ -990,13 +989,12 @@ pub fn algorithms_by_security_level(level: u32) -> &'static [Algorithm] {
             Algorithm::MixOnionRouting,
             Algorithm::SessionResumptionBinding,
         ],
-        4 => &[
+        4 => &[Algorithm::DuplexSpongeAead, Algorithm::TweakAead],
+        5 => &[
             Algorithm::MlKem1024,
             Algorithm::MlDsa87,
-            Algorithm::DuplexSpongeAead,
-            Algorithm::TweakAead,
+            Algorithm::FnDsa1024,
         ],
-        5 => &[Algorithm::FnDsa1024],
         _ => &[],
     }
 }
@@ -1034,5 +1032,119 @@ mod tests {
 
         let kem_algorithms = algorithms_by_category(AlgorithmCategory::Kem);
         assert!(!kem_algorithms.is_empty());
+    }
+
+    /// Regression test for card t_e3457ac8: `security_level` must track each
+    /// algorithm's own NIST PQC security category, not an ad-hoc ordinal that
+    /// happens to coincide with it for most entries. Every value below is
+    /// sourced from the algorithm's own specification:
+    ///
+    /// - ML-KEM-512/768/1024: FIPS 203 (Categories 1/3/5)
+    /// - ML-DSA-65/87: FIPS 204 (Categories 3/5) — ML-DSA-44 is intentionally
+    ///   excluded: FIPS 204 claims Category 2 for it but permits a documented
+    ///   fallback to Category 1 with a weaker RBG, so the correct registered
+    ///   value is genuinely ambiguous without knowing which RBG posture this
+    ///   crate assumes (see card t_e3457ac8 follow-up notes).
+    /// - FN-DSA-512/1024 (Falcon): Categories 1/5
+    /// - SLH-DSA SHA256/SHAKE256 -128f/-192f/-256f: FIPS 205 Table (Categories
+    ///   1/3/5; confirmed via reference/fips205/NIST.FIPS.205.pdf sections
+    ///   11.2.1 "SLH-DSA Using SHA2 for Security Category 1" and 11.2.2
+    ///   "...for Security Categories 3 and 5")
+    /// - CB-KEM 348864/460896/6688128/6960119/8192128: Classic McEliece spec
+    ///   (Categories 1/3/5/5/5 — all three "128"-suffixed parameter sets are
+    ///   Category 5)
+    /// - HQC-128/192/256: HQC v5.0.0 spec Table 5 "Parameter sets for HQC"
+    ///   (reference/hqc-avx2/hqc_specifications_2025_08_22.pdf) — HQC-1/3/5
+    ///   map directly to NIST-1/3/5
+    ///
+    /// A future entry registered at the wrong level will fail this test as
+    /// soon as it's added to the table below alongside its registration.
+    #[test]
+    fn test_security_levels_match_documented_nist_category() {
+        let registry = AlgorithmRegistry::new();
+
+        let expected: &[(Algorithm, u32)] = &[
+            (Algorithm::MlKem512, 1),
+            (Algorithm::MlKem768, 3),
+            (Algorithm::MlKem1024, 5),
+            (Algorithm::CbKem348864, 1),
+            (Algorithm::CbKem460896, 3),
+            (Algorithm::CbKem6688128, 5),
+            (Algorithm::CbKem6960119, 5),
+            (Algorithm::CbKem8192128, 5),
+            (Algorithm::Hqc128, 1),
+            (Algorithm::Hqc192, 3),
+            (Algorithm::Hqc256, 5),
+            (Algorithm::MlDsa65, 3),
+            (Algorithm::MlDsa87, 5),
+            (Algorithm::FnDsa, 1),
+            (Algorithm::FnDsa512, 1),
+            (Algorithm::FnDsa1024, 5),
+            (Algorithm::SlhDsaSha256128fRobust, 1),
+            (Algorithm::SlhDsaSha256192fRobust, 3),
+            (Algorithm::SlhDsaSha256256fRobust, 5),
+            (Algorithm::SlhDsaShake256128fRobust, 1),
+            (Algorithm::SlhDsaShake256192fRobust, 3),
+            (Algorithm::SlhDsaShake256256fRobust, 5),
+        ];
+
+        for (algorithm, expected_level) in expected {
+            let metadata = registry
+                .get_metadata(algorithm)
+                .unwrap_or_else(|| panic!("{algorithm:?} missing from registry"));
+            assert_eq!(
+                metadata.security_level, *expected_level,
+                "{algorithm:?} is registered at security_level {}, but its spec claims NIST \
+                 Category {expected_level}",
+                metadata.security_level
+            );
+        }
+    }
+
+    /// The security level is stored in more than one place, and that duplication -- not the
+    /// arithmetic -- is what let the wrong values survive: this registry's table, its three
+    /// hand-written no_std static-slice copies, and an entirely separate hardcoded `match` in
+    /// `lib_q_types::Algorithm::security_level`. Fixing one copy left the others disagreeing,
+    /// silently, because nothing compared them.
+    ///
+    /// The test above pins the registry against the specifications. This one pins the copies
+    /// against EACH OTHER, so a future edit to one of them cannot drift. It walks whatever the
+    /// registry reports as supported rather than a hand-written list, so an algorithm added
+    /// later is covered without anyone remembering to extend this test.
+    #[test]
+    fn registry_and_types_agree_on_every_security_level() {
+        let registry = AlgorithmRegistry::new();
+        let algorithms = registry.supported_algorithms();
+        assert!(
+            !algorithms.is_empty(),
+            "supported_algorithms() is empty, so this test would pass while checking nothing"
+        );
+
+        let mut checked = 0usize;
+        for algorithm in algorithms.iter() {
+            let Some(metadata) = registry.get_metadata(algorithm) else {
+                continue;
+            };
+            // Hashes and other entries that carry no category are registered at 0; skip them
+            // rather than assert a level they do not claim.
+            if metadata.security_level == 0 {
+                continue;
+            }
+            assert_eq!(
+                metadata.security_level,
+                algorithm.security_level(),
+                "{algorithm:?}: the registry says security_level {}, but \
+                 lib_q_types::Algorithm::security_level() says {}. These are duplicate copies of \
+                 one table and must be changed together.",
+                metadata.security_level,
+                algorithm.security_level()
+            );
+            checked += 1;
+        }
+
+        assert!(
+            checked > 0,
+            "no algorithm carried a non-zero security level, so nothing was actually compared"
+        );
     }
 }
