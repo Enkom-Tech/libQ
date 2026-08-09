@@ -1,3 +1,8 @@
+# origin: self-generated; provenance unverified. This file's format ("<key> = <hexstring>" with
+# "#" comments) closely resembles github.com/Colfenor/classic-mceliece-rust's own data/testdata.txt,
+# but a byte-for-byte diff against that repo's main branch and 7 sampled historical commits (2022-02
+# through 2022-10) found no exact match, so it is NOT registered as upstream. Treated conservatively
+# as self-generated pending a definitive source; do not relabel without a verified byte match.
 ## Testdata: contains binary strings used in unittests
 ##
 ## This is a UTF-8 file in a custom file format.

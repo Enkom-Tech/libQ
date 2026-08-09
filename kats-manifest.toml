@@ -64,7 +64,30 @@
 # it exists to catch, just moved one level up.
 
 [scan]
-roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats", "lib-q-cb-kem/data/kat", "lib-q-sha3/tests/data/turboshake"]
+# 2026-08-09 (card t_71d4f79a / t_f0d676d1, "unregistered majority" pass): a repo-wide sweep found
+# 96 tracked files matching the [scan] extensions, of which only 29 were registered -- the
+# unregistered majority included the best corpora in the repo (ML-KEM ACVP, SLH-DSA ACVP, ML-DSA
+# Wycheproof). This pass investigated and registered ALL of them. New roots added (parent dirs
+# supersede narrower previously-registered subdirectory roots where noted, since os.walk recurses):
+#   lib-q-sha3/tests/data           (supersedes the former .../turboshake root; recursive, still
+#                                     covers turboshake/ and upstream/)
+#   lib-q-cb-kem/data               (supersedes the former .../data/kat root; recursive)
+#   lib-q-keccak-digest/tests/data, lib-q-ml-kem/tests, lib-q-slh-dsa/tests/acvp,
+#   lib-q-ml-dsa/tests/wycheproof, lib-q-ml-dsa/tests/test_vectors, lib-q-k12/tests/data,
+#   lib-q-random/tests/data, lib-q-hpke/tests/fixtures, lib-q-blind-pcs/tests/vectors,
+#   lib-q-blind-token/tests/vectors, lib-q-dkg/tests/vectors, lib-q-lattice-zkp/tests/vectors,
+#   lib-q-mac/tests/vectors, lib-q-zkp/tests/vectors, lib-q-prf/tests, export/kat-vectors
+# See scratchpad/audit-triage/fix-kat-registration.md for the full per-corpus investigation notes.
+#
+# DEFERRED, not registered this pass: lib-q-hpke/tests/fixtures/negotiated_params_rfc_strict_pq_base.json
+# is genuinely self-generated (own frozen negotiation-output fixture, see
+# lib-q-hpke/tests/fixtures/PROVENANCE.md) but its path contains "rfc" (from the `RfcStrictPq`
+# profile name) and CHECK 4 correctly refuses to let a non-upstream entry sit at such a path --
+# this is the guard doing its job, not a bug to route around. Fixing this needs renaming the
+# fixture file/profile inside lib-q-hpke's own test tree, which is crate source/test work out of
+# scope for this kats-manifest-only pass (see repo routing rules). The PROVENANCE.md sidecar is
+# left in place as documentation for whoever picks up that rename.
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats", "lib-q-cb-kem/data", "lib-q-sha3/tests/data", "lib-q-keccak-digest/tests/data", "lib-q-ml-kem/tests", "lib-q-slh-dsa/tests/acvp", "lib-q-ml-dsa/tests/wycheproof", "lib-q-ml-dsa/tests/test_vectors", "lib-q-k12/tests/data", "lib-q-random/tests/data", "lib-q-blind-pcs/tests/vectors", "lib-q-blind-token/tests/vectors", "lib-q-dkg/tests/vectors", "lib-q-lattice-zkp/tests/vectors", "lib-q-mac/tests/vectors", "lib-q-zkp/tests/vectors", "lib-q-prf/tests", "export/kat-vectors"]
 # `lib-q-ml-dsa/tests/kats` REPLACED the narrower `lib-q-ml-dsa/tests/kats/acvp-1_1_0_36` root on
 # 2026-08-07. The subdirectory was registered deliberately at the time because the parent also holds
 # the six former `nistkats*.json` files, which could not then be registered (no way to satisfy
@@ -450,3 +473,384 @@ origin = "upstream"
 upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/6327a61bc3116ba245097ff25a79b9450f583d03/turboshake/tests/data/turboshake256_7.blb"
 upstream_sha256 = "358249455ae45d148f6e9af3d3afa64974360366bffb6b64aa24280ca49337e5"
 sha256 = "358249455ae45d148f6e9af3d3afa64974360366bffb6b64aa24280ca49337e5"
+
+# --- lib-q-ml-kem/tests/*.json -- genuine NIST ACVP vectors -----------------------------------
+# Registered 2026-08-09 (card t_71d4f79a / t_f0d676d1). Verified by LIVE DOWNLOAD against
+# github.com/usnistgov/ACVP-Server at tag v1.1.0.36 (same tag as the ml-dsa ACVP entries above) --
+# byte-for-byte identical. Sidecar: lib-q-ml-kem/tests/PROVENANCE.md.
+
+[[kat]]
+path = "lib-q-ml-kem/tests/encap-decap.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-KEM-encapDecap-FIPS203/internalProjection.json"
+upstream_sha256 = "4b5afd6c7075b1ffebc099a70dcf907b189daadd42921223127732e3ec83c333"
+sha256 = "4b5afd6c7075b1ffebc099a70dcf907b189daadd42921223127732e3ec83c333"
+
+[[kat]]
+path = "lib-q-ml-kem/tests/key-gen.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/ML-KEM-keyGen-FIPS203/internalProjection.json"
+upstream_sha256 = "0fdca41ed30f49c828af80c73a6424ece3accc1e3430ae14492363aaadeb0e48"
+sha256 = "0fdca41ed30f49c828af80c73a6424ece3accc1e3430ae14492363aaadeb0e48"
+
+# --- lib-q-slh-dsa/tests/acvp/*/internalProjection.json -- genuine NIST ACVP vectors -----------
+# Registered 2026-08-09. Verified by LIVE DOWNLOAD against github.com/usnistgov/ACVP-Server at tag
+# v1.1.0.36 -- byte-for-byte identical. Sidecar: lib-q-slh-dsa/tests/acvp/PROVENANCE.md.
+
+[[kat]]
+path = "lib-q-slh-dsa/tests/acvp/SLH-DSA-keyGen-FIPS205/internalProjection.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/SLH-DSA-keyGen-FIPS205/internalProjection.json"
+upstream_sha256 = "e3e23af56a1fdb198ba27cd508a11d42af82d14c467cbcfe9802b66d14977eb0"
+sha256 = "e3e23af56a1fdb198ba27cd508a11d42af82d14c467cbcfe9802b66d14977eb0"
+
+[[kat]]
+path = "lib-q-slh-dsa/tests/acvp/SLH-DSA-sigGen-FIPS205/internalProjection.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/SLH-DSA-sigGen-FIPS205/internalProjection.json"
+upstream_sha256 = "4300db232e6e1cae551a5115a0224600cf0177262b15b90ac26d87301ca72660"
+sha256 = "4300db232e6e1cae551a5115a0224600cf0177262b15b90ac26d87301ca72660"
+
+[[kat]]
+path = "lib-q-slh-dsa/tests/acvp/SLH-DSA-sigVer-FIPS205/internalProjection.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/usnistgov/ACVP-Server/v1.1.0.36/gen-val/json-files/SLH-DSA-sigVer-FIPS205/internalProjection.json"
+upstream_sha256 = "8445792888860743679ce4577e13d8593f6d1ca759519c59247713d93b78d401"
+sha256 = "8445792888860743679ce4577e13d8593f6d1ca759519c59247713d93b78d401"
+
+# --- lib-q-ml-dsa/tests/wycheproof/*.json -- genuine Wycheproof vectors ------------------------
+# Registered 2026-08-09. Verified by LIVE DOWNLOAD against github.com/C2SP/wycheproof PR #112 head
+# commit 8e7fa6f87e6993d7b613cf48b46512a32df8084a -- byte-for-byte identical, all six files.
+# Sidecar: lib-q-ml-dsa/tests/wycheproof/PROVENANCE.md.
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/wycheproof/mldsa_44_standard_sign_test.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/C2SP/wycheproof/8e7fa6f87e6993d7b613cf48b46512a32df8084a/testvectors_v1/mldsa_44_standard_sign_test.json"
+upstream_sha256 = "f8890abec8656326346dda69b5c3218358584b7abd1c0c946c7c245ff7ba0089"
+sha256 = "f8890abec8656326346dda69b5c3218358584b7abd1c0c946c7c245ff7ba0089"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/wycheproof/mldsa_44_standard_verify_test.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/C2SP/wycheproof/8e7fa6f87e6993d7b613cf48b46512a32df8084a/testvectors_v1/mldsa_44_standard_verify_test.json"
+upstream_sha256 = "0cd202989ec16ca9395c1df0d34764b40eb8e55e29e0c3187277e117beb7048c"
+sha256 = "0cd202989ec16ca9395c1df0d34764b40eb8e55e29e0c3187277e117beb7048c"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/wycheproof/mldsa_65_standard_sign_test.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/C2SP/wycheproof/8e7fa6f87e6993d7b613cf48b46512a32df8084a/testvectors_v1/mldsa_65_standard_sign_test.json"
+upstream_sha256 = "a243f6b250c86512b0fc7bc264a19fb18574cf8132158394d37619b9d6aca029"
+sha256 = "a243f6b250c86512b0fc7bc264a19fb18574cf8132158394d37619b9d6aca029"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/wycheproof/mldsa_65_standard_verify_test.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/C2SP/wycheproof/8e7fa6f87e6993d7b613cf48b46512a32df8084a/testvectors_v1/mldsa_65_standard_verify_test.json"
+upstream_sha256 = "46e19379154db240863f34888e81ef1b746fb595206ca26d8a9bbf1c60e95c56"
+sha256 = "46e19379154db240863f34888e81ef1b746fb595206ca26d8a9bbf1c60e95c56"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/wycheproof/mldsa_87_standard_sign_test.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/C2SP/wycheproof/8e7fa6f87e6993d7b613cf48b46512a32df8084a/testvectors_v1/mldsa_87_standard_sign_test.json"
+upstream_sha256 = "634f61eee3b9d24240dfddfd4fc77e4d42b688dcc68aabfb56c04c75c822d74e"
+sha256 = "634f61eee3b9d24240dfddfd4fc77e4d42b688dcc68aabfb56c04c75c822d74e"
+
+[[kat]]
+path = "lib-q-ml-dsa/tests/wycheproof/mldsa_87_standard_verify_test.json"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/C2SP/wycheproof/8e7fa6f87e6993d7b613cf48b46512a32df8084a/testvectors_v1/mldsa_87_standard_verify_test.json"
+upstream_sha256 = "52e43c0c15784ddd7177aac674165408e54bef2239a2d517680057391cc82614"
+sha256 = "52e43c0c15784ddd7177aac674165408e54bef2239a2d517680057391cc82614"
+
+# --- lib-q-ml-dsa/tests/test_vectors/interop_vectors.json -- self-generated interop pin --------
+[[kat]]
+path = "lib-q-ml-dsa/tests/test_vectors/interop_vectors.json"
+origin = "self-generated"
+generator = "lib-q-ml-dsa tests/wire_format_tests.rs (fs::write of a fixed-seed sign/verify wire-format encoding of the crate's own output)"
+sha256 = "7f9bce7550dee2dcfe6ca9dfe87c678419aaeb33eaf0f6f767b9af675773b09b"
+
+# --- lib-q-k12/tests/data/k12_kt{128,256}_vectors.json -- third-party, transcribed values ------
+# See lib-q-k12/tests/data/PROVENANCE.md for the per-file investigation (KT128 first two vectors
+# spot-verified byte-for-byte against a live XKCP fetch; KT256 not independently re-verified).
+
+[[kat]]
+path = "lib-q-k12/tests/data/k12_kt128_vectors.json"
+origin = "third-party"
+source = "Values transcribed (into this repo's own JSON schema) from XKCP's official KangarooTwelve test vectors (KT128/TurboSHAKE128); first two vectors spot-verified byte-for-byte against a live fetch of github.com/XKCP/XKCP tests/TestVectors/KangarooTwelve.txt on 2026-08-09, remaining 10 not individually re-checked this session"
+sha256 = "f438c6dececea31d2139d39e89484830532f3d636243e00f20d04816ea338bf6"
+
+[[kat]]
+path = "lib-q-k12/tests/data/k12_kt256_vectors.json"
+origin = "third-party"
+source = "File self-declares \"RFC 9861 (KangarooTwelve / TurboSHAKE) — test vectors as in Appendix A.5\"; not independently re-verified against a live RFC 9861 fetch this session"
+sha256 = "72306e5dd90c99a2b48b3ba2459701137c376e37203f4f9882ab004e5f342b61"
+
+# --- lib-q-random/tests/data/kt128_det_rng_v1.json -- self-generated ---------------------------
+[[kat]]
+path = "lib-q-random/tests/data/kt128_det_rng_v1.json"
+origin = "self-generated"
+generator = "lib-q-random's own KT128-based deterministic RNG, fixed-seed pin (domain \"libQ-DET-RNG-v1\")"
+sha256 = "2e9afbd05d7e8ce5ebd15ff0c85c79a8c38ef05aa08b7123ad4c0b246dd34da9"
+
+# --- self-generated own-KAT-format manifests/vectors (blind-pcs, blind-token, dkg, lattice-zkp,
+#     mac, zkp, and the export/ copy) -----------------------------------------------------------
+[[kat]]
+path = "lib-q-blind-pcs/tests/vectors/manifest.json"
+origin = "self-generated"
+generator = "lib-q-blind-pcs tests demo_vectors test (cargo test -p lib-q-blind-pcs demo_vectors -- --nocapture); schema blind-pcs-demo-v1"
+sha256 = "8c440f6ff9b82a3ead6f70c0752c0194334dd42c8303c1bbc5d7ad6a53361086"
+
+[[kat]]
+path = "lib-q-blind-token/tests/vectors/manifest.json"
+origin = "self-generated"
+generator = "lib-q-blind-token tests/kat_regenerate.rs (cargo test -p lib-q-blind-token kat_regenerate_vectors -- --ignored)"
+sha256 = "e2360b419a4d3e59bfade98e7594df2818b5d3c828c953e1cfdeca5c6a5980c6"
+
+[[kat]]
+path = "lib-q-blind-token/tests/vectors/blind-token-v2.json"
+origin = "self-generated"
+generator = "lib-q-blind-token tests/kat_regenerate.rs; schema blind-token-kat-v2"
+sha256 = "a74dbcb09fad982bc0f622086b45dbcb21cc0526f43a35dcf9b2ff55ae88cb5e"
+
+[[kat]]
+path = "lib-q-dkg/tests/vectors/manifest.json"
+origin = "self-generated"
+generator = "lib-q-dkg tests/kat_regenerate.rs (cargo test -p lib-q-dkg kat_regenerate_vectors -- --ignored)"
+sha256 = "24a84794daecbc1fb722a8e2390ea0e7320e3108a39cb019741e6095dbbdeca1"
+
+[[kat]]
+path = "lib-q-dkg/tests/vectors/dkg-v1.json"
+origin = "self-generated"
+generator = "lib-q-dkg tests/kat_regenerate.rs; schema dkg-kat-v1"
+sha256 = "f802595aab53e28198cdfff7b1d57eda74d03fdad078b6eec8853b5b5ef9705f"
+
+[[kat]]
+path = "lib-q-lattice-zkp/tests/vectors/manifest.json"
+origin = "self-generated"
+generator = "lib-q-lattice-zkp tests/kat_regenerate.rs (cargo test -p lib-q-lattice-zkp kat_regenerate_vectors -- --ignored); schema lattice-zkp-kat-v0"
+sha256 = "8e5d03395237970fedd8fd04c77ada4a4a87357d27d856cb0464a5f535899032"
+
+[[kat]]
+path = "lib-q-mac/tests/vectors/manifest.json"
+origin = "self-generated"
+generator = "lib-q-mac tests/kat_regenerate.rs (cargo test -p lib-q-mac kat_regenerate_vectors -- --ignored)"
+sha256 = "afddef9ec5cf61abc55caf47f84ae0752649a9461e6bb5202771169d72d086a4"
+
+[[kat]]
+path = "lib-q-mac/tests/vectors/qcw-mac-v1.json"
+origin = "self-generated"
+generator = "lib-q-mac tests/kat_regenerate.rs; schema qcw-mac-kat-v1"
+sha256 = "947c8fdf5a54365bb77313959d1678ae8d5bfe44e0b4fddee7e6f1f50c161919"
+
+[[kat]]
+path = "export/kat-vectors/qcw-mac-v1.json"
+origin = "self-generated"
+generator = "Exported copy, byte-identical to lib-q-mac/tests/vectors/qcw-mac-v1.json; same generator"
+sha256 = "947c8fdf5a54365bb77313959d1678ae8d5bfe44e0b4fddee7e6f1f50c161919"
+
+[[kat]]
+path = "lib-q-zkp/tests/vectors/recovery-policy-v0/manifest.json"
+origin = "self-generated"
+generator = "lib-q-zkp tests kat_regenerate_recovery_policy_vectors (cargo test -p lib-q-zkp kat_regenerate_recovery_policy_vectors -- --ignored --release); schema recovery-zkp-kat-v0"
+sha256 = "6b1f4000750f2ad9b31aeb53927f4c2915a09469e20119b90616a531956c648a"
+
+[[kat]]
+path = "lib-q-zkp/tests/vectors/recovery-policy-v1/manifest.json"
+origin = "self-generated"
+generator = "lib-q-zkp tests kat_regenerate_recovery_policy_hybrid_vectors (cargo test -p lib-q-zkp kat_regenerate_recovery_policy_hybrid_vectors -- --ignored --release); schema recovery-zkp-kat-v1"
+sha256 = "df0adcc076aefe495cd3a8a8e781d5b7a38d8952141d03edefd4bc7afc48a855"
+
+# --- lib-q-prf/tests/reference_vectors.txt -- self-generated, header-carrying ------------------
+[[kat]]
+path = "lib-q-prf/tests/reference_vectors.txt"
+origin = "self-generated"
+generator = "lib-q-prf scripts/gen_prf_kat.py; primes per src/params.rs (OpenSSL safe-prime generation + SymPy check)"
+sha256 = "8dc313a6494a9c522261c63b3aca101e55c10cfe238ed800eac16a93b2c11c41"
+
+# --- lib-q-cb-kem/data/testdata.txt -- self-generated (provenance unverified), header-carrying --
+# See the file's own leading comment: its "<key> = <hexstring>" format resembles
+# github.com/Colfenor/classic-mceliece-rust's own data/testdata.txt, but a byte-for-byte diff
+# against that repo's main branch and 7 sampled historical commits found no exact match, so it is
+# conservatively marked self-generated rather than upstream/third-party.
+[[kat]]
+path = "lib-q-cb-kem/data/testdata.txt"
+origin = "self-generated"
+generator = "provenance unverified; format resembles Colfenor/classic-mceliece-rust data/testdata.txt but no exact byte match found against main or 7 sampled 2022 commits (checked 2026-08-09)"
+sha256 = "2092fbf2308f24e5db1dc2aaa9877edf2a5e7e16143146930635cd21dd17dacb"
+
+# --- lib-q-sha3/tests/data/*.blb -- curated FIPS-202 worked-example pairs, self-generated ------
+# See lib-q-sha3/tests/data/PROVENANCE.md. sha3_224_kat_new.blb is a DEAD vector (no test reads it).
+
+[[kat]]
+path = "lib-q-sha3/tests/data/cshake128.blb"
+origin = "self-generated"
+sha256 = "712e3d17af303bc17ae41a5a808772537f1afb71809b92222f3b54e8b375c46d"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/cshake128_bytepad_block_aligned.blb"
+origin = "self-generated"
+sha256 = "3139257f65b30381028f26a9bb04eef021a8744c4ba3576bffb9b98aa2371b25"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/cshake256.blb"
+origin = "self-generated"
+sha256 = "31e96f5a21c27d13f6b58543703a97a00cc0c4b288d51890f38c902e8d586ae5"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/cshake256_bytepad_block_aligned.blb"
+origin = "self-generated"
+sha256 = "1bd02cd31a5079acf55a6f4ac59b50c55c090abf0a7e9f887f3d82d996bf9664"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/sha3_224_kat.blb"
+origin = "self-generated"
+sha256 = "a5786d8789c007c462f50c6d28496fe7cb20bb20c3088e2785f58a665eda41d4"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/sha3_224_kat_new.blb"
+origin = "self-generated"
+sha256 = "a5786d8789c007c462f50c6d28496fe7cb20bb20c3088e2785f58a665eda41d4"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/sha3_256_kat.blb"
+origin = "self-generated"
+sha256 = "8b61086844e2e32ad5b77a7d4a6569312b26cbdd0e1f5fda5beeec745ee3434e"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/sha3_384_kat.blb"
+origin = "self-generated"
+sha256 = "57a89e55c19287eb0b5ecb7afafc62a09cb36abf2ba736b082cf201f12c98550"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/sha3_512_kat.blb"
+origin = "self-generated"
+sha256 = "f583ba7abd70bd4915efed892e6b20e3d2fd1fa0a1034741aa954e58211440bc"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/shake128_kat.blb"
+origin = "self-generated"
+sha256 = "9e7f575f28838312bae6303757a4a8fe81ce5249b12f6afe29fe7804ef795cf9"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/shake256_kat.blb"
+origin = "self-generated"
+sha256 = "c2e520ba1dfc2838cd867c5b87a9e48cbaf46b8b63c9905a84a743012f30f632"
+
+# --- lib-q-sha3/tests/data/upstream/*.blb -- byte-for-byte RustCrypto/hashes, sidecar-documented
+# Sidecar: lib-q-sha3/tests/data/upstream/PROVENANCE.md (pre-existing, verified 2026-08-07).
+# NOTE: sha3_384_kat.blb's normalised (CRLF->LF) sha256 differs from the sidecar doc's table entry
+# (77022fe9...), which is the file's RAW hash -- this file's binary content happens to contain a
+# literal \r\n byte pair, so CHECK 3's line-ending normalisation (designed for text vectors)
+# changes its effective hash. The value below is what CHECK 3 actually computes; this is a
+# documented quirk of the normalisation, not a content discrepancy.
+
+[[kat]]
+path = "lib-q-sha3/tests/data/upstream/sha3_224_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/sha3_224_kat.blb"
+upstream_sha256 = "15c5c56e597990fcd42002bc9e00a779411a0930451c3141fa0f0bc5d23a122d"
+sha256 = "15c5c56e597990fcd42002bc9e00a779411a0930451c3141fa0f0bc5d23a122d"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/upstream/sha3_256_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/sha3_256_kat.blb"
+upstream_sha256 = "89571bf7ada95c79ca4832b219adcbaebe50cd0369011051a702888a2efa6175"
+sha256 = "89571bf7ada95c79ca4832b219adcbaebe50cd0369011051a702888a2efa6175"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/upstream/sha3_384_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/sha3_384_kat.blb"
+upstream_sha256 = "872a5779d877d19069105b7545df280f70187bfc7588905a063569594879ba9b"
+sha256 = "872a5779d877d19069105b7545df280f70187bfc7588905a063569594879ba9b"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/upstream/sha3_512_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/sha3_512_kat.blb"
+upstream_sha256 = "8a919debbb6e573fe3578b03558ed5bd4e0c23179a33307f996511df6224bea7"
+sha256 = "8a919debbb6e573fe3578b03558ed5bd4e0c23179a33307f996511df6224bea7"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/upstream/shake128_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.11.0/sha3/tests/data/shake128_kat.blb"
+upstream_sha256 = "0d955feda576f93520d6ad616cc1f51437c8266ba3609c050d30fd1846eb4d6a"
+sha256 = "0d955feda576f93520d6ad616cc1f51437c8266ba3609c050d30fd1846eb4d6a"
+
+[[kat]]
+path = "lib-q-sha3/tests/data/upstream/shake256_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.11.0/sha3/tests/data/shake256_kat.blb"
+upstream_sha256 = "3dd0883df61d39ca15901186cc3bc33ab534e9fac1345b67535ae96511bf9782"
+sha256 = "3dd0883df61d39ca15901186cc3bc33ab534e9fac1345b67535ae96511bf9782"
+
+# --- lib-q-keccak-digest/tests/data/*.blb -- curated FIPS-202-style worked-example pairs -------
+# See lib-q-keccak-digest/tests/data/PROVENANCE.md.
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/keccak_224_kat.blb"
+origin = "self-generated"
+sha256 = "8628fbab2a69ed340866d3c8dcf157b031dbcfaf504870263abd1fe05f6e3315"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/keccak_256_full_kat.blb"
+origin = "self-generated"
+sha256 = "4c0be90f96766cc656e28a464c442e39176d562d2be5e73e32225d2ec74c9891"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/keccak_256_kat.blb"
+origin = "self-generated"
+sha256 = "15350db38b0a4c263d5c0979ee6d0ebad239a13e4a357e07486ebcde1f0fe8ef"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/keccak_384_kat.blb"
+origin = "self-generated"
+sha256 = "ade0b174c6e643de198fe069a26e77c7c9bd14c27c1c6dc2aea6a8aa874f1379"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/keccak_512_kat.blb"
+origin = "self-generated"
+sha256 = "07bf26173b3a402b22aa00c5d0e9075a802fac01e12d0672fc50c7a39c164c88"
+
+# --- lib-q-keccak-digest/tests/data/upstream/*.blb -- byte-for-byte RustCrypto/hashes ----------
+# Sidecar: lib-q-keccak-digest/tests/data/upstream/PROVENANCE.md (pre-existing, verified 2026-08-07).
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/upstream/keccak_224_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/keccak_224_kat.blb"
+upstream_sha256 = "27900b7a286f8c10b9864af580c1c0ba57497d40d04aeed0ae842b5016519efa"
+sha256 = "27900b7a286f8c10b9864af580c1c0ba57497d40d04aeed0ae842b5016519efa"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/upstream/keccak_256_full_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/keccak_256_full_kat.blb"
+upstream_sha256 = "2dd4854f086c0c959c5b442c4e54c915509bd21cdeeb55050bc9448948a6dd10"
+sha256 = "2dd4854f086c0c959c5b442c4e54c915509bd21cdeeb55050bc9448948a6dd10"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/upstream/keccak_256_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/keccak_256_kat.blb"
+upstream_sha256 = "fcdf47d6eb63ea44a07290da6fe913fc0220c7747ec7fc9d20dc68453ca8d823"
+sha256 = "fcdf47d6eb63ea44a07290da6fe913fc0220c7747ec7fc9d20dc68453ca8d823"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/upstream/keccak_384_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/keccak_384_kat.blb"
+upstream_sha256 = "82fbc8c49b7ab763033dad0fa0766042e19df5f3d1987e3b203b678efa03ff4e"
+sha256 = "82fbc8c49b7ab763033dad0fa0766042e19df5f3d1987e3b203b678efa03ff4e"
+
+[[kat]]
+path = "lib-q-keccak-digest/tests/data/upstream/keccak_512_kat.blb"
+origin = "upstream"
+upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/keccak_512_kat.blb"
+upstream_sha256 = "81066e66b59e94d912648ab10c67c9d617bf978b1af3379435c33dec5dd1ff68"
+sha256 = "81066e66b59e94d912648ab10c67c9d617bf978b1af3379435c33dec5dd1ff68"
