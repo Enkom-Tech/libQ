@@ -141,29 +141,17 @@ fn read<T: DeserializeOwned>(variant: &str, file: &str) -> T {
     serde_json::from_reader(reader).expect("Could not deserialize KAT file.")
 }
 
-// t_f88bc433 CORRECTION (see fix-mldsa-avx2.md in scratchpad): the original framing --
-// "diverges under `simd256`" -- does not reproduce. `simd256` ALONE, clean-built (debug or
-// release, many repeated runs), byte-for-byte matches every NIST ACVP sigGen vector, including
-// this one. The actual, reliably reproducible trigger is `simd256` **together with** `hardened`:
-// hardened's masked-share signing (hardened::split_signing_key_ntt_three, consuming the SAME
-// deterministic ACVP `rnd` as masking-split entropy) interacts with the concrete AVX2 SIMDUnit
-// backend to reach a different (but independently verified VALID -- confirmed against the fips204
-// crate's ACVP-internal verifier, see tests/avx2_independent_verify.rs) rejection-sampling outcome
-// than portable+hardened, which matches NIST. Full matrix (release, clean target):
-//   portable, no hardened -> matches NIST | portable + hardened -> matches NIST
-//   simd256,  no hardened -> matches NIST | simd256  + hardened -> DIFFERENT (valid) signature
-// `sigver` and `keygen` pass in every combination; only signature GENERATION diverges, and only
-// under simd256+hardened together. Root arithmetic locus not yet isolated (all AVX2-vs-portable
-// SIMDUnit primitives, incl. the masked split/merge helpers' building blocks, were checked
-// exhaustively equal in src/simd/tests.rs -- the divergence is a full-pipeline effect, not a
-// broken primitive). Delete this attribute the moment t_f88bc433 closes.
+// t_f88bc433 FIXED: root cause was `AVX2Operations::reduce` (src/simd/avx2.rs) only
+// Barrett-reducing 4 of the 32 `SIMD_UNITS_IN_RING_ELEMENT` (indices 0, 8, 16, 24) instead of
+// all of them -- portable's `reduce` correctly iterates every unit. This left 28/32 units'
+// coefficients un-reduced (valid representatives mod q, but not canonical), which is invisible
+// to ordinary use (final serialization/other reduces launder it) except in `hardened`'s
+// `merge_masked_ntt_products` (src/matrix.rs), which relies on `reduce` producing the *canonical*
+// representative right before an infinity-norm rejection check -- a non-canonical representative
+// there flips the accept/reject decision, producing a different (but still valid, per
+// tests/avx2_independent_verify.rs) signature than portable+hardened/NIST. Fixed by making
+// `AVX2Operations::reduce` iterate all `SIMD_UNITS_IN_RING_ELEMENT` units, matching portable.
 #[test]
-#[cfg_attr(
-    all(feature = "simd256", feature = "hardened"),
-    ignore = "AVX2 signing under `hardened` diverges from the NIST ACVP sigGen vector (still a \
-              valid signature, confirmed independently) -- simd256 alone passes; portable+hardened \
-              passes. See tests/avx2_independent_verify.rs and the correction note above. t_f88bc433"
-)]
 fn siggen() {
     let prompts: Prompts<SigGenPromptTestGroup> = read("siggen", "prompt.json");
     assert!(prompts.algorithm == "ML-DSA");

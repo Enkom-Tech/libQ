@@ -344,6 +344,53 @@ mod avx2_vs_portable {
         }
     }
 
+    /// `reduce` must agree between backends on inputs that ACTUALLY NEED REDUCING.
+    ///
+    /// Regression test for a real AVX2 bug: `AVX2SIMDUnit::reduce` Barrett-reduced only units
+    /// 0, 8, 16 and 24 -- 4 of 32 -- leaving 224 of 256 coefficients on a non-canonical (though
+    /// mod-q-correct) representative, while the portable implementation loops over all 32.
+    ///
+    /// `ntt_invntt_reduce_full_ring_match` above also calls both `reduce`s and compares all
+    /// units, yet did not catch this, because it feeds coefficients already inside
+    /// [-q/2, q/2) and only reduces AFTER ntt+invntt. On already-reduced input `reduce` is a
+    /// no-op, so both backends agree and the skipped units are invisible. That made it vacuous
+    /// for the property it names.
+    ///
+    /// The inputs here are deliberately large -- the range `matrix.rs` says it is guarding
+    /// against, where `columns_in_a` additions reach `columns_in_a * FIELD_MODULUS` and
+    /// `invert_ntt_montgomery` requires coefficients of at most `FIELD_MODULUS`. Reduction is
+    /// therefore load-bearing on every unit, and skipping any of them shows up immediately.
+    #[test]
+    fn reduce_matches_on_inputs_that_actually_need_reducing() {
+        use crate::constants::FIELD_MODULUS;
+        use crate::simd::traits::SIMD_UNITS_IN_RING_ELEMENT as U;
+        let mut st = 0x5EED_0000_BADD_CAFEu64;
+        for _ in 0..2000 {
+            // Span roughly +/- 8 * FIELD_MODULUS, i.e. genuinely unreduced accumulator values.
+            let coeffs: [[i32; N]; U] = core::array::from_fn(|_| {
+                core::array::from_fn(|_| {
+                    let m = (next(&mut st) % (16 * FIELD_MODULUS as u64)) as i64;
+                    (m - 8 * FIELD_MODULUS as i64) as i32
+                })
+            });
+            let mut pr: [PortableSIMDUnit; U] =
+                core::array::from_fn(|i| load::<PortableSIMDUnit>(&coeffs[i]));
+            let mut ar: [AVX2SIMDUnit; U] =
+                core::array::from_fn(|i| load::<AVX2SIMDUnit>(&coeffs[i]));
+
+            PortableSIMDUnit::reduce(&mut pr);
+            AVX2SIMDUnit::reduce(&mut ar);
+            for i in 0..U {
+                assert_eq!(
+                    dump(&pr[i]),
+                    dump(&ar[i]),
+                    "reduce mismatch unit {i} (input {:?})",
+                    coeffs[i]
+                );
+            }
+        }
+    }
+
     #[test]
     fn montgomery_multiply_matches() {
         // Signing multiplies large (gamma1-bounded) operands that keygen (eta-bounded) never hits.
