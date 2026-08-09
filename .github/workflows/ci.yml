@@ -153,6 +153,16 @@ jobs:
       - name: Guard KAT vector provenance
         run: bash ./scripts/ci-guard-kat-provenance.sh
 
+      # Proves the guard above can still FAIL. It builds a synthetic repo in a temp dir and
+      # checks that each of its five checks rejects the defect it exists to catch, plus that the
+      # known-good baseline passes (without that, every mutation result would be vacuous). A
+      # provenance guard that returns clean on every input looks maximally rigorous and proves
+      # nothing, which is the same defect class the guard itself was written to stop -- and a
+      # refactor silently inverting a verdict has happened in this repo before. Stdlib-only,
+      # no network, touches nothing in the working tree.
+      - name: Self-test the KAT provenance guard
+        run: python scripts/selftest_kat_provenance_guard.py
+
       # Static analysis of .github/**/*.yml itself: catches a NEW `cargo test` call site landing
       # in one of the three shapes proven in this repo to report green without doing what its name
       # claims (R1 piped output, R2 unguarded dead name filter, R3 `|| true`/`|| echo` masking a

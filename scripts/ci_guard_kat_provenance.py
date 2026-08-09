@@ -826,8 +826,18 @@ def main() -> int:
     check_naming(by_path)
     check_headers(by_path, roots)
 
+    # Label each summary line by whether THAT check failed, rather than printing "ok" against
+    # every one. The unconditional "ok" was actively misleading: a run that failed CHECK 4 still
+    # printed "ok  CHECK 4: 45 non-upstream entr(y/ies) checked against the naming ban" directly
+    # above the failure, so anyone reading the CI log per-check saw a pass on the check that had
+    # just rejected the build. Failure details are matched by their "[CHECK n]" prefix.
+    failed_checks = {
+        f.split("]", 1)[0].lstrip("[") for f in failures if f.startswith("[CHECK ")
+    }
     for n in notes:
-        print(f"  ok  {n}")
+        check_id = n.split(":", 1)[0].strip()
+        label = "FAIL" if check_id in failed_checks else "ok"
+        print(f"  {label:<5}{n}")
     if failures:
         print("")
         print("ci-guard-kat-provenance: FAILED")
