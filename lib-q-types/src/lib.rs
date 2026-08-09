@@ -137,19 +137,27 @@ impl Algorithm {
             Algorithm::SlhDsaSha256192fRobust => 3,
             Algorithm::SlhDsaShake256192fRobust => 3,
 
-            // Level 4 (256-bit security)
-            Algorithm::MlKem1024 => 4,
-            Algorithm::CbKem6688128 => 4,
-            Algorithm::CbKem6960119 => 4,
-            Algorithm::Hqc256 => 4,
-            Algorithm::MlDsa87 => 4,
+            // Level 5. These were all returning 4, which is not a category any of them claims --
+            // it looks like "the next integer after 3" rather than a sourced value. The block was
+            // already self-contradicting: the two SLH-DSA 256f entries returned 5 while sitting
+            // under a "Level 4" heading. Each value below is the category the algorithm's own
+            // specification claims: ML-KEM-1024 FIPS 203; Classic McEliece 6688128 and 6960119
+            // per the submission (every "128"-suffixed set is Category 5); HQC-256 per the
+            // v5.0.0 spec Table 5; ML-DSA-87 FIPS 204; SLH-DSA 256f FIPS 205 11.2.1/11.2.2;
+            // FN-DSA-1024 and Classic McEliece 8192128 were already correct.
+            //
+            // NOTE: this match is a SECOND copy of the table in
+            // lib-q-core/src/algorithm_registry.rs (which itself keeps three more hand-duplicated
+            // no_std static-slice copies). The duplication is why this bug survived: fixing one
+            // copy leaves the others wrong. Change all of them together until they are unified.
+            Algorithm::MlKem1024 => 5,
+            Algorithm::CbKem6688128 => 5,
+            Algorithm::CbKem6960119 => 5,
+            Algorithm::Hqc256 => 5,
+            Algorithm::MlDsa87 => 5,
             Algorithm::SlhDsaSha256256fRobust => 5,
             Algorithm::SlhDsaShake256256fRobust => 5,
-
-            // Level 5 (256-bit security)
             Algorithm::FnDsa1024 => 5,
-
-            // Level 5 (256-bit security, higher performance)
             Algorithm::CbKem8192128 => 5,
 
             // Hash algorithms don't have security levels
