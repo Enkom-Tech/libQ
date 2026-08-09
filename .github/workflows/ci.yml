@@ -916,6 +916,26 @@ jobs:
           cargo check -p lib-q-hqc --features simd-avx2 --target wasm32-unknown-unknown
           cargo check -p lib-q-hqc --features simd-avx2 --target aarch64-unknown-linux-gnu
 
+  # Builds every standalone cargo-fuzz harness (workspace.exclude'd `*/fuzz` crates) with a plain
+  # `cargo check`, so a fuzz target that drifts from the library API it targets fails CI instead
+  # of rotting silently. This does NOT fuzz -- it only proves each harness still compiles.
+  # Card L7/L8: lib-q-lattice-zkp/fuzz stopped compiling (verify_blind_signature signature drift,
+  # E0308) and nothing caught it, because the only fuzz-related CI (zkp-fuzz-scheduled.yml) only
+  # ever touches lib-q-zkp's two targets -- the other 5 excluded harnesses (lattice-zkp, ring-sig,
+  # prf, dkg, threshold-raccoon) had zero CI coverage of any kind. scripts/ci-check-fuzz-harnesses.sh
+  # discovers harnesses by walking the tree for `*/fuzz/Cargo.toml` rather than hardcoding the
+  # list, so a new or removed harness cannot silently drop out of coverage.
+  fuzz-harnesses-build:
+    name: Fuzz harnesses build (cargo check, no fuzzing)
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build every cargo-fuzz harness (cargo check only)
+        run: bash ./scripts/ci-check-fuzz-harnesses.sh
+
   # K12: no_std + alloc + wasm32 + thumb (depends on lib-q-sha3 / lib-q-keccak without keccak `std`)
   k12-no-std-wasm:
     name: K12 no_std / wasm32 / thumb smoke

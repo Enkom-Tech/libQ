@@ -934,6 +934,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-benches"
+version = "0.0.10"
+dependencies = [
+ "criterion",
+ "lib-q",
+]
+
+[[package]]
 name = "lib-q-blind-pcs"
 version = "0.0.10"
 dependencies = [

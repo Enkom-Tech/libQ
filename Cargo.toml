@@ -85,6 +85,8 @@ members = [
     # Examples
     "examples",
     "examples/wasm-browser-demo",
+    # Benchmarks
+    "benches",
 ]
 # Standalone cargo-fuzz harnesses (not workspace members).
 exclude = [
