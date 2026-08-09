@@ -22,7 +22,7 @@ use lib_q_hpke::types::{
 };
 use serde::Deserialize;
 
-const RFC_STRICT_FIXTURE: &str = include_str!("fixtures/negotiated_params_rfc_strict_pq_base.json");
+const RFC_STRICT_FIXTURE: &str = include_str!("fixtures/negotiated_params_strict_pq_base.json");
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "PascalCase")]

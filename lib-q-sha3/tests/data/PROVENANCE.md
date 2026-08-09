@@ -12,14 +12,16 @@ container. `upstream/PROVENANCE.md` explains why both the curated and the upstre
 specific curated files; they are treated as self-generated pending a better source. The `cshake*`
 files are likewise self-generated cSHAKE/bytepad test containers with no cited external source.
 
-DEAD VECTOR: `sha3_224_kat_new.blb` decodes to the same two vectors as `sha3_224_kat.blb` and is
-referenced by NO test in `lib-q-sha3/tests/` (`grep -rl sha3_224_kat_new lib-q-sha3/tests/*.rs`
-found zero files, 2026-08-09) — flagged, not deleted, per the card's "do not delete" instruction.
+DEAD VECTOR (RESOLVED): `sha3_224_kat_new.blb` decoded to the same two vectors as
+`sha3_224_kat.blb` and was referenced by NO test in `lib-q-sha3/tests/` (verified again 2026-08-09
+via `git grep -l sha3_224_kat_new lib-q-sha3/tests/*.rs`, zero files, and a byte-for-byte diff of
+the two decoded `.blb` bodies, which matched exactly). It carried no vector value distinct from
+`sha3_224_kat.blb` and only inflated the corpus, so it was deleted 2026-08-09 (and its
+kats-manifest.toml entry removed) rather than wired into a test.
 
 ## Machine-checked sidecar lines
 
 - `sha3_224_kat.blb`: origin=self-generated; FIPS 202 worked-example pair ("", H("")) and ("abc", H("abc")) in a blobby container, no external source cited
-- `sha3_224_kat_new.blb`: origin=self-generated; decodes to the same two FIPS 202 vectors as sha3_224_kat.blb; referenced by no test in this crate as of 2026-08-09
 - `sha3_256_kat.blb`: origin=self-generated; FIPS 202 worked-example pair ("", H("")) and ("abc", H("abc")) in a blobby container, no external source cited
 - `sha3_384_kat.blb`: origin=self-generated; FIPS 202 worked-example pair ("", H("")) and ("abc", H("abc")) in a blobby container, no external source cited
 - `sha3_512_kat.blb`: origin=self-generated; FIPS 202 worked-example pair ("", H("")) and ("abc", H("abc")) in a blobby container, no external source cited

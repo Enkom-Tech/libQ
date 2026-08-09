@@ -352,22 +352,45 @@ def check_coverage(discovered: dict[str, pathlib.Path], entries: list[dict]) -> 
 # ---------------------------------------------------------------------------
 # CHECK 3 -- content hash
 # ---------------------------------------------------------------------------
-def sha256_of(path: pathlib.Path) -> str:
-    """SHA-256 of the file with CRLF line endings normalised to LF.
+# Extensions whose files are opaque binary containers, not text. CRLF normalisation (below) must
+# never apply to these: a `.blb`/`.bin` blobby container can legitimately contain the two-byte
+# sequence `\r\n` as pure data (e.g. inside an encoded length or vector payload), and collapsing it
+# to `\n` silently changes what is being hashed to something that no longer matches the bytes on
+# disk. For a binary format there is no such thing as a "line ending" to normalise -- doing so
+# means CHECK 3 can no longer detect corruption that happens to land next to such a byte pair, and
+# the manifest ends up pinning a hash of a transformed file rather than the real one. Found
+# 2026-08-09 via `sha3_384_kat.blb`, whose content contains a literal CRLF byte pair.
+BINARY_EXTENSIONS = {"blb", "bin"}
 
-    KAT vectors are text. Hashing the raw bytes makes this check depend on the
-    checkout's line-ending policy rather than on the content: a Windows clone with
-    `core.autocrlf=true` holds CRLF while the repository blobs and every Linux CI
-    checkout hold LF, so the same commit hashes two different ways and CHECK 3 fires
-    on all files at once for a reason that has nothing to do with drift. That is
+
+def is_binary_ext(rel: str) -> bool:
+    suffix = pathlib.PurePosixPath(rel).suffix.lstrip(".").lower()
+    return suffix in BINARY_EXTENSIONS
+
+
+def sha256_of(path: pathlib.Path, *, binary: bool = False) -> str:
+    """SHA-256 of the file, normalising CRLF line endings to LF for text formats only.
+
+    KAT vectors are mostly text. Hashing the raw bytes of a text file makes this check
+    depend on the checkout's line-ending policy rather than on the content: a Windows
+    clone with `core.autocrlf=true` holds CRLF while the repository blobs and every
+    Linux CI checkout hold LF, so the same commit hashes two different ways and CHECK 3
+    fires on all files at once for a reason that has nothing to do with drift. That is
     exactly what happened when this guard first ran in CI.
 
     `.gitattributes` now pins these paths to `-text` so git stops rewriting them, but
-    the normalisation stays: it makes the check correct by construction rather than
-    contingent on every clone being configured right, and it still catches real
-    change, since collapsing CRLF to LF alters nothing else about the bytes.
+    the normalisation stays for text formats: it makes the check correct by
+    construction rather than contingent on every clone being configured right, and it
+    still catches real change, since collapsing CRLF to LF alters nothing else about
+    the bytes.
+
+    For binary containers (see `BINARY_EXTENSIONS`) normalisation is skipped entirely --
+    there is no line-ending convention to correct for, and applying one anyway hashes a
+    transformed copy of the file instead of what is actually on disk.
     """
-    data = path.read_bytes().replace(b"\r\n", b"\n")
+    data = path.read_bytes()
+    if not binary:
+        data = data.replace(b"\r\n", b"\n")
     return hashlib.sha256(data).hexdigest()
 
 
@@ -381,7 +404,7 @@ def check_hashes(by_path: dict[str, dict]) -> None:
         if not expected:
             fail("CHECK 3", f"{rel}: manifest entry has no 'sha256'")
             continue
-        actual = sha256_of(p)
+        actual = sha256_of(p, binary=is_binary_ext(rel))
         checked += 1
         if actual.lower() != expected.lower():
             fail(

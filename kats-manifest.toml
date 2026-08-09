@@ -79,15 +79,13 @@
 #   lib-q-mac/tests/vectors, lib-q-zkp/tests/vectors, lib-q-prf/tests, export/kat-vectors
 # See scratchpad/audit-triage/fix-kat-registration.md for the full per-corpus investigation notes.
 #
-# DEFERRED, not registered this pass: lib-q-hpke/tests/fixtures/negotiated_params_rfc_strict_pq_base.json
-# is genuinely self-generated (own frozen negotiation-output fixture, see
-# lib-q-hpke/tests/fixtures/PROVENANCE.md) but its path contains "rfc" (from the `RfcStrictPq`
-# profile name) and CHECK 4 correctly refuses to let a non-upstream entry sit at such a path --
-# this is the guard doing its job, not a bug to route around. Fixing this needs renaming the
-# fixture file/profile inside lib-q-hpke's own test tree, which is crate source/test work out of
-# scope for this kats-manifest-only pass (see repo routing rules). The PROVENANCE.md sidecar is
-# left in place as documentation for whoever picks up that rename.
-roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats", "lib-q-cb-kem/data", "lib-q-sha3/tests/data", "lib-q-keccak-digest/tests/data", "lib-q-ml-kem/tests", "lib-q-slh-dsa/tests/acvp", "lib-q-ml-dsa/tests/wycheproof", "lib-q-ml-dsa/tests/test_vectors", "lib-q-k12/tests/data", "lib-q-random/tests/data", "lib-q-blind-pcs/tests/vectors", "lib-q-blind-token/tests/vectors", "lib-q-dkg/tests/vectors", "lib-q-lattice-zkp/tests/vectors", "lib-q-mac/tests/vectors", "lib-q-zkp/tests/vectors", "lib-q-prf/tests", "export/kat-vectors"]
+roots = ["lib-q-hqc/kats", "lib-q-saturnin/tests/fixtures", "lib-q-mayo/tests/kats", "lib-q-romulus/tests/fixtures", "lib-q-ml-dsa/tests/kats", "lib-q-cb-kem/data", "lib-q-sha3/tests/data", "lib-q-keccak-digest/tests/data", "lib-q-ml-kem/tests", "lib-q-slh-dsa/tests/acvp", "lib-q-ml-dsa/tests/wycheproof", "lib-q-ml-dsa/tests/test_vectors", "lib-q-k12/tests/data", "lib-q-random/tests/data", "lib-q-hpke/tests/fixtures", "lib-q-blind-pcs/tests/vectors", "lib-q-blind-token/tests/vectors", "lib-q-dkg/tests/vectors", "lib-q-lattice-zkp/tests/vectors", "lib-q-mac/tests/vectors", "lib-q-zkp/tests/vectors", "lib-q-prf/tests", "export/kat-vectors"]
+
+# lib-q-hpke/tests/fixtures/negotiated_params_strict_pq_base.json -- self-generated frozen
+# negotiation-output fixture (see lib-q-hpke/tests/fixtures/PROVENANCE.md). Was previously named
+# negotiated_params_rfc_strict_pq_base.json; renamed 2026-08-09 because the old path contained
+# "rfc" (from the `RfcStrictPq` profile name), which CHECK 4 correctly refuses for a non-upstream
+# entry. Content unchanged, name only.
 # `lib-q-ml-dsa/tests/kats` REPLACED the narrower `lib-q-ml-dsa/tests/kats/acvp-1_1_0_36` root on
 # 2026-08-07. The subdirectory was registered deliberately at the time because the parent also holds
 # the six former `nistkats*.json` files, which could not then be registered (no way to satisfy
@@ -132,6 +130,11 @@ exclude = ["lib-q-ml-dsa/tests/kats/requirements.txt"]
 extensions = ["rsp", "req", "kat", "txt", "json", "blb"]
 # ...or its filename (case-insensitive) ends with one of these suffixes.
 filename_suffixes = ["_kat.txt"]
+
+[[kat]]
+path = "lib-q-hpke/tests/fixtures/negotiated_params_strict_pq_base.json"
+origin = "self-generated"
+sha256 = "e6fb4dc01ea8c82cb20da71958711c558776c07ca2ca007277eec70ab9cc9678"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-1/PQCkemKAT_2321.req"
@@ -682,12 +685,14 @@ generator = "provenance unverified; format resembles Colfenor/classic-mceliece-r
 sha256 = "2092fbf2308f24e5db1dc2aaa9877edf2a5e7e16143146930635cd21dd17dacb"
 
 # --- lib-q-sha3/tests/data/*.blb -- curated FIPS-202 worked-example pairs, self-generated ------
-# See lib-q-sha3/tests/data/PROVENANCE.md. sha3_224_kat_new.blb is a DEAD vector (no test reads it).
+# See lib-q-sha3/tests/data/PROVENANCE.md. sha3_224_kat_new.blb (byte-identical duplicate of
+# sha3_224_kat.blb, read by no test) was deleted 2026-08-09 rather than wired in -- it carried no
+# distinct vector value, only inflated the corpus.
 
 [[kat]]
 path = "lib-q-sha3/tests/data/cshake128.blb"
 origin = "self-generated"
-sha256 = "712e3d17af303bc17ae41a5a808772537f1afb71809b92222f3b54e8b375c46d"
+sha256 = "6f89b824342f1083682768b1165fa608246558f8a5ee27a1e1e49a46a35a353e"
 
 [[kat]]
 path = "lib-q-sha3/tests/data/cshake128_bytepad_block_aligned.blb"
@@ -697,7 +702,7 @@ sha256 = "3139257f65b30381028f26a9bb04eef021a8744c4ba3576bffb9b98aa2371b25"
 [[kat]]
 path = "lib-q-sha3/tests/data/cshake256.blb"
 origin = "self-generated"
-sha256 = "31e96f5a21c27d13f6b58543703a97a00cc0c4b288d51890f38c902e8d586ae5"
+sha256 = "94ed53ed5b578d16cabbc586033078bbd12c8927f1adb0b2191df11aee293ddd"
 
 [[kat]]
 path = "lib-q-sha3/tests/data/cshake256_bytepad_block_aligned.blb"
@@ -706,11 +711,6 @@ sha256 = "1bd02cd31a5079acf55a6f4ac59b50c55c090abf0a7e9f887f3d82d996bf9664"
 
 [[kat]]
 path = "lib-q-sha3/tests/data/sha3_224_kat.blb"
-origin = "self-generated"
-sha256 = "a5786d8789c007c462f50c6d28496fe7cb20bb20c3088e2785f58a665eda41d4"
-
-[[kat]]
-path = "lib-q-sha3/tests/data/sha3_224_kat_new.blb"
 origin = "self-generated"
 sha256 = "a5786d8789c007c462f50c6d28496fe7cb20bb20c3088e2785f58a665eda41d4"
 
@@ -765,8 +765,8 @@ sha256 = "89571bf7ada95c79ca4832b219adcbaebe50cd0369011051a702888a2efa6175"
 path = "lib-q-sha3/tests/data/upstream/sha3_384_kat.blb"
 origin = "upstream"
 upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/sha3_384_kat.blb"
-upstream_sha256 = "872a5779d877d19069105b7545df280f70187bfc7588905a063569594879ba9b"
-sha256 = "872a5779d877d19069105b7545df280f70187bfc7588905a063569594879ba9b"
+upstream_sha256 = "77022fe9c6d4626b81daecb3eca8fd6937ac0b0a78f4abd31c6a26df9b9b88a5"
+sha256 = "77022fe9c6d4626b81daecb3eca8fd6937ac0b0a78f4abd31c6a26df9b9b88a5"
 
 [[kat]]
 path = "lib-q-sha3/tests/data/upstream/sha3_512_kat.blb"
@@ -779,15 +779,15 @@ sha256 = "8a919debbb6e573fe3578b03558ed5bd4e0c23179a33307f996511df6224bea7"
 path = "lib-q-sha3/tests/data/upstream/shake128_kat.blb"
 origin = "upstream"
 upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.11.0/sha3/tests/data/shake128_kat.blb"
-upstream_sha256 = "0d955feda576f93520d6ad616cc1f51437c8266ba3609c050d30fd1846eb4d6a"
-sha256 = "0d955feda576f93520d6ad616cc1f51437c8266ba3609c050d30fd1846eb4d6a"
+upstream_sha256 = "875951365a5b1c5599013983e5cad8fb61b2c748960b7bb1cbb0df52188c458a"
+sha256 = "875951365a5b1c5599013983e5cad8fb61b2c748960b7bb1cbb0df52188c458a"
 
 [[kat]]
 path = "lib-q-sha3/tests/data/upstream/shake256_kat.blb"
 origin = "upstream"
 upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.11.0/sha3/tests/data/shake256_kat.blb"
-upstream_sha256 = "3dd0883df61d39ca15901186cc3bc33ab534e9fac1345b67535ae96511bf9782"
-sha256 = "3dd0883df61d39ca15901186cc3bc33ab534e9fac1345b67535ae96511bf9782"
+upstream_sha256 = "2e9b66b25a20b45aea5525a8e0f57812a77101794aa70c45bebfdfa5a523c777"
+sha256 = "2e9b66b25a20b45aea5525a8e0f57812a77101794aa70c45bebfdfa5a523c777"
 
 # --- lib-q-keccak-digest/tests/data/*.blb -- curated FIPS-202-style worked-example pairs -------
 # See lib-q-keccak-digest/tests/data/PROVENANCE.md.
@@ -831,8 +831,8 @@ sha256 = "27900b7a286f8c10b9864af580c1c0ba57497d40d04aeed0ae842b5016519efa"
 path = "lib-q-keccak-digest/tests/data/upstream/keccak_256_full_kat.blb"
 origin = "upstream"
 upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0/sha3/tests/data/keccak_256_full_kat.blb"
-upstream_sha256 = "2dd4854f086c0c959c5b442c4e54c915509bd21cdeeb55050bc9448948a6dd10"
-sha256 = "2dd4854f086c0c959c5b442c4e54c915509bd21cdeeb55050bc9448948a6dd10"
+upstream_sha256 = "ca0277744e6fad742cedfa49f2704cc627571d4b38a6ba9a9f1016e6914eeab6"
+sha256 = "ca0277744e6fad742cedfa49f2704cc627571d4b38a6ba9a9f1016e6914eeab6"
 
 [[kat]]
 path = "lib-q-keccak-digest/tests/data/upstream/keccak_256_kat.blb"
