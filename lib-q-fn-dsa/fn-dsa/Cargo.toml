@@ -24,6 +24,9 @@ lib-q-fn-dsa-vrfy = { version = "0.0.10", path = "../fn-dsa-vrfy" }
 
 [dev-dependencies]
 hex = { workspace = true }
+# `tests/upstream_oracle_kat.rs` implements the upstream KAT harness's fake RNGs, which needs the
+# `TryRng`/`TryCryptoRng`/`Infallible` items that `fn_dsa` itself does not re-export.
+lib-q-fn-dsa-comm = { version = "0.0.10", path = "../fn-dsa-comm" }
 
 [features]
 default = []

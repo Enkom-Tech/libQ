@@ -31,14 +31,23 @@ fn hex_to_bytes(hex: &str) -> Vec<u8> {
 // was deliberate and permanent.
 //
 // The expected constant could never have matched in any case: it decodes to 2225 bytes against
-// this crate's 2241-byte HQC-128 public key, because it came from a local reference tree built on
-// an older revision of the HQC spec. So the test was a non-assertion against wrong-spec data.
+// this crate's 2241-byte HQC-128 public key. So the test was a non-assertion against garbage.
 //
-// It is deleted rather than converted because there is nothing valid to assert: byte-exact HQC
-// conformance is blocked by a genuine algorithmic divergence from the current reference
-// derivation chain, not merely by the RNG seam (see kats/regression-pins/PROVENANCE.md and
-// scratchpad/audit-triage/fix-hqc-kats.md). A real conformance test needs a real oracle first;
-// until then an honest absence beats a test that always reports success.
+// CORRECTION (2026-08-09), superseding what this comment said when the deletion landed. Two claims
+// here were wrong, and the fresh upstream oracle refutes both:
+//   * "the constant came from an older revision of the HQC spec" -- no. The official HQC v5.0.0
+//     hqc-1 public key IS 2241 bytes, same as this crate. 2225 = 2241 - 16, and the constant's
+//     leading bytes `74b2d352cf74c934...` are byte 32 onward of the count=0 `seed` line. It was a
+//     mis-sliced seed, not old-spec data.
+//   * "byte-exact HQC conformance is blocked by an algorithmic divergence" -- no. HQC v5.0.0 has
+//     no AES-CTR-DRBG at all; its PRNG is SHAKE256, and this crate's HQC-128 keygen, encaps and
+//     decaps are byte-exact against the official upstream vectors. See
+//     tests/reference_intermediates_kat.rs and kats/reference-intermediates/PROVENANCE.md.
+// The only KEM-boundary gap is that upstream draws `seed_kem = SHAKE256(seed48 || 0x00)[0..32]`
+// where `keygen_with_seed` uses `seed48[0..32]`.
+//
+// The deletion itself stands: this file's AES-CTR-DRBG path is chasing the pre-v5 NIST rng.c and
+// is not what the current reference uses, so there was nothing valid for it to assert.
 
 #[cfg(feature = "aes-drbg")]
 #[test]

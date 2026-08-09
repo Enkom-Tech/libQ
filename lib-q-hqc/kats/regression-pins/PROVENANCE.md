@@ -45,13 +45,25 @@ change it: HQC-192's NIST secret-key wire length is now 4562, still not the refe
 sigma/seed field sizing, not the `pk`-length root cause above) tracked outside this lane; do not
 treat this tree's `sk` byte values as evidence that libQ's HQC secret-key wire format is correct.
 
-## RNG path (A1)
+## RNG path (A1) — CORRECTED 2026-08-09
 
-Keygen and encaps in `lib-q-hqc` use the **SHAKE256 XOF / PRNG** path (`keygen_with_seed`,
-`encapsulate_with_m_salt`), not NIST AES-256-CTR-DRBG over the record seed. This means even where
-lengths agree (HQC-128), this tree's `pk`/`ct`/`ss`/`sk` **values** are not expected to reproduce
-the official reference's values for the same seed — no comparison in this file establishes that
-they do or don't; see "Known divergence" above for the one comparison actually run.
+The text below is kept for history but its premise was **wrong**, and the correction matters:
+
+> Keygen and encaps in `lib-q-hqc` use the SHAKE256 XOF / PRNG path, not NIST AES-256-CTR-DRBG
+> over the record seed. [...] this tree's values are not expected to reproduce the official
+> reference's values for the same seed.
+
+**The official HQC v5.0.0 reference has no AES-CTR-DRBG.** Its PRNG is SHAKE256
+(`prng_init` = `SHAKE256(entropy || 0x00)`, `src/common/symmetric.c`), so SHAKE256 is the *correct*
+path, and reference values ARE reproducible. Verified against upstream: this crate's HQC-128
+keygen, encaps and decaps are byte-exact with the official `intermediates_values`
+(`kats/reference-intermediates/`, `tests/reference_intermediates_kat.rs`).
+
+The real reason this tree's `pk` does not equal the upstream `.rsp` `pk` for the same record seed
+is a single missing step: upstream reseeds per row and *draws*
+`seed_kem = SHAKE256(seed48 || 0x00)[0..32]` (`src/common/kem.c`), while `keygen_with_seed` uses
+`seed48[0..32]`. Feeding the correctly derived `seed_kem` reproduces upstream `.rsp` public keys
+byte-for-byte at HQC-128 (rows 0, 1, 2 checked).
 
 Older NIST submission `.rsp` files used a **2249-byte** public key layout; this tree uses the Oct 2024 **2241-byte** `pk` wire format.
 

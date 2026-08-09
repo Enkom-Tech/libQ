@@ -320,20 +320,37 @@ mod tests {
     //        message: "message" (7 bytes)
     //        if n is odd, message is pre-hashed with SHA3-256; raw otherwise
     //    KAT[j][n] is SHA3-256(sk || vk || sig)
-    // Note: These KAT values are specific to this implementation's SHAKE256x4.
-    // They differ from upstream fn-dsa 0.3.0 due to version differences:
-    // - This implementation uses fn-dsa-comm 0.0.2 (integrated into libQ)
-    // - Upstream reference uses fn-dsa-comm 0.3.0
-    // The difference likely stems from:
-    // 1. Dependency version differences (cpufeatures, rand_core)
-    // 2. Subtle differences in AVX2 code generation or state management
-    // 3. Compiler optimization differences
-    // Signatures are cryptographically valid and verify correctly, but are not
-    // byte-for-byte compatible with upstream reference implementations.
-    // This does NOT affect interoperability: signatures from this implementation
-    // can be verified by any implementation of the same FN-DSA design, and vice
-    // versa. (FIPS 206 itself has not been published, so no implementation --
-    // this one included -- can claim conformance to it yet.)
+    // PROVENANCE / RELATIONSHIP TO UPSTREAM -- read before editing these arrays.
+    //
+    // These arrays are maintained IN THIS REPOSITORY (they are regenerated from this code when it
+    // changes), so on their own they are a regression pin, not conformance evidence. The
+    // conformance evidence lives in `tests/upstream_oracle_kat.rs`, which compares raw sk/vk/sig
+    // byte-for-byte against vectors produced by the independently-authored upstream `fn-dsa`
+    // 0.3.0 crate; see that file's module docs for how the oracle was obtained and validated.
+    //
+    // An earlier version of this comment claimed the values "differ from upstream fn-dsa 0.3.0"
+    // because of dependency versions, AVX2 codegen, or "compiler optimization differences". That
+    // was measured and is wrong. Against upstream fn-dsa 0.3.0:
+    //   * shake256x4 config:     79 of these 90 digests are IDENTICAL to upstream's;
+    //   * non-shake256x4 config: 81 of 90 are IDENTICAL to upstream's.
+    // Every difference is at logn <= 6 -- the KeyPairGeneratorWeak toy degrees (N = 4..64), which
+    // exist only for testing and carry no security claim. There is NO difference at logn 7..10,
+    // which includes both real parameter sets (logn 9 = N512, logn 10 = N1024).
+    //
+    // Localised further (see `tests/upstream_oracle_kat.rs` and
+    // `scratchpad/audit-triage/fix-fndsa-hqc-kats.md`): sk and vk are byte-exact against upstream
+    // on 90/90 vectors in both configurations, i.e. key pair generation does not diverge at all.
+    // Every divergence is in the signature, and specifically in the accept/reject verdict at the
+    // end of the FIRST iteration of the signing rejection loop at those toy degrees: this
+    // implementation accepts the attempt-0 candidate where upstream rejects it and retries. The
+    // two rejection conditions themselves (the `mq::SQBETA` bound and `codec::comp_encode`) are
+    // identical code in both trees, so the attempt-0 candidate vectors themselves differ -- i.e.
+    // it is the floating-point sampler path at very small N, not a compiler artefact.
+    //
+    // Signatures are cryptographically valid and verify correctly. Interoperability at the
+    // shipping parameter sets is not affected -- and, per the above, is not merely asserted here
+    // but measured byte-for-byte against an external implementation. (FIPS 206 itself has not been
+    // published, so no implementation -- this one included -- can claim conformance to it yet.)
     #[cfg(feature = "shake256x4")]
     const KAT: [[&str; 10]; 9] = [
         [

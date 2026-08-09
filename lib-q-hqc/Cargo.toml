@@ -79,6 +79,18 @@ name = "nist_kem_kat"
 path = "tests/nist_kem_kat.rs"
 required-features = ["alloc", "hqc", "random"]
 
+# Byte-exact conformance against the upstream pqc-hqc.org reference implementation.
+# The `required-features` line is load-bearing, not boilerplate: the test file is
+# `#![cfg(all(feature = "alloc", feature = "hqc", feature = "random"))]` and `hqc` is NOT a
+# default feature, so without this entry cargo auto-discovers the file, compiles it under
+# default features, and the whole suite evaluates to nothing -- `cargo test -p lib-q-hqc`
+# then prints "running 0 tests ... test result: ok", which reads as a pass. That is exactly
+# the unfailable-check failure mode this card exists to remove, so do not drop it.
+[[test]]
+name = "reference_intermediates_kat"
+path = "tests/reference_intermediates_kat.rs"
+required-features = ["alloc", "hqc", "random"]
+
 [[test]]
 name = "hardened_dudect_smoke"
 path = "tests/hardened_dudect_smoke.rs"
