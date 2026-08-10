@@ -1,7 +1,39 @@
 //! Nonce Management
 //!
-//! This module provides secure nonce generation and uniqueness checking for AEAD operations.
-//! It implements proper nonce management to prevent nonce reuse attacks.
+//! This module provides secure nonce **generation** and **format validation** for AEAD
+//! operations.
+//!
+//! # It deliberately does not track used nonces
+//!
+//! It used to. [`NonceManager`] carried a "collision detection and secure tracking" contract
+//! backed by a replay tracker that was unsound in both build configurations, in opposite
+//! directions (board card `t_9cd430c2`):
+//!
+//! * **`std`**: a `HashSet<Vec<u8>>` that, past 10 000 entries, evicted `used_nonces.iter()
+//!   .take(1000)`. `HashSet::iter()` yields in unspecified order, so that removed 1000 *arbitrary*
+//!   nonces rather than the 1000 oldest, and every evicted nonce silently became replayable. That
+//!   is the catastrophic direction for a replay tracker: a false negative on the authentication
+//!   path. OBSERVED before removal, by marking 10 001 nonces used and asking about each again:
+//!   `1000 of 10001 nonces that were marked used are reported unique again`.
+//! * **`no_std`**: a single `AtomicU64` used as a 64-bucket, one-hash, never-cleared Bloom filter.
+//!   By the pigeonhole bound every bit is set after at most 64 insertions (far fewer in
+//!   expectation), after which *every* nonce — including a freshly generated one — reports as
+//!   already used. The tracker degrades to a constant `true`, i.e. a self-inflicted denial of
+//!   service. This arm cannot be exercised by a host test (a genuine `no_std` target has no test
+//!   harness, and `std`-without-`alloc` does not compile here), so it rests on that bound rather
+//!   than on an observed run.
+//!
+//! Neither is fixable within the shape the API implied. A bounded tracker cannot detect a replay
+//! older than its window whatever its eviction policy, and 64 bits of state cannot track nonces at
+//! all — so the honest options were a *correct* structure with a much weaker documented contract,
+//! or removal. The tracking surface had **no callers** anywhere in this workspace, and a wrong
+//! replay tracker in a crypto library is worse than none, because the next consumer assumes it
+//! works. It was removed.
+//!
+//! What replaced it: nothing here. Replay detection is a **protocol-level** property and belongs
+//! with the protocol's own state (a monotonic counter/sequence-number discipline, or a sliding
+//! window like DTLS/IPsec anti-replay, sized and persisted by the consumer). If you need one,
+//! build it there where the ordering and the persistence requirements are actually known.
 
 // Only used by the `not(shake256)` arm of `generate_secure_nonce` below. Gated (rather than an
 // unconditional import) because under `std` + `shake256` the unqualified `alloc::string::String`
@@ -13,9 +45,6 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
-#[cfg(all(feature = "alloc", feature = "std"))]
-#[allow(clippy::disallowed_types)]
-use std::collections::HashSet;
 
 use lib_q_core::{
     Error,
@@ -25,12 +54,12 @@ use lib_q_core::{
 use portable_atomic::AtomicU64;
 
 /// Nonce management configuration
+///
+/// `check_uniqueness` and `max_tracked_nonces` were removed along with the unsound replay tracker
+/// they configured (see the module docs). They are not deprecated aliases: keeping them would
+/// have left a knob that reads as a security control and no longer switches one.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NonceConfig {
-    /// Enable nonce uniqueness checking
-    pub check_uniqueness: bool,
-    /// Maximum number of nonces to track for uniqueness
-    pub max_tracked_nonces: usize,
     /// Enable secure random nonce generation
     pub secure_generation: bool,
     /// Nonce size in bytes
@@ -40,8 +69,6 @@ pub struct NonceConfig {
 impl Default for NonceConfig {
     fn default() -> Self {
         Self {
-            check_uniqueness: true,
-            max_tracked_nonces: 1000,
             secure_generation: true,
             nonce_size: 16, // 128 bits
         }
@@ -52,8 +79,6 @@ impl NonceConfig {
     /// Create a strict nonce configuration
     pub fn strict() -> Self {
         Self {
-            check_uniqueness: true,
-            max_tracked_nonces: 10000,
             secure_generation: true,
             nonce_size: 16,
         }
@@ -65,34 +90,32 @@ impl NonceConfig {
     /// [`NonceManager::generate_nonce`] to a counter-derived nonce whose every byte is a
     /// deterministic function of an `AtomicU64` counter that always starts at `0` — so two
     /// independently constructed managers built from this config emitted an *identical* first
-    /// nonce in every process, with `check_uniqueness: false` on top so the collision was never
-    /// even detected. "Permissive" is kept scoped to what its sibling configs in this crate mean
-    /// by the word (`SecurityConfig::permissive()`, `TimingProtection::permissive()`,
-    /// `SideChannelProtection::permissive()`: skip extra bookkeeping/overhead, never weaken a core
-    /// cryptographic guarantee) — it now only disables nonce-uniqueness *tracking*, not secure
-    /// generation itself.
+    /// nonce in every process, with the (since-removed) `check_uniqueness: false` on top so the
+    /// collision was never even detected. "Permissive" is kept scoped to what its sibling configs
+    /// in this crate mean by the word (`SecurityConfig::permissive()`,
+    /// `TimingProtection::permissive()`, `SideChannelProtection::permissive()`: skip extra
+    /// bookkeeping/overhead, never weaken a core cryptographic guarantee).
+    ///
+    /// With the uniqueness knobs gone there is now nothing left for it to relax, so it is
+    /// identical to [`NonceConfig::default`]. It is kept as a name a caller may already be
+    /// spelling, and because deleting it would silently turn a `permissive()` call site into a
+    /// compile error whose obvious "fix" is to hand-write a weaker config.
     pub fn permissive() -> Self {
         Self {
-            check_uniqueness: false,
-            max_tracked_nonces: 0,
             secure_generation: true,
             nonce_size: 16,
         }
     }
 }
 
-/// Nonce manager for secure nonce handling
-/// with collision detection and secure tracking
+/// Nonce generator and format validator.
+///
+/// **Not** a replay detector: it keeps no record of which nonces it has emitted or seen, and
+/// [`validate_nonce`](Self::validate_nonce) checks shape only. See the module docs for what was
+/// removed and why, and for where replay detection belongs instead.
 pub struct NonceManager {
     config: NonceConfig,
     counter: AtomicU64,
-    // Track recently used nonces to prevent collisions (requires std)
-    #[cfg(all(feature = "alloc", feature = "std"))]
-    #[allow(clippy::disallowed_types)]
-    used_nonces: std::sync::RwLock<HashSet<Vec<u8>>>,
-    // For no_std or alloc-only environments, use a simple bloom filter approximation
-    #[cfg(not(all(feature = "alloc", feature = "std")))]
-    used_nonces: AtomicU64,
 }
 
 impl NonceManager {
@@ -106,11 +129,6 @@ impl NonceManager {
         Self {
             config,
             counter: AtomicU64::new(0),
-            #[cfg(all(feature = "alloc", feature = "std"))]
-            #[allow(clippy::disallowed_types)]
-            used_nonces: std::sync::RwLock::new(HashSet::new()),
-            #[cfg(not(all(feature = "alloc", feature = "std")))]
-            used_nonces: AtomicU64::new(0),
         }
     }
 
@@ -123,7 +141,7 @@ impl NonceManager {
         }
     }
 
-    /// Generate a secure random nonce with collision detection
+    /// Generate a secure random nonce from OS/hardware entropy.
     ///
     /// # Errors
     ///
@@ -172,11 +190,11 @@ impl NonceManager {
                 }
             })?;
 
-            // Check for collisions and regenerate if necessary
-            if self.is_nonce_used(&nonce_data)? {
-                // If collision detected, try again with different seed
-                return self.generate_secure_nonce();
-            }
+            // No collision check: the bytes above are 8 * nonce_size bits of OS/hardware entropy
+            // (128 bits at the default size), so a repeat is negligible. The check that used to
+            // live here consulted the replay tracker removed in `t_9cd430c2` — and on the no_std
+            // arm, where that tracker saturated to "everything is used", it would have recursed
+            // until the stack ran out.
 
             // Ensure the nonce is not all zeros or all ones
             if nonce_data.iter().all(|&b| b == 0) {
@@ -213,94 +231,20 @@ impl NonceManager {
         Ok(Nonce::new(nonce_data))
     }
 
-    /// Check if a nonce has been used before
-    fn is_nonce_used(&self, nonce_data: &[u8]) -> Result<bool> {
-        #[cfg(all(feature = "alloc", feature = "std"))]
-        {
-            if let Ok(used_nonces) = self.used_nonces.read() {
-                Ok(used_nonces.contains(nonce_data))
-            } else {
-                Err(Error::InvalidNonceSize {
-                    expected: 0,
-                    actual: 0,
-                })
-            }
-        }
-
-        #[cfg(not(all(feature = "alloc", feature = "std")))]
-        {
-            // For no_std or alloc-only, use a simple hash-based approximation
-            let hash = self.hash_nonce(nonce_data);
-            let used_nonces = self.used_nonces.load(Ordering::SeqCst);
-            Ok((used_nonces & (1 << (hash % 64))) != 0)
-        }
-    }
-
-    /// Internal method to mark nonce data as used
-    fn mark_nonce_used_internal(&self, nonce_data: &[u8]) -> Result<()> {
-        #[cfg(all(feature = "alloc", feature = "std"))]
-        {
-            if let Ok(mut used_nonces) = self.used_nonces.write() {
-                used_nonces.insert(nonce_data.to_vec());
-
-                // Limit the size of the tracking set to prevent memory exhaustion
-                if used_nonces.len() > 10000 {
-                    // Remove oldest entries (simple FIFO)
-                    let to_remove: Vec<_> = used_nonces.iter().take(1000).cloned().collect();
-                    for entry in to_remove {
-                        used_nonces.remove(&entry);
-                    }
-                }
-                Ok(())
-            } else {
-                Err(Error::InvalidNonceSize {
-                    expected: 0,
-                    actual: 0,
-                })
-            }
-        }
-
-        #[cfg(not(all(feature = "alloc", feature = "std")))]
-        {
-            // For no_std or alloc-only, use a simple hash-based approximation
-            let hash = self.hash_nonce(nonce_data);
-            let mut used_nonces = self.used_nonces.load(Ordering::SeqCst);
-            used_nonces |= 1 << (hash % 64);
-            self.used_nonces.store(used_nonces, Ordering::SeqCst);
-            Ok(())
-        }
-    }
-
-    /// Hash a nonce for tracking (simple hash function)
-    #[cfg(not(all(feature = "alloc", feature = "std")))]
-    fn hash_nonce(&self, nonce_data: &[u8]) -> u64 {
-        let mut hash = 0u64;
-        for &byte in nonce_data {
-            hash = hash.wrapping_mul(31).wrapping_add(byte as u64);
-        }
-        hash
-    }
-
-    /// Validate a nonce for uniqueness
+    /// Validate a nonce's **format**: correct length for this manager's configuration, and
+    /// neither all-zero nor all-ones.
+    ///
+    /// This says nothing about whether the nonce has been used before — see the module docs. It
+    /// used to also consult a replay tracker and mark the nonce used as a side effect, which is
+    /// why the name is bare `validate_nonce` rather than `validate_nonce_format`; that side effect
+    /// is gone.
+    ///
+    /// # Errors
+    ///
+    /// [`Error::InvalidNonceSize`] if the length differs from [`NonceConfig::nonce_size`], or if
+    /// every byte is `0x00` or every byte is `0xFF`.
     pub fn validate_nonce(&self, nonce: &Nonce) -> Result<()> {
-        if !self.config.check_uniqueness {
-            return Ok(());
-        }
-
-        // Check format first
-        self.validate_nonce_format(nonce)?;
-
-        // Check for uniqueness
-        let nonce_data = nonce.as_bytes();
-        if self.is_nonce_used(nonce_data)? {
-            return Err(Error::InvalidNonceSize {
-                expected: 0,
-                actual: 0,
-            });
-        }
-
-        // Mark as used
-        self.mark_nonce_used_internal(nonce_data)
+        self.validate_nonce_format(nonce)
     }
 
     /// Validate nonce format
@@ -333,30 +277,6 @@ impl NonceManager {
         Ok(())
     }
 
-    /// Check if a nonce is unique (not used before)
-    pub fn is_nonce_unique(&self, nonce: &Nonce) -> bool {
-        if !self.config.check_uniqueness {
-            return true;
-        }
-
-        // Check against our tracking system
-        match self.is_nonce_used(nonce.as_bytes()) {
-            Ok(used) => !used,
-            Err(_) => false, // If we can't check, assume it's not unique for safety
-        }
-    }
-
-    /// Mark a nonce as used (public interface)
-    pub fn mark_nonce_used(&self, nonce: &Nonce) -> Result<()> {
-        if !self.config.check_uniqueness {
-            return Ok(());
-        }
-
-        // Add the nonce to our tracking system
-        self.validate_nonce_format(nonce)?;
-        self.mark_nonce_used_internal(nonce.as_bytes())
-    }
-
     /// Get the current counter value
     pub fn get_counter(&self) -> u64 {
         self.counter.load(Ordering::SeqCst)
@@ -374,41 +294,19 @@ impl Default for NonceManager {
     }
 }
 
-/// Global nonce manager (std + alloc: lazy init with HashSet tracking)
-#[cfg(all(feature = "alloc", feature = "std"))]
-static NONCE_MANAGER: std::sync::LazyLock<NonceManager> =
-    std::sync::LazyLock::new(|| NonceManager {
-        config: NonceConfig {
-            check_uniqueness: true,
-            max_tracked_nonces: 1000,
-            secure_generation: true,
-            nonce_size: 16,
-        },
-        counter: AtomicU64::new(0),
-        #[allow(clippy::disallowed_types)]
-        used_nonces: std::sync::RwLock::new(HashSet::new()),
-    });
-
-/// Global nonce manager (no_std or alloc-only: static with AtomicU64 fallback)
-#[cfg(not(all(feature = "alloc", feature = "std")))]
+/// Global nonce manager.
+///
+/// Now that there is no tracking state, this is a plain `static` on every configuration — the
+/// `std`-only `LazyLock` arm existed solely to construct the `HashSet`.
 static NONCE_MANAGER: NonceManager = NonceManager {
     config: NonceConfig {
-        check_uniqueness: true,
-        max_tracked_nonces: 1000,
         secure_generation: true,
         nonce_size: 16,
     },
     counter: AtomicU64::new(0),
-    used_nonces: AtomicU64::new(0),
 };
 
 /// Get the global nonce manager
-#[cfg(all(feature = "alloc", feature = "std"))]
-pub fn get_nonce_manager() -> &'static NonceManager {
-    &NONCE_MANAGER
-}
-
-#[cfg(not(all(feature = "alloc", feature = "std")))]
 pub fn get_nonce_manager() -> &'static NonceManager {
     &NONCE_MANAGER
 }
@@ -421,16 +319,6 @@ pub fn generate_nonce() -> Result<Nonce> {
 /// Validate a nonce using the global manager
 pub fn validate_nonce(nonce: &Nonce) -> Result<()> {
     get_nonce_manager().validate_nonce(nonce)
-}
-
-/// Check if a nonce is unique using the global manager
-pub fn is_nonce_unique(nonce: &Nonce) -> bool {
-    get_nonce_manager().is_nonce_unique(nonce)
-}
-
-/// Mark a nonce as used using the global manager
-pub fn mark_nonce_used(nonce: &Nonce) -> Result<()> {
-    get_nonce_manager().mark_nonce_used(nonce)
 }
 
 /// Nonce generation utilities
@@ -476,8 +364,6 @@ mod tests {
     #[test]
     fn test_nonce_config_defaults() {
         let config = NonceConfig::default();
-        assert!(config.check_uniqueness);
-        assert_eq!(config.max_tracked_nonces, 1000);
         assert!(config.secure_generation);
         assert_eq!(config.nonce_size, 16);
     }
@@ -485,17 +371,16 @@ mod tests {
     #[test]
     fn test_nonce_config_strict() {
         let config = NonceConfig::strict();
-        assert!(config.check_uniqueness);
-        assert_eq!(config.max_tracked_nonces, 10000);
         assert!(config.secure_generation);
         assert_eq!(config.nonce_size, 16);
     }
 
+    /// Every constructor must keep `secure_generation: true` (B4c). With the uniqueness knobs
+    /// gone, that is the *only* thing separating these three, so a constructor that regressed it
+    /// would otherwise be indistinguishable from its siblings.
     #[test]
     fn test_nonce_config_permissive() {
         let config = NonceConfig::permissive();
-        assert!(!config.check_uniqueness);
-        assert_eq!(config.max_tracked_nonces, 0);
         assert!(config.secure_generation);
         assert_eq!(config.nonce_size, 16);
     }
@@ -634,13 +519,24 @@ mod tests {
         assert!(manager.validate_nonce(&wrong_size_nonce).is_err());
     }
 
+    /// `validate_nonce` is now stateless: validating the same nonce twice must succeed both times.
+    ///
+    /// This replaces `test_nonce_uniqueness`, which asserted `is_nonce_unique(&n)` and then
+    /// `mark_nonce_used(&n).is_ok()` on a fresh manager — it never re-queried after marking, so it
+    /// passed identically against a tracker that remembered nothing. It was the only test the
+    /// tracking API had, and it could not have failed for either of the two defects in
+    /// `t_9cd430c2`.
     #[test]
-    fn test_nonce_uniqueness() {
+    fn validate_nonce_is_stateless_and_does_not_consume_the_nonce() {
         let manager = NonceManager::new();
         let nonce = Nonce::new(vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]);
 
-        assert!(manager.is_nonce_unique(&nonce));
-        assert!(manager.mark_nonce_used(&nonce).is_ok());
+        assert!(manager.validate_nonce(&nonce).is_ok());
+        assert!(
+            manager.validate_nonce(&nonce).is_ok(),
+            "validate_nonce rejected a nonce it had already accepted — it must check format only, \
+             with no memory of what it has seen"
+        );
     }
 
     #[cfg(feature = "shake256")]
@@ -670,13 +566,27 @@ mod tests {
         assert_eq!(nonce2.as_bytes().len(), 16);
         assert_ne!(nonce1.as_bytes(), nonce2.as_bytes());
 
-        // Test that generated nonces are unique
+        // Format-only, and repeatable: the global validator keeps no state either.
         assert!(validate_nonce(&nonce1).is_ok());
         assert!(validate_nonce(&nonce2).is_ok());
+        assert!(validate_nonce(&nonce1).is_ok());
+    }
 
-        // Test that we can mark nonces as used
-        assert!(mark_nonce_used(&nonce1).is_ok());
-        assert!(mark_nonce_used(&nonce2).is_ok());
+    /// Structural guard, not a behavioural one: `NonceManager` must stay stateless apart from its
+    /// diagnostic counter. Its whole size is `NonceConfig` (two `usize`-ish fields) plus one
+    /// `AtomicU64`; a reintroduced tracking container (a `HashSet`, a `RwLock`, a bitmap) cannot
+    /// fit in that. This is the test the crate lacked — the tracker's own tests could not fail for
+    /// either defect in `t_9cd430c2`, because none of them re-queried after marking.
+    #[test]
+    fn nonce_manager_carries_no_tracking_state() {
+        use core::mem::size_of;
+        assert_eq!(
+            size_of::<NonceManager>(),
+            size_of::<NonceConfig>() + size_of::<AtomicU64>(),
+            "NonceManager grew a field. If that field is a used-nonce tracker, read the module \
+             docs first: a bounded tracker cannot detect a replay older than its window, and the \
+             two previous attempts failed in opposite directions."
+        );
     }
 
     #[test]
