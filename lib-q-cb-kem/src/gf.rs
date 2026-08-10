@@ -274,23 +274,44 @@ pub(crate) fn gf_mul_inplace(out: &mut [Gf; SYS_T], in0: &[Gf; SYS_T], in1: &[Gf
             prod[i - SYS_T + 1] ^= prod[i];
             prod[i - SYS_T] ^= gf_mul(prod[i], 2);
         }
-        #[cfg(any(feature = "cbkem460896", feature = "cbkem460896f"))]
+        #[cfg(all(
+            not(any(feature = "cbkem348864", feature = "cbkem348864f")),
+            any(feature = "cbkem460896", feature = "cbkem460896f")
+        ))]
         {
             prod[i - SYS_T + 10] ^= prod[i];
             prod[i - SYS_T + 9] ^= prod[i];
             prod[i - SYS_T + 6] ^= prod[i];
             prod[i - SYS_T] ^= prod[i];
         }
-        #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f"
+            )),
+            any(feature = "cbkem6960119", feature = "cbkem6960119f")
+        ))]
         {
             prod[i - SYS_T + 8] ^= prod[i];
             prod[i - SYS_T + 0] ^= prod[i];
         }
-        #[cfg(any(
-            feature = "cbkem6688128",
-            feature = "cbkem6688128f",
-            feature = "cbkem8192128",
-            feature = "cbkem8192128f"
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f"
+            )),
+            any(
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f",
+                feature = "cbkem8192128",
+                feature = "cbkem8192128f"
+            )
         ))]
         {
             prod[i - SYS_T + 7] ^= prod[i];

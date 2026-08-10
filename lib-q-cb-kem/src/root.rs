@@ -36,7 +36,19 @@ mod tests {
     use crate::test_utils::TestData;
 
     #[test]
-    #[cfg(feature = "cbkem8192128f")]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        feature = "cbkem8192128f"
+    ))]
     fn test_root_simple() {
         let g = [1u16; SYS_T + 1];
         let mut l = [0u16; SYS_N];

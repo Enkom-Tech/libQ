@@ -471,7 +471,17 @@ mod tests {
     // This testcase corresponds to the call of controlbitsfrompermutation
     // in the 3rd KAT testcase of the cbkem6960119 reference implementation
     #[test]
-    #[cfg(all(feature = "alloc", feature = "cbkem6960119"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f"
+        )),
+        all(feature = "alloc", feature = "cbkem6960119")
+    ))]
     fn test_controlbitsfrompermutation_kat3_cbkem6960119() {
         assert_eq!(GFBITS, 13);
 

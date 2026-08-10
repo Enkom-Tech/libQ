@@ -24,7 +24,17 @@ use crate::params::{
     SYS_N,
     SYS_T,
 };
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 use crate::params::{
     PK_NCOLS,
     PK_NROWS,
@@ -38,7 +48,17 @@ use crate::util::{
 };
 
 /// This function determines (in a constant-time manner) whether the padding bits of `pk` are all zero.
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 fn check_pk_padding(pk: &[u8; PK_NROWS * PK_ROW_BYTES]) -> u8 {
     let mut b = 0u8;
     for i in 0..PK_NROWS {
@@ -52,7 +72,17 @@ fn check_pk_padding(pk: &[u8; PK_NROWS * PK_ROW_BYTES]) -> u8 {
 }
 
 /// This function determines (in a constant-time manner) whether the padding bits of `c` are all zero.
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 fn check_c_padding(c: &[u8; SYND_BYTES]) -> u8 {
     let mut b = c[SYND_BYTES - 1] >> (PK_NROWS % 8);
     b = b.wrapping_sub(1);
@@ -65,7 +95,17 @@ fn check_c_padding(c: &[u8; SYND_BYTES]) -> u8 {
 /// Given a public key `pk`, sample a shared key.
 /// This shared key is returned through parameter `key` whereas
 /// the ciphertext (meant to be used for decapsulation) is returned as `c`.
-#[cfg(not(any(feature = "cbkem6960119", feature = "cbkem6960119f")))]
+#[cfg(any(
+    any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    ),
+    not(any(feature = "cbkem6960119", feature = "cbkem6960119f"))
+))]
 pub(crate) fn crypto_kem_enc<R: CryptoRng + Rng>(
     c: &mut [u8; CRYPTO_CIPHERTEXTBYTES],
     key: &mut [u8; CRYPTO_BYTES],
@@ -90,7 +130,17 @@ pub(crate) fn crypto_kem_enc<R: CryptoRng + Rng>(
 /// Given a public key `pk`, sample a shared key.
 /// This shared key is returned through parameter `key` whereas
 /// the ciphertext (meant to be used for decapsulation) is returned as `c`.
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 pub(crate) fn crypto_kem_enc<R: CryptoRng + Rng>(
     c: &mut [u8; CRYPTO_CIPHERTEXTBYTES],
     key: &mut [u8; CRYPTO_BYTES],
@@ -130,7 +180,17 @@ pub(crate) fn crypto_kem_enc<R: CryptoRng + Rng>(
 ///
 /// Given a secret key `sk` and a ciphertext `c`,
 /// determine the shared text `key` negotiated by both parties.
-#[cfg(not(any(feature = "cbkem6960119", feature = "cbkem6960119f")))]
+#[cfg(any(
+    any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    ),
+    not(any(feature = "cbkem6960119", feature = "cbkem6960119f"))
+))]
 pub(crate) fn crypto_kem_dec(
     key: &mut [u8; CRYPTO_BYTES],
     c: &[u8; CRYPTO_CIPHERTEXTBYTES],
@@ -169,7 +229,17 @@ pub(crate) fn crypto_kem_dec(
 ///
 /// Given a secret key `sk` and a ciphertext `c`,
 /// determine the shared text `key` negotiated by both parties.
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 pub(crate) fn crypto_kem_dec(
     key: &mut [u8; CRYPTO_BYTES],
     c: &[u8; CRYPTO_CIPHERTEXTBYTES],
@@ -239,29 +309,29 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + Rng>(
 
     let mut r = [0u8; SEED + 32];
 
-    #[cfg(any(
-        feature = "cbkem348864f",
-        feature = "cbkem460896f",
-        feature = "cbkem6688128f",
-        feature = "cbkem6960119f",
-        feature = "cbkem8192128f"
-    ))]
-    let mut pivots = 0u64;
     #[cfg(all(
         not(any(
-            feature = "cbkem348864f",
-            feature = "cbkem460896f",
-            feature = "cbkem6688128f",
-            feature = "cbkem6960119f",
-            feature = "cbkem8192128f"
-        )),
-        any(
             feature = "cbkem348864",
             feature = "cbkem460896",
             feature = "cbkem6688128",
             feature = "cbkem6960119",
             feature = "cbkem8192128"
+        )),
+        any(
+            feature = "cbkem348864f",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119f",
+            feature = "cbkem8192128f"
         )
+    ))]
+    let mut pivots = 0u64;
+    #[cfg(any(
+        feature = "cbkem348864",
+        feature = "cbkem460896",
+        feature = "cbkem6688128",
+        feature = "cbkem6960119",
+        feature = "cbkem8192128"
     ))]
     #[allow(unused_mut)] // mut needed for *f path, but only assigned once in non-*f path
     let mut pivots: u64;
@@ -312,12 +382,21 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + Rng>(
             perm[i] = u32::from_le_bytes(*sub!(chunk, 0, 4));
         }
 
-        #[cfg(any(
-            feature = "cbkem348864f",
-            feature = "cbkem460896f",
-            feature = "cbkem6688128f",
-            feature = "cbkem6960119f",
-            feature = "cbkem8192128f"
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem460896",
+                feature = "cbkem6688128",
+                feature = "cbkem6960119",
+                feature = "cbkem8192128"
+            )),
+            any(
+                feature = "cbkem348864f",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128f",
+                feature = "cbkem6960119f",
+                feature = "cbkem8192128f"
+            )
         ))]
         {
             if pk_gen(
@@ -331,21 +410,12 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + Rng>(
                 continue;
             }
         }
-        #[cfg(all(
-            not(any(
-                feature = "cbkem348864f",
-                feature = "cbkem460896f",
-                feature = "cbkem6688128f",
-                feature = "cbkem6960119f",
-                feature = "cbkem8192128f"
-            )),
-            any(
-                feature = "cbkem348864",
-                feature = "cbkem460896",
-                feature = "cbkem6688128",
-                feature = "cbkem6960119",
-                feature = "cbkem8192128"
-            )
+        #[cfg(any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
         ))]
         {
             if pk_gen(pk, sub!(mut sk, 40, IRR_BYTES), &perm, &mut pi) != 0 {
@@ -366,21 +436,12 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + Rng>(
 
         // storing positions of the 32 pivots
 
-        #[cfg(all(
-            not(any(
-                feature = "cbkem348864f",
-                feature = "cbkem460896f",
-                feature = "cbkem6688128f",
-                feature = "cbkem6960119f",
-                feature = "cbkem8192128f"
-            )),
-            any(
-                feature = "cbkem348864",
-                feature = "cbkem460896",
-                feature = "cbkem6688128",
-                feature = "cbkem6960119",
-                feature = "cbkem8192128"
-            )
+        #[cfg(any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
         ))]
         {
             pivots = 0xFFFFFFFF;
@@ -392,7 +453,19 @@ pub(crate) fn crypto_kem_keypair<R: CryptoRng + Rng>(
     }
 }
 
-#[cfg(all(test, feature = "alloc", feature = "cbkem8192128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    )),
+    all(test, feature = "alloc", feature = "cbkem8192128f")
+))]
 mod tests {
     use core::convert::TryFrom;
 
