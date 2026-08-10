@@ -60,6 +60,14 @@ let shares: Vec<_> = out.secret_shares.iter()
 
 This crate is **PROVISIONAL** and awaits cryptographer sign-off.
 
+> **If you are deciding whether to depend on this, read [`SECURITY-STATUS.md`](SECURITY-STATUS.md)
+> first.** It ships with the crate and states, in one page: that no threshold IND-CCA theorem is
+> claimed and exactly which one is missing; whether `partial_decap_masked` leaks a party's share
+> (no under honest ciphertexts, **yes** after ≈63 malformed ones — so the two deployment
+> requirements below are mandatory, not advisory); and what changes when migrating off the
+> withdrawn `lib-q-threshold-kem`. The documents referenced further down are in the repository and
+> are **not** part of the published crate.
+
 * **Decapsulation-key hiding** (recover `r` from `t0 = B0·r`) is the *same* Module-LWE instance the
   DKG / `lib-q-threshold-raccoon` estimator-gated at **169-bit quantum** core-SVP (β = 636).
 * **Ciphertext hiding** is estimator-gated too (2026-07-10): the distinct Module-LWE instance
@@ -75,7 +83,9 @@ This crate is **PROVISIONAL** and awaits cryptographer sign-off.
   DKG key rotation (`DecapBudget::untrusted()` caps below the probe length for untrusted senders;
   `DecapBudget::authenticated()` uses the `2^20` honest-ciphertext budget). No formal threshold
   IND-CCA theorem is claimed (it is conditional on the closure in force). Full treatment — including
-  the proof that a norm-only well-formedness proof is insufficient — in `THRESHOLD_SECURITY.md`.
+  the proof that a norm-only well-formedness proof is insufficient — in the repository's
+  `dev/conformance/integration/lib-q-threshold-kem-lattice/THRESHOLD_SECURITY.md` (not shipped in
+  the published crate; `SECURITY-STATUS.md` next to this README is the shipped summary).
 * **Hardening pass (2026-07-10, adversarially-verified multi-dimension audit):** branchless
   message encode/decode and secret centering; hard (release-enforced) structural guards on every
   entry point (subset validation, ciphertext element count, distinct-partial threshold at
