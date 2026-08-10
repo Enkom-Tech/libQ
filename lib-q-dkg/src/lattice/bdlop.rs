@@ -296,6 +296,43 @@ pub fn commit(key: &CommitKey, a: &Rq, rho: &[Rq; KAPPA]) -> Commitment {
     out
 }
 
+/// Constant-time equality for two commitments.
+///
+/// `Commitment` derives `PartialEq`, which compares `Vec<Rq>` and then `[i64; N]` — both
+/// short-circuit at the first differing element. Use this instead wherever one side is computed
+/// from secret material: [`dkg_verify_share`](crate::dkg_verify_share) recomputes
+/// `commit(share.value; share.rand)` from a recipient's secret share and compares it against the
+/// public evaluated commitments, so a short-circuiting compare's running time is a function of how
+/// long a prefix of that secret-derived commitment matches.
+///
+/// This is the third instance of the same defect class in this repo inside a week (`6a68155`
+/// lib-q-ring-sig, `c38531f` lib-q-threshold-raccoon), which is why it is a named helper rather
+/// than an open-coded loop at the call site.
+///
+/// Only the **lengths** short-circuit, and they are public protocol parameters (`MU`), not secret.
+#[must_use]
+pub fn commit_ct_eq(a: &Commitment, b: &Commitment) -> bool {
+    if a.t0.len() != b.t0.len() {
+        return false;
+    }
+    let mut diff: i64 = 0;
+    for (x, y) in a.t0.iter().zip(b.t0.iter()) {
+        diff |= rq_xor_acc(x, y);
+    }
+    diff |= rq_xor_acc(&a.t1, &b.t1);
+    diff == 0
+}
+
+/// OR-accumulated XOR of two ring elements' coefficients: `0` iff they are equal, with no early
+/// exit. Kept separate so [`commit_ct_eq`] folds every element before testing anything.
+fn rq_xor_acc(a: &Rq, b: &Rq) -> i64 {
+    let mut diff: i64 = 0;
+    for (x, y) in a.coeffs.iter().zip(b.coeffs.iter()) {
+        diff |= x ^ y;
+    }
+    diff
+}
+
 /// The zero commitment (identity for [`commit_add`]).
 #[must_use]
 pub fn commit_zero() -> Commitment {
@@ -595,6 +632,45 @@ mod tests {
             .map(|(a, r)| commit(key, a, r))
             .collect();
         (rhos, comms)
+    }
+
+    /// `commit_ct_eq` must agree with `==` on every case, and in particular must still say
+    /// "different" when the difference is in the LAST coefficient of the LAST element — the
+    /// position a short-circuiting compare reaches last, and the one an implementation that
+    /// accidentally returned early would get wrong.
+    #[test]
+    fn commit_ct_eq_agrees_with_derived_eq_at_both_ends() {
+        let key = key();
+        let mut rng = new_deterministic_rng([7u8; 32]);
+        let rho = sample_randomness(&mut rng);
+        let a = commit(key, &const_poly(3), &rho);
+
+        assert!(
+            commit_ct_eq(&a, &a.clone()),
+            "equal commitments compared unequal"
+        );
+
+        // First coefficient of the first binding element.
+        let mut first = a.clone();
+        first.t0[0].coeffs[0] ^= 1;
+        assert!(first != a);
+        assert!(!commit_ct_eq(&first, &a));
+
+        // Last coefficient of the message element — the deepest position.
+        let mut last = a.clone();
+        let n = last.t1.coeffs.len() - 1;
+        last.t1.coeffs[n] ^= 1;
+        assert!(last != a);
+        assert!(
+            !commit_ct_eq(&last, &a),
+            "a difference in the final coefficient was missed — the fold is exiting early or \
+             skipping the message part"
+        );
+
+        // A length mismatch is a public-parameter mismatch, not a secret one, and may short-circuit.
+        let mut short = a.clone();
+        short.t0.pop();
+        assert!(!commit_ct_eq(&short, &a));
     }
 
     fn eval(coeffs: &[Rq], j: u8) -> Rq {

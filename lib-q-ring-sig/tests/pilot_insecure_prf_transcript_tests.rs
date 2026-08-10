@@ -46,6 +46,40 @@ fn pilot_prf_transcript_sign_verify_roundtrip() {
     pilot_prf_transcript_verify_u256(&ring, 1, msg, &sig).expect("verify");
 }
 
+/// The PRF outputs are what the verifier actually checks against the member's secret keys, and
+/// until now nothing tampered with them — the only tamper test moved the challenge, which is
+/// rejected before either PRF is even evaluated. So the comparison that handles secret-derived
+/// values had no test at all, which is how it kept a short-circuiting `!=` (and a short-circuiting
+/// `||` between the two) after the signing side had already been fixed for exactly that in
+/// `6a68155`.
+///
+/// Tampering the LAST byte of `gold_out` matters specifically: an element-wise compare that
+/// stopped early would still reject this, but a fold that forgot the final element would not.
+#[test]
+fn pilot_prf_transcript_rejects_tampered_prf_outputs() {
+    let (m0, l0, g0) = member_from_seed(0x11);
+    let (m1, _l1, _g1) = member_from_seed(0x12);
+    let ring = [m0, m1];
+    let msg = b"tamper-prf-outputs";
+
+    for tamper in ["gold-first", "gold-last", "legendre"] {
+        let mut rng = new_deterministic_rng([0x11u8; 32]);
+        let mut sig =
+            pilot_prf_transcript_sign_u256(&mut rng, &ring, 0, &l0, &g0, msg).expect("sign");
+        match tamper {
+            "gold-first" => sig.gold_out[0] ^= 0xFF,
+            "gold-last" => {
+                let n = sig.gold_out.len() - 1;
+                sig.gold_out[n] ^= 0xFF;
+            }
+            _ => sig.legendre_out = -sig.legendre_out,
+        }
+        let e = pilot_prf_transcript_verify_u256(&ring, 0, msg, &sig)
+            .expect_err(&format!("{tamper}: a tampered PRF output was accepted"));
+        assert_eq!(e, PilotPrfTranscriptError::Rejected, "{tamper}");
+    }
+}
+
 #[test]
 fn pilot_prf_transcript_rejects_tampered_challenge() {
     let (m0, l0, g0) = member_from_seed(0x01);
