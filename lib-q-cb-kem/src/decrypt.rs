@@ -81,6 +81,16 @@ pub(crate) fn decrypt(
 #[cfg(test)]
 #[cfg(all(
     feature = "alloc",
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    )),
     any(feature = "cbkem8192128", feature = "cbkem8192128f")
 ))]
 mod tests {

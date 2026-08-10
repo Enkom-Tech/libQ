@@ -29,7 +29,19 @@ fn same_mask_u8(x: u16, y: u16) -> u8 {
 /// Generation of `e`, an error vector of weight `t`.
 /// Does not take any input arguments.
 /// If generation of pseudo-random numbers fails, an error is returned.
-#[cfg(not(any(feature = "cbkem8192128", feature = "cbkem8192128f")))]
+#[cfg(any(
+    any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    ),
+    not(any(feature = "cbkem8192128", feature = "cbkem8192128f"))
+))]
 fn gen_e<R: CryptoRng + Rng>(e: &mut [u8; SYS_N / 8], rng: &mut R) {
     let mut ind = [0u16; SYS_T];
     let mut val = [0u8; SYS_T];
@@ -107,7 +119,19 @@ fn gen_e<R: CryptoRng + Rng>(e: &mut [u8; SYS_N / 8], rng: &mut R) {
 /// Generation of `e`, an error vector of weight `t`.
 /// Does not take any input arguments.
 /// If generation of pseudo-random numbers fails, an error is returned.
-#[cfg(any(feature = "cbkem8192128", feature = "cbkem8192128f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    )),
+    any(feature = "cbkem8192128", feature = "cbkem8192128f")
+))]
 fn gen_e<R: CryptoRng + Rng>(e: &mut [u8], rng: &mut R) {
     let mut ind = [0u16; SYS_T];
     let mut bytes = [0u8; SYS_T * 2];
@@ -167,7 +191,17 @@ fn gen_e<R: CryptoRng + Rng>(e: &mut [u8], rng: &mut R) {
 /// Syndrome computation.
 ///
 /// Computes syndrome `s` based on public key `pk` and error vector `e`.
-#[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    )),
+    any(feature = "cbkem6960119", feature = "cbkem6960119f")
+))]
 fn syndrome(
     s: &mut [u8; PK_NROWS.div_ceil(8)],
     pk: &[u8; PK_NROWS * PK_ROW_BYTES],
@@ -216,7 +250,17 @@ fn syndrome(
 /// Syndrome computation.
 ///
 /// Computes syndrome `s` based on public key `pk` and error vector `e`.
-#[cfg(not(any(feature = "cbkem6960119", feature = "cbkem6960119f")))]
+#[cfg(any(
+    any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f"
+    ),
+    not(any(feature = "cbkem6960119", feature = "cbkem6960119f"))
+))]
 fn syndrome(
     s: &mut [u8; PK_NROWS.div_ceil(8)],
     pk: &[u8; PK_NROWS * PK_ROW_BYTES],
@@ -267,19 +311,91 @@ pub(crate) fn encrypt<R: CryptoRng + Rng>(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use super::*;
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use crate::api::CRYPTO_CIPHERTEXTBYTES;
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use crate::api::CRYPTO_PUBLICKEYBYTES;
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use crate::nist_aes_rng::AesState;
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use crate::test_utils::TestData;
 
     #[test]
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     fn test_encrypt() {
         let entropy_input = [
             6, 21, 80, 35, 77, 21, 140, 94, 201, 85, 149, 254, 4, 239, 122, 37, 118, 127, 46, 36,

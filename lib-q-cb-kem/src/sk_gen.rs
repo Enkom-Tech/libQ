@@ -62,7 +62,19 @@ pub(crate) fn genpoly_gen(out: &mut [Gf; SYS_T], f: &[Gf; SYS_T]) -> isize {
 }
 
 #[cfg(test)]
-#[cfg(all(feature = "cbkem8192128f", test))]
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem348864f",
+        feature = "cbkem460896",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119",
+        feature = "cbkem6960119f"
+    )),
+    all(feature = "cbkem8192128f", test)
+))]
 mod tests {
     use super::*;
     use crate::macros::sub;
@@ -72,6 +84,16 @@ mod tests {
     #[test]
     #[cfg(all(
         feature = "alloc",
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
         any(feature = "cbkem8192128", feature = "cbkem8192128f")
     ))]
     fn test_genpoly_gen() {

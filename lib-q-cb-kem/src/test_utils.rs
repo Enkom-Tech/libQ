@@ -78,7 +78,19 @@ mod alloc_parsers {
     impl TestData {
         impl_parser_per_type!(u8vec, 8, u8);
         impl_parser_per_type!(u16vec, 16, u16);
-        #[cfg(feature = "cbkem8192128f")]
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f",
+                feature = "cbkem6960119",
+                feature = "cbkem6960119f"
+            )),
+            feature = "cbkem8192128f"
+        ))]
         impl_parser_per_type!(u32vec, 32, u32);
         impl_parser_per_type!(u64vec, 64, u64);
         #[cfg(any(

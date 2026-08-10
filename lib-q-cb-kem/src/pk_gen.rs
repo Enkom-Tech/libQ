@@ -24,12 +24,21 @@ use crate::util::{
 };
 
 /// Return number of trailing zeros of the non-zero input `input`
-#[cfg(any(
-    feature = "cbkem348864f",
-    feature = "cbkem460896f",
-    feature = "cbkem6688128f",
-    feature = "cbkem6960119f",
-    feature = "cbkem8192128f"
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem460896",
+        feature = "cbkem6688128",
+        feature = "cbkem6960119",
+        feature = "cbkem8192128"
+    )),
+    any(
+        feature = "cbkem348864f",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119f",
+        feature = "cbkem8192128f"
+    )
 ))]
 fn ctz(input: u64) -> i32 {
     let (mut m, mut r) = (0i32, 0i32);
@@ -44,12 +53,21 @@ fn ctz(input: u64) -> i32 {
 }
 
 /// Takes two 16-bit integers and determines whether they are equal (u64::MAX) or different (0)
-#[cfg(any(
-    feature = "cbkem348864f",
-    feature = "cbkem460896f",
-    feature = "cbkem6688128f",
-    feature = "cbkem6960119f",
-    feature = "cbkem8192128f"
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem460896",
+        feature = "cbkem6688128",
+        feature = "cbkem6960119",
+        feature = "cbkem8192128"
+    )),
+    any(
+        feature = "cbkem348864f",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119f",
+        feature = "cbkem8192128f"
+    )
 ))]
 fn same_mask(x: u16, y: u16) -> u64 {
     let mut mask = (x ^ y) as u64;
@@ -61,12 +79,21 @@ fn same_mask(x: u16, y: u16) -> u64 {
 }
 
 /// Move columns in matrix `mat`
-#[cfg(any(
-    feature = "cbkem348864f",
-    feature = "cbkem460896f",
-    feature = "cbkem6688128f",
-    feature = "cbkem6960119f",
-    feature = "cbkem8192128f"
+#[cfg(all(
+    not(any(
+        feature = "cbkem348864",
+        feature = "cbkem460896",
+        feature = "cbkem6688128",
+        feature = "cbkem6960119",
+        feature = "cbkem8192128"
+    )),
+    any(
+        feature = "cbkem348864f",
+        feature = "cbkem460896f",
+        feature = "cbkem6688128f",
+        feature = "cbkem6960119f",
+        feature = "cbkem8192128f"
+    )
 ))]
 fn mov_columns(
     mat: &mut [[u8; SYS_N / 8]; PK_NROWS],
@@ -79,17 +106,56 @@ fn mov_columns(
     let row = PK_NROWS - 32;
     let block_idx = row / 8;
 
-    #[cfg(feature = "cbkem6960119f")]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f"
+        )),
+        feature = "cbkem6960119f"
+    ))]
     let tail = row % 8;
-    #[cfg(feature = "cbkem6960119f")]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f"
+        )),
+        feature = "cbkem6960119f"
+    ))]
     let mut tmp = [0u8; 9];
 
-    #[cfg(not(feature = "cbkem6960119f"))]
+    #[cfg(any(
+        any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
+        ),
+        not(feature = "cbkem6960119f")
+    ))]
     for i in 0..32 {
         buf[i] = u64::from_le_bytes(*sub!(mat[row + i], block_idx, 8));
     }
 
-    #[cfg(feature = "cbkem6960119f")]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f"
+        )),
+        feature = "cbkem6960119f"
+    ))]
     for i in 0..32 {
         for j in 0..9 {
             tmp[j] = mat[row + i][block_idx + j];
@@ -148,7 +214,16 @@ fn mov_columns(
     }
 
     // moving columns of mat according to the column indices of pivots
-    #[cfg(not(feature = "cbkem6960119f"))]
+    #[cfg(any(
+        any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
+        ),
+        not(feature = "cbkem6960119f")
+    ))]
     for i in 0..PK_NROWS {
         let mut t = u64::from_le_bytes(*sub!(mat[i], block_idx, 8));
 
@@ -164,7 +239,17 @@ fn mov_columns(
         *sub!(mut mat[i], block_idx, 8) = t.to_le_bytes();
     }
 
-    #[cfg(feature = "cbkem6960119f")]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f"
+        )),
+        feature = "cbkem6960119f"
+    ))]
     for i in 0..PK_NROWS {
         for k in 0..9 {
             tmp[k] = mat[i][block_idx + k];
@@ -220,12 +305,21 @@ pub(crate) fn pk_gen(
     sk: &[u8; 2 * SYS_T],
     perm: &[u32; 1 << GFBITS],
     pi: &mut [i16; 1 << GFBITS],
-    #[cfg(any(
-        feature = "cbkem348864f",
-        feature = "cbkem460896f",
-        feature = "cbkem6688128f",
-        feature = "cbkem6960119f",
-        feature = "cbkem8192128f"
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
+        )),
+        any(
+            feature = "cbkem348864f",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119f",
+            feature = "cbkem8192128f"
+        )
     ))]
     pivots: &mut u64,
 ) -> i32 {
@@ -317,12 +411,21 @@ pub(crate) fn pk_gen(
                 break;
             }
 
-            #[cfg(any(
-                feature = "cbkem348864f",
-                feature = "cbkem460896f",
-                feature = "cbkem6688128f",
-                feature = "cbkem6960119f",
-                feature = "cbkem8192128f"
+            #[cfg(all(
+                not(any(
+                    feature = "cbkem348864",
+                    feature = "cbkem460896",
+                    feature = "cbkem6688128",
+                    feature = "cbkem6960119",
+                    feature = "cbkem8192128"
+                )),
+                any(
+                    feature = "cbkem348864f",
+                    feature = "cbkem460896f",
+                    feature = "cbkem6688128f",
+                    feature = "cbkem6960119f",
+                    feature = "cbkem8192128f"
+                )
             ))]
             {
                 if row == PK_NROWS - 32 {
@@ -372,17 +475,57 @@ pub(crate) fn pk_gen(
         }
     }
 
-    #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f"
+        )),
+        any(feature = "cbkem6960119", feature = "cbkem6960119f")
+    ))]
     let tail = PK_NROWS % 8;
-    #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f"
+        )),
+        any(feature = "cbkem6960119", feature = "cbkem6960119f")
+    ))]
     const INNER_PK_ACCESSES: usize = ((SYS_N / 8 - 1) - (PK_NROWS - 1) / 8) + 1;
 
     for i in 0..PK_NROWS {
-        #[cfg(not(any(feature = "cbkem6960119", feature = "cbkem6960119f")))]
+        #[cfg(any(
+            any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f"
+            ),
+            not(any(feature = "cbkem6960119", feature = "cbkem6960119f"))
+        ))]
         pk[i * PK_ROW_BYTES..(i + 1) * PK_ROW_BYTES]
             .copy_from_slice(&mat[i][PK_NROWS / 8..PK_NROWS / 8 + PK_ROW_BYTES]);
 
-        #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f"
+            )),
+            any(feature = "cbkem6960119", feature = "cbkem6960119f")
+        ))]
         for (idx, j) in ((PK_NROWS - 1) / 8..SYS_N / 8 - 1).enumerate() {
             if tail == 0 {
                 pk[i * INNER_PK_ACCESSES + idx] = mat[i][j + 1];
@@ -391,7 +534,17 @@ pub(crate) fn pk_gen(
                     (mat[i][j] >> tail) | (mat[i][j + 1] << (8 - tail));
             }
         }
-        #[cfg(any(feature = "cbkem6960119", feature = "cbkem6960119f"))]
+        #[cfg(all(
+            not(any(
+                feature = "cbkem348864",
+                feature = "cbkem348864f",
+                feature = "cbkem460896",
+                feature = "cbkem460896f",
+                feature = "cbkem6688128",
+                feature = "cbkem6688128f"
+            )),
+            any(feature = "cbkem6960119", feature = "cbkem6960119f")
+        ))]
         {
             pk[(i + 1) * INNER_PK_ACCESSES - 1] = mat[i][SYS_N / 8 - 1] >> tail;
         }
@@ -407,29 +560,83 @@ pub(crate) fn pk_gen(
 
 #[cfg(test)]
 mod tests {
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use alloc::vec;
 
-    #[cfg(any(
-        feature = "cbkem348864f",
-        feature = "cbkem460896f",
-        feature = "cbkem6688128f",
-        feature = "cbkem6960119f",
-        feature = "cbkem8192128f"
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
+        )),
+        any(
+            feature = "cbkem348864f",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119f",
+            feature = "cbkem8192128f"
+        )
     ))]
     use super::*;
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use crate::api::CRYPTO_PUBLICKEYBYTES;
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     use crate::test_utils::TestData;
 
     #[test]
-    #[cfg(any(
-        feature = "cbkem348864f",
-        feature = "cbkem460896f",
-        feature = "cbkem6688128f",
-        feature = "cbkem6960119f",
-        feature = "cbkem8192128f"
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
+        )),
+        any(
+            feature = "cbkem348864f",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119f",
+            feature = "cbkem8192128f"
+        )
     ))]
     fn test_ctz() {
         const EXPECTED: [i32; 180] = [
@@ -447,12 +654,21 @@ mod tests {
     }
 
     #[test]
-    #[cfg(any(
-        feature = "cbkem348864f",
-        feature = "cbkem460896f",
-        feature = "cbkem6688128f",
-        feature = "cbkem6960119f",
-        feature = "cbkem8192128f"
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem460896",
+            feature = "cbkem6688128",
+            feature = "cbkem6960119",
+            feature = "cbkem8192128"
+        )),
+        any(
+            feature = "cbkem348864f",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119f",
+            feature = "cbkem8192128f"
+        )
     ))]
     fn test_same_mask() {
         const EXPECTED: [u64; 25] = [
@@ -490,7 +706,19 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     fn test_mov_columns() {
         const COLS: usize = SYS_N / 8;
 
@@ -533,7 +761,19 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     fn test_pk_gen_1() {
         let sk_data = TestData::new().u8vec("cbkem8192128f_pk_gen_sk_input");
         let perm_data = TestData::new().u32vec("cbkem8192128f_pk_gen_perm_input");
@@ -575,7 +815,19 @@ mod tests {
     }
 
     #[test]
-    #[cfg(all(feature = "alloc", feature = "cbkem8192128f"))]
+    #[cfg(all(
+        not(any(
+            feature = "cbkem348864",
+            feature = "cbkem348864f",
+            feature = "cbkem460896",
+            feature = "cbkem460896f",
+            feature = "cbkem6688128",
+            feature = "cbkem6688128f",
+            feature = "cbkem6960119",
+            feature = "cbkem6960119f"
+        )),
+        all(feature = "alloc", feature = "cbkem8192128f")
+    ))]
     fn test_pk_gen_2() {
         // NOTE expected pk_data of previous testcase becomes input for this one
         let pk_data = TestData::new().u8vec("cbkem8192128f_pk_gen_pk_expected");
