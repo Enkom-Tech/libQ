@@ -52,7 +52,31 @@ impl<P: HqcParams> HqcPke<P> {
     ///
     /// This ensures consistent XOF state advancement across implementations.
     fn xof_get_bytes(xof: &mut Shake256Xof, output: &mut [u8]) -> Result<(), HqcPkeError> {
-        xof.squeeze(output).map_err(|_| HqcPkeError::HashError)?;
+        let output_size = output.len();
+        let bsize = 8usize;
+        let remainder = output_size % bsize;
+
+        if remainder == 0 {
+            // Output size is 8-byte aligned - simple case
+            xof.squeeze(output).map_err(|_| HqcPkeError::HashError)?;
+        } else {
+            // Output size is NOT 8-byte aligned - match reference behavior
+            let aligned_size = output_size - remainder;
+
+            // Squeeze aligned portion directly
+            if aligned_size > 0 {
+                xof.squeeze(&mut output[..aligned_size])
+                    .map_err(|_| HqcPkeError::HashError)?;
+            }
+
+            // Squeeze 8 more bytes into tmp (reference behavior!)
+            let mut tmp = [0u8; 8];
+            xof.squeeze(&mut tmp).map_err(|_| HqcPkeError::HashError)?;
+
+            // Copy only first 'remainder' bytes from tmp
+            output[aligned_size..].copy_from_slice(&tmp[..remainder]);
+        }
+
         Ok(())
     }
 
@@ -485,22 +509,23 @@ impl<P: HqcParams> HqcPke<P> {
         support: &mut [u32],
         weight: usize,
     ) -> Result<(), HqcPkeError> {
-        // The reference draws exactly 3 bytes per ATTEMPT (vector.c
-        // vect_generate_random_support1: xof_get_bytes(ctx, rand_bytes, 3) inside the loop), so a
-        // rejected candidate consumes 3 bytes and no more. Buffering 3*weight bytes and refilling
-        // a whole buffer over-consumes the XOF stream as soon as any candidate is rejected, which
-        // desynchronises every subsequent draw from the same context.
-        let mut rand_bytes = [0u8; 3];
+        let random_bytes_size = 3 * weight;
+        let mut rand_bytes = vec![0u8; random_bytes_size];
         let mut i = 0;
+        let mut j = random_bytes_size;
 
         while i < weight {
             loop {
-                Self::xof_get_bytes(xof, &mut rand_bytes)?;
-                // Little-endian, matching the reference:
-                //   candidate = rand_bytes[0] | (rand_bytes[1] << 8) | (rand_bytes[2] << 16)
-                support[i] = (rand_bytes[0] as u32) |
-                    ((rand_bytes[1] as u32) << 8) |
-                    ((rand_bytes[2] as u32) << 16);
+                if j == random_bytes_size {
+                    // Use xof_get_bytes to match reference XOF consumption behavior
+                    Self::xof_get_bytes(xof, &mut rand_bytes)?;
+                    j = 0;
+                }
+
+                support[i] = ((rand_bytes[j] as u32) << 16) |
+                    ((rand_bytes[j + 1] as u32) << 8) |
+                    (rand_bytes[j + 2] as u32);
+                j += 3;
 
                 if support[i] < P::UTILS_REJECTION_THRESHOLD {
                     break;
