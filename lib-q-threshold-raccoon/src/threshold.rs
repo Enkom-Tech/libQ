@@ -60,6 +60,7 @@ use rand_core::{
     CryptoRng,
     Rng,
 };
+use subtle::ConstantTimeEq;
 
 use crate::SecretShare;
 use crate::error::RaccoonError;
@@ -189,7 +190,14 @@ pub fn aggregate_commitment(
             .iter()
             .find(|c| c.index == r.index)
             .ok_or(RaccoonError::InvalidSignerSet)?;
-        if hash_commitment(&r.w) != c.com {
+        // Constant-time, deliberately. This is a commit-reveal opening check: `c.com` was
+        // broadcast in round 1 and `r.w` is the round-2 opening, so an attacker trying to open
+        // an HONEST party's commitment with a value they did not commit to is comparing against
+        // a target they do not control. A short-circuiting `!=` on the 32-byte hash leaks how
+        // many leading bytes matched, which is the standard byte-at-a-time forgery oracle: it
+        // turns searching for a colliding opening from ~2^256 work into ~32*256 probes against
+        // this comparison. `ct_eq` folds all 32 bytes before yielding a verdict.
+        if !bool::from(hash_commitment(&r.w).ct_eq(&c.com)) {
             return Err(RaccoonError::Encoding);
         }
         w = bdlop::commit_add(&w, &r.w);

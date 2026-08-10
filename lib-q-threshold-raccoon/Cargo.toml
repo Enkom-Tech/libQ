@@ -20,6 +20,8 @@ ignored = [
 lib-q-dkg = { path = "../lib-q-dkg", version = "0.0.10", default-features = false, features = ["std", "random"] }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10", default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
+# Used for the round-2 commitment-opening comparison, which must not short-circuit.
+subtle = { workspace = true }
 rand_core = { workspace = true }
 # wasm-only optional dependencies (pulled in by the `wasm` feature).
 lib-q-core = { path = "../lib-q-core", version = "0.0.10", optional = true, default-features = false }
