@@ -16,8 +16,18 @@
 pub const PKE_DK_SEED_BYTES: usize = 32;
 /// PKE encryption key seed (`seed_ek`) length in bytes — the fixed-size prefix of the public key.
 pub const PKE_EK_SEED_BYTES: usize = 32;
-/// `sigma` length (`PARAM_SECURITY_BYTES`).
+/// `sigma` length (`PARAM_SECURITY_BYTES`) for HQC-128.
+///
+/// `PARAM_SECURITY_BYTES` is **per level** in the HQC v5.0.0 reference — 16/24/32 for
+/// HQC-128/192/256 — and the vendored upstream `intermediates_values` dumps confirm it (`sigma`
+/// and `m` are 16/24/32 hex-decoded bytes there; `salt` stays 16 at every level). Use
+/// [`KEM_SIGMA_BYTES_192`] / [`KEM_SIGMA_BYTES_256`] for the higher levels rather than assuming
+/// this one is universal.
 pub const KEM_SIGMA_BYTES: usize = 16;
+/// `sigma` length (`PARAM_SECURITY_BYTES`) for HQC-192.
+pub const KEM_SIGMA_BYTES_192: usize = 24;
+/// `sigma` length (`PARAM_SECURITY_BYTES`) for HQC-256.
+pub const KEM_SIGMA_BYTES_256: usize = 32;
 /// KEM seed length (`seed_kem` in `HqcKemSecretKey`).
 pub const KEM_SEED_KEM_BYTES: usize = 48;
 
@@ -29,18 +39,19 @@ pub const fn kem_public_key_bytes(n_bits: usize) -> usize {
     PKE_EK_SEED_BYTES + n_bits.div_ceil(8)
 }
 
-/// Byte length of a serialized KEM secret key for a given `ek_pke` / public key prefix size.
+/// Byte length of a serialized KEM secret key for a given `ek_pke` / public key prefix size and
+/// `sigma` length (`PARAM_SECURITY_BYTES`, which is per-level: 16/24/32).
 #[must_use]
-pub const fn kem_secret_key_serialized_len(ek_pke_len: usize) -> usize {
-    ek_pke_len + PKE_DK_SEED_BYTES + KEM_SIGMA_BYTES + KEM_SEED_KEM_BYTES
+pub const fn kem_secret_key_serialized_len(ek_pke_len: usize, sigma_len: usize) -> usize {
+    ek_pke_len + PKE_DK_SEED_BYTES + sigma_len + KEM_SEED_KEM_BYTES
 }
 
 /// libQ's own `dk_pke` ‖ `sigma` ‖ `ek_pke` secret-key layout, named after (but **not
 /// byte-identical to**) the upstream HQC reference's `CRYPTO_SECRETKEYBYTES` wire format.
 ///
-/// The field order matches upstream's, but the field *sizes* are this workspace's own
-/// (`PKE_DK_SEED_BYTES` = 32, `KEM_SIGMA_BYTES` = 16, both fixed across all three security
-/// levels), not upstream's per-level sizing. A same-seed comparison against the official HQC
+/// The field order matches upstream's, and `sigma` is now sized per-level as upstream sizes it
+/// (`PARAM_SECURITY_BYTES` = 16/24/32), but `dk_pke` is still this workspace's 32-byte seed rather
+/// than upstream's expanded form. A same-seed comparison against the official HQC
 /// v5.0.0 reference implementation (commit `f46e542`) measured the resulting constants as
 /// numerically smaller than upstream's `CRYPTO_SECRETKEYBYTES` at all three levels — HQC-128:
 /// 2289 vs 2321, HQC-192: 4562 vs 4602, HQC-256: 7285 vs 7333 (deltas -32/-40/-48) — see
@@ -52,8 +63,8 @@ pub const fn kem_secret_key_serialized_len(ek_pke_len: usize) -> usize {
 /// length check). Do not treat a value returned here as compatible with genuine upstream HQC
 /// `CRYPTO_SECRETKEYBYTES`-sized keys.
 #[must_use]
-pub const fn kem_nist_secret_key_bytes(public_key_len: usize) -> usize {
-    PKE_DK_SEED_BYTES + KEM_SIGMA_BYTES + public_key_len
+pub const fn kem_nist_secret_key_bytes(public_key_len: usize, sigma_len: usize) -> usize {
+    PKE_DK_SEED_BYTES + sigma_len + public_key_len
 }
 
 // --- HQC-128 (parameter set 1) ---
@@ -63,9 +74,11 @@ pub const HQC128_PUBLIC_KEY_BYTES: usize = kem_public_key_bytes(17669); // 2241
 /// KEM ciphertext length (`CRYPTO_CIPHERTEXTBYTES`).
 pub const HQC128_CIPHERTEXT_BYTES: usize = 4433;
 /// Serialized KEM secret key length (see [`kem_secret_key_serialized_len`]).
-pub const HQC128_SECRET_KEY_BYTES: usize = kem_secret_key_serialized_len(HQC128_PUBLIC_KEY_BYTES);
+pub const HQC128_SECRET_KEY_BYTES: usize =
+    kem_secret_key_serialized_len(HQC128_PUBLIC_KEY_BYTES, KEM_SIGMA_BYTES);
 /// NIST KEM secret key wire length (`dk_pke` ‖ `sigma` ‖ `ek_pke`).
-pub const HQC128_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC128_PUBLIC_KEY_BYTES);
+pub const HQC128_NIST_SECRET_KEY_BYTES: usize =
+    kem_nist_secret_key_bytes(HQC128_PUBLIC_KEY_BYTES, KEM_SIGMA_BYTES);
 
 // --- HQC-192 (parameter set 3) ---
 
@@ -80,8 +93,10 @@ pub const HQC128_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC128
 // `pk_new = pk_old[..4514]` recovers the correct value from any previously stored key.
 pub const HQC192_PUBLIC_KEY_BYTES: usize = kem_public_key_bytes(35851); // 4514
 pub const HQC192_CIPHERTEXT_BYTES: usize = 8978;
-pub const HQC192_SECRET_KEY_BYTES: usize = kem_secret_key_serialized_len(HQC192_PUBLIC_KEY_BYTES);
-pub const HQC192_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC192_PUBLIC_KEY_BYTES);
+pub const HQC192_SECRET_KEY_BYTES: usize =
+    kem_secret_key_serialized_len(HQC192_PUBLIC_KEY_BYTES, KEM_SIGMA_BYTES_192);
+pub const HQC192_NIST_SECRET_KEY_BYTES: usize =
+    kem_nist_secret_key_bytes(HQC192_PUBLIC_KEY_BYTES, KEM_SIGMA_BYTES_192);
 
 // --- HQC-256 (parameter set 5) ---
 
@@ -90,8 +105,10 @@ pub const HQC192_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC192
 // consequences as HQC-192 (`pk_new = pk_old[..7237]`).
 pub const HQC256_PUBLIC_KEY_BYTES: usize = kem_public_key_bytes(57637); // 7237
 pub const HQC256_CIPHERTEXT_BYTES: usize = 14421;
-pub const HQC256_SECRET_KEY_BYTES: usize = kem_secret_key_serialized_len(HQC256_PUBLIC_KEY_BYTES);
-pub const HQC256_NIST_SECRET_KEY_BYTES: usize = kem_nist_secret_key_bytes(HQC256_PUBLIC_KEY_BYTES);
+pub const HQC256_SECRET_KEY_BYTES: usize =
+    kem_secret_key_serialized_len(HQC256_PUBLIC_KEY_BYTES, KEM_SIGMA_BYTES_256);
+pub const HQC256_NIST_SECRET_KEY_BYTES: usize =
+    kem_nist_secret_key_bytes(HQC256_PUBLIC_KEY_BYTES, KEM_SIGMA_BYTES_256);
 
 #[cfg(test)]
 mod tests {
@@ -100,11 +117,21 @@ mod tests {
     #[test]
     fn kem_secret_lengths_match_explicit_sums() {
         assert_eq!(HQC128_SECRET_KEY_BYTES, 2241 + 32 + 16 + 48);
-        assert_eq!(HQC192_SECRET_KEY_BYTES, 4514 + 32 + 16 + 48);
-        assert_eq!(HQC256_SECRET_KEY_BYTES, 7237 + 32 + 16 + 48);
+        assert_eq!(HQC192_SECRET_KEY_BYTES, 4514 + 32 + 24 + 48);
+        assert_eq!(HQC256_SECRET_KEY_BYTES, 7237 + 32 + 32 + 48);
         assert_eq!(HQC128_NIST_SECRET_KEY_BYTES, 32 + 16 + 2241);
-        assert_eq!(HQC192_NIST_SECRET_KEY_BYTES, 32 + 16 + 4514);
-        assert_eq!(HQC256_NIST_SECRET_KEY_BYTES, 32 + 16 + 7237);
+        assert_eq!(HQC192_NIST_SECRET_KEY_BYTES, 32 + 24 + 4514);
+        assert_eq!(HQC256_NIST_SECRET_KEY_BYTES, 32 + 32 + 7237);
+    }
+
+    /// `PARAM_SECURITY_BYTES` is per-level, not a single constant. Pinned against the vendored
+    /// upstream v5.0.0 `intermediates_values` dumps, whose `sigma`/`m` fields decode to exactly
+    /// these widths (`lib-q-hqc/kats/reference-intermediates/`).
+    #[test]
+    fn sigma_is_sized_per_security_level() {
+        assert_eq!(KEM_SIGMA_BYTES, 16);
+        assert_eq!(KEM_SIGMA_BYTES_192, 24);
+        assert_eq!(KEM_SIGMA_BYTES_256, 32);
     }
 
     #[test]

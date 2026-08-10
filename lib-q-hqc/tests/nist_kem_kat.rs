@@ -15,6 +15,13 @@
 //! - `seed` in `.req`/`.rsp` is `seedKEM` (48 bytes).
 //! - Keygen: XOF(`seedKEM`, domain 1) → `seedPKE`, `σ`; PKE.Keygen(`seedPKE`).
 //! - Encaps: `m` = `seed[32..48]`; `salt` = first 16 bytes of the **next** record's `seed`.
+//!
+//! `m` is `PARAM_SECURITY_BYTES` = `P::K` wide (16/24/32 by level), and a 48-byte seed only has 16
+//! spare bytes, so at HQC-192/256 the bytes beyond the first 16 are drawn from
+//! `SHAKE256(seed48 ‖ 0x02)`. That is **this harness's own convention**, not upstream's — these
+//! are self-generated regression pins, and the convention is chosen so the HQC-128 pins stay
+//! byte-identical to the ones committed before `m` became per-level (card `t_d2ee7042`), which is
+//! itself the evidence that the change was a no-op at level 1.
 
 #![cfg(all(feature = "alloc", feature = "hqc", feature = "random"))]
 
@@ -22,6 +29,7 @@ use std::fs;
 use std::path::Path;
 
 use lib_q_hqc::hqc_kem::HqcKem;
+use lib_q_hqc::internal::shake256::Shake256Xof;
 use lib_q_hqc::params::{
     Hqc1Params,
     Hqc3Params,
@@ -114,7 +122,7 @@ fn write_regression_pin_rsp_file<P: HqcParams>(rsp_path: &Path, req_path: &Path)
         let mut seed48 = [0u8; 48];
         seed48.copy_from_slice(&seed[..48]);
         let (pk, sk) = kem.keygen_with_seed(&seed48).expect("keygen");
-        let m = kat_message_from_seed(&seed48);
+        let m = kat_message_from_seed::<P>(&seed48);
         let salt = kat_salt_from_next_seed(next_seed);
         let (ct, ss) = kem.encapsulate_with_m_salt(&pk, &m, &salt).expect("encaps");
         let sk_nist = sk.to_nist_bytes();
@@ -217,9 +225,19 @@ fn assert_bytes_eq(label: &str, expected: &[u8], actual: &[u8]) {
     );
 }
 
-fn kat_message_from_seed(seed48: &[u8]) -> [u8; KEM_MESSAGE_BYTES] {
-    let mut m = [0u8; KEM_MESSAGE_BYTES];
-    m.copy_from_slice(&seed48[PRNG_BYTES_CONSUMED_BY_KEYGEN..48]);
+/// `m` for a record, at this parameter set's `PARAM_SECURITY_BYTES` width. See the module docs for
+/// where the bytes past the first 16 come from.
+fn kat_message_from_seed<P: HqcParams>(seed48: &[u8]) -> Vec<u8> {
+    let mut m = vec![0u8; P::K];
+    let from_seed = KEM_MESSAGE_BYTES.min(P::K);
+    m[..from_seed].copy_from_slice(
+        &seed48[PRNG_BYTES_CONSUMED_BY_KEYGEN..PRNG_BYTES_CONSUMED_BY_KEYGEN + from_seed],
+    );
+    if P::K > from_seed {
+        let mut xof = Shake256Xof::new();
+        xof.init_with_domain(seed48, 2).expect("shake256 init");
+        xof.squeeze(&mut m[from_seed..]).expect("shake256 squeeze");
+    }
     m
 }
 
@@ -282,7 +300,7 @@ fn run_kat_vector<P: HqcParams>(label: &str, vec: &KemKatVector, next_seed48: Op
         "{label} count={}: next seed length",
         vec.count
     );
-    let m = kat_message_from_seed(&seed48);
+    let m = kat_message_from_seed::<P>(&seed48);
     let salt = kat_salt_from_next_seed(next_seed);
     let (ct, ss_enc) = kem
         .encapsulate_with_m_salt(&pk, &m, &salt)
@@ -358,7 +376,7 @@ fn intermediate_crosscheck_count0<P: HqcParams>(label: &str, rsp_rel: &str) {
     let (pk, _) = kem.keygen_with_seed(&seed).expect("keygen");
     assert_eq!(pk.as_bytes(), vec.pk.as_slice(), "{label}: ek_kem == pk");
 
-    let m: [u8; 16] = seed[32..48].try_into().unwrap();
+    let m = kat_message_from_seed::<P>(&seed);
     let salt = kat_salt_from_next_seed(&next.seed);
     let (ct, ss) = kem.encapsulate_with_m_salt(&pk, &m, &salt).expect("encaps");
     assert_eq!(ct.as_bytes(), vec.ct.as_slice(), "{label}: c_kem");
