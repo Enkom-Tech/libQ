@@ -161,8 +161,8 @@ impl ParamSet {
     /// Core-SVP **quantum** cost of the residual Hint-MLWE instance, in bits.
     ///
     /// Basis: §5.4 states the analysis is "grounded in the assumed hardness of the MLWE problem,
-    /// assessed via the core-SVP cost model [1]" and derives security by "applying the complexity
-    /// of the best known sieving algorithms -- both classical and quantum [6,14] -- to this block
+    /// assessed via the core-SVP cost model \[1\]" and derives security by "applying the complexity
+    /// of the best known sieving algorithms -- both classical and quantum \[6,14\] -- to this block
     /// size, deliberately omitting polynomial factors". The standard core-SVP quantum sieve
     /// exponent for BKZ blocksize `beta` is `0.265 * beta` (Laarhoven; the figure NIST's PQC
     /// submissions, including Kyber/ML-KEM, quote as "quantum core-SVP").

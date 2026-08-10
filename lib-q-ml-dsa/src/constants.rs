@@ -206,10 +206,24 @@ pub(crate) mod ml_dsa_87 {
     pub type MLDSA87VerificationKey = crate::MLDSAVerificationKey<VERIFICATION_KEY_SIZE>;
 }
 
-/// Eta values (parameter sets use a subset; `Two` is kept for spec completeness).
+/// Eta values. Which variants are *constructed* depends on the enabled parameter sets:
+/// ML-DSA-44 and ML-DSA-87 use `Two`, ML-DSA-65 uses `Four`. Under a feature selection that
+/// omits one side (e.g. `mldsa44` alone, which is what a `default-features = false` consumer
+/// such as `lib-q-sca-test` pulls in) the other variant is never constructed and `-D warnings`
+/// rejects the build with `variant ... is never constructed`. The `cfg_attr`s below allow that
+/// exactly and only in the feature selections where it is expected, so a variant that becomes
+/// genuinely unused in a *full* build still fails the lint.
 #[derive(Clone, Copy)]
 pub(crate) enum Eta {
+    #[cfg_attr(
+        not(any(feature = "mldsa44", feature = "mldsa87")),
+        allow(dead_code, reason = "only ML-DSA-44/87 construct Eta::Two")
+    )]
     Two = 2,
+    #[cfg_attr(
+        not(feature = "mldsa65"),
+        allow(dead_code, reason = "only ML-DSA-65 constructs Eta::Four")
+    )]
     Four = 4,
 }
 

@@ -47,8 +47,9 @@ this inner PRNG — not the outer one — that actually drives `gauss::sample_f`
 equivalent two-hop shape. So this implementation is architecturally **two hops** (outer RNG → 32
 bytes → fresh inner SHAKE256 PRNG → sampler) where the reference is **one hop** (CTR_DRBG → 48
 bytes → the same SHAKE256 instance, continuously squeezed → sampler, no reseed). This is upstream
-Pornin `fn-dsa`'s own design (present verbatim pre-fork), consistent with the later FN-DSA/FIPS 206
-draft lineage's 32-byte internal seed convention rather than round-3 Falcon's 48-byte
+Pornin `fn-dsa`'s own design (present verbatim pre-fork), consistent with the later
+FN-DSA/FIPS 206 (NIST-selected; not yet published) draft lineage's 32-byte internal seed
+convention rather than round-3 Falcon's 48-byte
 `randombytes()` seed.
 
 **Consequence:** no `TryRng`/`Rng` shim wrapping `nist_aes_rng::AesState` — however faithfully it
