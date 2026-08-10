@@ -19,7 +19,7 @@
 //!   portable implementation in every configuration (see the doc on
 //!   `impl PolynomialOps for Avx2::sparse_dense_mul` below). HQC's polynomial
 //!   multiply does not use this function at all — it goes through
-//!   [`gf2x::avx2_vect_mul_mod_xnm1`], which *is* a real Toom-3 + Karatsuba +
+//!   `gf2x::avx2_vect_mul_mod_xnm1`, which *is* a real Toom-3 + Karatsuba +
 //!   PCLMUL AVX2 routine.
 //! - **`shift_xor`** — accelerated only when the shift distance is a multiple
 //!   of 64 bits; every other distance runs scalar, by design (see
@@ -51,7 +51,7 @@ pub struct Avx2;
 
 impl PolynomialOps for Avx2 {
     /// No AVX2 implementation exists for `sparse_dense_mul`. HQC's polynomial
-    /// multiply goes through [`gf2x::avx2_vect_mul_mod_xnm1`] (Toom-3 +
+    /// multiply goes through `gf2x::avx2_vect_mul_mod_xnm1` (Toom-3 +
     /// Karatsuba + PCLMUL); `sparse_dense_mul` is not on the KEM path and is
     /// retained only for the `PolynomialOps` trait shape and its equivalence
     /// tests. This delegates to the portable implementation in every

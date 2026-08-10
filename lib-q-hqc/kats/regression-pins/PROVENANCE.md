@@ -43,9 +43,41 @@ regenerated against the corrected constants — see the SHA-256 table below.
 The remaining `sk` length divergence **narrowed on 2026-08-10 (card `t_d2ee7042`)** but is not
 closed. `sigma` is now sized per-level at `PARAM_SECURITY_BYTES` (16/24/32) as upstream sizes it,
 so HQC-192's NIST secret-key wire length went 4562 -> 4570 against the reference's 4602. The
-residual 32 bytes are the *other* half of the original finding: this crate stores `dk_pke` as its
-32-byte seed where upstream stores the expanded form. Do not treat this tree's `sk` byte values as
-evidence that libQ's HQC secret-key wire format is upstream-compatible.
+residual gap is a uniform 32 bytes at every level (it was -32 / -40 / -48 before).
+
+**CORRECTION 2026-08-11.** The previous sentence here named the wrong cause. It read: "this crate
+stores `dk_pke` as its 32-byte seed where upstream stores the expanded form." That is false —
+upstream stores a 32-byte `dk_pke` seed too. It was a guess from the arithmetic, never checked
+against the reference source, and anyone acting on it would have expanded a field that is already
+the right size.
+
+What the reference actually does, read from `reference/hqc/src/common/kem.c:63-67`
+(`crypto_kem_keypair`):
+
+```c
+memcpy(dk_kem,                                        ek_kem,  PUBLIC_KEY_BYTES);
+memcpy(dk_kem + PUBLIC_KEY_BYTES,                     dk_pke,  SEED_BYTES);          // 32
+memcpy(dk_kem + PUBLIC_KEY_BYTES + SEED_BYTES,        sigma,   PARAM_SECURITY_BYTES); // 16/24/32
+memcpy(dk_kem + PUBLIC_KEY_BYTES + SEED_BYTES + PARAM_SECURITY_BYTES, seed_kem, SEED_BYTES); // 32
+```
+
+so `dk_kem = ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)`, which checks out against every
+`CRYPTO_SECRETKEYBYTES` in `src/common/hqc-{1,3,5}/api.h`:
+2241+32+16+32 = 2321, 4514+32+24+32 = 4602, 7237+32+32+32 = 7333.
+
+libQ's `to_nist_bytes` emits `dk_pke(32) ‖ sigma(K) ‖ ek_pke` (`lib-q-hqc/src/hqc_kem.rs:553-559`).
+So there are **two** differences, not one:
+
+1. **A missing field.** Upstream's trailing 32-byte `seed_kem` is absent. That is the entire
+   length delta, and it is why the delta is uniform. libQ *has* this value — `keygen_with_seed`
+   derives `seed_kem_32 = seed[..32]` and feeds it to the XOF exactly as upstream does — it simply
+   is not serialized (the struct's own `seed_kem` field is the 48-byte KAT seed, of which only the
+   first 32 bytes are ever used).
+2. **A different field order.** Upstream puts `ek_pke` **first**; libQ puts it **last**. A
+   length-only fix would still not be byte-compatible.
+
+Do not treat this tree's `sk` byte values as evidence that libQ's HQC secret-key wire format is
+upstream-compatible.
 
 The `hqc-3`/`hqc-5` `.rsp` files were regenerated for that fix (`m` and `sigma` widen, so `sk`,
 `ct` and `ss` all change). `hqc-1`'s file is byte-identical across it, which is the evidence that
