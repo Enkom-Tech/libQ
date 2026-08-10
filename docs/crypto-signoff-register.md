@@ -33,11 +33,35 @@ binding, and HVZK-unlinkable at parameters fitting a 160 KiB presentation budget
 **The single reviewable packet:** `anon-cred-oom-signoff-brief.md` — it gathers the six results and
 their open lists. Do not review the sub-docs cold; start there. The load-bearing open items it
 consolidates:
-- **Three distinct estimator runs still owed (do not merge):** (1) binding M-SIS at the *final*
-  `β_SIS` (set by the mandatory `Π_norm` + the RO-drawn `‖c̄‖_op` p99.99≈34 tail, NOT the honest
-  `≈3.5e5`); (2) small-secret **decision-LWR** for the nullifier at sample ceiling `κ_nf·N·#realms`;
-  (3) **M-LWE on the credential matrix `A_c`** hiding the fold objects (distinct from the 326-bit
-  proof-system Ext-M-LWE).
+- **Three distinct estimator runs owed (do not merge).** They must stay separate; do not collapse
+  them into one sweep.
+  - (1) binding M-SIS at the *final* `β_SIS` (set by the mandatory `Π_norm` + the RO-drawn
+    `‖c̄‖_op` p99.99≈34 tail, NOT the honest `≈3.5e5`). **RUN, PASSES.** Every finite cell clears
+    128-bit under every model; lowest ADPS16 = 136.9 bits at `κ_c=4, w_c=14`. That is a ~9-bit
+    margin, thin enough that a later parameter change must re-run this rather than assume it. Two
+    cells at `‖c̄‖₁ = 78` are reported BROKEN rather than infinite, which is correct: a bound
+    `≥ (q−1)/2` is trivially satisfiable, i.e. no security, not unbounded security.
+  - (2) small-secret **decision-LWR** for the nullifier at sample ceiling `κ_nf·N·#realms`.
+    **RUN, FAILS AT THE CANDIDATE PARAMETERS, fix identified and estimator-verified.** See card
+    `t_c972f73f`. At `κ_nf·d_κ = 1` (secret dimension `n = 256`) security collapses once more than
+    one realm exists: ADPS16 82.3 bits at `α=4096` and 95.5 at `α=8192`, against 278–539 bits at
+    `#realms = 1`. The sample count saturates by `#realms ≈ 4`, so the plateau is the operative
+    number and adding realms past that costs the attacker nothing further. Since the nullifier
+    exists to give per-realm unlinkability, single-realm is not a real configuration and the
+    failing rows are the operative ones.
+    Raising the rounding step alone does NOT fix it: `α=24576` still gives only 122.9 bits.
+    Doubling the nullifier secret dimension does, with room to spare: `κ_nf·d_κ = 2` (`n = 512`)
+    gives ADPS16 **221.0** / MATZOV 238.2 at the existing `α=8192`, and 275.6 / 289.5 at
+    `α=24576`, unchanged from `#realms = 4` to `#realms = 100`.
+    **This is a proposal, not an applied change** — the construction lives on the never-merged
+    branch, so nothing has been edited into it. Gate A must not be signed until the design fixes
+    `κ_nf`, `d_κ` and `α` explicitly; all three are currently UNDETERMINED in the source docs,
+    which is why the run had to sweep candidates at all.
+    Known gap in that run: an estimator-version crash silently drops the `dual` sub-attack from
+    the `Kyber` cost-model column only. MATZOV and ADPS16, the columns the verdict rests on, are
+    unaffected.
+  - (3) **M-LWE on the credential matrix `A_c`** hiding the fold objects (distinct from the
+    326-bit proof-system Ext-M-LWE). **STILL OWED.**
 - **Assumption I1** (issuance yields exact short openings) — load-bearing for single-difference binding.
 - **Proofs:** §6 one-first-order-layer completeness; the `(k+1)`-Vandermonde binding + forking
   accounting; `Δ_reject` as a *proven* Rényi/statistical bound; LNP22 `Πquad/Πlin/Πsim` composition.
