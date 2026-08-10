@@ -220,8 +220,28 @@ jobs:
           features: "all-algorithms"
 
       # Single workspace clippy pass (all crates, all optional code paths).
+      #
+      # NOT actually all code paths, and the exception matters: `--all-features` turns on
+      # mutually-excluding features together, so any module gated `not(feature = X)` where X is
+      # itself a feature is compiled OUT of this pass and can never be linted by it. The step
+      # below covers the known instance; see card t_3986efb2 for how it was found.
       - name: Clippy (workspace, all targets, all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
+
+      # Configurations `--all-features` structurally cannot reach, because an excluding feature
+      # is itself part of "all features".
+      #
+      # `fn-dsa-comm/src/shake256x4_avx2.rs` is gated
+      # `all(feature = "shake256x4", not(feature = "no_avx2"), x86)`. `--all-features` sets both
+      # `shake256x4` and `no_avx2`, so the pass above compiles the module away. It accumulated 30
+      # warnings unnoticed, 26 of them `unsafe_op_in_unsafe_fn`, which is a hard build failure for
+      # any consumer who enables `shake256x4` without `no_avx2` and denies warnings.
+      #
+      # This must FAIL if that file regresses. To confirm it can, reintroduce a bare unsafe call
+      # in one of the module's `unsafe fn` bodies and check this step goes red while the pass
+      # above stays green -- that difference is the whole point of the step.
+      - name: Clippy (feature combinations excluded by --all-features)
+        run: cargo clippy -p lib-q-fn-dsa-comm --all-targets --features shake256x4 -- -D warnings
 
       - name: Compile AVX-gated Keccak paths
         run: |
