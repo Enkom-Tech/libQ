@@ -544,11 +544,19 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         result
     }
 
-    /// Serialize to this crate's `dk_pke` ‖ `sigma` ‖ `ek_pke` layout (field order matches the
-    /// upstream HQC reference's `CRYPTO_SECRETKEYBYTES` layout, but field *sizes* are this
-    /// workspace's own and the resulting length is not byte-identical to upstream's — see
-    /// [`lib_q_types::hqc::kem_nist_secret_key_bytes`] for the measured deltas). Only round-trips
-    /// with [`Self::from_nist_bytes`]; does not interoperate with genuine upstream-produced keys.
+    /// Serialize to this crate's `dk_pke` ‖ `sigma` ‖ `ek_pke` layout.
+    ///
+    /// **Not** upstream-compatible, in two independent ways — see
+    /// [`lib_q_types::hqc::kem_nist_secret_key_bytes`] and board card `t_e3ac1c87`. The reference's
+    /// `crypto_kem_keypair` writes `ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)`
+    /// (`src/common/kem.c`), so relative to it this layout (a) omits the trailing 32-byte
+    /// `seed_kem` — the whole of the uniform 32-byte length shortfall at all three levels — and
+    /// (b) places `ek_pke` last rather than first.
+    ///
+    /// An earlier version of this comment claimed the field order matched upstream and only the
+    /// sizes differed. Both halves of that were wrong; it had not been checked against the
+    /// reference source. Only round-trips with [`Self::from_nist_bytes`]; does not interoperate
+    /// with genuine upstream-produced keys.
     #[cfg(feature = "alloc")]
     pub fn to_nist_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(P::NIST_SECRET_KEY_BYTES);
