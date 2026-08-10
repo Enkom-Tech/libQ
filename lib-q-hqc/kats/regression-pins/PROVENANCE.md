@@ -40,10 +40,18 @@ previously (HQC-192 4522 vs 4514, HQC-256 7245 vs 7237, both "+8") was fixed by 
 were confirmed to be inert zero padding (not data) before the fix landed. This tree was
 regenerated against the corrected constants — see the SHA-256 table below.
 
-The remaining `sk` length divergence is a **separate, still-open** defect (this fix does not
-change it: HQC-192's NIST secret-key wire length is now 4562, still not the reference's 4602 —
-sigma/seed field sizing, not the `pk`-length root cause above) tracked outside this lane; do not
-treat this tree's `sk` byte values as evidence that libQ's HQC secret-key wire format is correct.
+The remaining `sk` length divergence **narrowed on 2026-08-10 (card `t_d2ee7042`)** but is not
+closed. `sigma` is now sized per-level at `PARAM_SECURITY_BYTES` (16/24/32) as upstream sizes it,
+so HQC-192's NIST secret-key wire length went 4562 -> 4570 against the reference's 4602. The
+residual 32 bytes are the *other* half of the original finding: this crate stores `dk_pke` as its
+32-byte seed where upstream stores the expanded form. Do not treat this tree's `sk` byte values as
+evidence that libQ's HQC secret-key wire format is upstream-compatible.
+
+The `hqc-3`/`hqc-5` `.rsp` files were regenerated for that fix (`m` and `sigma` widen, so `sk`,
+`ct` and `ss` all change). `hqc-1`'s file is byte-identical across it, which is the evidence that
+the change was a no-op at HQC-128. The SHA-256 table below was also stale for `hqc-3`/`hqc-5` at
+the previous (2026-08-09) regeneration and is corrected here; `kats-manifest.toml` — which is what
+`scripts/ci_guard_kat_provenance.py` actually enforces — carried the right digests throughout.
 
 ## RNG path (A1) — CORRECTED 2026-08-09
 
@@ -83,9 +91,9 @@ the other two sets using a shared seed. Not investigated further by this lane.
 | `hqc-1/PQCkemKAT_2321.req` | `0652e9cf336e1f67f9563510b874e0a33d852add7124ea7d3aebf25d9222fea0` |
 | `hqc-1/PQCkemKAT_2321_regression_pin.rsp` | `0e97feca5a9d385abf9eede1c91af7a52424004b2741d369c165d591a9ecfd3b` |
 | `hqc-3/PQCkemKAT_4602.req` | `5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62` |
-| `hqc-3/PQCkemKAT_4602_regression_pin.rsp` | `7f721a944040aab9b68e9e03f14dfad72444d51418f5b5d759d24afc2a692b34` |
+| `hqc-3/PQCkemKAT_4602_regression_pin.rsp` | `dcc79e39855526973393cd63c10a1c309c73c472e84cbaf6a6c8a087190b228f` |
 | `hqc-5/PQCkemKAT_7333.req` | `5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62` |
-| `hqc-5/PQCkemKAT_7333_regression_pin.rsp` | `248e0b460ee61fed0a748a8d23d6bfb6ca8fae06015a1b97595e01bacde12904` |
+| `hqc-5/PQCkemKAT_7333_regression_pin.rsp` | `41d4fd7ec946f02ed5e128255b471e0aefbd38325b34d08bf43bc04222850f23` |
 
 The `.req` files for HQC-192 and HQC-256 share the same seed chain as the NIST generator template (identical file hash); outputs differ by parameter set in the `.rsp` files.
 

@@ -24,6 +24,10 @@ Status, in one line each:
 * HQC-128 keygen + encaps + decaps: **byte-exact with upstream**.
 * HQC-192/256 keygen: **byte-exact with upstream** (fixed 2026-08-09, card t_71d4f79a — `OMEGA`/
   `OMEGA_R` were 103/115/134 vs upstream 100/114/131; corrected).
+* HQC-192/256 encaps + decaps: **byte-exact with upstream** (fixed 2026-08-10, card t_d2ee7042 —
+  `m` and `sigma` were hardwired to 16 bytes instead of `PARAM_SECURITY_BYTES` = 16/24/32, which
+  both broke conformance and capped the HQC-192/256 shared secret at 128 bits of entropy; the
+  reference `m` could not previously even be supplied to the API).
 * Upstream `PQCkemKAT_*.rsp` KEM-boundary rows: **not comparable as-is**, because
   `HqcKem::keygen_with_seed` uses `seed48[0..32]` as `seed_kem` while upstream derives
   `seed_kem = SHAKE256(seed48 || 0x00)[0..32]`. Supplied the correctly derived `seed_kem`, this

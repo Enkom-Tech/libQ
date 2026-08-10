@@ -73,13 +73,16 @@ Consumed by `tests/reference_intermediates_kat.rs`.
 ## Scope and known gaps (read before trusting a green run)
 
 * **Byte-exact and passing (all three security levels):** HQC-128/192/256 keygen (`seed_dk`,
-  `sigma` at HQC-128, public key) and HQC-128 encaps/decaps (`c_kem`, `K`).
+  `sigma`, public key) **and** encaps/decaps (`c_kem`, `K`). Encaps/decaps at HQC-192/256, and
+  `sigma` above HQC-128, became comparable only on 2026-08-10 (card `t_d2ee7042`) — before that
+  this crate hardwired `m` and `sigma` to 16 bytes rather than `PARAM_SECURITY_BYTES`, so the
+  reference's 24/32-byte `m` could not be supplied to the API at all.
 * **FIXED 2026-08-09 (card t_71d4f79a):** HQC-192 and HQC-256 keygen were previously RED because
   `Hqc3Params::OMEGA` was 103 vs upstream `PARAM_OMEGA` 100, and `Hqc5Params::OMEGA` was 134 vs
   upstream 131 (`OMEGA_R` was 115 vs 114 at HQC-192). A full parameter diff against upstream
   `src/ref/hqc-{1,3,5}/parameters.h` + `src/common/hqc-{1,3,5}/api.h` at this same commit found no
   other deviations (byte sizes, N/N1/N2/K/DELTA/M/GF_POLY/G/FFT/RS_POLY_COEFS/N_MU/rejection
-  threshold all matched already). `Hqc3Params`/`Hqc5Params` now carry the corrected values; all 5
+  threshold all matched already). `Hqc3Params`/`Hqc5Params` now carry the corrected values; all 8
   tests in `tests/reference_intermediates_kat.rs` are green with none `#[ignore]`d; the drift guard
   is `omega_matches_reference_v5_0_0` (renamed from `omega_deviation_from_reference_is_pinned`,
   which used to pin the wrong values on purpose).

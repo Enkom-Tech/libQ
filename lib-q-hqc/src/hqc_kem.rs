@@ -37,6 +37,16 @@ const H_DOMAIN_SEPARATOR: u8 = 1; // SHA3-256 for H
 const G_DOMAIN_SEPARATOR: u8 = 0; // SHA3-512 for G
 const J_DOMAIN_SEPARATOR: u8 = 3; // SHA3-256 for J
 
+/// Largest `PARAM_SECURITY_BYTES` across the three parameter sets (HQC-256's 32).
+///
+/// `PARAM_SECURITY_BYTES` is 16/24/32 for HQC-128/192/256 and equals `P::K`; `m` and `sigma` are
+/// that wide, while `salt` is 16 at every level. This crate previously hardwired both to 16, which
+/// capped the shared secret's entropy at 128 bits for HQC-192/256 (the shared secret is
+/// `G(H(ek) ‖ m ‖ salt)` and `m` is its only secret input) and made the upstream HQC-192/256
+/// encaps vectors impossible to even supply. Fixed-size buffers of this width carry the value; the
+/// live prefix is always `P::K` bytes.
+pub const MAX_SECURITY_BYTES: usize = 32;
+
 /// HQC KEM implementation
 pub struct HqcKem<P: HqcParams> {
     pke: HqcPke<P>,
@@ -87,9 +97,11 @@ impl<P: HqcParams> HqcKem<P> {
             .squeeze(&mut seed_pke)
             .map_err(|_| HqcKemError::HashError)?;
 
-        let mut sigma = [0u8; 16]; // PARAM_SECURITY_BYTES
+        // `sigma` is `PARAM_SECURITY_BYTES` wide, which is per-level (16/24/32 = `P::K`), not a
+        // fixed 16. Held in a 32-byte buffer whose first `P::K` bytes are the live value.
+        let mut sigma = [0u8; MAX_SECURITY_BYTES];
         ctx_kem
-            .squeeze(&mut sigma)
+            .squeeze(&mut sigma[..P::K])
             .map_err(|_| HqcKemError::HashError)?;
 
         let (ek_pke, dk_pke) = self
@@ -121,18 +133,25 @@ impl<P: HqcParams> HqcKem<P> {
     }
 
     /// Encapsulate with caller-supplied `m` and `salt` (NIST KEM KAT / deterministic harness).
+    ///
+    /// `m` must be exactly `PARAM_SECURITY_BYTES` = `P::K` bytes (16/24/32 for HQC-128/192/256);
+    /// any other length is [`HqcKemError::InvalidInput`]. `salt` is 16 bytes at every level.
     pub fn encapsulate_with_m_salt(
         &self,
         public_key: &HqcKemPublicKey<P>,
-        m: &[u8; 16],
+        m: &[u8],
         salt: &[u8; 16],
     ) -> Result<(HqcKemCiphertext<P>, HqcKemSharedSecret<P>), HqcKemError> {
+        if m.len() != P::K {
+            return Err(HqcKemError::InvalidInput);
+        }
+
         // Compute shared key K and ciphertext c_kem
         let mut hash_ek_kem = [0u8; 32]; // SEED_BYTES
         self.hash_h(&mut hash_ek_kem, public_key.as_bytes())?;
 
         let mut k_theta = [0u8; 64]; // SHARED_SECRET_BYTES + SEED_BYTES
-        self.hash_g(&mut k_theta, &hash_ek_kem, m.as_ref(), salt.as_ref())?;
+        self.hash_g(&mut k_theta, &hash_ek_kem, m, salt.as_ref())?;
 
         let mut theta = [0u8; 32]; // SEED_BYTES
         theta.copy_from_slice(&k_theta[32..]);
@@ -142,7 +161,7 @@ impl<P: HqcParams> HqcKem<P> {
             .pke
             .encrypt(
                 public_key.pke_public_key(),
-                &self.bytes_to_u64_array(m.as_ref()),
+                &self.bytes_to_u64_array(m),
                 &theta,
             )
             .map_err(HqcKemError::PkeError)?;
@@ -181,11 +200,13 @@ impl<P: HqcParams> HqcKem<P> {
         public_key: &HqcKemPublicKey<P>,
         rng: &mut R,
     ) -> Result<(HqcKemCiphertext<P>, HqcKemSharedSecret<P>), HqcKemError> {
-        let mut m = [0u8; 16];
-        rng.fill_bytes(&mut m);
+        // `m` carries all of the shared secret's entropy, so it is sampled at the full
+        // per-level `PARAM_SECURITY_BYTES` (= `P::K`), not a fixed 16 bytes.
+        let mut m = [0u8; MAX_SECURITY_BYTES];
+        rng.fill_bytes(&mut m[..P::K]);
         let mut salt = [0u8; 16];
         rng.fill_bytes(&mut salt);
-        let result = self.encapsulate_with_m_salt(public_key, &m, &salt);
+        let result = self.encapsulate_with_m_salt(public_key, &m[..P::K], &salt);
         #[cfg(feature = "zeroize")]
         {
             use zeroize::Zeroize;
@@ -239,7 +260,7 @@ impl<P: HqcParams> HqcKem<P> {
 
         // Compute rejection key K_bar (following reference implementation order)
         let mut k_bar = [0u8; 32]; // SHARED_SECRET_BYTES
-        self.hash_j(&mut k_bar, &hash_ek_kem, &sigma, ciphertext)?;
+        self.hash_j(&mut k_bar, &hash_ek_kem, &sigma[..P::K], ciphertext)?;
 
         // Compare ciphertexts c'KEM with cKEM (following 2025 specification)
         // Compare full ciphertexts: (c'PKE, salt') with (cPKE, salt)
@@ -421,8 +442,8 @@ impl<P: HqcParams> HqcKem<P> {
         for &value in input {
             result.extend_from_slice(&value.to_le_bytes());
         }
-        // Truncate to the original message length (PARAM_SECURITY_BYTES = 16)
-        result.truncate(16);
+        // Truncate to the original message length (PARAM_SECURITY_BYTES = P::K = 16/24/32)
+        result.truncate(P::K);
         result
     }
 }
@@ -452,7 +473,9 @@ impl<P: HqcParams> HqcKemPublicKey<P> {
 pub struct HqcKemSecretKey<P: HqcParams> {
     ek_pke: HqcPkePublicKey<P>,
     dk_pke: HqcPkeSecretKey<P>,
-    sigma: [u8; 16],    // PARAM_SECURITY_BYTES
+    /// `PARAM_SECURITY_BYTES`-wide value in a `MAX_SECURITY_BYTES` buffer; only `[..P::K]` is
+    /// live, the tail is zero. Serialization emits the live prefix only.
+    sigma: [u8; MAX_SECURITY_BYTES],
     seed_kem: [u8; 48], // KAT seed (48 bytes for compatibility)
 }
 
@@ -484,7 +507,7 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
     pub fn new(
         ek_pke: HqcPkePublicKey<P>,
         dk_pke: HqcPkeSecretKey<P>,
-        sigma: [u8; 16],
+        sigma: [u8; MAX_SECURITY_BYTES],
         seed_kem: [u8; 48],
     ) -> Self {
         Self {
@@ -495,7 +518,14 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         }
     }
 
-    pub fn parse(&self) -> (HqcPkePublicKey<P>, HqcPkeSecretKey<P>, [u8; 16], [u8; 48]) {
+    pub fn parse(
+        &self,
+    ) -> (
+        HqcPkePublicKey<P>,
+        HqcPkeSecretKey<P>,
+        [u8; MAX_SECURITY_BYTES],
+        [u8; 48],
+    ) {
         (
             self.ek_pke.clone(),
             self.dk_pke.clone(),
@@ -509,7 +539,7 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         let mut result = Vec::with_capacity(P::SECRET_KEY_BYTES);
         result.extend_from_slice(&self.ek_pke.data);
         result.extend_from_slice(&self.dk_pke.data);
-        result.extend_from_slice(&self.sigma);
+        result.extend_from_slice(&self.sigma[..P::K]);
         result.extend_from_slice(&self.seed_kem);
         result
     }
@@ -523,7 +553,7 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
     pub fn to_nist_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(P::NIST_SECRET_KEY_BYTES);
         out.extend_from_slice(&self.dk_pke.data);
-        out.extend_from_slice(&self.sigma);
+        out.extend_from_slice(&self.sigma[..P::K]);
         out.extend_from_slice(&self.ek_pke.data);
         out
     }
@@ -540,9 +570,9 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         }
         let mut dk = [0u8; 32];
         dk.copy_from_slice(&bytes[..32]);
-        let mut sigma = [0u8; 16];
-        sigma.copy_from_slice(&bytes[32..48]);
-        let ek_bytes = &bytes[48..];
+        let mut sigma = [0u8; MAX_SECURITY_BYTES];
+        sigma[..P::K].copy_from_slice(&bytes[32..32 + P::K]);
+        let ek_bytes = &bytes[32 + P::K..];
         if ek_bytes.len() != P::PUBLIC_KEY_BYTES {
             return Err(HqcKemError::InvalidKey);
         }
@@ -727,7 +757,7 @@ mod tests {
             let seed = [seed_byte; 48];
             let (public_key, secret_key) = kem.keygen_with_seed(&seed).unwrap();
 
-            let m = [0x11u8; 16];
+            let m = alloc::vec![0x11u8; P::K];
             let salt = [0x22u8; 16];
             let (ciphertext, shared_secret) =
                 kem.encapsulate_with_m_salt(&public_key, &m, &salt).unwrap();
@@ -756,7 +786,7 @@ mod tests {
         let restored = HqcKemSecretKey::<Hqc3Params>::from_nist_bytes(&nist_bytes).unwrap();
 
         // Decapsulation must behave identically with the restored key.
-        let m = [0x33u8; 16];
+        let m = [0x33u8; 24]; // Hqc3Params::K
         let salt = [0x44u8; 16];
         let (ciphertext, shared_secret) =
             kem.encapsulate_with_m_salt(&public_key, &m, &salt).unwrap();
@@ -792,7 +822,7 @@ mod tests {
         let seed = [0x99u8; 48];
         let (public_key, secret_key) = kem.keygen_with_seed(&seed).unwrap();
 
-        let m = [0x55u8; 16];
+        let m = [0x55u8; 32]; // Hqc5Params::K
         let salt = [0x66u8; 16];
         let (ciphertext, shared_secret) =
             kem.encapsulate_with_m_salt(&public_key, &m, &salt).unwrap();

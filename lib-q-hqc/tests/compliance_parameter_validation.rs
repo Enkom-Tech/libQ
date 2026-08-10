@@ -280,17 +280,17 @@ fn test_key_size_calculations() {
     // Serialized KEM secret: ek_pke ‖ dk_pke ‖ sigma ‖ seed_kem (see `lib_q_types::hqc`)
     assert_eq!(
         Hqc1Params::SECRET_KEY_BYTES,
-        hqc::kem_secret_key_serialized_len(Hqc1Params::PUBLIC_KEY_BYTES),
+        hqc::kem_secret_key_serialized_len(Hqc1Params::PUBLIC_KEY_BYTES, Hqc1Params::K),
         "HQC-1 SECRET_KEY_BYTES"
     );
     assert_eq!(
         Hqc3Params::SECRET_KEY_BYTES,
-        hqc::kem_secret_key_serialized_len(Hqc3Params::PUBLIC_KEY_BYTES),
+        hqc::kem_secret_key_serialized_len(Hqc3Params::PUBLIC_KEY_BYTES, Hqc3Params::K),
         "HQC-3 SECRET_KEY_BYTES"
     );
     assert_eq!(
         Hqc5Params::SECRET_KEY_BYTES,
-        hqc::kem_secret_key_serialized_len(Hqc5Params::PUBLIC_KEY_BYTES),
+        hqc::kem_secret_key_serialized_len(Hqc5Params::PUBLIC_KEY_BYTES, Hqc5Params::K),
         "HQC-5 SECRET_KEY_BYTES"
     );
 

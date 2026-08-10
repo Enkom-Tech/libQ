@@ -215,6 +215,7 @@ impl KemOperations for LibQHqcProvider {
         use crate::hqc_kem::{
             HqcKemCiphertext,
             HqcKemSecretKey,
+            MAX_SECURITY_BYTES,
         };
         use crate::hqc_pke::{
             HqcPkeCiphertext,
@@ -231,7 +232,8 @@ impl KemOperations for LibQHqcProvider {
 
         match algorithm {
             Algorithm::Hqc128 => {
-                // Parse secret key: ek_pke (PUBLIC_KEY_BYTES) + dk_pke (32) + sigma (16) + seed_kem (48)
+                // Parse secret key: ek_pke (PUBLIC_KEY_BYTES) + dk_pke (32) + sigma
+                // (PARAM_SECURITY_BYTES = K, i.e. 16/24/32 by level) + seed_kem (48)
                 let sk_bytes = &secret_key.data;
                 if sk_bytes.len() != Hqc1Params::SECRET_KEY_BYTES {
                     return Err(Error::InvalidKeySize {
@@ -243,9 +245,10 @@ impl KemOperations for LibQHqcProvider {
                 let dk_pke_start = Hqc1Params::PUBLIC_KEY_BYTES;
                 let dk_pke_bytes = &sk_bytes[dk_pke_start..dk_pke_start + 32];
                 let sigma_start = dk_pke_start + 32;
-                let mut sigma = Zeroizing::new([0u8; 16]);
-                sigma.copy_from_slice(&sk_bytes[sigma_start..sigma_start + 16]);
-                let seed_kem_start = sigma_start + 16;
+                let sigma_len = Hqc1Params::K;
+                let mut sigma = Zeroizing::new([0u8; MAX_SECURITY_BYTES]);
+                sigma[..sigma_len].copy_from_slice(&sk_bytes[sigma_start..sigma_start + sigma_len]);
+                let seed_kem_start = sigma_start + sigma_len;
                 let mut seed_kem = Zeroizing::new([0u8; 48]);
                 seed_kem.copy_from_slice(&sk_bytes[seed_kem_start..seed_kem_start + 48]);
 
@@ -293,9 +296,10 @@ impl KemOperations for LibQHqcProvider {
                 let dk_pke_start = Hqc3Params::PUBLIC_KEY_BYTES;
                 let dk_pke_bytes = &sk_bytes[dk_pke_start..dk_pke_start + 32];
                 let sigma_start = dk_pke_start + 32;
-                let mut sigma = Zeroizing::new([0u8; 16]);
-                sigma.copy_from_slice(&sk_bytes[sigma_start..sigma_start + 16]);
-                let seed_kem_start = sigma_start + 16;
+                let sigma_len = Hqc3Params::K;
+                let mut sigma = Zeroizing::new([0u8; MAX_SECURITY_BYTES]);
+                sigma[..sigma_len].copy_from_slice(&sk_bytes[sigma_start..sigma_start + sigma_len]);
+                let seed_kem_start = sigma_start + sigma_len;
                 let mut seed_kem = Zeroizing::new([0u8; 48]);
                 seed_kem.copy_from_slice(&sk_bytes[seed_kem_start..seed_kem_start + 48]);
 
@@ -343,9 +347,10 @@ impl KemOperations for LibQHqcProvider {
                 let dk_pke_start = Hqc5Params::PUBLIC_KEY_BYTES;
                 let dk_pke_bytes = &sk_bytes[dk_pke_start..dk_pke_start + 32];
                 let sigma_start = dk_pke_start + 32;
-                let mut sigma = Zeroizing::new([0u8; 16]);
-                sigma.copy_from_slice(&sk_bytes[sigma_start..sigma_start + 16]);
-                let seed_kem_start = sigma_start + 16;
+                let sigma_len = Hqc5Params::K;
+                let mut sigma = Zeroizing::new([0u8; MAX_SECURITY_BYTES]);
+                sigma[..sigma_len].copy_from_slice(&sk_bytes[sigma_start..sigma_start + sigma_len]);
+                let seed_kem_start = sigma_start + sigma_len;
                 let mut seed_kem = Zeroizing::new([0u8; 48]);
                 seed_kem.copy_from_slice(&sk_bytes[seed_kem_start..seed_kem_start + 48]);
 

@@ -19,18 +19,17 @@
 //! this crate reproduces upstream's `seed_dk`, `sigma`, public key, ciphertext and shared secret
 //! **byte for byte**.
 //!
-//! Two documented gaps, deliberately not papered over:
+//! One documented gap, deliberately not papered over:
 //!
 //! 1. The `PQCkemKAT_*.rsp` KEM-boundary vectors are NOT covered. Those reseed the PRNG from each
 //!    row's 48-byte `seed` and then *draw* `seed_kem` from it
 //!    (`seed_kem = SHAKE256(seed48 || 0x00)[0..32]`, `src/common/kem.c`), whereas
 //!    `HqcKem::keygen_with_seed` uses `seed[0..32]` directly.
-//! 2. Encaps/decaps is compared for HQC-128 only. Upstream `PARAM_SECURITY_BYTES` is 16/24/32 for
-//!    HQC-128/192/256, so upstream `m` and `sigma` are 24 and 32 bytes at the higher levels, while
-//!    `HqcKem` hardwires both to 16 bytes (`encapsulate_with_m_salt(m: &[u8; 16])`,
-//!    `let mut sigma = [0u8; 16]` in `keygen_with_seed`). The reference values therefore cannot
-//!    even be supplied to the HQC-192/256 API. Keygen (which does not depend on `|sigma|`) IS
-//!    compared byte-exactly at all three levels.
+//!
+//! Previously there was a second gap: encaps/decaps was compared for HQC-128 only, because this
+//! crate hardwired `m` and `sigma` to 16 bytes while upstream sizes both at `PARAM_SECURITY_BYTES`
+//! = 16/24/32, so the HQC-192/256 reference values could not even be supplied to the API. That is
+//! fixed (card `t_d2ee7042`) and all three levels are now compared through the full chain.
 //!
 //! See `kats/README.md`.
 
@@ -154,17 +153,65 @@ fn check_keygen<P: HqcParams>(variant: &str) {
         "{variant}: public key != reference ek_kem"
     );
 
-    // `sigma` is only comparable where this crate's hardwired 16-byte sigma matches upstream's
-    // PARAM_SECURITY_BYTES (HQC-128). See the module docs, gap 2.
-    if P::K == 16 {
-        let sigma_actual =
-            &sk_bytes[P::PUBLIC_KEY_BYTES + SEED_BYTES..P::PUBLIC_KEY_BYTES + SEED_BYTES + 16];
-        assert_eq!(
-            sigma_actual,
-            &sigma[..],
-            "{variant}: derived sigma != reference"
-        );
-    }
+    // `sigma` is `PARAM_SECURITY_BYTES` = `P::K` wide at every level, and comparable at every
+    // level since the fix for card `t_d2ee7042`.
+    let sigma_actual =
+        &sk_bytes[P::PUBLIC_KEY_BYTES + SEED_BYTES..P::PUBLIC_KEY_BYTES + SEED_BYTES + P::K];
+    assert_eq!(
+        sigma_actual,
+        &sigma[..],
+        "{variant}: derived sigma != reference"
+    );
+}
+
+/// Full KEM conformance at one parameter set: ciphertext and shared secret byte-exact vs upstream.
+fn check_encaps_decaps<P: HqcParams>(variant: &str) {
+    let text = fixture(variant);
+    let seed_kem = field(&text, "seed_kem");
+    let m = field(&text, "m");
+    let salt = field(&text, "salt");
+    let c_kem = field(&text, "c_kem");
+    let k = field(&text, "K");
+
+    assert_eq!(
+        m.len(),
+        P::K,
+        "{variant}: oracle m size should be PARAM_SECURITY_BYTES"
+    );
+
+    let kem = HqcKem::<P>::new().expect("HqcKem::new");
+    let mut seed48 = [0u8; 48];
+    seed48[..SEED_BYTES].copy_from_slice(&seed_kem);
+    let (pk, sk) = kem.keygen_with_seed(&seed48).expect("keygen_with_seed");
+
+    let mut salt_arr = [0u8; SALT_BYTES];
+    salt_arr.copy_from_slice(&salt);
+
+    let (ct, ss) = kem
+        .encapsulate_with_m_salt(&pk, &m, &salt_arr)
+        .expect("encapsulate_with_m_salt");
+    assert_eq!(
+        ct.as_bytes().len(),
+        c_kem.len(),
+        "{variant}: ciphertext length vs reference c_kem"
+    );
+    assert_eq!(
+        ct.as_bytes(),
+        c_kem,
+        "{variant}: ciphertext != reference c_kem"
+    );
+    assert_eq!(
+        ss.as_bytes(),
+        &k[..],
+        "{variant}: shared secret != reference K"
+    );
+
+    let ss2 = kem.decapsulate(&sk, &ct).expect("decapsulate");
+    assert_eq!(
+        ss2.as_bytes(),
+        &k[..],
+        "{variant}: decapsulated shared secret != reference K"
+    );
 }
 
 #[test]
@@ -214,38 +261,40 @@ fn omega_matches_reference_v5_0_0() {
 /// Full KEM conformance for HQC-128: ciphertext and shared secret byte-exact vs upstream.
 #[test]
 fn hqc_128_encaps_decaps_matches_reference_intermediates() {
-    let text = fixture("hqc-1");
-    let seed_kem = field(&text, "seed_kem");
-    let m = field(&text, "m");
-    let salt = field(&text, "salt");
-    let c_kem = field(&text, "c_kem");
-    let k = field(&text, "K");
+    check_encaps_decaps::<Hqc1Params>("hqc-1");
+}
 
-    let kem = HqcKem::<Hqc1Params>::new().expect("HqcKem::new");
-    let mut seed48 = [0u8; 48];
-    seed48[..SEED_BYTES].copy_from_slice(&seed_kem);
-    let (pk, sk) = kem.keygen_with_seed(&seed48).expect("keygen_with_seed");
+/// Full KEM conformance for HQC-192 (`PARAM_SECURITY_BYTES` = 24). Previously impossible to run:
+/// the API could not accept a 24-byte `m`. Card `t_d2ee7042`.
+#[test]
+fn hqc_192_encaps_decaps_matches_reference_intermediates() {
+    check_encaps_decaps::<Hqc3Params>("hqc-3");
+}
 
-    let mut m_arr = [0u8; 16];
-    m_arr.copy_from_slice(&m);
-    let mut salt_arr = [0u8; SALT_BYTES];
-    salt_arr.copy_from_slice(&salt);
+/// Full KEM conformance for HQC-256 (`PARAM_SECURITY_BYTES` = 32). Card `t_d2ee7042`.
+#[test]
+fn hqc_256_encaps_decaps_matches_reference_intermediates() {
+    check_encaps_decaps::<Hqc5Params>("hqc-5");
+}
 
-    let (ct, ss) = kem
-        .encapsulate_with_m_salt(&pk, &m_arr, &salt_arr)
-        .expect("encapsulate_with_m_salt");
-    assert_eq!(
-        ct.as_bytes().len(),
-        c_kem.len(),
-        "hqc-1: ciphertext length vs reference c_kem"
-    );
-    assert_eq!(ct.as_bytes(), c_kem, "hqc-1: ciphertext != reference c_kem");
-    assert_eq!(ss.as_bytes(), &k[..], "hqc-1: shared secret != reference K");
+/// The defect this fixes was an *entropy* one, not only a conformance one: the shared secret is
+/// `G(H(ek) ‖ m ‖ salt)`, and of those three inputs `H(ek)` is public and `salt` is transmitted in
+/// the clear, so `m` is the only secret and `H(shared secret) <= |m|`. A hardwired 16-byte `m`
+/// therefore capped HQC-192 and HQC-256 shared secrets at 128 bits regardless of the parameter
+/// set. Pin the sampled width so that cannot silently regress.
+#[test]
+fn secret_input_m_is_full_width_at_every_level() {
+    assert_eq!(Hqc1Params::K, 16, "HQC-128 PARAM_SECURITY_BYTES");
+    assert_eq!(Hqc3Params::K, 24, "HQC-192 PARAM_SECURITY_BYTES");
+    assert_eq!(Hqc5Params::K, 32, "HQC-256 PARAM_SECURITY_BYTES");
 
-    let ss2 = kem.decapsulate(&sk, &ct).expect("decapsulate");
-    assert_eq!(
-        ss2.as_bytes(),
-        &k[..],
-        "hqc-1: decapsulated shared secret != reference K"
+    // A 16-byte `m` must now be rejected outright at the higher levels rather than silently
+    // accepted as a short secret.
+    let kem = HqcKem::<Hqc5Params>::new().expect("HqcKem::new");
+    let (pk, _sk) = kem.keygen_with_seed(&[0x2Au8; 48]).expect("keygen");
+    assert!(
+        kem.encapsulate_with_m_salt(&pk, &[0u8; 16], &[0u8; SALT_BYTES])
+            .is_err(),
+        "HQC-256 must reject a 16-byte m"
     );
 }
