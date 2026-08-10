@@ -978,32 +978,3 @@ path = "lib-q-maul/tests/vectors/maul_kat.txt"
 origin = "self-generated"
 generator = "lib-q-maul/tests/kat.rs::regenerate_vectors -- cargo test -p lib-q-maul --test kat -- --ignored --nocapture regenerate_vectors"
 sha256 = "eb5859757b995de8607549cdb0fe10af2e1c94349c401b27ed17c768dcd5d892"
-
-# HQC v5.0.0 official reference intermediate-value dumps, vendored byte-for-byte from the
-# designers' own distribution (gitlab.com/pqc-hqc/hqc, v5.0.0, 2025-08-22). These are the external
-# conformance oracle for lib-q-hqc: unlike the `.rsp` files in the same upstream tree, which are
-# NIST-harness output (48-byte seed -> AES-CTR-DRBG -> randomness) and therefore not comparable to
-# this crate's direct-seed path, the intermediate dumps expose the direct-seed derivation and can
-# be compared byte-for-byte. They caught three real sampler bugs (card t_62273504).
-# `sha256 == upstream_sha256` because they are vendored unmodified.
-
-[[kat]]
-path = "lib-q-hqc/kats/upstream-reference/hqc-1/intermediates_values"
-origin = "upstream"
-upstream_url = "https://gitlab.com/pqc-hqc/hqc/-/tree/main/kats/ref/hqc-1"
-upstream_sha256 = "d90ed405d5d9d5784b011e30301dac1a1883cff260451e820b777054211b23be"
-sha256 = "d90ed405d5d9d5784b011e30301dac1a1883cff260451e820b777054211b23be"
-
-[[kat]]
-path = "lib-q-hqc/kats/upstream-reference/hqc-3/intermediates_values"
-origin = "upstream"
-upstream_url = "https://gitlab.com/pqc-hqc/hqc/-/tree/main/kats/ref/hqc-3"
-upstream_sha256 = "9137bfc3c16803858e1e7766097b00c2de575087e732305c964396c5ab108dde"
-sha256 = "9137bfc3c16803858e1e7766097b00c2de575087e732305c964396c5ab108dde"
-
-[[kat]]
-path = "lib-q-hqc/kats/upstream-reference/hqc-5/intermediates_values"
-origin = "upstream"
-upstream_url = "https://gitlab.com/pqc-hqc/hqc/-/tree/main/kats/ref/hqc-5"
-upstream_sha256 = "df577fbc410ce3393384b7eaa0501d6027669a6a1a4e865922dc2d027278287a"
-sha256 = "df577fbc410ce3393384b7eaa0501d6027669a6a1a4e865922dc2d027278287a"

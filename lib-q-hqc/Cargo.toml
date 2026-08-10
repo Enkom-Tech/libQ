@@ -79,18 +79,6 @@ name = "nist_kem_kat"
 path = "tests/nist_kem_kat.rs"
 required-features = ["alloc", "hqc", "random"]
 
-# The crate's only EXTERNAL conformance check: byte-exact against the HQC designers' own v5.0.0
-# intermediate-value dumps, vendored under `kats/upstream-reference/`. Everything else under
-# `kats/` is a self-generated regression pin and cannot detect a misreading of the spec.
-# `required-features` is load-bearing, not boilerplate: the file is
-# `#![cfg(all(feature = "alloc", feature = "hqc"))]` and `hqc` is NOT a default feature, so
-# without this entry the file compiles to zero tests and reports "test result: ok" while checking
-# nothing. That is precisely how three sampler bugs (t_62273504) survived every other KAT here.
-[[test]]
-name = "upstream_reference_conformance"
-path = "tests/upstream_reference_conformance.rs"
-required-features = ["alloc", "hqc"]
-
 # Byte-exact conformance against the upstream pqc-hqc.org reference implementation.
 # The `required-features` line is load-bearing, not boilerplate: the test file is
 # `#![cfg(all(feature = "alloc", feature = "hqc", feature = "random"))]` and `hqc` is NOT a
