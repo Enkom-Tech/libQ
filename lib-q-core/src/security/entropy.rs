@@ -330,6 +330,10 @@ mod tests {
         assert!(result.is_err(), "Should reject too short key");
     }
 
+    // `relaxed_entropy_validation` deliberately accepts these patterns, so the assertion
+    // below only holds with the strict validator -- same gate as every other
+    // rejection test in this module.
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
     #[test]
     fn test_validate_key_entropy_repeated_pattern() {
         let validator = EntropyValidator::new().unwrap();
@@ -339,6 +343,10 @@ mod tests {
         assert!(result.is_err(), "Should reject key with repeated patterns");
     }
 
+    // `relaxed_entropy_validation` deliberately accepts these patterns, so the assertion
+    // below only holds with the strict validator -- same gate as every other
+    // rejection test in this module.
+    #[cfg(not(feature = "relaxed_entropy_validation"))]
     #[test]
     fn test_validate_key_entropy_sequential_pattern() {
         let validator = EntropyValidator::new().unwrap();
