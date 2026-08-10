@@ -206,19 +206,37 @@ pub fn dualring_prf_verify_u256(
 
     let ring_digest = dualring_prf_ring_digest(ring);
     let expected_chal = fs_challenge(&ring_digest, message, &sig.commitment);
-    if expected_chal != sig.challenge {
-        return Err(DualringPrfError::Rejected);
-    }
 
     let x = challenge_to_field_x(&sig.challenge, &leg_params);
 
     let leg = legendre_prf_u256(&leg_k, &x, &leg_params)?;
     let gld = gold_prf_u256(&gold_k, &x, &gold_params)?;
 
-    if leg != sig.legendre_out || gld != sig.gold_out {
-        return Err(DualringPrfError::Rejected);
+    // Same defect the signing side above already carries a comment about (`6a68155`), and
+    // structurally the same as `c38531f` in lib-q-threshold-raccoon: this read
+    //
+    //     if expected_chal != sig.challenge { return ... }
+    //     ...
+    //     if leg != sig.legendre_out || gld != sig.gold_out { return ... }
+    //
+    // which is two short-circuits stacked. `gld` and `leg` are PRF outputs computed from the
+    // member's SECRET keys, and `sig` is attacker-supplied, so `[u8; 32]`'s element-wise `!=`
+    // ran for a length proportional to the matching prefix of a secret-derived value — and the
+    // `||` meant the Gold comparison was skipped entirely whenever the Legendre one already
+    // mismatched, leaking which of the two was wrong. The early return on the challenge also
+    // meant the PRFs were not evaluated at all for a bad challenge.
+    //
+    // All three comparisons are now always evaluated and folded with `&`. The challenge is
+    // public (it is a transcript hash), so its comparison is not the sensitive one; it is
+    // included so the function does the same work on every input rather than for its own sake.
+    let chal_ok = expected_chal.ct_eq(&sig.challenge);
+    let leg_ok = (leg as u8).ct_eq(&(sig.legendre_out as u8));
+    let gold_ok = gld.ct_eq(&sig.gold_out);
+    if bool::from(chal_ok & leg_ok & gold_ok) {
+        Ok(())
+    } else {
+        Err(DualringPrfError::Rejected)
     }
-    Ok(())
 }
 
 /// Batch verification: independent messages per signature, shared ring.

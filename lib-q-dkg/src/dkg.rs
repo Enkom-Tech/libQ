@@ -324,7 +324,12 @@ pub fn dkg_verify_share(
     };
     let lhs = bdlop::commit(key, &share.value, &rand);
     let rhs = bdlop::eval_commitments(&commitments.commitments, recipient);
-    if lhs != rhs {
+    // Constant-time: `lhs` is computed from `share.value` and `share.rand`, i.e. from the
+    // recipient's secret share. `Commitment`'s derived `PartialEq` short-circuits at the first
+    // differing coefficient, so `lhs != rhs` runs for a length proportional to how long a prefix
+    // of that secret-derived commitment matches. Same class as `6a68155` (lib-q-ring-sig) and
+    // `c38531f` (lib-q-threshold-raccoon).
+    if !bdlop::commit_ct_eq(&lhs, &rhs) {
         return false;
     }
     // Binding: the FS proof forces value = f(j).
