@@ -756,7 +756,7 @@ impl SecurityValidator {
         }
     }
 
-    /// Check for classical cryptographic algorithms (see [`SecurityCheck::ClassicalCrypto::rule`]).
+    /// Check for classical cryptographic algorithms (see [`SecurityCheck::ClassicalCrypto`]\'s [`rule`](SecurityCheck::rule)).
     #[cfg(feature = "std")]
     fn check_classical_crypto(&self) -> SecurityValidationResult {
         let manifests = self.cargo_tomls();
@@ -839,7 +839,7 @@ impl SecurityValidator {
     }
 
     /// Check for unsafe code usage outside the reviewed allowlist (see
-    /// [`SecurityCheck::UnsafeCodeUsage::rule`]).
+    /// [`SecurityCheck::UnsafeCodeUsage`]\'s [`rule`](SecurityCheck::rule)).
     #[cfg(feature = "std")]
     fn check_unsafe_code(&self) -> SecurityValidationResult {
         let crate_dirs = self.crate_dirs();
@@ -947,7 +947,7 @@ impl SecurityValidator {
     }
 
     /// Check for memory zeroization of secret key material (see
-    /// [`SecurityCheck::MemoryZeroization::rule`]).
+    /// [`SecurityCheck::MemoryZeroization`]\'s [`rule`](SecurityCheck::rule)).
     #[cfg(feature = "std")]
     fn check_zeroize_usage(&self) -> SecurityValidationResult {
         let crate_dirs = self.crate_dirs();
@@ -1014,7 +1014,7 @@ impl SecurityValidator {
     }
 
     /// Check for constant-time comparison in AEAD/MAC tag verification (see
-    /// [`SecurityCheck::TimingVulnerabilities::rule`]).
+    /// [`SecurityCheck::TimingVulnerabilities`]\'s [`rule`](SecurityCheck::rule)).
     #[cfg(feature = "std")]
     fn check_timing_vulnerabilities(&self) -> SecurityValidationResult {
         let crate_dirs = self.crate_dirs();
@@ -1066,7 +1066,7 @@ impl SecurityValidator {
         }
     }
 
-    /// Check for proper error handling (see [`SecurityCheck::ErrorHandling::rule`]).
+    /// Check for proper error handling (see [`SecurityCheck::ErrorHandling`]\'s [`rule`](SecurityCheck::rule)).
     #[cfg(feature = "std")]
     fn check_error_handling(&self) -> SecurityValidationResult {
         let files = self.rs_files();
@@ -1113,7 +1113,7 @@ impl SecurityValidator {
     }
 
     /// Check for input validation on infallible byte-decoding constructors (see
-    /// [`SecurityCheck::InputValidation::rule`]).
+    /// [`SecurityCheck::InputValidation`]\'s [`rule`](SecurityCheck::rule)).
     #[cfg(feature = "std")]
     fn check_input_validation(&self) -> SecurityValidationResult {
         let files = self.rs_files();
@@ -1157,7 +1157,7 @@ impl SecurityValidator {
     }
 
     /// Check for weak random number generation sources (see
-    /// [`SecurityCheck::RandomGeneration::rule`]).
+    /// [`SecurityCheck::RandomGeneration`]\'s [`rule`](SecurityCheck::rule)).
     #[cfg(feature = "std")]
     fn check_random_generation(&self) -> SecurityValidationResult {
         let files = self.rs_files();
