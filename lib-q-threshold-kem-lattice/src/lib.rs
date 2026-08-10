@@ -193,6 +193,37 @@ pub struct KeygenSharesOutput {
     pub public_key: ThresholdKemLatticePublicKey,
     /// One decapsulation share per party.
     pub secret_shares: Vec<SecretShare>,
+    /// The **full** BDLOP commitments to all `t` sharing-polynomial coefficients, `C_0 … C_{t-1}`,
+    /// each serialized as `MU` `t0` elements followed by `t1` (`(MU + 1) · RQ_BYTES` bytes).
+    ///
+    /// These are public by construction — they are what makes the sharing verifiable — and the KEM
+    /// public key is only the `t0` half of `C_0`. They used to be dropped here: `keygen_shares`
+    /// built all `t` commitments, kept `encode_t0(&commitments[0].t0)`, and let the rest go out of
+    /// scope. That made verifiable partial decapsulation (board card `t_79295151` item 2)
+    /// impossible for a reason that had nothing to do with proof systems: a verifier handed a
+    /// [`PartialDecap`] had **no public value** binding it to party `index`'s share, so the
+    /// statement a proof would prove had no public input to refer to.
+    ///
+    /// Publishing them does not by itself verify anything, and this crate does not yet check them.
+    /// It removes the structural blocker: `C_j` evaluated at a party index is the commitment that
+    /// party's share opens to, which is the public input cheater identification needs.
+    pub coefficient_commitments: Vec<Vec<u8>>,
+}
+
+/// A party's verification key: the commitment its share opens to.
+///
+/// The dealerless path's `lib_q_dkg::VerificationKeySet` already carries these, and
+/// [`public_key_from_dkg`] used to read `vk.group_key` and ignore `vk.share_verifiers` entirely, so
+/// they were lost at this crate's boundary. [`share_verifiers_from_dkg`] carries them across.
+///
+/// Same caveat as [`KeygenSharesOutput::coefficient_commitments`]: this is the public input a
+/// verifiable-partial-decapsulation proof would need, not a verification the crate performs.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ShareVerifier {
+    /// Party index (1-based).
+    pub index: u8,
+    /// Serialized commitment image: `MU` `t0` elements followed by `t1`.
+    pub commitment_bytes: Vec<u8>,
 }
 
 /// Centralized trusted-dealer keygen (reference path; `lib_q_dkg::dkg_run_honest` is the dealerless
@@ -252,12 +283,17 @@ pub fn keygen_shares<R: CryptoRng + Rng>(
     // The KEM public key is `t0 = B0·r` — the `t0` half of the constant-term commitment.
     let t0_bytes = encode_t0(&commitments[0].t0);
 
+    // Every commitment, not just the `t0` half of `C_0`. These are public by construction and were
+    // previously dropped here; see `KeygenSharesOutput::coefficient_commitments`.
+    let coefficient_commitments = commitments.iter().map(encode_commitment).collect();
+
     Ok(KeygenSharesOutput {
         public_key: ThresholdKemLatticePublicKey {
             threshold,
             t0_bytes,
         },
         secret_shares,
+        coefficient_commitments,
     })
 }
 
@@ -274,6 +310,37 @@ pub fn public_key_from_dkg(
         threshold: vk.threshold,
         t0_bytes: vk.group_key[..MU * RQ_BYTES].to_vec(),
     })
+}
+
+/// Carry the DKG's per-party verification keys across this crate's boundary.
+///
+/// [`public_key_from_dkg`] extracts only the group key and drops `vk.share_verifiers`, which is
+/// correct for encapsulation — the KEM public key really is just `t0` — but it is why the
+/// dealerless path had no public value binding a [`PartialDecap`] to a party. The commitments
+/// already exist upstream; this stops them being lost here.
+///
+/// The byte layout is `lib_q_dkg`'s own (`MU` `t0` elements followed by `t1`), unchanged, and
+/// matches [`KeygenSharesOutput::coefficient_commitments`] from the dealt path.
+///
+/// # Errors
+///
+/// [`ThresholdKemError::EncodingPublicKey`] if any verifying key is not `(MU + 1) · RQ_BYTES`
+/// bytes, or if a party index is `0` (indices are 1-based; index 0 is the reconstruction point).
+pub fn share_verifiers_from_dkg(
+    vk: &lib_q_dkg::VerificationKeySet,
+) -> Result<Vec<ShareVerifier>, ThresholdKemError> {
+    vk.share_verifiers
+        .iter()
+        .map(|sv| {
+            if sv.index == 0 || sv.verifying_key.len() != (MU + 1) * RQ_BYTES {
+                return Err(ThresholdKemError::EncodingPublicKey);
+            }
+            Ok(ShareVerifier {
+                index: sv.index,
+                commitment_bytes: sv.verifying_key.clone(),
+            })
+        })
+        .collect()
 }
 
 /// Adapt a `lib_q_dkg::SigningShare` into a KEM [`SecretShare`] (byte-identical; a re-wrap).
@@ -418,6 +485,18 @@ fn eval_poly(coeffs: &[Rq], rho: &[[Rq; KAPPA]], j: u8) -> (Rq, Vec<Rq>) {
         }
     }
     (value, rand)
+}
+
+/// Encode a full BDLOP commitment: `MU` `t0` elements followed by `t1`. This is the same layout
+/// `lib_q_dkg::ShareVerifier::verifying_key` uses, so the dealt and dealerless paths hand a
+/// verifier byte-compatible objects.
+fn encode_commitment(c: &lib_q_dkg::lattice::bdlop::Commitment) -> Vec<u8> {
+    let mut out = Vec::with_capacity((MU + 1) * RQ_BYTES);
+    for p in &c.t0 {
+        rq_write_le_bytes(p, &mut out);
+    }
+    rq_write_le_bytes(&c.t1, &mut out);
+    out
 }
 
 fn encode_t0(t0: &[Rq]) -> Vec<u8> {
