@@ -479,6 +479,58 @@ fn flr_emu_matches_native_expm_p63() {
     }
 }
 
+/// `expm_p63`'s exact output is a **pinned, behaviour-defining** value, not an
+/// implementation detail — replacing the approximation changes signatures.
+///
+/// `flr_native.rs` already says the two backends must "always return the same values ... for
+/// full reproducibility of test vectors", and `fn-dsa/tests/kats/` pins whole signatures. What
+/// neither states is the consequence for anyone optimising this kernel: `expm_p63` feeds the
+/// Bernoulli accept/reject in `sampler.rs`, so a single differing bit changes which candidates
+/// are accepted, and therefore changes the signature for a given (key, message, seed).
+///
+/// That matters because the FACCT polynomial is **not** the correctly rounded value of
+/// `2^63*ccs*exp(-x)`. Over 200 000 sampled `(x, ccs)` pairs in the documented domain, its result
+/// differs from the correctly rounded one on 99.86% of them, by up to 3556 ulp. So a *more
+/// accurate* approximation — the segmented-Remez scheme of ePrint 2026/1610, say — necessarily
+/// disagrees with this one almost everywhere. "Faster and more accurate" and "bit-compatible with
+/// the shipped KATs" are mutually exclusive here; adopting such a change means consciously
+/// re-pinning the oracle vectors, which is a decision, not a refactor. See card `t_3986efb2`.
+///
+/// These pins exist so that fact is discovered by a failing test on the first attempt, rather
+/// than downstream in the signature KATs where the cause is much harder to see. They are the
+/// current implementation's own output, not an external oracle.
+#[test]
+fn expm_p63_output_is_pinned_because_it_defines_signatures() {
+    const LOG2_M53: i64 = 6_243_314_768_165_358;
+    const CCS_MAX_J: i64 = (1i64 << 53) - 1;
+
+    let cases: [(i64, i32, i64, i32, u64); 6] = [
+        (0, 0, 0, 0, 0x0000000000000000),
+        (0, 0, CCS_MAX_J, -53, 0x7FFFFFFFFFFFFC00),
+        (LOG2_M53, -53, CCS_MAX_J, -53, 0x40000000000006C8),
+        (LOG2_M53, -53, 0, 0, 0x0000000000000000),
+        (1, -53, 1, -1, 0x3FFFFFFFFFFFFE00),
+        (LOG2_M53 / 2, -53, (1i64 << 52) - 1, -52, 0x5A827999FCEF2E64),
+    ];
+
+    for &(xj, xs, cj, cs, expected) in cases.iter() {
+        let (xe, xn) = (Emu::scaled(xj, xs), Nat::scaled(xj, xs));
+        let (ce, cn) = (Emu::scaled(cj, cs), Nat::scaled(cj, cs));
+        assert_eq!(
+            xe.expm_p63(ce),
+            expected,
+            "emulated expm_p63 moved: x = {xj} * 2^{xs}, ccs = {cj} * 2^{cs}. \
+             If this was deliberate, every fn-dsa signature KAT changes too."
+        );
+        assert_eq!(
+            xn.expm_p63(cn),
+            expected,
+            "native expm_p63 moved: x = {xj} * 2^{xs}, ccs = {cj} * 2^{cs}. \
+             If this was deliberate, every fn-dsa signature KAT changes too."
+        );
+    }
+}
+
 /// The complete set of inputs on which the two backends do NOT agree.
 ///
 /// Every one of them involves a negative zero, and every one of them is
