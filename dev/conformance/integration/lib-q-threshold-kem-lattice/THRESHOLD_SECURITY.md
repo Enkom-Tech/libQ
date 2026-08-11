@@ -158,7 +158,7 @@ without `e`, the encryptor's secret. `lib-q-mve` proves ML-KEM single-`K` multi-
 
 | # | Closure | Sound? | Deployment assumption | Cost / status |
 |---|---------|--------|-----------------------|---------------|
-| A | **PoK of `μ` in ZK** — STARK/FRI proof that `XOF(pk‖μ)=(e,f,g)` ∧ `p=B0ᵀe+f`, verified before any partial | **Yes, assumption-free** | none | **Very high**: Keccak-f (SHAKE-256) arithmetized in an AIR + integer rejection loops over `MU·N`/`KAPPA·N` coefficients; multi-week build; **RED** until reviewed |
+| A | **PoK of `μ` in ZK** — STARK/FRI proof that `XOF(pk‖μ)=(e,f,g)` ∧ `p=B0ᵀe+f`, verified before any partial | **Yes, assumption-free** | none | **Built**: `lib-q-zk-encryption-proof`'s `encryption_proof::assemble_full_provenance_prover/_verifier` (Keccak-f/SHAKE-256 arithmetized in an AIR + integer rejection loops over `MU·N`/`KAPPA·N` coefficients) composed with the gate (`gate::gated_partial_decap_masked*`, `gated_partial_decap_authenticated_budgeted`); **RED** pending cryptographer sign-off |
 | B | **Authenticated / accountable encryptor** — partials only for ciphertexts carrying a verifiable authorization bound to an identity-verified encapsulator | **Yes** | PKI / authenticated-session; corrupt coalition cannot mint an authorized identity | **Low–medium**: a signature over `ct` + a PKI layer (deployment-owned); the KEM exposes the enforcement hook |
 | C | **Hard per-epoch decap budget + DKG key rotation** — cap partials-per-key below the probe length, reshare before the cap | **Partial** (bounded-leakage, not a cryptographic closure) | rotation is executed before the cap each epoch | **Low**: an in-library counter (§6) + the existing `lib-q-dkg` change-of-committee resharing |
 | — | Norm-only WF proof (§4.2), public norm filter, flood re-tuning, party-only check | **No** | — | ruled out |
@@ -186,9 +186,11 @@ The probe needs ≈63 malformed partials on one key. Two regimes:
 
 ## 6. What the library enforces (closure C, in code)
 
-The library cannot verify an arbitrary authorization scheme (closure B is a deployment contract) and
-cannot afford closure A yet, but it makes closure C **enforceable by construction** rather than a
-doc-only recommendation:
+The library cannot verify an arbitrary authorization scheme (closure B is a deployment contract), and
+closure A now has a built-but-RED gated entry point in `lib-q-zk-encryption-proof` (`gate::
+gated_partial_decap_masked_budgeted` / `gated_partial_decap_authenticated_budgeted` compose it with
+closures C/B respectively — see §5 row A), but this crate itself still makes closure C **enforceable
+by construction** rather than a doc-only recommendation:
 
 - `DecapBudget` — a saturating per-key decapsulation counter the caller threads through
   `partial_decap*`. It refuses to produce a partial once the configured cap is reached
