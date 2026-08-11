@@ -59,6 +59,7 @@ use zeroize::{
     Zeroizing,
 };
 
+pub mod auth_encap;
 pub mod error;
 pub mod kem;
 pub mod profile;
@@ -67,6 +68,13 @@ pub mod threshold;
 #[cfg(feature = "wasm")]
 pub mod wasm;
 
+pub use auth_encap::{
+    AUTH_TAG_BYTES,
+    AuthKey,
+    AuthenticatedCiphertext,
+    authenticated_encapsulate,
+    verify_authenticator,
+};
 pub use error::ThresholdKemError;
 pub use kem::{
     Ciphertext,

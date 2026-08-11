@@ -51,6 +51,12 @@ pub enum ThresholdKemError {
         /// The version byte actually found on the wire.
         found: u8,
     },
+    /// [`crate::auth_encap::verify_authenticator`] rejected an [`crate::auth_encap::AuthenticatedCiphertext`]:
+    /// its tag does not match the ciphertext, the public key, or the caller's [`crate::auth_encap::AuthKey`].
+    /// Returned by [`crate::threshold::partial_decap_authenticated_budgeted`] — closure B
+    /// (`THRESHOLD_SECURITY.md` §5/§6) rejects an unauthenticated-origin ciphertext before any share
+    /// material is touched.
+    AuthenticationFailed,
 }
 
 impl fmt::Display for ThresholdKemError {
@@ -73,6 +79,12 @@ impl fmt::Display for ThresholdKemError {
             }
             Self::UnsupportedWireVersion { found } => {
                 write!(f, "unsupported wire version {found}")
+            }
+            Self::AuthenticationFailed => {
+                write!(
+                    f,
+                    "ciphertext authenticator did not verify (closure B rejection)"
+                )
             }
         }
     }

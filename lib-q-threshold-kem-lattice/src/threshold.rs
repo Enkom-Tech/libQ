@@ -48,6 +48,11 @@ use rand_core::{
 };
 use zeroize::Zeroize;
 
+use crate::auth_encap::{
+    AuthKey,
+    AuthenticatedCiphertext,
+    verify_authenticator,
+};
 use crate::error::ThresholdKemError;
 use crate::kem::{
     self,
@@ -56,6 +61,7 @@ use crate::kem::{
 use crate::{
     PartialDecap,
     SecretShare,
+    ThresholdKemLatticePublicKey,
     decode_rand,
     validate_share_subset,
 };
@@ -247,6 +253,46 @@ pub fn partial_decap_masked_budgeted<R: CryptoRng + Rng>(
     // rather than `expect` to keep the path panic-free.
     budget.charge()?;
     Ok(partial)
+}
+
+/// Closure-B-gated [`partial_decap_masked_budgeted`]: verifies `act`'s authenticator under
+/// `(pk, auth_key)` **before** touching any share material, and only proceeds to compute (and
+/// budget-charge) a masked partial if it verifies. A coalition that cannot produce a valid
+/// authenticator — i.e. does not hold `auth_key` — is rejected with
+/// [`ThresholdKemError::AuthenticationFailed`] here, before the malformed-ciphertext probe
+/// (`THRESHOLD_SECURITY.md` §4) ever reaches the share.
+///
+/// This is closure B (`THRESHOLD_SECURITY.md` §5/§6): sound conditional on `auth_key` being known
+/// only to authorized encapsulators, not assumption-free. It composes with closure C — callers
+/// should still pass a [`DecapBudget`] (typically [`DecapBudget::authenticated`], since a verified
+/// authenticator puts the deployment in the "authenticated senders" regime of
+/// `THRESHOLD_SECURITY.md` §5.1) as defense-in-depth, not a substitute.
+///
+/// # Errors
+///
+/// [`ThresholdKemError::AuthenticationFailed`] if the tag does not verify (checked with
+/// [`subtle::ConstantTimeEq`], no early exit on the attacker-supplied tag). Otherwise, the same
+/// errors as [`partial_decap_masked_budgeted`].
+#[allow(clippy::too_many_arguments)]
+pub fn partial_decap_authenticated_budgeted<R: CryptoRng + Rng>(
+    share: &SecretShare,
+    subset: &[u8],
+    pk: &ThresholdKemLatticePublicKey,
+    auth_key: &AuthKey,
+    act: &AuthenticatedCiphertext,
+    seeds: &ZeroShareSeeds,
+    rng: &mut R,
+    budget: &mut DecapBudget,
+) -> Result<PartialDecap, ThresholdKemError> {
+    // `Choice` folds to a `u8` (0 or 1) rather than a `bool` compare so the tag comparison itself
+    // (inside `verify_authenticator`) never short-circuits on attacker-supplied bytes; converting
+    // the final accept/reject decision to a branch here is unavoidable (and standard — the same
+    // shape as every other fail-closed check in this crate, e.g. `kem::ct_eq`'s caller in
+    // `finish_decap`) and does not reintroduce a byte-position leak.
+    if verify_authenticator(pk, auth_key, act).unwrap_u8() != 1 {
+        return Err(ThresholdKemError::AuthenticationFailed);
+    }
+    partial_decap_masked_budgeted(share, subset, &act.ct, seeds, rng, budget)
 }
 
 /// Additive zero-share for party `i` over `subset`, bound to the ciphertext session:
