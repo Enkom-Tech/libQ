@@ -176,7 +176,18 @@ fi
 #
 # It is also not satisfiable by wordsmithing: adding the term to a new file is a deliberate act,
 # and the fix is either to keep it in lib-q-saturnin or to extend this allow-list on purpose.
-QCCA_ALLOWED_PREFIX='lib-q-saturnin/'
+# The allow-list. `lib-q-saturnin/` is where the caveat is established.
+#
+# `docs/crypto-signoff-register.md` was added deliberately, and the way it got added is the
+# evidence that this check does what it claims: the register is the repo-wide index a cryptographer
+# triages from, Q-2 is Gate E in it, and when that gate was written this guard failed the commit and
+# named the file. It forced an explicit decision instead of letting the term spread quietly — which
+# is the whole design. The register carries the full caveat (blocking claim, the 2025/387 disproof,
+# the unratified repair), so it qualifies on the same grounds lib-q-saturnin does.
+#
+# Add to this list only for a file that likewise states the caveat in full. "It mentions it in
+# passing" is the case this guard exists to reject.
+QCCA_ALLOWED_PREFIX='(lib-q-saturnin/|docs/crypto-signoff-register\.md)'
 QCCA_HITS="$(
   git grep -InP 'IND-qCCA' -- \
     ':(exclude)scripts/ci-guard-standards-claims.sh' \

@@ -7,15 +7,26 @@
 > Self-review has repeatedly caught real defects in these constructions; that does not substitute for
 > sign-off.
 
-Four independent sign-off gates are open. Each has its own detail docs; this file states the
+**Five** independent sign-off gates are open. Each has its own detail docs; this file states the
 **blocking claim**, the **status**, and the **concrete open item** per gate, with load-bearing numbers.
 
 | # | Gate | Crate(s) | Detail docs | State |
 |---|------|----------|-------------|-------|
 | A | Anon-cred one-out-of-many membership | `lib-q-lattice-zkp` | `lib-q-lattice-zkp/docs/anon-cred-oom-signoff-brief.md` (+ 7 companions) | design + test-only oracles |
 | B | Membership AIR soundness/ZK (Arm A + Arm B) | `lib-q-zkp` | `lib-q-zkp/docs/membership-adr113-freeze-gate-review.md`, `…-arm-b-obligation-packet.md`, `…-arm-{a,b}-soundness-params.md` | built + wire-frozen v0 |
-| C | Threshold-KEM CCA closure + its ZK encryption proof | `lib-q-threshold-kem-lattice`, `lib-q-zk-encryption-proof` | those crates' `README.md` / `src/lib.rs` + `dev/conformance/…` design docs | KEM shipped (KAT v1); proof partial |
-| D | Saturnin CTX committing transform (H-1, S-2, Q-1) | `lib-q-saturnin` | `lib-q-saturnin/src/commit.rs`, `src/aead_ctx.rs`, `src/qcb.rs`, `SECURITY.md` | **shipped and reachable** — the only gate on a default-feature code path |
+| C | Threshold-KEM CCA closure + its ZK encryption proof | `lib-q-threshold-kem-lattice`, `lib-q-zk-encryption-proof` | `lib-q-threshold-kem-lattice/SECURITY-STATUS.md` (shipped summary), those crates' `README.md` / `src/lib.rs`, `dev/conformance/…` design docs | KEM shipped (KAT v1); proof partial |
+| D | Saturnin CTX committing transform (H-1, S-2, Q-1, L-1, RK-1) | `lib-q-saturnin` | `lib-q-saturnin/src/commit.rs`, `src/aead_ctx.rs`, `src/qcb.rs`, `SECURITY.md` | **shipped and reachable** — opt-in `SaturninAeadCtx` / `SaturninQcb` |
+| E | CTR-Cascade's own IND-qCCA claim (Q-2) | `lib-q-saturnin` | `lib-q-saturnin/src/aead.rs` §"Open obligation Q-2", `README.md`; card `t_1af26ff2` | **shipped, frozen wire, reached by every product** |
+
+> **Gate E was promoted out of a footnote on 2026-08-11, and the promotion is the point.** Q-2 was
+> recorded only as one clause inside Gate D's S-2 bullet ("A third, **Q-2**, lands on the base
+> CTR-Cascade mode…"), while this table described Gate D as "the only gate on a default-feature code
+> path". Both were wrong in the same direction: Q-2 lands on **`SaturninAead`**, whose wire is frozen
+> and which *every* product decrypts through (GIP, uGrid, My-Grid, Bitlink), whereas Gate D's own
+> subjects — `SaturninAeadCtx` and `SaturninQcb` — are opt-in types (and `qcb` was removed from
+> default features in `c1d27a6`). A reviewer triaging by this table would have ranked the most
+> broadly-reachable open item as an aside. Q-2 is also **not** part of Gate D: Gate D is about a
+> transform we added, Q-2 is about the mode as its designers published it.
 
 ---
 
@@ -155,6 +166,24 @@ budget) + DKG key rotation; (ii) *assumption-free* — the ZK proof in C2. Sign-
 norm-only well-formedness proof is genuinely insufficient (the `f=δ·unit_k`, `‖f‖=1`
 direction-not-magnitude argument) and that the deployed closure is sound.
 
+**Two 2026-08-11 changes a reviewer should know about, neither of which discharges anything.**
+
+1. `lib-q-threshold-kem-lattice/SECURITY-STATUS.md` (`44925ed`) is a **shipped** one-page summary —
+   it is inside the published crate, verified via `cargo package --list`, unlike the
+   `dev/conformance/…` treatment, which crates.io and docs.rs never see. Start there. It states the
+   position (provisional, missing result named), answers the "does a masked partial leak the share"
+   question in full (no under honest ciphertexts, **yes** after ≈63 malformed ones), and gives the
+   migration deltas off the withdrawn `lib-q-threshold-kem`. **Caveat on the honest-ciphertext half:
+   its LWE argument is heuristic-by-domination — no dedicated estimator run exists for the
+   dimension-9216 instance.** That is a gap a reviewer may want closed.
+2. `0575c11` publishes the BDLOP coefficient commitments (`KeygenSharesOutput::
+   coefficient_commitments`) and carries the DKG's per-party verification keys across the crate
+   boundary (`share_verifiers_from_dkg`). Before it, both were discarded, which meant *verifiable*
+   partial decapsulation was impossible for a non-cryptographic reason: a verifier had no public
+   value binding a `PartialDecap` to a party's share, so the statement a proof would prove had no
+   public input. The crate still verifies nothing; this only makes the statement expressible. The
+   v1 wire (`ThresholdKemLatticePublicKey`) is unchanged, with a test asserting so.
+
 ### C2 — `lib-q-zk-encryption-proof`
 
 **Blocking claim.** A ZK-STARK PoK-of-`µ` for `R_enc` (knowledge of `µ` with
@@ -227,11 +256,15 @@ is precisely the class fuzzing cannot reach.
 
 ## Gate D — Saturnin CTX committing transform (`lib-q-saturnin`)
 
-**Read this one first if you have limited reviewer time.** Gates A–C guard constructions that are
-either branch-only, wire-frozen-but-unwired, or partial. Gate D guards code that **ships, is
-reachable on a default feature path, and is used by real products** (GIP, uGrid, My-Grid and Bitlink
-all reach Saturnin through `SaturninAead`). It is the only gate where an unsound assumption is
-already in someone's hands.
+**Read this one and Gate E first if you have limited reviewer time.** Gates A–C guard constructions
+that are either branch-only, wire-frozen-but-unwired, or partial. Gates D and E guard code that
+**ships and is used by real products** (GIP, uGrid, My-Grid and Bitlink all reach Saturnin through
+`SaturninAead`) — the two gates where an unsound assumption is already in someone's hands.
+
+Between them, **Gate E is the more reachable**: its subject is `SaturninAead` itself, which every
+one of those products decrypts through. Gate D's subjects, `SaturninAeadCtx` and `SaturninQcb`, are
+opt-in types, and `qcb` is no longer a default feature (`c1d27a6`). This paragraph previously called
+Gate D "the only gate on a default-feature code path", which under-ranked Gate E.
 
 **Blocking claim.** `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` — the CTX transform (Chan and
 Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022 / ePrint 2022/1260, Fig. 2 / Thm 2) —
@@ -273,8 +306,9 @@ undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here i
   Chan–Rogaway requirement (constant expansion `τ`, immaterial to Theorem 2 but **not** to
   Theorem 3): `lib-q-saturnin/src/commit.rs`. Two further obligations opened the same day:
   **L-1** (Theorem 3 is single-user and single-verification-query — 2024/875 p.12; both
-  instantiations) and **RK-1** (`SaturninQcb` only). A third, **Q-2**, lands on the base
-  CTR-Cascade mode and therefore on the frozen `SaturninAead` — see `lib-q-saturnin/src/aead.rs`.
+  instantiations) and **RK-1** (`SaturninQcb` only). A third, **Q-2**, is **not part of this gate**
+  — it is about the base CTR-Cascade mode as its designers published it, lands on the frozen
+  `SaturninAead`, and is now **Gate E** below.
 - **Q-1 — does CTX preserve Q2 security?** CTX's nAE-preservation proof (Thm 3) is in the *classical*
   random-oracle model, and `SaturninQcb` exists specifically for superposition-query security.
   **Expect this to get worse, not better:** ePrint 2025/387 shows Q2 security is not automatically
@@ -302,6 +336,47 @@ undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here i
 **Mitigations already taken, so a reviewer knows the blast radius.** `qcb` was removed from the
 crate's default features (`c1d27a6`) — it is nonce-catastrophic and has zero consumers. The tweak's
 byte 16 was corrected to the `10*` pad bit (`c43689d`) while the hardware was still at trace design.
+
+---
+
+## Gate E — CTR-Cascade's own IND-qCCA claim (`lib-q-saturnin`, obligation Q-2)
+
+**Read this one alongside Gate D, and note which is more reachable.** Gate D guards a transform
+*we* added, on opt-in types. Gate E is about `SaturninAead` — the base CTR-Cascade mode, as its
+designers published it — whose wire format is **frozen** and which every product decrypts through
+(GIP `bitlink-wrapkey-argon2id-v1`, My-Grid vault, My-Grid recovery, uGrid). `SaturninAeadCtx`
+inherits it, since CTX wraps this mode rather than replacing it.
+
+**Nothing here says the mode is broken.** It says the published *argument* for one of its advertised
+properties has a hole, and that the repair is available but unratified.
+
+**Blocking claim.** The Saturnin submission claims IND-qCCA security for Saturnin-CTR-Cascade
+(§2.2 / §4.3) and argues it at §4.3.1 via a result of Soukharev–Jao–Seshadri \[SJS16\]: that an
+IND-qCPA-secure scheme composed with a quantum-secure MAC yields IND-qCCA. **IACR ePrint 2025/387
+(Lang, Leuther, Lucks) disproves exactly that implication** — it exhibits an IND-qCPA scheme and a
+plus-one unforgeable MAC whose encrypt-then-MAC composition is IND-qCCA\[LoR\] *insecure*.
+
+**Status.** Open, unratified, shipped. No code change is available or appropriate: the wire is frozen
+and the mode is not known to be broken.
+
+**The repair, and why it is not self-evident.** 2025/387's own **Theorem 3** gives IND-qCCA for the
+EatM composition when the encryption is IND-qCPA\[LoR\] and the MAC is a **qPRF** — strictly stronger
+than the hypothesis shown insufficient — carried to EtM by its **Theorem 4** and **Corollary 1**. The
+Saturnin spec does argue the qPRF property separately (§4.3.3, citing Song–Yun Thm 5.1). So the
+conclusion looks recoverable by a citation swap. **Whether Saturnin's §4.3.3 argument actually
+discharges 2025/387's hypothesis is the open question, and nobody has ratified it.** The spec's own
+hedging on tightness ("seems not tight") is part of what a reviewer must weigh.
+
+**Open item.** Ratify or refute the citation swap. If it goes through, the claim stands on a
+different footing and the docs should say so. If it does not, the honest statement is that
+CTR-Cascade's IND-qCCA claim is **unproven**, and every restatement of it in this repo must be
+corrected. Classical AE security is unaffected either way.
+
+**What is already enforced while this is open.** `scripts/ci-guard-standards-claims.sh` fails CI if
+`IND-qCCA` appears anywhere outside `lib-q-saturnin/`, so the claim cannot leak — into a crate
+description, an npm blurb, or another crate's README — separated from the caveat that accompanies it
+there. That guard was observed failing against a deliberate fixture before being trusted. It is a
+containment control, **not** a resolution.
 
 ---
 
