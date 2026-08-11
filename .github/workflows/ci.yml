@@ -84,6 +84,18 @@ jobs:
       - name: Guard cd.yml publish tiers against the dependency graph
         run: bash ./scripts/ci-guard-publish-dependency-order.sh
 
+      # The sibling gap to BOTH guards above: those check that publish order/tiers are
+      # satisfiable at package time; this one checks that a lib-q-* crate is not shipped
+      # depending on a version of another lib-q-* crate that crates.io has YANKED. Real incident:
+      # lib-q-zk-encryption-proof@0.0.10 depended on lib-q-threshold-kem-lattice@0.0.10, which was
+      # later fully yanked (every version) -- caught manually, after the fact, by an operator, not
+      # by CI. Reads Cargo.lock (the resolved graph) and queries crates.io per (name, version).
+      # A network failure, non-200, empty body, or malformed JSON from crates.io FAILS the guard
+      # -- it is never read as "no yanked dependency found". `set -o pipefail` inside the guard;
+      # its own exit code is what this step reports (no piping through tail/grep here).
+      - name: Guard against publishing on top of a yanked dependency
+        run: bash ./scripts/ci-guard-yanked-deps.sh
+
       # Static (it never runs tarpaulin) and deliberately in core-validation rather than a coverage
       # job: it must run on EVERY PR, including the ones that never trigger a tarpaulin run. The
       # gaps it catches (a test-name filter shrinking the numerator, a package silently skipped,
