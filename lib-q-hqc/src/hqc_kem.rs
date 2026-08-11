@@ -837,6 +837,51 @@ mod tests {
         );
     }
 
+    /// `encapsulate` must draw a FRESH RANDOM salt, never ship the zero buffer it starts from.
+    ///
+    /// # Why this test exists
+    ///
+    /// CodeQL alert #113 (`rust/hard-coded-cryptographic-value`, severity critical) flags
+    /// `let mut salt = [0u8; 16];` in `encapsulate` with "This hard-coded value is used as a
+    /// salt." That is a false positive as the code stands: the literal is a zero-initialised
+    /// *buffer* which `rng.fill_bytes(&mut salt)` overwrites on the next line before it is used.
+    /// CodeQL's dataflow sees the literal reach a salt parameter and does not model the write
+    /// through the `&mut` borrow.
+    ///
+    /// But "false positive" was, until this test, an unverified claim — and it is only one
+    /// deleted line away from being TRUE. Remove the `fill_bytes` call and the salt really is a
+    /// hard-coded sixteen zero bytes, with nothing in the suite to notice. So rather than dismiss
+    /// the alert on assertion alone, the property it doubts is pinned here.
+    ///
+    /// Two things are checked, because either alone is weak: that the salt is not all-zero (the
+    /// exact failure CodeQL describes), and that two encapsulations under the same key produce
+    /// DIFFERENT salts (all-zero is not the only degenerate case — a fixed non-zero constant, or
+    /// a salt derived from the key, would pass the first check and fail this one).
+    #[test]
+    fn encapsulate_draws_a_fresh_random_salt() {
+        let kem = HqcKem::<Hqc1Params>::new().unwrap();
+        let seed = [0x11u8; 48];
+        let (public_key, _secret_key) = kem.keygen_with_seed(&seed).unwrap();
+
+        // A seeded RNG, so the test itself is deterministic; the property under test is that
+        // `encapsulate` CONSUMES randomness for the salt, not that the source is unpredictable.
+        let mut rng = lib_q_random::LibQRng::new_deterministic([0x42u8; 32]);
+        let (ct1, _) = kem.encapsulate(&public_key, &mut rng).unwrap();
+        let (ct2, _) = kem.encapsulate(&public_key, &mut rng).unwrap();
+
+        let (_, salt1) = ct1.parse();
+        let (_, salt2) = ct2.parse();
+
+        assert_ne!(
+            salt1, [0u8; 16],
+            "encapsulate shipped the zero-initialised salt buffer — the `rng.fill_bytes(&mut              salt)` in `encapsulate` is missing or ineffective, which is exactly what CodeQL              alert #113 describes"
+        );
+        assert_ne!(
+            salt1, salt2,
+            "two encapsulations under the same key produced the SAME salt — the salt is a              constant or key-derived, not freshly sampled per encapsulation"
+        );
+    }
+
     /// Wire-stability tripwire for the reference secret-key layout: the length and the SHA3-256
     /// digest of `to_nist_bytes()` for a fixed seed are pinned literals.
     ///
