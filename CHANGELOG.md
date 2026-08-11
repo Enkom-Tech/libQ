@@ -2,7 +2,50 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
-## Unreleased
+## 0.0.11
+
+> **Upgrade priority: high for `lib-q-ml-dsa` consumers.** The published 0.0.10 `lib-q-ml-dsa`
+> panics out of bounds on an attacker-crafted signature, reachable from the public `verify` entry
+> point (see Security below). Anyone verifying untrusted ML-DSA signatures should move to 0.0.11.
+
+### Security
+
+- **`lib-q-ml-dsa`: signature verification panicked out of bounds on an attacker-crafted hint
+  block — remote DoS, present in the published 0.0.10.** FIPS 204 Algorithm 21 (HintBitUnpack)
+  rejects when `y[omega + i] < Index` or `y[omega + i] > omega`; both bounds are on the *current*
+  row's counter. The code instead tested `previous_true_hints_seen > max_ones_in_hint`, one
+  iteration stale — `previous` only ever holds a value some earlier round already accepted, so the
+  largest counter was never checked at all. That unchecked counter then drives
+  `for j in previous..current`, indexing `hint_serialized[j]`; being a byte it reaches 254 into a
+  buffer of length `omega + k`. Reproduced in **release** against the public entry point, with no
+  debug assertions involved:
+
+  ```text
+  ml_dsa_65::verify(&vk, b"msg", b"", &sig)
+  panicked at encoding/signature.rs:105: index out of bounds: the len is 61 but the index is 61
+  ```
+
+  Any peer verifying untrusted ML-DSA signatures could be killed by a single crafted 3309-byte
+  message; ML-DSA-44 and ML-DSA-65 were both confirmed. The same input now returns
+  `Err(MalformedHintError)`. Fixed in `2bd658c`.
+
+  The regression test was landed red, and its *first* version was vacuous — it passed with the bug
+  reintroduced, because a counter of only `omega + 1` is caught on the next iteration by the very
+  stale check being removed. The committed test pushes the first row's counter past `omega + k` so
+  the copy loop actually walks off the end, and keeps the counter bytes strictly increasing so the
+  monotonicity check cannot fire first and mask it. Coverage was then extended to all three
+  parameter sets (`ae289ab`, which found ML-DSA-87 had never been tested) and to a counter
+  overflowing in a **later** row rather than only the first (`c43b0d8`).
+
+- **`lib-q-random`: `LibQRng::fill` no longer strands key material on the heap.** It allocated
+  `vec![0u8; total_bytes]`, filled it with CSPRNG output, copied into `dest`, and dropped it
+  **without** zeroizing, leaving a copy of every generated key in freed heap memory. This defeated
+  correct-looking call sites — `Zeroizing::new([0u8; 32])` protects the destination while `fill`
+  stranded the same 32 bytes elsewhere. Fixed by removing the intermediate rather than scrubbing
+  it: CSPRNG output is now written straight into `dest`'s backing memory, because a scrub is
+  best-effort against a reallocating allocator whereas having no intermediate is a property. A
+  counting `#[global_allocator]` in a dedicated test binary now bounds allocation *size* so a
+  reintroduced `vec![0u8; total_bytes]` fails. No exploit is claimed. Fixed in `6e750e7`.
 
 ### Changed — BREAKING (wire format)
 
@@ -126,10 +169,62 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Changed — BREAKING (API)
 
+- **`lib-q-random`: `LibQRng::fill<T>`'s bound moves from `T: Copy + Default` to a new sealed
+  `T: FillableBytes`**, implemented for the integer primitives only. `fill` reinterprets the
+  destination as bytes and overwrites it with CSPRNG output, which is sound only if *every* bit
+  pattern is a valid `T`. `Copy + Default` is a different property, and it admitted precisely the
+  types this function must not fill: `bool` is `Copy + Default` but only `0x00`/`0x01` are valid,
+  so a random `0x37` is UB at creation, before anything reads it; `char` must be a Unicode scalar
+  value, which most random 4-byte patterns are not. The bound read as "any simple value type", and
+  the two most obvious simple value types it admitted were the two it could not legally accept.
+
+  This was pre-existing rather than introduced by the heap fix above — the old implementation wrote
+  through the same kind of cast under the same bound. The trait is **sealed**: the validity claim
+  is not checkable from outside the crate, so outside crates may not assert it. `f32`/`f64` and
+  `NonZero*` are deliberately excluded and explained in the trait docs. Two `compile_fail` doctests
+  pin that `bool` and `char` are rejected.
+
+  Who this breaks: any external caller instantiating `fill` at a non-integer `T` — exactly the set
+  of callers currently in undefined behaviour, so the break is the point; they get a compile error
+  instead. No in-repo caller is affected. Landed in `a5fd6b2`.
+
 - **`lib-q-core`: `TimingValidator::constant_time_select`/`constant_time_assign` tighten their
   generic bound from `T: Copy` to `T: subtle::ConditionallySelectable`**, which `subtle` implements
   for the integer types but not for arbitrary `Copy` types. This is the visible half of the
   constant-time fix below; no in-tree caller used these methods.
+
+### Added
+
+- **`lib-q-zk-encryption-proof`: gated partial-decap entry points that compose all three
+  threshold-KEM closures.** `gated_partial_decap_masked_budgeted` and
+  `gated_partial_decap_authenticated_budgeted` combine closure A (the ZK proof-of-knowledge of
+  `μ`), closure B (the encapsulator authenticator) and closure C (`DecapBudget`) in one call.
+  The authenticated variant checks the MAC **before** verifying the STARK, deliberately, so an
+  unauthenticated caller cannot force a full proof verification; the ordering is documented at the
+  call site. `budgeted_gate_charges_budget_on_success` pins that a successful gated decap actually
+  charges the budget, and was mutation-verified. Landed in `a8561f1` and `3bb92b5`.
+
+  These entry points remain **RED / pending human cryptographer sign-off**, like the rest of the
+  crate; nothing here upgrades that status.
+
+### Changed
+
+- **Dependency floors raised to the versions already resolving**, so the declared minimums stop
+  understating what is actually built and tested: `wasm-bindgen` 0.2.122 → 0.2.127, `js-sys` /
+  `web-sys` 0.3.99 → 0.3.104, `wasm-bindgen-test` 0.3.72 → 0.3.77, `zeroize` 1.8.2 → 1.9.0,
+  `hybrid-array` 0.4.12 → 0.4.14, `crypto-bigint` 0.7.4 → 0.7.5, `aes` 0.9.1 → 0.9.2,
+  `once_cell` 1.21.3 → 1.21.4, `libm` 0.2.15 → 0.2.16, `block-buffer` 0.12.0 → 0.12.1, plus
+  `rand`, `serde`, `serde_json`, `der` and `defmt` patch bumps. No dependency was a major version
+  behind, and the resolved graph is unchanged by the floor bumps themselves.
+
+- **The two `[patch.crates-io]` vendored crates were re-justified rather than assumed.** Both
+  remain necessary and both are already at the latest upstream release, so there is nothing to
+  move to. `proc-macro-error2` still hits E0365 (rust-lang/rust#127909); note that on current
+  nightly the registry copy *compiles*, because E0365 was demoted to a future-incompatibility
+  lint — it is the same defect on its way back to a hard error, not a fixed one, so a green build
+  is not grounds to drop the patch. `dudect-bencher` still declares `clap ^2` with default
+  features upstream, and the vendor is what keeps `atty` and `ansi_term` out of `Cargo.lock`
+  entirely. The reasoning is recorded inline in the root `Cargo.toml`.
 
 ### Fixed
 

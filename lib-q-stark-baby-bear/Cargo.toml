@@ -10,8 +10,8 @@ repository.workspace = true
 readme = "README.md"
 
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.10" }
-lib-q-stark-monty31 = { path = "../lib-q-stark-monty31", version = "0.0.10" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.11" }
+lib-q-stark-monty31 = { path = "../lib-q-stark-monty31", version = "0.0.11" }
 
 [features]
 default = ["alloc"]
@@ -21,6 +21,6 @@ no_std = []
 test-utils = []
 
 [dev-dependencies]
-lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.10" }
+lib-q-stark-field-testing = { path = "../lib-q-stark-field-testing", version = "0.0.11" }
 num-bigint = { workspace = true }
 rand = { workspace = true, default-features = false }

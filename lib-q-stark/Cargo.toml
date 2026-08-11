@@ -17,15 +17,15 @@ ignored = [
     "subtle",
 ]
 [dependencies]
-lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.10" }
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.10" }
-lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.10" }
-lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.10" }
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.10" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.10" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.10" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.10" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.10" }
+lib-q-stark-air = { path = "../lib-q-stark-air", version = "0.0.11" }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.11" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.11" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.11" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.11" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.11" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.11" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.11" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.11" }
 
 itertools = { workspace = true }
 postcard = { workspace = true, features = ["alloc"] }
@@ -34,26 +34,26 @@ subtle = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 zeroize = { workspace = true, features = ["derive"], default-features = false }
-lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = false, optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.11", default-features = false, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 [dev-dependencies]
-lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.10" }
-lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.10" }
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.10" }
-lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.10" }
-lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.10" }
-lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.10" }
-lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.10", features = ["test-utils"] }
+lib-q-stark-challenger = { path = "../lib-q-stark-challenger", version = "0.0.11" }
+lib-q-stark-commit = { path = "../lib-q-stark-commit", version = "0.0.11" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.11" }
+lib-q-stark-fri = { path = "../lib-q-stark-fri", version = "0.0.11" }
+lib-q-stark-matrix = { path = "../lib-q-stark-matrix", version = "0.0.11" }
+lib-q-stark-merkle = { path = "../lib-q-stark-merkle", version = "0.0.11" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.11", features = ["test-utils"] }
 # BabyBear (TWO_ADICITY = 27) — needed to regression-test the `degree_bits`/two-adicity verifier
 # guard: Mersenne31's `Complex<Mersenne31>` (TWO_ADICITY = 32) can't reproduce it via `degree_bits`
 # alone since MAX_DEGREE_BITS (30) never exceeds 32.
-lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear", version = "0.0.10" }
-lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.10" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.10" }
+lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear", version = "0.0.11" }
+lib-q-stark-shake256 = { path = "../lib-q-stark-shake256", version = "0.0.11" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.11" }
 
 postcard = { workspace = true, features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.10", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", default-features = false }
 rand = { workspace = true, default-features = false }
 wasm-bindgen-test = { workspace = true }
 

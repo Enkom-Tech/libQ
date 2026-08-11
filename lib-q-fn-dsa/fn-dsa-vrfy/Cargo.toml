@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-fn-dsa-vrfy"
-version = "0.0.10"
+version = "0.0.11"
 authors.workspace = true
 categories.workspace = true
 description = "FN-DSA signature verification (lib-Q; not crates.io fn-dsa-vrfy)"
@@ -20,11 +20,11 @@ ignored = [
 name = "fn_dsa_vrfy"
 
 [dependencies]
-lib-q-fn-dsa-comm = { version = "0.0.10", path = "../fn-dsa-comm" }
+lib-q-fn-dsa-comm = { version = "0.0.11", path = "../fn-dsa-comm" }
 
 [dev-dependencies]
-lib-q-fn-dsa-kgen = { path = "../fn-dsa-kgen", version = "0.0.10" }
-lib-q-fn-dsa-sign = { path = "../fn-dsa-sign", version = "0.0.10" }
+lib-q-fn-dsa-kgen = { path = "../fn-dsa-kgen", version = "0.0.11" }
+lib-q-fn-dsa-sign = { path = "../fn-dsa-sign", version = "0.0.11" }
 hex = { workspace = true }
 
 [features]

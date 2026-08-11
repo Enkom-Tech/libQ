@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-lattice-zkp-fuzz"
-version = "0.0.10"
+version = "0.0.11"
 edition = "2024"
 rust-version = "1.96.0"
 publish = false
@@ -17,7 +17,7 @@ cargo-fuzz = true
 # removed so the crate could actually build no_std, which left this harness as the one consumer
 # still relying on it.
 lib-q-lattice-zkp = { path = "..", default-features = false, features = ["std"] }
-lib-q-ring = { path = "../../lib-q-ring", version = "0.0.10", default-features = false, features = ["std"] }
+lib-q-ring = { path = "../../lib-q-ring", version = "0.0.11", default-features = false, features = ["std"] }
 libfuzzer-sys = "0.4.12"
 
 [[bin]]

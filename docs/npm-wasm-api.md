@@ -230,11 +230,11 @@ TypeScript-only (`index.d.ts`, `index.js`). No WASM. Shared interfaces for cross
 
 ## Versioning
 
-All packages share the workspace version on release — currently **0.0.10** (the single source of
+All packages share the workspace version on release — currently **0.0.11** (the single source of
 truth is `version` under `[workspace.package]` in the root `Cargo.toml`). Pin in production:
 
 ```bash
-npm install @lib-q/core@0.0.10 @lib-q/zkp@0.0.10
+npm install @lib-q/core@0.0.11 @lib-q/zkp@0.0.11
 ```
 
 ## Security

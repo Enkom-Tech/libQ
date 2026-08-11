@@ -21,9 +21,9 @@ ignored = [
 ]
 [dependencies]
 # libQ dependencies
-lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = false, features = ["alloc"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.10", default-features = false, features = ["classical-mceliece"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10" }
+lib-q-core = { path = "../lib-q-core", version = "0.0.11", default-features = false, features = ["alloc"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", default-features = false, features = ["classical-mceliece"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11" }
 
 # External dependencies
 aes = { workspace = true, default-features = false, optional = true }
@@ -109,7 +109,7 @@ harness = false
 [dev-dependencies]
 # Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
 # this crate asserts its own real computed sizes match, so drift fails CI on either side.
-lib-q-types = { path = "../lib-q-types", version = "0.0.10", default-features = false }
+lib-q-types = { path = "../lib-q-types", version = "0.0.11", default-features = false }
 hex = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 

@@ -18,7 +18,7 @@ wasm-bindgen = { workspace = true, optional = true, features = ["serde-serialize
 # `cpufeatures`), so depending on it here is acyclic. It lets `FNDSA*_*_KEY_BYTES` below be
 # genuinely derived (`const fn` evaluated at compile time) instead of a hand-maintained literal
 # table -- the class of bug this module exists to close (see `lib-q-core`'s FN-DSA-1024 history).
-lib-q-fn-dsa-comm = { path = "../lib-q-fn-dsa/fn-dsa-comm", version = "0.0.10", default-features = false }
+lib-q-fn-dsa-comm = { path = "../lib-q-fn-dsa/fn-dsa-comm", version = "0.0.11", default-features = false }
 
 [features]
 default = []

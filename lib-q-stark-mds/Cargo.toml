@@ -15,10 +15,10 @@ ignored = [
     "criterion",
 ]
 [dependencies]
-lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.10" }
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.10" }
-lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.10" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.10" }
+lib-q-stark-dft = { path = "../lib-q-stark-dft", version = "0.0.11" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.11" }
+lib-q-stark-symmetric = { path = "../lib-q-stark-symmetric", version = "0.0.11" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.11" }
 
 # `rand` is used only by tests (the `Distribution`/`RngExt` sampling traits); the RNG instances come
 # from `lib-q-random`. Keeping it out of `[dependencies]` is what lets consumers build bare-metal
@@ -26,7 +26,7 @@ lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.10" }
 [dev-dependencies]
 lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear" }
 rand = { workspace = true, default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.10" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11" }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }

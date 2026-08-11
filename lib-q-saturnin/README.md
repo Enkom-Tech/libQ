@@ -14,7 +14,7 @@ Add to `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-saturnin = "0.0.10"
+lib-q-saturnin = "0.0.11"
 ```
 
 ### AEAD
