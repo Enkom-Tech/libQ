@@ -128,6 +128,13 @@ required-features = ["custom-entropy"]
 name = "security_tests"
 required-features = ["getrandom"]
 
+# Dedicated binary (own [[test]] entry) so its #[global_allocator] counter is
+# not perturbed by unrelated tests sharing a binary. Needs `secure` for
+# `LibQRng::new_secure`.
+[[test]]
+name = "fill_no_alloc"
+required-features = ["secure"]
+
 [[bench]]
 name = "rng_benchmarks"
 harness = false

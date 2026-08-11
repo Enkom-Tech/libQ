@@ -8,10 +8,7 @@
 //! for creating and managing RNG instances with different characteristics.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    vec,
-};
+use alloc::boxed::Box;
 #[cfg(feature = "alloc")]
 use core::fmt;
 
@@ -543,6 +540,17 @@ impl LibQRng {
     /// This method provides a convenient way to fill slices of different integer types
     /// with random values, handling the byte conversion internally.
     ///
+    /// # Guarantee: no unzeroized intermediate buffer
+    ///
+    /// CSPRNG output is written **directly into `dest`**'s backing memory; this
+    /// function never stages the bytes it generates in a temporary heap
+    /// allocation. That matters because `dest` is frequently key material
+    /// (e.g. wrapped in `zeroize::Zeroizing` by the caller) — a temporary
+    /// `Vec<u8>` copy would be dropped without scrubbing and could strand a
+    /// copy of that key material in freed heap memory. Callers do not need to
+    /// take any extra precaution against a hidden intermediate: there isn't
+    /// one.
+    ///
     /// # Examples
     ///
     /// ```rust
@@ -567,25 +575,25 @@ impl LibQRng {
         }
         let total_bytes = core::mem::size_of_val(dest);
 
-        // Create a temporary byte buffer
-        let mut bytes = vec![0u8; total_bytes];
+        // SAFETY: `dest` is a valid, exclusively-borrowed `&mut [T]` of
+        // `dest.len()` elements, so it denotes exactly `total_bytes` bytes of
+        // valid, properly aligned, writable memory for the lifetime of this
+        // borrow. Reinterpreting it as `&mut [u8]` is sound because `u8` has
+        // no alignment requirement (any `T` alignment satisfies it) and every
+        // byte in the region is being written by `fill_bytes_secure` before
+        // it is read as part of `T` again, so we never observe uninitialized
+        // padding as a `T`-typed value through this reference. Writing
+        // straight into `dest` this way (rather than through a temporary
+        // `Vec<u8>`) is what gives `fill` the no-intermediate-buffer
+        // guarantee documented above.
+        let bytes =
+            unsafe { core::slice::from_raw_parts_mut(dest.as_mut_ptr().cast::<u8>(), total_bytes) };
 
         // Entropy failure must never yield predictable output; abort like the
-        // infallible `RngCore` path instead of returning the zeroed buffer.
-        if self.fill_bytes_secure(&mut bytes).is_err() {
+        // infallible `RngCore` path instead of leaving `dest` with whatever
+        // bytes were written so far.
+        if self.fill_bytes_secure(bytes).is_err() {
             rng_abort();
-        }
-
-        // Convert bytes back to the target type
-        for (i, chunk) in bytes.chunks_exact(size).enumerate() {
-            if i < dest.len() {
-                // This is safe because we're copying the exact number of bytes
-                // that the type occupies in memory
-                unsafe {
-                    let ptr = dest.as_mut_ptr().add(i).cast::<u8>();
-                    core::ptr::copy_nonoverlapping(chunk.as_ptr(), ptr, size);
-                }
-            }
         }
     }
 }
