@@ -5,7 +5,8 @@
 //! Recursive verification only works if the Merkle tree the inner proof committed to is built
 //! with the *same* node function the outer AIR re-computes with. Those two were not the same:
 //!
-//! * The tree was built by [`lib_q_stark_merkle::PoseidonCompressor`], which compresses via
+//! * The tree was built by the former `lib_q_stark_merkle::PoseidonCompressor` (since REMOVED —
+//!   see that module's doc), which compressed via
 //!   `Poseidon128::hash_single(&[l, r])`. That is a **rate-2 sponge**: absorbing two elements
 //!   exactly fills the rate, so it permutes once, then `10*1` padding adds `ONE` at `state[0]`
 //!   and `ONE` at `state[1]` and it permutes **again**. Node = `P(P([l,r,0,0,0]) + [1,1,0,0,0])[0]`.
@@ -141,20 +142,32 @@ mod tests {
         }
     }
 
+    /// The node function of the REMOVED `lib_q_stark_merkle::PoseidonCompressor`, reproduced
+    /// here so the two negative controls below keep working after that type was deleted.
+    ///
+    /// It is one line — `Poseidon128::hash_single(&[l, r])[0]`, the padded sponge, which fills
+    /// the rate and permutes twice. Inlining it is deliberate: the property these tests pin (that
+    /// the AIR's single-permutation node function is a DIFFERENT function, and that the sponge
+    /// collides with leaf-row hashing) is what justified deleting the type, so the evidence must
+    /// outlive it. Keeping a published footgun alive just to host its own negative control would
+    /// have been the wrong trade.
+    fn old_sponge_node(l: PoseidonField, r: PoseidonField) -> PoseidonField {
+        use lib_q_poseidon::{
+            Poseidon,
+            Poseidon128,
+        };
+        Poseidon128.hash_single(&[l, r])
+    }
+
     /// Negative control for the test above: the *previous* compressor
-    /// (`lib_q_stark_merkle::PoseidonCompressor`, a padded sponge) does NOT satisfy it. This is
+    /// (a padded sponge, see [`old_sponge_node`]) does NOT satisfy it. This is
     /// the defect that made `MerkleInclusionAir mismatch @ commit0` unavoidable (card
     /// t_4333e4ea); if this ever starts matching, the assertion above has become vacuous.
     #[test]
-    // Deliberately exercises the deprecated `lib_q_stark_merkle::PoseidonCompressor`: this
-    // test exists to assert a fact ABOUT it (that its convention differs from the AIR's), so
-    // the deprecation it now carries is the point, not an accident.
-    #[allow(deprecated)]
     fn previous_sponge_compressor_does_not_match_the_air() {
-        use lib_q_stark_merkle::PoseidonCompressor;
         let l = fe(11, 22);
         let r = fe(33, 44);
-        let sponge = PoseidonCompressor.compress([[l], [r]])[0];
+        let sponge = old_sponge_node(l, r);
         let air = AirPoseidonCompressor::new().compress([[l], [r]])[0];
         assert_ne!(
             sponge, air,
@@ -176,7 +189,7 @@ mod tests {
     /// Leaf/node domain separation in the MMCS.
     ///
     /// `MerkleTreeMmcs` digests a matrix ROW with [`PoseidonHasher`] and an internal NODE with the
-    /// compressor. The old [`lib_q_stark_merkle::PoseidonCompressor`] used the *same* function for
+    /// compressor. The old sponge node function ([`old_sponge_node`]) used the *same* function for
     /// both (`Poseidon128::hash_single(&[l, r])` is literally `PoseidonHasher::hash_iter([l, r])`),
     /// so the digest of a two-column leaf row was indistinguishable from the node above two
     /// children — a prover could present a leaf as an internal node, or vice versa, at no cost.
@@ -184,12 +197,7 @@ mod tests {
     /// gone. The first assertion is the positive control: it shows the property is measurable and
     /// that the second assertion is not vacuous.
     #[test]
-    // Deliberately exercises the deprecated `lib_q_stark_merkle::PoseidonCompressor`: this
-    // test exists to assert a fact ABOUT it (that its convention differs from the AIR's), so
-    // the deprecation it now carries is the point, not an accident.
-    #[allow(deprecated)]
     fn air_compressor_is_domain_separated_from_leaf_row_hashing() {
-        use lib_q_stark_merkle::PoseidonCompressor;
         use lib_q_stark_symmetric::CryptographicHasher;
 
         let l = fe(31, 41);
@@ -197,7 +205,7 @@ mod tests {
         let row_digest: [PoseidonField; 1] = PoseidonHasher.hash_iter([l, r]);
 
         assert_eq!(
-            PoseidonCompressor.compress([[l], [r]])[0],
+            old_sponge_node(l, r),
             row_digest[0],
             "positive control: the OLD sponge compressor is the same function as leaf row \
              hashing, so leaf and node digests collided by construction"
