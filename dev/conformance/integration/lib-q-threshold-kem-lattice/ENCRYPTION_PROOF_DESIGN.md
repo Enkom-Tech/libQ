@@ -751,3 +751,56 @@ the `μ`-independent geometry (§5.2). Remaining items for a *cryptographer* sig
    the conjectured 128 (per the Arm-B soundness memo).
 6. **Non-native reduction completeness:** confirm the quotient/remainder range bounds in §4.3 are
    tight (no accepted out-of-range reduction) and that the accumulator never overflows 7 limbs.
+
+---
+
+## STATUS CORRECTION 2026-08-11 — §4 and §7 are stale; read this first
+
+Appended rather than edited in place, per the append-only correction rule. Where this section and
+the body disagree, this section wins.
+
+### §7's status table is wrong about `LatticeCheckAir`
+
+Line 718 reads *"designed (§4); non-native MAC gadget specified, not yet built"*. That has not been
+true since the κ-fold work landed. R3 is **built, composed, and cryptographically enforced**.
+
+OBSERVED (ev: at the commit adding this note, `cargo test -p lib-q-zk-encryption-proof --release`
+→ `exit=0`, `test result: ok. 98 passed; 0 failed; 5 ignored`, including
+`compose::tests::compose_full_stack_prove_batch`; and separately
+`cargo test -p lib-q-zk-encryption-proof --release full_provenance_round_trip -- --ignored`
+→ `exit=0`, `test result: ok. 1 passed; 0 failed`, 91.16s).
+
+Note the second command explicitly: `full_provenance_round_trip` is `#[ignore]`d as heavy, so a
+green default run does **not** exercise it. Anyone citing it must run it.
+
+### §4's mechanism is not the one that was built
+
+§4.1–§4.3 specify a polynomial-divisibility fold with prover-witnessed quotients `H_k`/`H'`. That
+construction is **unsound and was abandoned** (card `t_a73aaed2`). Evaluating a `Z_q[X]/(X^N+1)`
+identity at a scalar Fiat–Shamir point `ζ` is a ring homomorphism only when `ζ^N = −1`; for generic
+`ζ` the reduction needs a quotient `H` that is *free* — prover-chosen and committed after `ζ` is
+fixed — so the prover can always solve `H(ζ) := D(ζ)/(ζ^N+1)` and the check proves nothing. It was
+confirmed vacuous by exploit at every tier, including production FRI parameters.
+
+What is actually built is the random **additive functional** fold: the already-reduced residual
+`D ∈ R_q` is tested by `⟨D, κ⟩ = 0` for a statement-derived `κ ∈ Z_q^N`. `relation_assembly::
+corr_negacyclic` puts this in public-coefficient-linear form in the witness — no quotient anywhere —
+and `zq::RelationCheckAir` proves the canonical scalar equation `Σ_j a_j·w_j + c ≡ 0 (mod q)`. That
+AIR is built, independently reviewed sound, and fuzzed.
+
+So the ~600 K-constraint non-native MAC estimate on line 718 costs whatever the κ fold costs, not
+what §4.3's quotient gadget would have cost. Treat the §4 figures as superseded, not merely stale.
+
+### Naming
+
+`src/lattice_check.rs` now gives the design's `LatticeCheckAir` name a home as a thin newtype over
+the reviewed `RelationCheckAir`, specialized to the R3a/R3b term shapes. It adds **no new constraint
+arithmetic** deliberately: duplicating a reviewed, fuzzed gadget with an unreviewed copy would be
+strictly worse. The live pipeline in `encryption_proof.rs` continues to construct `RelationCheckAir`
+directly; the newtype is a named, minimal, directly-testable surface, not a new code path.
+
+### Still open
+
+None at the R3 constraint or composition level. The crate remains RED/unreviewed by a human
+cryptographer, and the ZK/hiding-FRI path is exercised on a subset of the test matrix — see
+`encryption_proof.rs`'s module doc and `docs/crypto-signoff-register.md` Gate C.

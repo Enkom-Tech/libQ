@@ -32,6 +32,7 @@ pub mod compose;
 pub mod encryption_proof;
 pub mod error;
 pub mod gate;
+pub mod lattice_check;
 pub mod logup_join;
 pub mod mu_bits;
 pub mod relation_assembly;
