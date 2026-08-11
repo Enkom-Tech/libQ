@@ -147,4 +147,53 @@ if [[ -n "$FIPS206_HITS" ]]; then
   exit 1
 fi
 
+# ---------------------------------------------------------------------------
+# Third check: IND-qCCA CONTAINMENT (board card `t_1af26ff2`, obligation Q-2).
+#
+# The Saturnin submission claims IND-qCCA for CTR-Cascade and argues it (spec §4.3.1) via the
+# Soukharev-Jao-Seshadri composition theorem, which IACR ePrint 2025/387 DISPROVES. The repair
+# looks real -- 2025/387's own Theorem 3 needs the MAC to be a qPRF, which the spec does argue
+# separately -- but nobody has ratified that citation swap. So today the honest statement is that
+# CTR-Cascade's IND-qCCA claim is UNPROVEN, and it lands on `SaturninAead`, whose wire is frozen
+# and which every product reaches.
+#
+# `lib-q-saturnin`'s own docs already say all of this at length, and they end with an instruction:
+# "Do not restate the spec's IND-qCCA claim for CTR-Cascade without this footnote"
+# (README.md, and again in src/aead.rs / src/aead_ctx.rs). That instruction is prose, and prose
+# does not fail CI.
+#
+# This makes it enforceable, and deliberately NOT as a per-line qualifier check. Several of the
+# existing lines are direct QUOTATIONS of the spec's own wording ("...offers IND-qCCA security,
+# assuming..."), which read correctly inside the surrounding caveat and would have to be mangled
+# to satisfy a line-scoped rule. Flagging true, in-context text pressures authors to delete
+# accurate prose -- the same trap already documented for the bare `NIST-approved` alternative
+# above.
+#
+# The containment rule instead: the qCCA discussion lives in `lib-q-saturnin`'s own documentation,
+# where the caveat is established. A mention ANYWHERE ELSE in the repo is, by construction, a
+# restatement separated from its footnote. That is exactly the failure mode the FIPS 206 check was
+# written for after one npm description was copied into three files.
+#
+# It is also not satisfiable by wordsmithing: adding the term to a new file is a deliberate act,
+# and the fix is either to keep it in lib-q-saturnin or to extend this allow-list on purpose.
+QCCA_ALLOWED_PREFIX='lib-q-saturnin/'
+QCCA_HITS="$(
+  git grep -InP 'IND-qCCA' -- \
+    ':(exclude)scripts/ci-guard-standards-claims.sh' \
+  | grep -vP "^${QCCA_ALLOWED_PREFIX}" || true
+)"
+
+if [[ -n "$QCCA_HITS" ]]; then
+  echo "ci-guard-standards-claims: IND-qCCA mentioned outside lib-q-saturnin/." >&2
+  echo "CTR-Cascade's IND-qCCA claim is UNPROVEN: the Saturnin spec argues it via the" >&2
+  echo "Soukharev-Jao-Seshadri composition theorem, which IACR ePrint 2025/387 disproves. The" >&2
+  echo "repair (2025/387 Thm 3 + Thm 4 + Cor 1, needing the MAC to be a qPRF) is unratified --" >&2
+  echo "open obligation Q-2, board card t_1af26ff2." >&2
+  echo "The full caveat lives in lib-q-saturnin/README.md and src/aead.rs; a mention outside that" >&2
+  echo "crate is a restatement separated from its footnote. Keep it there, or extend the" >&2
+  echo "allow-list in this script deliberately:" >&2
+  echo "$QCCA_HITS" >&2
+  exit 1
+fi
+
 echo "ci-guard-standards-claims: OK (no overclaim phrases found)"
