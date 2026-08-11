@@ -24,12 +24,12 @@ ignored = [
 bench = false
 
 [dependencies]
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.10", default-features = false, features = ["std"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10" }
-lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.10" }
-lib-q-platform = { path = "../lib-q-platform", version = "0.0.10" }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.10", features = ["simd"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.10", optional = true }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.11", default-features = false, features = ["std"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11" }
+lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.11" }
+lib-q-platform = { path = "../lib-q-platform", version = "0.0.11" }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.11", features = ["simd"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true }
 hax-lib.workspace = true
 hex = { workspace = true }
 zeroize = { workspace = true, optional = true }
@@ -42,8 +42,8 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 [dev-dependencies]
 # Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
 # this crate asserts its own real computed sizes match, so drift fails CI on either side.
-lib-q-types = { path = "../lib-q-types", version = "0.0.10", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.10", features = ["std"] }
+lib-q-types = { path = "../lib-q-types", version = "0.0.11", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", features = ["std"] }
 rand_core = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
 serde_json = { workspace = true }
@@ -51,7 +51,7 @@ serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.10", default-features = false }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.11", default-features = false }
 # Pure Rust FIPS 204 implementation for benchmark comparison (replaces PQClean bindings).
 fips204 = { version = "0.4.6", default-features = false, features = ["default-rng", "ml-dsa-44", "ml-dsa-65", "ml-dsa-87"] }
 

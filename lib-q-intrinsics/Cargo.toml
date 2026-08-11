@@ -15,7 +15,7 @@ categories = ["cryptography", "no-std"]
 # `lib-q-platform` uses for its own `lib-q-core` edge. Keeping the edge itself feature-free is what
 # lets `--no-default-features` reach a genuine bare-metal no_std graph; `std` is what re-enables it.
 [dependencies]
-lib-q-platform = { path = "../lib-q-platform", version = "0.0.10", default-features = false }
+lib-q-platform = { path = "../lib-q-platform", version = "0.0.11", default-features = false }
 
 [features]
 # `std` is ON by default, and must stay that way for this crate to be buildable at all.

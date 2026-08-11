@@ -10,9 +10,9 @@ repository.workspace = true
 readme.workspace = true
 
 [dependencies]
-lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.10" }
-lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.10" }
-lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.10" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.11" }
+lib-q-stark-rayon = { path = "../lib-q-stark-rayon", version = "0.0.11" }
+lib-q-stark-util = { path = "../lib-q-stark-util", version = "0.0.11" }
 
 itertools = { workspace = true }
 rand = { workspace = true, default-features = false }
@@ -30,7 +30,7 @@ no_std = []
 [dev-dependencies]
 # RNG instances for tests come from lib-q-random (the regular `rand` dep above is only the no_std
 # `Distribution`/`StandardUniform` sampling framework used by `DenseMatrix::rand`).
-lib-q-random = { path = "../lib-q-random", version = "0.0.10" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11" }
 # Concrete field for the tests. This is a dev-dependency CYCLE -- lib-q-stark-mersenne31 depends
 # on lib-q-stark-matrix -- which Cargo permits, because dev-dependencies are only built for this
 # crate's own test targets and so cannot form a real build cycle.

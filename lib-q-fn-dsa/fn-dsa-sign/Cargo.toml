@@ -1,6 +1,6 @@
 [package]
 name = "lib-q-fn-dsa-sign"
-version = "0.0.10"
+version = "0.0.11"
 authors.workspace = true
 categories.workspace = true
 description = "FN-DSA signature generation (lib-Q; not crates.io fn-dsa-sign)"
@@ -15,7 +15,7 @@ rust-version.workspace = true
 name = "fn_dsa_sign"
 
 [dependencies]
-lib-q-fn-dsa-comm = { version = "0.0.10", path = "../fn-dsa-comm" }
+lib-q-fn-dsa-comm = { version = "0.0.11", path = "../fn-dsa-comm" }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 
 [dev-dependencies]

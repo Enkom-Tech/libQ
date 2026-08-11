@@ -55,9 +55,9 @@ checksum = "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000"
 
 [[package]]
 name = "async-trait"
-version = "0.1.91"
+version = "0.1.92"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ae36dc4177970ef04fde5178d3e2429882def40e57a451f919c098f72baa6cec"
+checksum = "82f6aeea286b8eb4dd3431a1be1b59d290ace00f5bfd8e2a159bc2a05e2c1667"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -163,9 +163,9 @@ checksum = "37b2a672a2cb129a2e41c10b1224bb368f9f37a2b16b612598138befd7b37eb5"
 
 [[package]]
 name = "cc"
-version = "1.4.0"
+version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5add81bb678e6cb321aff7fa0dc7689ad82b112dbc032cea19f91d6b8e3582b9"
+checksum = "5d262e149917187838d5b42777c8253bcb64500067342904e7d429499a6f277e"
 dependencies = [
  "find-msvc-tools",
  "shlex",
@@ -247,18 +247,18 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.6.5"
+version = "4.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "301b56658598e48f3648647ac6fc887be7e7108eddfa4e9b63fcf3ec58c0cadf"
+checksum = "473c7e07f409a8d772161724aa8db6a765a2532a70f9667eeb7b49d3d02fbdca"
 dependencies = [
  "clap_builder",
 ]
 
 [[package]]
 name = "clap_builder"
-version = "4.6.5"
+version = "4.6.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94a65403d1a1bd28f7dc68eb8506e8874808ee5eecb59298de588e2e1407a078"
+checksum = "7b48fea5a88e9ae728a2dcbedbfc0e730f7d60da42e1cb049a83c9fb8b789889"
 dependencies = [
  "anstyle",
  "clap_lex",
@@ -336,7 +336,7 @@ dependencies = [
  "anes",
  "cast",
  "ciborium",
- "clap 4.6.5",
+ "clap 4.6.6",
  "criterion-plot",
  "itertools 0.13.0",
  "num-traits",
@@ -619,9 +619,9 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "find-msvc-tools"
-version = "0.1.9"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5baebc0774151f905a1a2cc41989300b1e6fbb29aff0ceffa1064fdd3088d582"
+checksum = "26b73573e6edcd2af0cdf47bd6cb58f0b3839491263c314eaad1ccf24430e1de"
 
 [[package]]
 name = "fips204"
@@ -643,21 +643,21 @@ checksum = "3f9eec918d3f24069decb9af1554cad7c880e2da24a9afd88aca000531ab82c1"
 
 [[package]]
 name = "futures-core"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2cd50c473c80f6d7c3670a752354b8e569b1a7cbfdc0419ec88e5edad85e0dc7"
+checksum = "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e"
 
 [[package]]
 name = "futures-task"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b231ed28831efb4a61a08580c4bc233ec56bc009f4cd8f52da2c3cb97df0c109"
+checksum = "cd417de3d1d015fc3bfd2b1ea46dfc7bab72ef86f1cc7cc9c78e728b34a6d1fd"
 
 [[package]]
 name = "futures-util"
-version = "0.3.33"
+version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a77a90a256fce34da66415271e30f94ee91c57b04b8a2c042d9cf3220179deaa"
+checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
 dependencies = [
  "futures-core",
  "futures-task",
@@ -854,9 +854,9 @@ checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
 name = "js-sys"
-version = "0.3.103"
+version = "0.3.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53b44bfcdb3f8d5837a46dae1ca9660a837176eee74a28b229bc626816589102"
+checksum = "0e0c1080212aad755ea003d18543e8768dd432c48819efd73a7bf1e39b7a5a3a"
 dependencies = [
  "cfg-if",
  "futures-util",
@@ -874,7 +874,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "js-sys",
@@ -906,7 +906,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-aead"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "hex",
@@ -935,7 +935,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-benches"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "lib-q",
@@ -943,7 +943,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-blind-pcs"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "js-sys",
  "lib-q-core",
@@ -957,7 +957,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-blind-token"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "hex",
  "lib-q-random",
@@ -969,7 +969,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-cb-kem"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "aes",
  "criterion",
@@ -993,7 +993,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-core"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "getrandom 0.4.3",
  "js-sys",
@@ -1013,7 +1013,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-dkg"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "dudect-bencher",
  "getrandom 0.4.3",
@@ -1033,7 +1033,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-duplex-aead"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "hex",
@@ -1045,7 +1045,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-examples"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q",
  "lib-q-cb-kem",
@@ -1059,7 +1059,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "hex",
@@ -1077,7 +1077,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-alg"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1088,7 +1088,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-comm"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "cpufeatures 0.3.0",
  "hex",
@@ -1097,7 +1097,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-kgen"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1109,7 +1109,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-sign"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1118,7 +1118,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-fn-dsa-vrfy"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "hex",
  "lib-q-fn-dsa-comm",
@@ -1128,7 +1128,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hash"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "base16ct",
  "block-buffer 0.12.1",
@@ -1147,7 +1147,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hpke"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "getrandom 0.4.3",
  "hex",
@@ -1173,7 +1173,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hqc"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "aes",
  "criterion",
@@ -1202,18 +1202,18 @@ dependencies = [
 
 [[package]]
 name = "lib-q-hqc-traits"
-version = "0.0.10"
+version = "0.0.11"
 
 [[package]]
 name = "lib-q-intrinsics"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-platform",
 ]
 
 [[package]]
 name = "lib-q-k12"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "digest 0.11.3",
@@ -1226,7 +1226,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-keccak"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "core_affinity",
  "getrandom 0.4.3",
@@ -1239,7 +1239,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-keccak-digest"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "blobby",
  "digest 0.11.3",
@@ -1248,7 +1248,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-kem"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-cb-kem",
  "lib-q-core",
@@ -1261,7 +1261,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-lattice-zkp"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "hex",
@@ -1280,7 +1280,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-mac"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "getrandom 0.4.3",
  "hex",
@@ -1299,7 +1299,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-maul"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "hex",
  "lib-q-random",
@@ -1311,7 +1311,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-mayo"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "aes",
  "criterion",
@@ -1324,7 +1324,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-ml-dsa"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "fips204",
@@ -1348,7 +1348,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-ml-kem"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "crypto-common 0.2.2",
@@ -1374,7 +1374,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-mve"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-core",
  "lib-q-k12",
@@ -1391,14 +1391,14 @@ dependencies = [
 
 [[package]]
 name = "lib-q-platform"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-core",
 ]
 
 [[package]]
 name = "lib-q-plonky"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-core",
  "lib-q-plonky-batch-stark",
@@ -1412,7 +1412,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-batch-stark"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-plonky-lookup",
@@ -1435,7 +1435,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-keccak-air"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-keccak",
@@ -1450,7 +1450,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-lookup"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-air",
@@ -1464,7 +1464,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-multilinear-util"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-field",
@@ -1476,7 +1476,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-plonky-uni-stark"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-air",
@@ -1499,7 +1499,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-poseidon"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "digest 0.11.3",
@@ -1516,7 +1516,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-prf"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "crypto-bigint",
  "hex",
@@ -1535,7 +1535,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-random"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "aes",
  "criterion",
@@ -1560,7 +1560,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-ring"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "hex",
  "lib-q-core",
@@ -1575,7 +1575,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-ring-sig"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "crypto-bigint",
  "hex",
@@ -1597,7 +1597,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-rocca-s"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "lib-q-core",
@@ -1606,7 +1606,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-romulus"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "aead",
  "hex",
@@ -1617,7 +1617,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-saturnin"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "lib-q-core",
@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-sca-test"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-hqc",
  "lib-q-lattice-zkp",
@@ -1640,7 +1640,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-sha3"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "base16ct",
  "blobby",
@@ -1653,7 +1653,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-sig"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "js-sys",
@@ -1673,7 +1673,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-slh-dsa"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "aes",
  "cipher",
@@ -1712,7 +1712,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-core",
@@ -1744,7 +1744,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-air"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-field",
@@ -1755,7 +1755,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-baby-bear"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-stark-field",
  "lib-q-stark-field-testing",
@@ -1766,7 +1766,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-challenger"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "lib-q-stark-field",
@@ -1783,7 +1783,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-commit"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-baby-bear",
@@ -1801,7 +1801,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-dft"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "itertools 0.15.0",
@@ -1817,7 +1817,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-field"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-rayon",
@@ -1833,7 +1833,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-field-testing"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "lib-q-stark-dft",
@@ -1848,7 +1848,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-fri"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "itertools 0.15.0",
@@ -1875,7 +1875,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-interpolation"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-stark-baby-bear",
  "lib-q-stark-field",
@@ -1887,7 +1887,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-matrix"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "itertools 0.15.0",
@@ -1905,7 +1905,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-mds"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "lib-q-random",
@@ -1919,7 +1919,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-merkle"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "itertools 0.15.0",
@@ -1942,7 +1942,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-mersenne31"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "itertools 0.15.0",
@@ -1963,7 +1963,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-monty31"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-stark-dft",
@@ -1985,14 +1985,14 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-rayon"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "rayon",
 ]
 
 [[package]]
 name = "lib-q-stark-sha3-256"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "digest 0.11.3",
  "lib-q-sha3",
@@ -2001,7 +2001,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-shake128"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "digest 0.11.3",
  "lib-q-sha3",
@@ -2010,7 +2010,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-shake256"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "digest 0.11.3",
  "lib-q-sha3",
@@ -2019,7 +2019,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-symmetric"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "itertools 0.15.0",
  "lib-q-keccak",
@@ -2029,7 +2029,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-stark-util"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "rand 0.10.2",
@@ -2040,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-threshold-kem-lattice"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "getrandom 0.4.3",
  "hex",
@@ -2059,7 +2059,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-threshold-raccoon"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "getrandom 0.4.3",
  "hex",
@@ -2078,7 +2078,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-transcript"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-k12",
  "lib-q-poseidon",
@@ -2088,7 +2088,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-tweak-aead"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "hex",
@@ -2100,7 +2100,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-types"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-fn-dsa-comm",
  "serde",
@@ -2109,14 +2109,14 @@ dependencies = [
 
 [[package]]
 name = "lib-q-utils"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-core",
 ]
 
 [[package]]
 name = "lib-q-zk-encryption-proof"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-dkg",
  "lib-q-plonky-batch-stark",
@@ -2144,7 +2144,7 @@ dependencies = [
 
 [[package]]
 name = "lib-q-zkp"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "criterion",
  "digest 0.11.3",
@@ -2405,9 +2405,9 @@ dependencies = [
 
 [[package]]
 name = "portable-atomic"
-version = "1.14.0"
+version = "1.15.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3d20d5497ef88037a52ff98267d066e7f11fcc5e99bbfbd58a42336193aacec3"
+checksum = "05c8b63e8d9609db387f0324918f81d68fe27748f084ef092fb35954d0539a85"
 
 [[package]]
 name = "postcard"
@@ -2633,9 +2633,9 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.4.16"
+version = "0.4.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8fcfdb36bda0c880c5931cdc7a2bcdc8ba4556847b9d912bca70bc94708711ad"
+checksum = "ad8553b9b26413251cbf30e620595c7a41b3887f03da04579c0e6b0d6a06b4b2"
 dependencies = [
  "aho-corasick",
  "memchr",
@@ -2899,18 +2899,18 @@ dependencies = [
 
 [[package]]
 name = "thiserror"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09a43598840e33d5b0331f38c5e30d13bb11c11210a4b58f0d9b18a5a5eefcd9"
+checksum = "ec86235f5fcc2a73650310756d2ac5b138a5780bbbdfae3eeccec992c435ba4f"
 dependencies = [
  "thiserror-impl",
 ]
 
 [[package]]
 name = "thiserror-impl"
-version = "2.0.19"
+version = "2.0.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43cbfe0cf76104d42a574802844187e84a305e531ed54455f11fbde0f10541cd"
+checksum = "bc04cd3e1236dd4a98afca4569f2deb3f120e5422a4023be2cb683f8486292af"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3048,9 +3048,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.126"
+version = "0.2.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b067c0c11094aef6b7a801c1e34a26affafdf3d051dba08456b868789aaf9a4"
+checksum = "1b70935747edd64d89de3efa29d73789b806c15798f8e7dca4d8ac356b50ce70"
 dependencies = [
  "cfg-if",
  "once_cell",
@@ -3063,9 +3063,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.76"
+version = "0.4.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62df1340f32221cb9c54d6a27b030e3dba64361d4a95bed55f9aacb44da291d"
+checksum = "6b7777d5cc23d0e91404e53ce2d5e8ec7acae3026b16233dba62cd3246457950"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -3073,9 +3073,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.126"
+version = "0.2.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "167ce5e579f6bcf889c4f7175a8a5a585de84e8ff93976ce393efa5f2837aab1"
+checksum = "77775f8f3f7217702089053b94958f8f54061a3f663417df76e19cbdcca29bc1"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -3083,9 +3083,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.126"
+version = "0.2.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3997c7839262f4ef12cf90b818d6340c18e80f263f1a94bf157d0ec4420380e"
+checksum = "e11d33f857dc2fb11b8bc75aee111aa9cbeb12cd9f25efd3d4c2a3dd4e235284"
 dependencies = [
  "bumpalo",
  "proc-macro2",
@@ -3096,18 +3096,18 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.126"
+version = "0.2.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc1b4cb0cc549fcf58d7dfc081778139b3d283a081644e833e84682ad71cea24"
+checksum = "7ef64dbcc55df09c7e5a46182d181c2cfa3e925f3da937ea764728b4bbb9dcbf"
 dependencies = [
  "unicode-ident",
 ]
 
 [[package]]
 name = "wasm-bindgen-test"
-version = "0.3.76"
+version = "0.3.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a0d555ca874445df8d314f94f5c948a4e74e5418f332c89f660a3d8310a96f4"
+checksum = "895a2607575412a4eda1df892084a375ea10dfeadc4d7d2ab87b854e4ddc7ba1"
 dependencies = [
  "async-trait",
  "cast",
@@ -3127,9 +3127,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-test-macro"
-version = "0.3.76"
+version = "0.3.77"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94eb68555b95bcea5e8cf4abe280b529049479fa995bfc23734af96a6aedc120"
+checksum = "4288cb0ebe215033bf949ae1fd046726daa4c32a157f24b9dc6ac387a52aa759"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3138,13 +3138,13 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-test-shared"
-version = "0.2.126"
+version = "0.2.127"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31d56021e873866c968588ed85ccdf56db5c426e44afdb4618c39895104b920"
+checksum = "33ff1c1b360982e93b6d8ea9c04836f71dba0817a16f91e229cf3a51bdd9d987"
 
 [[package]]
 name = "wasm-browser-demo"
-version = "0.0.10"
+version = "0.0.11"
 dependencies = [
  "lib-q-ml-dsa",
  "wasm-bindgen",
@@ -3152,9 +3152,9 @@ dependencies = [
 
 [[package]]
 name = "web-sys"
-version = "0.3.103"
+version = "0.3.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8622dcb61c0bcc9fffa6938bed81210af2da9a7e4a1a834b2e37a59b6dfb6141"
+checksum = "c435338968042f4f59a557f690a253676d47ce13ceb55d70100e7facf6620a30"
 dependencies = [
  "js-sys",
  "wasm-bindgen",
@@ -3214,18 +3214,18 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "zerocopy"
-version = "0.8.55"
+version = "0.8.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5a105cd7b140f6eeec8acff2ea38135d3cab283ada58540f629fe51e46696eb"
+checksum = "556764e583adb45a9f8d413c2a147fa7e8d821e48e12b14fd560b607998b75eb"
 dependencies = [
  "zerocopy-derive",
 ]
 
 [[package]]
 name = "zerocopy-derive"
-version = "0.8.55"
+version = "0.8.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fe976fb70c78cd64cccfe3a6fc142244e8a77b70959b30faf9d0ac37ee228eb"
+checksum = "f2ab42fc20575779bd240faa45f94a74256f755c0fa9e89f0ede20d91d0cdfc1"
 dependencies = [
  "proc-macro2",
  "quote",

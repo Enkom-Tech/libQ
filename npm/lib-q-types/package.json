@@ -1,6 +1,6 @@
 {
   "name": "@lib-q/types",
-  "version": "0.0.2",
+  "version": "0.0.11",
   "description": "TypeScript typings for @lib-q WASM packages",
   "type": "module",
   "license": "Apache-2.0",

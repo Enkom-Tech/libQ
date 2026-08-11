@@ -17,7 +17,7 @@ ignored = [
     "proptest",
 ]
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = false, optional = true }
+lib-q-core = { path = "../lib-q-core", version = "0.0.11", default-features = false, optional = true }
 # NOTE: no `features = ["std"]` here. It was unconditional, which forced lib-q-ring's std even
 # in this crate's own no_std builds. That was harmless while lib-q-ring gated no_std behind an
 # opt-in feature, but once ring moved to the conventional `cfg_attr(not(feature = "std"), no_std)`
@@ -26,9 +26,9 @@ lib-q-core = { path = "../lib-q-core", version = "0.0.10", default-features = fa
 # thumbv7em-none-eabi` failed with "can't find crate for `std` ... required by lib_q_ring because
 # it does not declare #![no_std]". It was also redundant: the `std` feature below already adds
 # `lib-q-ring/std` when this crate is built with std.
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.10", default-features = false }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.10", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.10", optional = true, default-features = false, features = ["alloc"] }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.11", default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true, default-features = false, features = ["alloc"] }
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
@@ -51,8 +51,8 @@ required-features = ["hardened"]
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 hex = { workspace = true }
 criterion = { workspace = true }
-lib-q-random = { path = "../lib-q-random", version = "0.0.10", features = ["std"] }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.10", default-features = false, features = ["privacy"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", features = ["std"] }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.11", default-features = false, features = ["privacy"] }
 proptest = { workspace = true }
 rand_core = { workspace = true }
 
