@@ -51,17 +51,6 @@ struct KemKatVector {
     count: u32,
     seed: Vec<u8>,
     pk: Vec<u8>,
-    /// The pinned secret key from the `.rsp` file. Only the legacy (default) wire layout is
-    /// byte-comparable against these pins — under `hqc-sk-v5-layout` `to_nist_bytes` deliberately
-    /// emits a different, longer encoding, so `run_kat_vector` checks only the round-trip there
-    /// and this field goes unread.
-    #[cfg_attr(
-        feature = "hqc-sk-v5-layout",
-        allow(
-            dead_code,
-            reason = "only the legacy layout compares against the pinned sk bytes"
-        )
-    )]
     sk: Vec<u8>,
     ct: Vec<u8>,
     ss: Vec<u8>,
@@ -283,51 +272,26 @@ fn run_kat_vector<P: HqcParams>(label: &str, vec: &KemKatVector, next_seed48: Op
         vec.count
     );
 
-    // The `.rsp` pins were generated against the crate's legacy `dk_pke ‖ sigma ‖ ek_pke` wire
-    // layout (`to_nist_bytes`'s default arm). Under `hqc-sk-v5-layout`, `to_nist_bytes` emits the
-    // reference `ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)` layout instead — a deliberately
-    // different, longer encoding — so the pinned `sk` bytes are not expected to match; only the
-    // round-trip (serialize -> parse -> still-correct decapsulation) is checked in that build.
-    #[cfg(not(feature = "hqc-sk-v5-layout"))]
-    {
-        let sk_nist = sk.to_nist_bytes();
-        assert_bytes_eq(
-            &format!("{label} count={} sk (NIST)", vec.count),
-            &vec.sk,
-            &sk_nist,
-        );
-        assert_eq!(
-            vec.sk.len(),
-            lib_q_hqc::hqc_kem::HqcKemSecretKey::<P>::nist_secret_key_len(),
-            "{label} count={}: .rsp sk length",
-            vec.count
-        );
+    let sk_nist = sk.to_nist_bytes();
+    assert_bytes_eq(
+        &format!("{label} count={} sk (NIST)", vec.count),
+        &vec.sk,
+        &sk_nist,
+    );
+    assert_eq!(
+        vec.sk.len(),
+        lib_q_hqc::hqc_kem::HqcKemSecretKey::<P>::nist_secret_key_len(),
+        "{label} count={}: .rsp sk length",
+        vec.count
+    );
 
-        let sk_rt = lib_q_hqc::hqc_kem::HqcKemSecretKey::<P>::from_nist_bytes(&sk_nist)
-            .expect("from_nist_bytes round-trip");
-        assert_eq!(
-            sk.to_nist_bytes(),
-            sk_rt.to_nist_bytes(),
-            "NIST sk round-trip"
-        );
-    }
-    #[cfg(feature = "hqc-sk-v5-layout")]
-    {
-        let sk_nist = sk.to_nist_bytes();
-        assert_eq!(
-            sk_nist.len(),
-            lib_q_hqc::hqc_kem::HqcKemSecretKey::<P>::nist_secret_key_len(),
-            "{label} count={}: v5-layout sk length",
-            vec.count
-        );
-        let sk_rt = lib_q_hqc::hqc_kem::HqcKemSecretKey::<P>::from_nist_bytes(&sk_nist)
-            .expect("from_nist_bytes round-trip (v5 layout)");
-        assert_eq!(
-            sk.to_nist_bytes(),
-            sk_rt.to_nist_bytes(),
-            "v5-layout NIST sk round-trip"
-        );
-    }
+    let sk_rt = lib_q_hqc::hqc_kem::HqcKemSecretKey::<P>::from_nist_bytes(&sk_nist)
+        .expect("from_nist_bytes round-trip");
+    assert_eq!(
+        sk.to_nist_bytes(),
+        sk_rt.to_nist_bytes(),
+        "NIST sk round-trip"
+    );
 
     let next_seed = next_seed48.expect("KAT record needs following seed for encaps salt");
     assert_eq!(
@@ -361,9 +325,6 @@ fn run_kat_vector<P: HqcParams>(label: &str, vec: &KemKatVector, next_seed48: Op
         ss_dec.as_bytes(),
     );
 
-    // `vec.sk` is legacy-layout bytes (see the comment above); only importable via
-    // `from_nist_bytes` in the default (non-`hqc-sk-v5-layout`) build.
-    #[cfg(not(feature = "hqc-sk-v5-layout"))]
     {
         let sk_from_rsp =
             lib_q_hqc::hqc_kem::HqcKemSecretKey::<P>::from_nist_bytes(&vec.sk).expect("sk import");

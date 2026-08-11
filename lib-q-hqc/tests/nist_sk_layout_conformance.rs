@@ -1,4 +1,4 @@
-//! `hqc-sk-v5-layout` conformance: checks `HqcKemSecretKey::to_nist_bytes`/`from_nist_bytes`
+//! NIST secret-key layout conformance: checks `HqcKemSecretKey::to_nist_bytes`/`from_nist_bytes`
 //! against the official HQC v5.0.0 reference secret-key layout, built from first principles off
 //! the reference C struct rather than a literal reference-generated KAT vector (none exists for
 //! this exact new layout — see `lib-q-hqc/kats/regression-pins/PROVENANCE.md`, "CORRECTION
@@ -15,11 +15,11 @@
 //! upstream `CRYPTO_SECRETKEYBYTES` at every level (`src/common/hqc-{1,3,5}/api.h`):
 //! `2241+32+16+32 = 2321`, `4514+32+24+32 = 4602`, `7237+32+32+32 = 7333`.
 //!
-//! Only builds/runs with `--features hqc-sk-v5-layout` (see `[[test]]` entry, `Cargo.toml`) — a
-//! feature-gated test file with no corresponding `[[test]]` entry silently compiles to nothing
-//! (`running 0 tests ... ok`); the entry is what makes these tests actually execute.
+//! Needs a `[[test]]` entry in `Cargo.toml` (it has one): a file gated by an inner `cfg` with no
+//! corresponding entry silently compiles to nothing and reports `running 0 tests ... ok`. Always
+//! read the COUNT when running this.
 
-#![cfg(all(feature = "alloc", feature = "hqc-sk-v5-layout"))]
+#![cfg(all(feature = "alloc", feature = "hqc", feature = "random"))]
 
 use lib_q_hqc::hqc_kem::{
     HqcKem,
@@ -32,11 +32,11 @@ use lib_q_hqc::params::{
     HqcParams,
 };
 
-/// Encodes a keypair under `hqc-sk-v5-layout` and checks every field's offset and width against
+/// Encodes a keypair and checks every field's offset and width against
 /// the reference struct layout, independently of `nist_secret_key_len()` (which is the
 /// implementation under test — this derives the expected split from `P`'s own published sizes so
 /// a bug in both the encoder and the length helper at once would still be caught).
-fn check_v5_layout<P: HqcParams>(seed_byte: u8) {
+fn check_reference_layout<P: HqcParams>(seed_byte: u8) {
     let kem = HqcKem::<P>::new().expect("HqcKem::new");
     let seed = [seed_byte; 48];
     let (_pk, sk) = kem.keygen_with_seed(&seed).expect("keygen_with_seed");
@@ -49,7 +49,7 @@ fn check_v5_layout<P: HqcParams>(seed_byte: u8) {
     assert_eq!(
         bytes.len(),
         expected_len,
-        "v5-layout sk length must be ek_pke + 32 + K + 32"
+        "reference-layout sk length must be ek_pke + 32 + K + 32"
     );
     assert_eq!(
         bytes.len(),
@@ -99,7 +99,7 @@ fn check_v5_layout<P: HqcParams>(seed_byte: u8) {
     assert_eq!(
         bytes,
         restored.to_nist_bytes(),
-        "v5-layout round-trip must be byte-exact"
+        "reference-layout round-trip must be byte-exact"
     );
 
     let m = vec![0x11u8; P::K];
@@ -118,22 +118,22 @@ fn check_v5_layout<P: HqcParams>(seed_byte: u8) {
 }
 
 #[test]
-fn hqc1_v5_layout_matches_reference_struct() {
-    check_v5_layout::<Hqc1Params>(0xA1);
+fn hqc1_layout_matches_reference_struct() {
+    check_reference_layout::<Hqc1Params>(0xA1);
     // Matches upstream CRYPTO_SECRETKEYBYTES for hqc-128 (`src/common/hqc-1/api.h`): 2321.
     assert_eq!(HqcKemSecretKey::<Hqc1Params>::nist_secret_key_len(), 2321);
 }
 
 #[test]
-fn hqc3_v5_layout_matches_reference_struct() {
-    check_v5_layout::<Hqc3Params>(0xA3);
+fn hqc3_layout_matches_reference_struct() {
+    check_reference_layout::<Hqc3Params>(0xA3);
     // Matches upstream CRYPTO_SECRETKEYBYTES for hqc-192 (`src/common/hqc-3/api.h`): 4602.
     assert_eq!(HqcKemSecretKey::<Hqc3Params>::nist_secret_key_len(), 4602);
 }
 
 #[test]
-fn hqc5_v5_layout_matches_reference_struct() {
-    check_v5_layout::<Hqc5Params>(0xA5);
+fn hqc5_layout_matches_reference_struct() {
+    check_reference_layout::<Hqc5Params>(0xA5);
     // Matches upstream CRYPTO_SECRETKEYBYTES for hqc-256 (`src/common/hqc-5/api.h`): 7333.
     assert_eq!(HqcKemSecretKey::<Hqc5Params>::nist_secret_key_len(), 7333);
 }
@@ -141,7 +141,7 @@ fn hqc5_v5_layout_matches_reference_struct() {
 /// `from_nist_bytes` must still reject the wrong length under the v5 layout (not just the legacy
 /// one) -- a length check that only ever compiles under one cfg arm is easy to silently drop.
 #[test]
-fn hqc1_v5_layout_rejects_wrong_length() {
+fn hqc1_layout_rejects_wrong_length() {
     let too_short = vec![0u8; HqcKemSecretKey::<Hqc1Params>::nist_secret_key_len() - 1];
     assert!(HqcKemSecretKey::<Hqc1Params>::from_nist_bytes(&too_short).is_err());
 
