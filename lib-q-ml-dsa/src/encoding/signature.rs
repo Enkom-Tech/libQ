@@ -231,6 +231,47 @@ macro_rules! malformed_hint_coverage_for {
                 ));
             }
 
+            /// A hint count above omega in a LATER (non-first) row must also be REJECTED, not
+            /// indexed with. The bound check at signature.rs:105-106 runs every loop iteration, so
+            /// this exercises that it is not only effective on i == 0. Every earlier row carries an
+            /// individually VALID counter (see the loop below for why they must also be strictly
+            /// increasing), so the decoder reaches the attacked row in a legitimate state; the
+            /// later row's counter must exceed omega + k (not merely omega), exactly as
+            /// documented on `rejects_hint_count_above_omega_without_panicking` above -- otherwise
+            /// the stale `previous > omega` check on the NEXT iteration masks the defect and the
+            /// test passes under both the fixed and the buggy code.
+            #[test]
+            fn rejects_hint_count_above_omega_in_later_row() {
+                let mut buf = [0u8; SIGNATURE_SIZE];
+                let h0 = hint_byte_offset();
+                // Hint-index bytes: strictly increasing, same pattern as the row-0 test above.
+                for (j, slot) in buf.iter_mut().skip(h0).take(MAX_ONES_IN_HINT).enumerate() {
+                    *slot = j as u8;
+                }
+                // Rows 0..ROWS_IN_A-2 ("early" rows) get a strictly increasing, individually-valid
+                // (<= omega) counter sequence that ends exactly at omega on the row just before the
+                // last. This is load-bearing, not decoration: `hint_serialized[j] <= hint_serialized[j
+                // - 1]` (signature.rs:113) is checked on every byte the scan crosses, including the
+                // count-region bytes belonging to earlier rows. A flat/zero fill there (as in an
+                // earlier draft of this test) makes that check reject FIRST, for an unrelated reason,
+                // before the scan ever reaches the genuinely unbounded region -- which is exactly the
+                // "vacuous test" failure mode the card and the brief warn about, so the sequence must
+                // stay strictly increasing all the way up to the attacked row for this test to mean
+                // anything.
+                for i in 0..ROWS_IN_A - 1 {
+                    let value = MAX_ONES_IN_HINT - (ROWS_IN_A - 2 - i);
+                    buf[h0 + MAX_ONES_IN_HINT + i] = value as u8;
+                }
+                // The LAST row's counter exceeds the whole hint buffer (omega + k), continuing the
+                // increasing sequence so nothing before it masks the defect.
+                let later_row = ROWS_IN_A - 1;
+                buf[h0 + MAX_ONES_IN_HINT + later_row] = (MAX_ONES_IN_HINT + ROWS_IN_A + 1) as u8;
+                assert!(matches!(
+                    deserialize_all(&buf),
+                    Err(VerificationError::MalformedHintError)
+                ));
+            }
+
             #[test]
             fn rejects_decreasing_per_row_hint_counts() {
                 let mut buf = [0u8; SIGNATURE_SIZE];
