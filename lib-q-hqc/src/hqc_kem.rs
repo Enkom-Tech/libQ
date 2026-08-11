@@ -544,101 +544,47 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         result
     }
 
-    /// Length of [`Self::to_nist_bytes`]'s output for this build: the legacy layout's length by
-    /// default, or the reference v5.0.0 layout's length under `hqc-sk-v5-layout` (32 bytes larger,
-    /// the `seed_kem` field the legacy layout omits).
-    #[cfg(all(feature = "alloc", not(feature = "hqc-sk-v5-layout")))]
+    /// Length of [`Self::to_nist_bytes`]'s output: upstream's `CRYPTO_SECRETKEYBYTES`
+    /// (2321 / 4602 / 7333 for HQC-128/192/256), i.e.
+    /// `ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)`.
+    #[cfg(feature = "alloc")]
     #[must_use]
     pub const fn nist_secret_key_len() -> usize {
         P::NIST_SECRET_KEY_BYTES
     }
 
-    /// Length of [`Self::to_nist_bytes`]'s output under `hqc-sk-v5-layout`: `ek_pke ‖ dk_pke(32) ‖
-    /// sigma(K) ‖ seed_kem(32)`, matching upstream `CRYPTO_SECRETKEYBYTES`
-    /// (`reference/hqc/src/common/kem.c:63-67`; `src/common/hqc-{1,3,5}/api.h`).
-    #[cfg(all(feature = "alloc", feature = "hqc-sk-v5-layout"))]
-    #[must_use]
-    pub const fn nist_secret_key_len() -> usize {
-        P::PUBLIC_KEY_BYTES + 32 + P::K + 32
-    }
-
-    /// Serialize to this crate's `dk_pke` ‖ `sigma` ‖ `ek_pke` layout.
+    /// Serialize to the HQC v5.0.0 reference secret-key layout:
+    /// `ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)`, verified against
+    /// `reference/hqc/src/common/kem.c:63-67` (`crypto_kem_keypair`) and upstream's
+    /// `CRYPTO_SECRETKEYBYTES` in `src/common/hqc-{1,3,5}/api.h`.
     ///
-    /// **Not** upstream-compatible, in two independent ways — see
-    /// [`lib_q_types::hqc::kem_nist_secret_key_bytes`] and board card `t_e3ac1c87`. The reference's
-    /// `crypto_kem_keypair` writes `ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)`
-    /// (`src/common/kem.c`), so relative to it this layout (a) omits the trailing 32-byte
-    /// `seed_kem` — the whole of the uniform 32-byte length shortfall at all three levels — and
-    /// (b) places `ek_pke` last rather than first.
+    /// `seed_kem` on the wire is the first 32 bytes of this struct's internal 48-byte field. The
+    /// wider field exists only for NIST KAT-generator compatibility; the truncation applies to the
+    /// serialized form, never to the value used to derive key material.
     ///
-    /// An earlier version of this comment claimed the field order matched upstream and only the
-    /// sizes differed. Both halves of that were wrong; it had not been checked against the
-    /// reference source. Only round-trips with [`Self::from_nist_bytes`]; does not interoperate
-    /// with genuine upstream-produced keys.
-    ///
-    /// This is the **default** layout, kept byte-identical while GIP (the downstream consumer)
-    /// migrates. Build with `--features hqc-sk-v5-layout` for the reference-matching layout
-    /// instead (see that build's doc comment on this same method, below, under `#[cfg]`).
-    #[cfg(all(feature = "alloc", not(feature = "hqc-sk-v5-layout")))]
-    pub fn to_nist_bytes(&self) -> Vec<u8> {
-        let mut out = Vec::with_capacity(Self::nist_secret_key_len());
-        out.extend_from_slice(&self.dk_pke.data);
-        out.extend_from_slice(&self.sigma[..P::K]);
-        out.extend_from_slice(&self.ek_pke.data);
-        out
-    }
-
-    /// Serialize to the official HQC v5.0.0 reference layout: `ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖
-    /// seed_kem(32)`, verified against `reference/hqc/src/common/kem.c:63-67`
-    /// (`crypto_kem_keypair`) and upstream's `CRYPTO_SECRETKEYBYTES` in
-    /// `src/common/hqc-{1,3,5}/api.h`. `seed_kem` here is the first 32 bytes of this struct's
-    /// internal 48-byte KAT seed field — upstream's `seed_kem` is a 32-byte value; this crate's
-    /// wider field exists only for KAT-generator compatibility and is truncated on the wire, never
-    /// on the value used to derive the key material.
-    ///
-    /// Gated behind `hqc-sk-v5-layout` — NOT default yet, see the crate's `Cargo.toml` feature
-    /// doc comment.
-    #[cfg(all(feature = "alloc", feature = "hqc-sk-v5-layout"))]
+    /// **This encoding changed in the `t_e3ac1c87` cutover.** It previously emitted
+    /// `dk_pke ‖ sigma ‖ ek_pke` with no `seed_kem` — a different field order that was also 32
+    /// bytes short at every level. Keys persisted under the old encoding cannot be re-parsed by
+    /// [`Self::from_nist_bytes`]; because the change reorders fields rather than appending to
+    /// them, migration means re-serializing from the parsed components, not padding.
+    #[cfg(feature = "alloc")]
     pub fn to_nist_bytes(&self) -> Vec<u8> {
         let mut out = Vec::with_capacity(Self::nist_secret_key_len());
         out.extend_from_slice(&self.ek_pke.data);
         out.extend_from_slice(&self.dk_pke.data);
         out.extend_from_slice(&self.sigma[..P::K]);
-        out.extend_from_slice(&self.seed_kem[..32]);
+        out.extend_from_slice(&self.seed_kem[..lib_q_types::hqc::KEM_SEED_KEM_WIRE_BYTES]);
         out
     }
 
-    /// Parse this crate's `dk_pke` ‖ `sigma` ‖ `ek_pke` layout produced by [`Self::to_nist_bytes`].
-    /// Not upstream-`CRYPTO_SECRETKEYBYTES`-compatible — see that method's doc comment.
-    ///
-    /// `seed_kem` is not part of this wire format; a zero placeholder is stored because
-    /// decapsulation only needs `(ek_pke, dk_pke, sigma)`.
-    #[cfg(all(feature = "alloc", not(feature = "hqc-sk-v5-layout")))]
+    /// Parse the HQC v5.0.0 reference secret-key layout produced by [`Self::to_nist_bytes`] — see
+    /// that method's doc comment, including the migration note for the pre-cutover encoding.
+    #[cfg(feature = "alloc")]
     pub fn from_nist_bytes(bytes: &[u8]) -> Result<Self, HqcKemError> {
         if bytes.len() != Self::nist_secret_key_len() {
             return Err(HqcKemError::InvalidKey);
         }
-        let mut dk = [0u8; 32];
-        dk.copy_from_slice(&bytes[..32]);
-        let mut sigma = [0u8; MAX_SECURITY_BYTES];
-        sigma[..P::K].copy_from_slice(&bytes[32..32 + P::K]);
-        let ek_bytes = &bytes[32 + P::K..];
-        if ek_bytes.len() != P::PUBLIC_KEY_BYTES {
-            return Err(HqcKemError::InvalidKey);
-        }
-        let ek_pke = HqcPkePublicKey::new(ek_bytes.to_vec());
-        let dk_pke = HqcPkeSecretKey::new(dk);
-        let seed_kem = [0u8; 48];
-        Ok(Self::new(ek_pke, dk_pke, sigma, seed_kem))
-    }
-
-    /// Parse the reference v5.0.0 layout produced by [`Self::to_nist_bytes`] under
-    /// `hqc-sk-v5-layout` — see that method's doc comment.
-    #[cfg(all(feature = "alloc", feature = "hqc-sk-v5-layout"))]
-    pub fn from_nist_bytes(bytes: &[u8]) -> Result<Self, HqcKemError> {
-        if bytes.len() != Self::nist_secret_key_len() {
-            return Err(HqcKemError::InvalidKey);
-        }
+        let seed_wire = lib_q_types::hqc::KEM_SEED_KEM_WIRE_BYTES;
         let ek_bytes = &bytes[..P::PUBLIC_KEY_BYTES];
         let mut dk = [0u8; 32];
         dk.copy_from_slice(&bytes[P::PUBLIC_KEY_BYTES..P::PUBLIC_KEY_BYTES + 32]);
@@ -646,13 +592,13 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
         sigma[..P::K]
             .copy_from_slice(&bytes[P::PUBLIC_KEY_BYTES + 32..P::PUBLIC_KEY_BYTES + 32 + P::K]);
         let seed_bytes = &bytes[P::PUBLIC_KEY_BYTES + 32 + P::K..];
-        if seed_bytes.len() != 32 {
+        if seed_bytes.len() != seed_wire {
             return Err(HqcKemError::InvalidKey);
         }
         let ek_pke = HqcPkePublicKey::new(ek_bytes.to_vec());
         let dk_pke = HqcPkeSecretKey::new(dk);
         let mut seed_kem = [0u8; 48];
-        seed_kem[..32].copy_from_slice(seed_bytes);
+        seed_kem[..seed_wire].copy_from_slice(seed_bytes);
         Ok(Self::new(ek_pke, dk_pke, sigma, seed_kem))
     }
 }
@@ -891,24 +837,17 @@ mod tests {
         );
     }
 
-    /// Default-path (`hqc-sk-v5-layout` OFF) wire-stability pin: `to_nist_bytes()`'s length and
-    /// the SHA3-256 digest of its output, for a fixed seed, are pinned literals. A digest is used
-    /// instead of the full ~2.3 KB of key material so the pin is unambiguous and small; any change
-    /// to the legacy `dk_pke ‖ sigma ‖ ek_pke` wire layout (field order, widths, or omission of
-    /// `seed_kem`) changes this digest.
+    /// Wire-stability tripwire for the reference secret-key layout: the length and the SHA3-256
+    /// digest of `to_nist_bytes()` for a fixed seed are pinned literals.
     ///
-    /// **What this does and does not prove.** The pinned digest was computed from this crate at
-    /// the commit that introduced `hqc-sk-v5-layout`, so it is a guard against *future* drift, not
-    /// independent evidence that the feature flag left the default path unchanged. That the flag
-    /// was additive is established two other ways: the default `to_nist_bytes` arm emits the same
-    /// three fields in the same order as before (only the `Vec::with_capacity` argument was
-    /// reworded, and `nist_secret_key_len()` returns `P::NIST_SECRET_KEY_BYTES` in this cfg), and
-    /// the pre-existing `tests/nist_kem_kat.rs` suite — which checks against pinned KAT files
-    /// generated before this change — still passes unmodified. Those KAT files are the real
-    /// oracle here; this test is the cheap tripwire.
+    /// The LENGTH assertion is the load-bearing one and is independent evidence: 2321 is upstream's
+    /// `CRYPTO_SECRETKEYBYTES` for HQC-128, read from `reference/hqc/src/common/hqc-1/api.h`, not a
+    /// value re-derived from this crate. The DIGEST is a tripwire only — it was computed from this
+    /// crate at the `t_e3ac1c87` cutover, so it catches future drift but is not itself proof of
+    /// upstream agreement. Byte-exact conformance against real upstream-produced keys is a separate,
+    /// still-open question (`kats/README.md`); this crate's `.rsp` pins are self-generated.
     #[test]
-    #[cfg(not(feature = "hqc-sk-v5-layout"))]
-    fn test_default_nist_bytes_fixed_vector_is_byte_identical() {
+    fn test_nist_bytes_reference_layout_is_wire_stable() {
         use lib_q_sha3::{
             Digest,
             Sha3_256,
@@ -919,8 +858,8 @@ mod tests {
         let (_public_key, secret_key) = kem.keygen_with_seed(&seed).unwrap();
 
         let nist_bytes = secret_key.to_nist_bytes();
-        // Length: legacy layout = dk_pke(32) + sigma(K=16) + ek_pke(2241).
-        assert_eq!(nist_bytes.len(), 32 + 16 + 2241);
+        // ek_pke(2241) + dk_pke(32) + sigma(K=16) + seed_kem(32) = 2321 = CRYPTO_SECRETKEYBYTES.
+        assert_eq!(nist_bytes.len(), 2321);
         assert_eq!(
             nist_bytes.len(),
             HqcKemSecretKey::<Hqc1Params>::nist_secret_key_len()
@@ -930,16 +869,14 @@ mod tests {
         hasher.update(&nist_bytes);
         let digest = hasher.finalize();
         let expected: [u8; 32] = [
-            0x2E, 0x54, 0x31, 0x02, 0x73, 0xB5, 0x7F, 0xA8, 0x90, 0x3B, 0x7A, 0x50, 0xD2, 0xA9,
-            0xF4, 0x7A, 0xBF, 0x03, 0xA2, 0x69, 0x33, 0x9B, 0xB6, 0x0C, 0x38, 0x7B, 0x6A, 0x16,
-            0xA6, 0xEE, 0x8C, 0x45,
+            0x81, 0xCF, 0x72, 0x02, 0x7C, 0x49, 0xCC, 0xAD, 0x19, 0x71, 0xD2, 0x0F, 0x7F, 0x16,
+            0x03, 0x1A, 0xA4, 0xE3, 0x9A, 0x4A, 0xB6, 0x88, 0x8F, 0xD1, 0x3D, 0x6F, 0x6B, 0x40,
+            0x75, 0x70, 0x1F, 0x8A,
         ];
         assert_eq!(
             digest.as_slice(),
             &expected[..],
-            "default legacy `dk_pke ‖ sigma ‖ ek_pke` layout changed for a fixed seed — this must \
-             stay byte-identical while `hqc-sk-v5-layout` is not the default (see Cargo.toml \
-             feature doc comment and kats/regression-pins/PROVENANCE.md); actual digest: {digest:x?}"
+            "reference `ek_pke || dk_pke || sigma || seed_kem` layout changed for a fixed seed;              actual digest: {digest:x?}"
         );
     }
 

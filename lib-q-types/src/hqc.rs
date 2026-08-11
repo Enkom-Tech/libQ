@@ -28,8 +28,20 @@ pub const KEM_SIGMA_BYTES: usize = 16;
 pub const KEM_SIGMA_BYTES_192: usize = 24;
 /// `sigma` length (`PARAM_SECURITY_BYTES`) for HQC-256.
 pub const KEM_SIGMA_BYTES_256: usize = 32;
-/// KEM seed length (`seed_kem` in `HqcKemSecretKey`).
+/// KEM seed length (`seed_kem` in `HqcKemSecretKey`) as held **in memory**.
+///
+/// This is 48, not 32, because the NIST KAT generator's `seed` is 48 bytes and this workspace
+/// stores it whole. Upstream's own `seed_kem` is 32 bytes and only 32 are written to the wire —
+/// use [`KEM_SEED_KEM_WIRE_BYTES`] for anything that computes a serialized length. Substituting
+/// this constant into a wire-length formula silently overstates every HQC secret key by 16 bytes.
 pub const KEM_SEED_KEM_BYTES: usize = 48;
+/// `seed_kem` length **on the wire**, per upstream `SEED_BYTES`
+/// (`reference/hqc/src/common/kem.c:63-67` writes exactly this many bytes as the final field).
+///
+/// Deliberately a separate constant from [`KEM_SEED_KEM_BYTES`]: the in-memory field is wider, and
+/// conflating the two is a 16-byte length error that a round-trip test cannot catch, because both
+/// serializer and parser would agree on the wrong size.
+pub const KEM_SEED_KEM_WIRE_BYTES: usize = 32;
 
 /// Byte length of a serialized KEM public key (`seed_ek` ‖ `s`) for parameter `N` (in bits), per
 /// the HQC v5.0.0 (2025-08-22) specification. `PUBLIC_KEY_BYTES` must always equal this — see the
@@ -46,25 +58,28 @@ pub const fn kem_secret_key_serialized_len(ek_pke_len: usize, sigma_len: usize) 
     ek_pke_len + PKE_DK_SEED_BYTES + sigma_len + KEM_SEED_KEM_BYTES
 }
 
-/// libQ's own `dk_pke` ‖ `sigma` ‖ `ek_pke` secret-key layout, named after (but **not
-/// byte-identical to**) the upstream HQC reference's `CRYPTO_SECRETKEYBYTES` wire format.
+/// Upstream HQC `CRYPTO_SECRETKEYBYTES`: `ek_pke` ‖ `dk_pke`(32) ‖ `sigma`(K) ‖ `seed_kem`(32).
 ///
-/// The field order matches upstream's, and `sigma` is now sized per-level as upstream sizes it
-/// (`PARAM_SECURITY_BYTES` = 16/24/32), but `dk_pke` is still this workspace's 32-byte seed rather
-/// than upstream's expanded form. A same-seed comparison against the official HQC
-/// v5.0.0 reference implementation (commit `f46e542`) measured the resulting constants as
-/// numerically smaller than upstream's `CRYPTO_SECRETKEYBYTES` at all three levels — HQC-128:
-/// 2289 vs 2321, HQC-192: 4562 vs 4602, HQC-256: 7285 vs 7333 (deltas -32/-40/-48) — see
-/// `lib-q-hqc/kats/regression-pins/PROVENANCE.md` ("Known divergence...") for the measurement.
-/// This is a tracked, open, low-severity naming/documentation gap, not a length-check defect:
-/// nothing in this workspace parses real upstream-produced NIST-format secret-key bytes through
-/// this constant (`HqcKemSecretKey::from_nist_bytes` round-trips only against
-/// `HqcKemSecretKey::to_nist_bytes`, both using this crate's own sizing, with an exact `!=`
-/// length check). Do not treat a value returned here as compatible with genuine upstream HQC
-/// `CRYPTO_SECRETKEYBYTES`-sized keys.
+/// Matches the v5.0.0 reference exactly at all three levels — 2321 / 4602 / 7333, cross-checked
+/// against `src/common/hqc-{1,3,5}/api.h` and the write order in
+/// `reference/hqc/src/common/kem.c:63-67` (`crypto_kem_keypair`).
+///
+/// BREAKING CHANGE (card `t_e3ac1c87`): this previously returned
+/// `PKE_DK_SEED_BYTES + sigma_len + public_key_len` — a DIFFERENT field order
+/// (`dk_pke ‖ sigma ‖ ek_pke`) that also omitted `seed_kem` entirely, giving 2289 / 4570 / 7301.
+/// Both faults are fixed here, so the value grows by 32 at every level and the byte order changes.
+/// A stored secret key produced by the old encoding cannot be re-parsed by the new one; it must be
+/// re-serialized field-by-field, since this is a reordering, not an append.
+///
+/// Two stale numbers previously documented here are corrected for the record: the deltas were
+/// written as `-32/-40/-48` against upstream. That measurement predates card `t_1558e72f`, which
+/// fixed the HQC-192/256 public keys from the round-3 40-byte-`seed_ek` sizes (4522/7245) to the
+/// v5.0.0 32-byte ones (4514/7237). With the corrected public keys the shortfall is uniformly
+/// `-32` — exactly the omitted `seed_kem` — at every level, which is why restoring that one field
+/// closes the divergence completely rather than only at HQC-128.
 #[must_use]
 pub const fn kem_nist_secret_key_bytes(public_key_len: usize, sigma_len: usize) -> usize {
-    PKE_DK_SEED_BYTES + sigma_len + public_key_len
+    public_key_len + PKE_DK_SEED_BYTES + sigma_len + KEM_SEED_KEM_WIRE_BYTES
 }
 
 // --- HQC-128 (parameter set 1) ---
@@ -119,9 +134,29 @@ mod tests {
         assert_eq!(HQC128_SECRET_KEY_BYTES, 2241 + 32 + 16 + 48);
         assert_eq!(HQC192_SECRET_KEY_BYTES, 4514 + 32 + 24 + 48);
         assert_eq!(HQC256_SECRET_KEY_BYTES, 7237 + 32 + 32 + 48);
-        assert_eq!(HQC128_NIST_SECRET_KEY_BYTES, 32 + 16 + 2241);
-        assert_eq!(HQC192_NIST_SECRET_KEY_BYTES, 32 + 24 + 4514);
-        assert_eq!(HQC256_NIST_SECRET_KEY_BYTES, 32 + 32 + 7237);
+    }
+
+    /// Pin the NIST secret-key wire lengths to upstream's literal `CRYPTO_SECRETKEYBYTES`
+    /// (`reference/hqc/src/common/hqc-{1,3,5}/api.h`), NOT to a re-derivation of
+    /// `kem_nist_secret_key_bytes`'s own formula — comparing a value to its own definition is a
+    /// check that cannot fail. These literals are the whole point of card `t_e3ac1c87`: before the
+    /// cutover the constant returned 2289 / 4570 / 7301, short by exactly the 32-byte `seed_kem`
+    /// at every level, and in a different field order.
+    #[test]
+    fn nist_secret_key_bytes_match_upstream_crypto_secretkeybytes() {
+        assert_eq!(HQC128_NIST_SECRET_KEY_BYTES, 2321);
+        assert_eq!(HQC192_NIST_SECRET_KEY_BYTES, 4602);
+        assert_eq!(HQC256_NIST_SECRET_KEY_BYTES, 7333);
+    }
+
+    /// The in-memory `seed_kem` field is 48 bytes but only 32 reach the wire. If these two ever
+    /// collapse to one value, every HQC secret-key length silently moves by 16 bytes and the
+    /// round-trip tests stay green, because serializer and parser would agree on the wrong size.
+    #[test]
+    fn seed_kem_wire_width_is_not_the_in_memory_width() {
+        assert_eq!(KEM_SEED_KEM_BYTES, 48);
+        assert_eq!(KEM_SEED_KEM_WIRE_BYTES, 32);
+        assert_ne!(KEM_SEED_KEM_BYTES, KEM_SEED_KEM_WIRE_BYTES);
     }
 
     /// `PARAM_SECURITY_BYTES` is per-level, not a single constant. Pinned against the vendored

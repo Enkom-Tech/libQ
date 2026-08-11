@@ -172,3 +172,52 @@ mutation was reverted.
 crate's `default` feature list in `lib-q-hqc/Cargo.toml`. This is a BREAKING wire change for any
 consumer that persisted secret keys via `to_nist_bytes` — the encoding both reorders fields and
 grows by 32 bytes, so stored keys must be migrated, not merely re-parsed.
+
+## 2026-08-11 (later) — RESOLVED by cutover; supersedes the feature-flag note above
+
+The `hqc-sk-v5-layout` feature described in the preceding section **no longer exists**. On the
+operator's decision the reference layout was made the only layout, so read that section as history:
+there is no flag to enable and no legacy arm to fall back to.
+
+`to_nist_bytes`/`from_nist_bytes` now emit and parse
+`ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)` unconditionally.
+
+**This closes the "Known divergence" section above.** OBSERVED sk wire lengths are now 2321 / 4602 /
+7333 — equal to upstream `CRYPTO_SECRETKEYBYTES` at every level, so the `.rsp` filenames
+(`PQCkemKAT_2321`, `_4602`, `_7333`) finally match the sk lengths they contain.
+(ev: `sk` field measured directly out of each regenerated `.rsp` — 4642 / 9204 / 14666 hex chars =
+2321 / 4602 / 7333 bytes.)
+
+Two figures in the divergence table above are stale and are corrected here rather than edited in
+place: the deltas were recorded as `-32 / -40 / -48`. The `-40` and `-48` predate card `t_1558e72f`,
+which corrected the HQC-192/256 public keys from the round-3 40-byte-`seed_ek` sizes (4522 / 7245)
+to the v5.0.0 32-byte sizes (4514 / 7237). Against the corrected public keys the shortfall was
+uniformly **-32** at all three levels — exactly the omitted `seed_kem` — which is why restoring that
+single field closed the gap at every level at once, not only at HQC-128.
+
+### The `.rsp` pins were regenerated in this same commit
+
+Required, because the layout change alters the serialized secret key. OBSERVED: only `sk` lines
+differ — 99 changed lines per file, and `git diff` shows zero `pk`, `ct`, `seed` or `ss` changes
+across all three files. That is the expected signature: this is a serialization change, not a
+change to the KEM. Had `ct` or `ss` moved, the cutover would have broken the algorithm.
+
+The previous `sk` values in these files are the pre-cutover
+`dk_pke(32) ‖ sigma(K) ‖ ek_pke` encoding at lengths 2289 / 4570 / 7301. They are recoverable from
+git history if a stored key needs interpreting.
+
+### Migration
+
+A secret key persisted under the old encoding **cannot** be re-parsed by the new
+`from_nist_bytes` — it is 32 bytes short and its fields are in a different order. Because this is a
+reordering rather than an append, migration means splitting the old bytes at
+`dk_pke(32) ‖ sigma(K) ‖ ek_pke` and re-serializing; padding will not work. `seed_kem` is not
+recoverable from an old-format key (it was never written), so a migrated key carries a zero
+`seed_kem`. That field is not consulted by decapsulation, which needs only
+`(ek_pke, dk_pke, sigma)` — but a migrated key is therefore not byte-identical to a freshly
+generated one for the same seed.
+
+Still NOT closed by this: byte-exact conformance against genuine upstream-produced keys. The `.rsp`
+vectors here remain **self-generated** — they pin this crate against itself. Matching upstream's
+length and field order is necessary for interoperability, not sufficient evidence of it. See
+`../README.md`.
