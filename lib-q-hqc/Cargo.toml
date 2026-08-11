@@ -79,6 +79,11 @@ name = "nist_kem_kat"
 path = "tests/nist_kem_kat.rs"
 required-features = ["alloc", "hqc", "random"]
 
+[[test]]
+name = "hqc_sk_v5_layout"
+path = "tests/hqc_sk_v5_layout.rs"
+required-features = ["alloc", "hqc", "hqc-sk-v5-layout"]
+
 # Byte-exact conformance against the upstream pqc-hqc.org reference implementation.
 # The `required-features` line is load-bearing, not boilerplate: the test file is
 # `#![cfg(all(feature = "alloc", feature = "hqc", feature = "random"))]` and `hqc` is NOT a
@@ -182,6 +187,14 @@ debug-drbg-state-defmt = ["debug-drbg-state", "defmt"]             # DRBG state 
 
 # Performance optimizations
 simd-avx2 = []                                                      # AVX2 SIMD with runtime detection
+
+# Secret-key wire layout
+# When enabled, `HqcKemSecretKey::to_nist_bytes`/`from_nist_bytes` emit/parse the official HQC
+# v5.0.0 reference layout (`ek_pke || dk_pke(32) || sigma(K) || seed_kem(32)`, see
+# `reference/hqc/src/common/kem.c:63-67` and `kats/regression-pins/PROVENANCE.md`) instead of this
+# crate's legacy `dk_pke || sigma || ek_pke` layout. NOT default yet — GIP (the downstream
+# consumer) is mid-migration and expects the legacy layout; flip `default` below once it has moved.
+hqc-sk-v5-layout = []
 
 [lib]
 bench = false

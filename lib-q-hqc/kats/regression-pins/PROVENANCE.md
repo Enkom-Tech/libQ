@@ -138,3 +138,37 @@ crate's own code against itself, it does not fetch or check anything external) w
 cargo test -p lib-q-hqc --release --features "alloc,hqc,random" \
   --test nist_kem_kat regenerate_regression_pin_rsp_files -- --ignored
 ```
+
+## 2026-08-11 — `hqc-sk-v5-layout` feature flag added (append-only note)
+
+The reference secret-key layout was confirmed against `reference/hqc/src/common/kem.c:63-67`
+(`crypto_kem_keypair`):
+
+    dk_kem = ek_pke ‖ dk_pke(32) ‖ sigma(K) ‖ seed_kem(32)
+
+OBSERVED: this crate's default `HqcKemSecretKey::to_nist_bytes` emits
+`dk_pke(32) ‖ sigma(K) ‖ ek_pke` and omits `seed_kem` entirely — a different field ORDER and
+32 bytes SHORTER than the reference. (ev: `lib-q-hqc/src/hqc_kem.rs` default arm; the reference
+lines above.)
+
+The corrected layout now exists behind the **non-default** cargo feature `hqc-sk-v5-layout`. The
+default path is unchanged and its bytes are pinned by
+`hqc_kem::tests::test_default_nist_bytes_fixed_vector_is_byte_identical`. The KAT files in this
+directory are unaffected: they pin KEM behaviour, not the secret-key serialization, and the
+`nist_kem_kat` suite passes unmodified in both configurations.
+
+OBSERVED test results at this change (ev: `cargo test -p lib-q-hqc --features "alloc,hqc,random"`
+→ `exit=0`, no `test result: FAILED` block, `nist_kem_kat` reporting
+`9 passed; 0 failed; 1 ignored`; and
+`cargo test -p lib-q-hqc --features "alloc,hqc,random,hqc-sk-v5-layout" --test hqc_sk_v5_layout`
+→ `exit=0`, `test result: ok. 4 passed; 0 failed`).
+
+The gated tests were mutation-checked, not merely observed green: swapping the `sigma` and
+`dk_pke` writes in the v5 arm produced `exit=101` with
+`test result: FAILED. 1 passed; 3 failed` — so the layout assertions can in fact fail. The
+mutation was reverted.
+
+**To flip the default** once GIP's migration (`t_12eb0701`) lands: add `hqc-sk-v5-layout` to the
+crate's `default` feature list in `lib-q-hqc/Cargo.toml`. This is a BREAKING wire change for any
+consumer that persisted secret keys via `to_nist_bytes` — the encoding both reorders fields and
+grows by 32 bytes, so stored keys must be migrated, not merely re-parsed.
