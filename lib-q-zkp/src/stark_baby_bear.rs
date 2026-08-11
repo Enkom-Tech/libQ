@@ -585,6 +585,157 @@ mod tests {
         }
     }
 
+    /// Analytic LNP22/ABDLOP presentation-size model. MODELLED, not measured — the LaZer
+    /// working tree that produced this repo's one real anon-cred data point (29,093 B @ 8
+    /// message polynomials, `pub_mvec=[0,4,5]`, Zen 3 host) no longer exists on any host
+    /// reachable from this harness (`anon-cred-wire-fork-recommendation.md` §5: "The LaZer
+    /// working tree used for these measurements no longer exists on this host"), so LNP22
+    /// cannot be re-run here. This function is a coarse linear extrapolation from that single
+    /// point, not a fit — one point cannot determine a slope.
+    ///
+    /// `size(n) = BASE_BYTES + PER_ATTR_BYTES * max(0, n - CALIBRATION_N)`
+    ///
+    /// - `BASE_BYTES = 29_093` — the measured point itself (`anon-cred-wire-fork-recommendation.md`
+    ///   §1, provenance: `python3 anon_cred.py` in `lazer/python/anon_cred`). The companion
+    ///   0-of-8-revealed measurement (29,107 B, §2 item 2) shows disclosure count is
+    ///   near-flat at fixed `n=8`, which is why this model puts NO separate term on revealed
+    ///   vs. hidden count — only on total attribute count `n`.
+    /// - `PER_ATTR_BYTES = RING_DEGREE_D * BYTES_PER_COEFF` — SUSPECTED, not fit: it is the
+    ///   serialized size of one ABDLOP response ring element at the measured parameters. Ring
+    ///   degree `d = 64` and modulus `q = 2199023255717` (`log2 q ~= 41.0`) are quoted directly
+    ///   from the `anon_cred_params.h` dump in `anon-cred-wire-fork-recommendation.md` §4. The
+    ///   hypothesis (source: LNP22 / eprint 2022/284 §4's ABDLOP commitment construction, where
+    ///   each committed message polynomial adds one ring element to the opening response
+    ///   vector z1) is that each attribute beyond the calibration point `n=8` costs one such
+    ///   element. This is a first-order approximation: it does NOT model possible packing of
+    ///   several attributes per ring element (would make the true marginal cost lower) or
+    ///   growth of the `t_B` commitment term (would make it higher). NOT validated against a
+    ///   second measured point — none exists in this environment. Treat every `n != 8` output
+    ///   of this function as SUSPECTED.
+    pub(crate) fn lnp22_abdlop_presentation_size_model(attribute_count: u32) -> usize {
+        const CALIBRATION_N: u32 = 8;
+        const BASE_BYTES: usize = 29_093;
+        const RING_DEGREE_D: usize = 64;
+        const LOG2_Q_BITS: usize = 41; // ceil, per anon_cred_params.h "log q ~ 41.0"
+        const BYTES_PER_COEFF: usize = LOG2_Q_BITS.div_ceil(8); // 6
+        const PER_ATTR_BYTES: usize = RING_DEGREE_D * BYTES_PER_COEFF; // 384 B / extra attribute
+
+        let extra = attribute_count.saturating_sub(CALIBRATION_N) as usize;
+        BASE_BYTES + extra * PER_ATTR_BYTES
+    }
+
+    /// The model's base term IS the measured calibration point by construction (residual 0 B
+    /// at n=8). This is NOT independent validation of the slope for n != 8 — only of the base;
+    /// see the doc comment on `lnp22_abdlop_presentation_size_model` for what remains SUSPECTED.
+    #[test]
+    fn lnp22_size_model_matches_calibration_point() {
+        assert_eq!(lnp22_abdlop_presentation_size_model(8), 29_093);
+    }
+
+    /// Parameterised anon-cred wire size spike (card `t_05e76e6c`). This is decision-support
+    /// apparatus, not a security measurement — nothing here is a soundness or security claim.
+    /// Run: `cargo test -p lib-q-zkp --release --lib
+    /// stark_baby_bear::tests::anon_cred_wire_size_spike -- --ignored --nocapture`.
+    ///
+    /// The card is blocked on ONE missing human input pair: libQ's own anon-cred
+    /// `attribute_count` and `predicate_set`. That blocks the *answer*, not the *apparatus* —
+    /// this harness runs the same computation over a plausible spread today, and will run
+    /// unchanged over the real numbers the moment they are supplied (edit `ATTRIBUTE_COUNTS`
+    /// and, once a predicate cost model exists, `PREDICATE_COUNTS` below).
+    ///
+    /// FRI/STARK (Arm B) column — MEASURED, this run, via the same `prove_membership_bb` entry
+    /// point as `measure_arm_b`. OBSERVED (source: `MEMBERSHIP_ROW_WIDTH`,
+    /// `air/unlinkable_membership_baby_bear.rs:86`, a fixed constant = 1661): the committed AIR
+    /// encodes ONLY Merkle-path membership, not attribute predicates, so this arm's proof size
+    /// as currently built does NOT vary with `attribute_count` or `predicate_set` — it varies
+    /// with `depth` (revocation-set log2-size). That constancy is reported as the measured
+    /// finding for this axis, not smoothed over or estimated.
+    ///
+    /// LNP22/ABDLOP column — MODELLED via `lnp22_abdlop_presentation_size_model` (see its doc
+    /// comment for the full SUSPECTED/OBSERVED breakdown). The predicate-count sweep below
+    /// reports 0 marginal bytes per predicate with an explicit caveat: no sourced per-predicate
+    /// cost exists yet, because the predicate *kind* (equality / range / set-membership all
+    /// cost differently in LNP22-style protocols) is exactly the second missing human input.
+    #[test]
+    #[ignore]
+    fn anon_cred_wire_size_spike() {
+        use std::time::Instant;
+
+        use crate::air::unlinkable_membership_baby_bear::MEMBERSHIP_ROW_WIDTH;
+
+        println!(
+            "=== anon-cred wire size spike (card t_05e76e6c) — decision support, not a security claim ==="
+        );
+        println!();
+        println!(
+            "FRI_ARM,depth,trace_width,total_cells,prove_ms_median,proof_bytes,attribute_count_dependence,register"
+        );
+        let tcfg = default_config_bb();
+        let reps = 3usize;
+        let mut fri_bytes: Vec<usize> = Vec::new();
+        for depth in [4usize, 8, 16, 32] {
+            let t = t_from_seed(depth as u32);
+            let ctx = ctx_from_seed(depth as u32 + 1);
+            let leaf = membership_leaf_bb(&t);
+            let (bits, sibs, root) = path_for(leaf, depth, (1 << depth) / 3);
+            let mut pv = Vec::new();
+            let mut bytes = 0usize;
+            for _ in 0..reps {
+                let t0 = Instant::now();
+                let (null, proof) =
+                    prove_membership_bb(&tcfg, &t, &ctx, &bits, &sibs, &root).unwrap();
+                pv.push(t0.elapsed().as_secs_f64() * 1e3);
+                bytes = postcard::to_allocvec(&proof).unwrap().len();
+                assert!(verify_membership_bb(&tcfg, &proof, &root, &ctx, &null));
+            }
+            pv.sort_by(|a, b| a.partial_cmp(b).unwrap());
+            println!(
+                "FRI_ARM,{depth},{},{},{:.1},{bytes},CONSTANT (AIR has no attribute/predicate input),OBSERVED",
+                MEMBERSHIP_ROW_WIDTH,
+                MEMBERSHIP_ROW_WIDTH * depth,
+                pv[reps / 2],
+            );
+            fri_bytes.push(bytes);
+        }
+
+        println!();
+        println!(
+            "LNP22_MODEL,attribute_count,predicate_count,modelled_presentation_bytes,register"
+        );
+        const ATTRIBUTE_COUNTS: [u32; 4] = [4, 8, 16, 32];
+        const PREDICATE_COUNTS: [u32; 3] = [0, 1, 4];
+        for &n in &ATTRIBUTE_COUNTS {
+            let base = lnp22_abdlop_presentation_size_model(n);
+            for &p in &PREDICATE_COUNTS {
+                // No sourced per-predicate cost exists (2nd missing human input is the
+                // predicate SET, not just a count) -> 0 marginal bytes, flagged explicitly
+                // rather than fabricating a constant.
+                let modelled = base;
+                let register = if n == 8 {
+                    "SUSPECTED (base = exact calibration point; predicate cost unmodelled)"
+                } else {
+                    "SUSPECTED (extrapolated from single n=8 point; predicate cost unmodelled)"
+                };
+                println!("LNP22_MODEL,{n},{p},{modelled},{register}");
+            }
+        }
+
+        println!();
+        println!(
+            "SUMMARY,FRI_ARM measured range depth 4..32: {}..{} bytes; constant wrt attribute_count/predicate_set as currently built (OBSERVED).",
+            fri_bytes.iter().min().unwrap(),
+            fri_bytes.iter().max().unwrap()
+        );
+        println!(
+            "SUMMARY,LNP22 modelled range attribute_count 4..32: {}..{} bytes (SUSPECTED; single calibration point @ n=8, predicate cost unmodelled).",
+            lnp22_abdlop_presentation_size_model(4),
+            lnp22_abdlop_presentation_size_model(32)
+        );
+        println!(
+            "SUMMARY,MISSING HUMAN INPUTS: (1) libQ anon-cred attribute_count, (2) predicate_set (kind per predicate: equality/range/set-membership — cost differs per LNP22)."
+        );
+    }
+
     /// Arm A measurement (run: `cargo test -p lib-q-zkp --release --lib
     /// stark_baby_bear::tests::measure_arm_a -- --ignored --nocapture`). Builds a real Arm A
     /// witness and times prove/verify; wraps prove in `catch_unwind` to surface whether Arm A's
