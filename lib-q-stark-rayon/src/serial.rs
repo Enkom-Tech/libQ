@@ -163,6 +163,14 @@ pub trait ParIterExt: Iterator {
     where
         P: Fn(&Self::Item) -> bool + Sync + Send;
 
+    /// Serial fallback for `rayon::iter::ParallelIterator::find_first`. The real (parallel)
+    /// version returns the sequentially-first matching item, which matters for reproducibility
+    /// (e.g. PoW-grinding witness search) — here iteration is already strictly sequential, so
+    /// this is just `find`, which already returns the first match.
+    fn find_first<P>(self, predicate: P) -> Option<Self::Item>
+    where
+        P: Fn(&Self::Item) -> bool + Sync + Send;
+
     fn flat_map_iter<U, F>(self, map_op: F) -> FlatMap<Self, U, F>
     where
         Self: Sized,
@@ -172,6 +180,13 @@ pub trait ParIterExt: Iterator {
 
 impl<T: Iterator> ParIterExt for T {
     fn find_any<P>(mut self, predicate: P) -> Option<Self::Item>
+    where
+        P: Fn(&Self::Item) -> bool + Sync + Send,
+    {
+        self.find(predicate)
+    }
+
+    fn find_first<P>(mut self, predicate: P) -> Option<Self::Item>
     where
         P: Fn(&Self::Item) -> bool + Sync + Send,
     {

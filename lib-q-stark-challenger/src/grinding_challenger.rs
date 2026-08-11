@@ -60,13 +60,20 @@ where
         assert!(bits < (usize::BITS as usize));
         assert!((1 << bits) < F::ORDER_U64);
 
+        // `find_first` (not `find_any`) is required for determinism: with `find_any`, rayon is
+        // free to return WHICHEVER matching witness a worker thread reaches first, and since a
+        // PoW condition of `bits` low bits typically has millions of satisfying witnesses, which
+        // one wins is a function of thread-scheduling timing. That witness is then observed into
+        // the transcript, so it silently makes the whole proof non-reproducible across runs on a
+        // multi-core machine. `find_first` still searches in parallel but is specified to return
+        // the lowest-index match, matching what a single-threaded scan would find.
         let witness = (0..F::ORDER_U64)
             .into_par_iter()
             .map(|i| unsafe {
                 // i < F::ORDER_U64 by construction so this is safe.
                 F::from_canonical_unchecked(i)
             })
-            .find_any(|witness| self.clone().check_witness(bits, *witness))
+            .find_first(|witness| self.clone().check_witness(bits, *witness))
             .expect("failed to find witness");
         assert!(self.check_witness(bits, witness));
         witness
