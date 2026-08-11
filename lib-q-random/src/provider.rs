@@ -55,7 +55,6 @@ pub struct LibQRng {
     reseed_interval: Option<usize>,
 }
 
-#[cfg(feature = "alloc")]
 /// Marker for types [`LibQRng::fill`] may write raw CSPRNG bytes over.
 ///
 /// # Contract
@@ -103,6 +102,7 @@ impl_fillable_bytes!(
     u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
 );
 
+#[cfg(feature = "alloc")]
 impl LibQRng {
     /// Create a new secure RNG using the best available entropy source
     ///
