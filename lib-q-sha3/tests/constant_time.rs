@@ -5,6 +5,10 @@
 
 mod common;
 
+use std::sync::{
+    Mutex,
+    MutexGuard,
+};
 use std::time::{
     Duration,
     Instant,
@@ -136,9 +140,37 @@ where
     }
 }
 
+/// Serializes the three timing tests in this binary against each other.
+///
+/// libtest runs a test binary's tests on several threads at once, so without this the two
+/// spread tests -- which each hash tens of thousands of times -- are still running while
+/// `test_hash_algorithm_timing_relationships` takes its measurements. That test's own doc
+/// records what this does to it: SHA3-384 measured 1.667x SHA3-256 against a 1.290x block-count
+/// prediction, i.e. the measurement moved further than the quantity being measured. It was then
+/// hardened twice (interleaving the variants, then min-of-45-rounds) and it STILL failed a
+/// scheduled run on 2026-08-11 at `RELATION_TOLERANCE = 0.25`.
+///
+/// Interleaving and min-of-N make the estimator robust to load; they cannot remove load that is
+/// present for every round. This removes it. Taking the lock is cheap next to what these tests
+/// already spend, and it changes no threshold -- widening the tolerance instead would have made
+/// the test pass by making it measure less.
+static TIMING_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+/// Acquire [`TIMING_TEST_LOCK`], ignoring poisoning.
+///
+/// A panicking test poisons the mutex. Poisoning here carries no data-integrity meaning -- the
+/// guarded state is `()` -- so recovering keeps one assertion failure from cascading into two
+/// unrelated `PoisonError` failures that would obscure it.
+fn timing_lock() -> MutexGuard<'static, ()> {
+    TIMING_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
 /// Test that SHA3-224 operations have similar timing for equal-length inputs.
 #[test]
 fn test_sha3_224_constant_time() {
+    let _serialized = timing_lock();
     let test_inputs = build_fixed_length_inputs(128);
     assert_timing_spread_with_retries("SHA3-224", || {
         let mut timings = Vec::new();
@@ -158,6 +190,7 @@ fn test_sha3_224_constant_time() {
 /// Test that SHA3-256 operations have similar timing for equal-length inputs.
 #[test]
 fn test_sha3_256_constant_time() {
+    let _serialized = timing_lock();
     let test_inputs = build_fixed_length_inputs(128);
     assert_timing_spread_with_retries("SHA3-256", || {
         let mut timings = Vec::new();
@@ -346,6 +379,7 @@ fn measure_variants(input: &[u8]) -> [Duration; 4] {
 /// ratio, which is a property of SHA-3 itself and holds on any machine.
 #[test]
 fn test_hash_algorithm_timing_relationships() {
+    let _serialized = timing_lock();
     // Built at runtime, and fed through `black_box` at every call below, so that the hash
     // cannot be treated as loop-invariant and lifted out of the measurement loop.
     let test_input: Vec<u8> = (0..RELATION_INPUT_LEN).map(|i| (i % 251) as u8).collect();
