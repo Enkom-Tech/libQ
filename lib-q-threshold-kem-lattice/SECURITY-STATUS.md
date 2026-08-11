@@ -23,9 +23,11 @@ malformed-ciphertext probe of §4 is a real gap in that model, not an artifact o
 
 What *is* claimed, as an argued-not-proven statement (§7): threshold IND-CCA holds in the ROM at the
 §2/§3 hardness **conditional on a closure being in force** — either closure A (a ZK proof of
-knowledge of `μ`, assumption-free, unbuilt) or closures B+C together (authenticated encapsulator
-plus an enforced decapsulation budget with key rotation). Sign-off on that conditional statement is
-the primary open item for a human cryptographer.
+knowledge of `μ`, assumption-free; built in `lib-q-zk-encryption-proof` — see `gate::gated_partial_decap_masked*` /
+`encryption_proof::assemble_full_provenance_*` — but the crate itself is still RED pending
+cryptographer sign-off) or closures B+C together (authenticated encapsulator plus an enforced
+decapsulation budget with key rotation). Sign-off on that conditional statement is the primary open
+item for a human cryptographer.
 
 Two results underneath it are on firmer ground and are estimator-gated rather than argued:
 decapsulation-key hiding (BKZ β = 636 ⇒ 169-bit quantum core-SVP) and ciphertext IND-CPA hiding
@@ -152,7 +154,13 @@ Be conservative reading this module in:
 
 - Whether the §7 conditional threshold IND-CCA statement is correct. That is the sign-off item.
 - The §3 dimension-9216 LWE domination, which has no dedicated estimator run.
-- Closure A (the SHAKE-in-STARK PoK of `μ`) is unbuilt; `lib-q-zk-encryption-proof` is the attempt
-  and is itself RED.
+- Closure A (the SHAKE-in-STARK PoK of `μ`) is **built**: `lib-q-zk-encryption-proof`'s
+  `encryption_proof::assemble_full_provenance_prover/_verifier` compose the full sponge + sampler +
+  byte-provenance joins, and `gate::gated_partial_decap_masked` / `gated_partial_decap_masked_budgeted`
+  / `gated_partial_decap_authenticated_budgeted` are the gated entry points that enforce it (and, for
+  the `_budgeted`/`_authenticated_budgeted` variants, compose it with closures C/B) before a share is
+  touched. The crate remains **RED** pending cryptographer sign-off on the cross-AIR composition, the
+  FS/grinding bound, and the preprocessed-commitment obligation — this status label does not change
+  until that sign-off lands.
 - Whether `lib-q-threshold-kem` 0.0.6–0.0.9 should be yanked from crates.io. They remain
   installable, and yanking is an operator decision, not a libQ-code one.
