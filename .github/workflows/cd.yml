@@ -62,7 +62,19 @@ jobs:
             exit 1
           fi
           echo "✅ Version consistency validated: $VERSION"
-      
+
+      # --published mode makes ~1 + 2*N sequential rate-limited crates.io API calls (N = published
+      # crate count, ~76 here) -- too slow/rate-limit-risky for every PR (ci.yml's core-validation
+      # already runs the fast Cargo.lock-only mode on every push). This is the check for the OTHER
+      # half of the real incident: a crate we already published, still live, whose dependency got
+      # yanked out from under it AFTER publication -- something a local Cargo.lock scan can never
+      # see, and which crates.io versions being immutable makes worth catching before the next
+      # release rather than after. Runs once per release, here, before anything is built/published.
+      # A network failure, non-200, or malformed JSON from crates.io FAILS this step -- no
+      # continue-on-error, and the guard's own exit code (not a piped command's) is what runs.
+      - name: Guard against publishing on top of a yanked dependency (registry drift)
+        run: bash ./scripts/ci-guard-yanked-deps.sh --published .
+
       - name: Run comprehensive validation
         uses: ./.github/actions/rust-build
         with:
