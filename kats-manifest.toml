@@ -241,7 +241,7 @@ sha256 = "7549a1a2ca4b2082cce2f89333fa90739a5bfaf58b6f57752bcd43c52adadfa7"
 path = "lib-q-hqc/kats/regression-pins/hqc-1/PQCkemKAT_2321_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-sha256 = "0e97feca5a9d385abf9eede1c91af7a52424004b2741d369c165d591a9ecfd3b"
+sha256 = "52e444d9b929400e4e59976baa9174021d17d857615f8a80e51b77fc6298ded4"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-3/PQCkemKAT_4602.req"
@@ -259,7 +259,7 @@ generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (tes
 # Regenerated again 2026-08-10 (card t_d2ee7042): `m` and `sigma` are now PARAM_SECURITY_BYTES =
 # 24 at this level instead of a hardwired 16, so `sk`, `ct` and `ss` all change. HQC-128's pin is
 # byte-identical across the same change, which is the evidence that it was a no-op at level 1.
-sha256 = "dcc79e39855526973393cd63c10a1c309c73c472e84cbaf6a6c8a087190b228f"
+sha256 = "cd57550880f35171ae55c9998c976b9c063646d08ebdd7ff673099b7acc4c9b1"
 
 [[kat]]
 path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333.req"
@@ -276,7 +276,7 @@ generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (tes
 # still this crate's own output, not an external oracle.
 # Regenerated again 2026-08-10 (card t_d2ee7042): `m` and `sigma` are now PARAM_SECURITY_BYTES =
 # 32 at this level instead of a hardwired 16, so `sk`, `ct` and `ss` all change.
-sha256 = "41d4fd7ec946f02ed5e128255b471e0aefbd38325b34d08bf43bc04222850f23"
+sha256 = "9b5ea6dfe0a28ff77f9be6ec8fd72c843df6d7b724a5280dc33a2014246fc651"
 
 # --- lib-q-saturnin/tests/fixtures/ -- NIST LWC round-2 Saturnin submission KAT files ---------
 # All three verified 2026-08-06 by downloading the live NIST CSRC submission zip and hashing the

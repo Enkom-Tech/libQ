@@ -121,11 +121,11 @@ the other two sets using a shared seed. Not investigated further by this lane.
 | File | SHA-256 |
 |------|---------|
 | `hqc-1/PQCkemKAT_2321.req` | `0652e9cf336e1f67f9563510b874e0a33d852add7124ea7d3aebf25d9222fea0` |
-| `hqc-1/PQCkemKAT_2321_regression_pin.rsp` | `0e97feca5a9d385abf9eede1c91af7a52424004b2741d369c165d591a9ecfd3b` |
+| `hqc-1/PQCkemKAT_2321_regression_pin.rsp` | `52e444d9b929400e4e59976baa9174021d17d857615f8a80e51b77fc6298ded4` |
 | `hqc-3/PQCkemKAT_4602.req` | `5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62` |
-| `hqc-3/PQCkemKAT_4602_regression_pin.rsp` | `dcc79e39855526973393cd63c10a1c309c73c472e84cbaf6a6c8a087190b228f` |
+| `hqc-3/PQCkemKAT_4602_regression_pin.rsp` | `cd57550880f35171ae55c9998c976b9c063646d08ebdd7ff673099b7acc4c9b1` |
 | `hqc-5/PQCkemKAT_7333.req` | `5ec10796a37d6bac198b68d4cef7c24828e0a7ab2449ba4b2c1feb631b49df62` |
-| `hqc-5/PQCkemKAT_7333_regression_pin.rsp` | `41d4fd7ec946f02ed5e128255b471e0aefbd38325b34d08bf43bc04222850f23` |
+| `hqc-5/PQCkemKAT_7333_regression_pin.rsp` | `9b5ea6dfe0a28ff77f9be6ec8fd72c843df6d7b724a5280dc33a2014246fc651` |
 
 The `.req` files for HQC-192 and HQC-256 share the same seed chain as the NIST generator template (identical file hash); outputs differ by parameter set in the `.rsp` files.
 
