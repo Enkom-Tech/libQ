@@ -56,6 +56,53 @@ pub struct LibQRng {
 }
 
 #[cfg(feature = "alloc")]
+/// Marker for types [`LibQRng::fill`] may write raw CSPRNG bytes over.
+///
+/// # Contract
+///
+/// Implementing this asserts that **every bit pattern of the type is a valid
+/// value**. `fill` reinterprets the destination slice as bytes and overwrites
+/// it with CSPRNG output, so any type for which some bit pattern is invalid
+/// would be left holding an invalid value — undefined behaviour independent of
+/// whether the value is ever read.
+///
+/// # Why it is sealed, and why it is not `Copy + Default`
+///
+/// `fill`'s bound was `T: Copy + Default` until card `t_1594295d`. That is a
+/// weaker and different property: `bool` is `Copy + Default` and only
+/// `0x00`/`0x01` are valid bit patterns; `char` is `Copy + Default` and must be
+/// a Unicode scalar value. Random bytes satisfy neither. The bound read as
+/// "any simple value type", and the two most obvious simple value types it
+/// admitted were exactly the two it must not.
+///
+/// The trait is sealed so the validity claim cannot be asserted from outside
+/// this crate, where it would not be checkable. It is implemented for the
+/// integer primitives only — the types that genuinely accept every bit
+/// pattern. Notably absent and deliberately so: `bool`, `char`, `f32`/`f64`
+/// (every pattern is a valid float, including signalling `NaNs`, but a random
+/// "float" is almost never what a caller means — ask for integers and convert),
+/// and `NonZero*` (zero is invalid by construction).
+pub trait FillableBytes: private::Sealed + Copy {}
+
+mod private {
+    /// Seals [`super::FillableBytes`] against outside implementations.
+    pub trait Sealed {}
+}
+
+macro_rules! impl_fillable_bytes {
+    ($($t:ty),* $(,)?) => {
+        $(
+            impl private::Sealed for $t {}
+            impl FillableBytes for $t {}
+        )*
+    };
+}
+
+// Every bit pattern of a fixed-width integer is a valid value of that integer.
+impl_fillable_bytes!(
+    u8, u16, u32, u64, u128, usize, i8, i16, i32, i64, i128, isize
+);
+
 impl LibQRng {
     /// Create a new secure RNG using the best available entropy source
     ///
@@ -540,6 +587,17 @@ impl LibQRng {
     /// This method provides a convenient way to fill slices of different integer types
     /// with random values, handling the byte conversion internally.
     ///
+    /// # Which `T` is accepted, and why it is not `Copy + Default`
+    ///
+    /// `T` must implement [`FillableBytes`], a sealed marker for types where
+    /// **every bit pattern is a valid value**. This bound used to be
+    /// `Copy + Default`, which is not the same property and admitted types
+    /// this function cannot legally fill: `bool` (only `0x00`/`0x01` are
+    /// valid) and `char` (must be a Unicode scalar value) both satisfy
+    /// `Copy + Default`, and writing random bytes over one produces an
+    /// invalid value — undefined behaviour before anything even reads it.
+    /// See card `t_1594295d`.
+    ///
     /// # Guarantee: no unzeroized intermediate buffer
     ///
     /// CSPRNG output is written **directly into `dest`**'s backing memory; this
@@ -560,9 +618,32 @@ impl LibQRng {
     /// let mut u16_array = [0u16; 10];
     /// rng.fill(&mut u16_array);
     /// ```
+    ///
+    /// `bool` is rejected at compile time. It is `Copy + Default`, so the old
+    /// bound accepted it, and a random byte that is neither `0x00` nor `0x01`
+    /// is an invalid `bool` — UB. This doctest is the regression pin for that:
+    /// it fails the build if the bound is ever loosened back.
+    ///
+    /// ```compile_fail
+    /// use lib_q_random::LibQRng;
+    ///
+    /// let mut rng = LibQRng::new_secure().unwrap();
+    /// let mut flags = [false; 8];
+    /// rng.fill(&mut flags);
+    /// ```
+    ///
+    /// `char` likewise — most 4-byte patterns are not Unicode scalar values.
+    ///
+    /// ```compile_fail
+    /// use lib_q_random::LibQRng;
+    ///
+    /// let mut rng = LibQRng::new_secure().unwrap();
+    /// let mut chars = [' '; 4];
+    /// rng.fill(&mut chars);
+    /// ```
     pub fn fill<T>(&mut self, dest: &mut [T])
     where
-        T: Copy + Default,
+        T: FillableBytes,
     {
         if dest.is_empty() {
             return;
