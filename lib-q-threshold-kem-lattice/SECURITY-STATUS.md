@@ -78,7 +78,21 @@ These are not recommendations. Without them the §2 answer is "the share leaks a
 
 1. **Authenticated encapsulator (closure B).** Gate `partial_decap*` on an authenticated-origin
    decision, so a corrupt coalition cannot inject a chosen ciphertext. The crate deliberately does
-   not embed a signature scheme or PKI — this is a deployment contract, and the caller owns it.
+   not mandate a specific signature scheme or PKI — that remains a deployment contract — but as of
+   this revision it ships one concrete, sound instantiation of the hook: `auth_encap::AuthKey` /
+   `AuthenticatedCiphertext` / `authenticated_encapsulate` / `verify_authenticator`, plus
+   `threshold::partial_decap_authenticated_budgeted`, which verifies the authenticator (constant-time,
+   fails closed) before any share material is touched. It is a **symmetric pre-shared-key** MAC
+   (`SHAKE256(dom ‖ auth_key ‖ pk.t0_bytes ‖ ct.to_bytes())`, KMAC-style), chosen because it needs no
+   new asymmetric-signature dependency and stays no_std/wasm-light — see `src/auth_encap.rs`'s module
+   doc for the full construction and its explicit assumption (the shared `AuthKey` must be established
+   over a channel the decapsulating coalition cannot read; this authenticates "holds `auth_key`", not
+   a per-identity signer — a deployment wanting individual accountability still needs its own
+   asymmetric PKI layered on the same hook). **This is one sound instantiation, not a specification**:
+   the design docs deliberately leave the scheme open, and a deployment that already runs a PKI should
+   sign `ct` instead. Using it does **not** upgrade the crate's overall RED status — it makes one of
+   the two mandatory deployment controls enforceable in code instead of doc-only, and the §7
+   conditional threshold-IND-CCA statement is still unproven and still the primary sign-off item.
 2. **Enforced budget + rotation (closure C).** Thread a `DecapBudget` through every partial and
    reshare the DKG key before it is exhausted. `DecapBudget::authenticated()` = 2^20 assumes (1) is
    in force. `DecapBudget::untrusted()` = 32 is deliberately below the ≈63-query probe length, so
@@ -116,7 +130,25 @@ There is no compatibility shim and there should not be one — the operator conf
 `t_faa048e0`, 2026-08-06) that no deployment ever ran the withdrawn construction against real data,
 so there is no installed base to stay compatible with and no rotation obligation.
 
-## 5. Not answered here
+## 5. What `auth_encap` does NOT close
+
+Be conservative reading this module in:
+
+- It does **not** make the malformed-ciphertext probe (§2) cryptographically hard. It removes the
+  adversary's ability to *inject* a chosen ciphertext at all (provided `auth_key` secrecy holds); it
+  is not a proof of correct encryption and is not a substitute for closure A.
+- It assumes `auth_key` is secret from the decapsulating coalition. If the same parties that hold
+  decapsulation shares also learn `auth_key` (or the channel distributing it), the probe reopens —
+  this is a *different* trust boundary than share secrecy, and a deployment must keep them separate.
+- It is symmetric-key, not a signature: every holder of `auth_key` can also forge a valid tag, so it
+  does not give per-encapsulator accountability. It does not replace an audit trail if that's needed.
+- `combine`'s FO⊥ check and `DecapBudget` (closure C) are unchanged and still required — `auth_encap`
+  composes with both, it supersedes neither.
+- It does not touch, weaken, or reinterpret any existing wire format, KAT, or public signature; the
+  existing v1 `Ciphertext`/`PartialDecap` paths (`partial_decap`, `partial_decap_masked[_budgeted]`)
+  are unaffected and remain usable without it.
+
+## 6. Not answered here
 
 - Whether the §7 conditional threshold IND-CCA statement is correct. That is the sign-off item.
 - The §3 dimension-9216 LWE domination, which has no dedicated estimator run.
