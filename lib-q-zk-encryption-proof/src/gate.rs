@@ -317,7 +317,7 @@ mod tests {
     /// A `SecretShare` whose bytes actually decode (unlike `fixture_share`'s 1-byte placeholder) —
     /// an all-zero `rand` vector of the correct `RQ_BYTES * (1 + KAPPA)` length, which parses as
     /// canonical zero coefficients and lets `partial_decap_masked` run to completion (charging the
-    /// budget). Used only by the behavioral-red charge-order probe.
+    /// budget). Used by the charge-order probe and by the charge-on-success test below.
     fn decodable_zero_share() -> SecretShare {
         let len = lib_q_dkg::lattice::ring::RQ_BYTES * (1 + lib_q_dkg::lattice::bdlop::KAPPA);
         SecretShare {
@@ -407,6 +407,46 @@ mod tests {
         assert!(
             !closure_ran.get(),
             "the verifier closure must NOT run once the budget is exhausted"
+        );
+    }
+
+    /// The positive counterpart to `budgeted_gate_rejected_proof_does_not_charge_budget`: on a
+    /// SUCCESSFUL gated decap the budget must actually be charged.
+    ///
+    /// Without this, the two "forwards past the gate" tests below are weak negatives — they assert
+    /// only that the result is not `ProofRejected`/`BudgetExhausted`, which stays true for a gate
+    /// that dropped the budget from the call path entirely. Charge-on-success was pinned only at
+    /// KEM level (`lib-q-threshold-kem-lattice/tests/roundtrip.rs`), so nothing tied the gate to it.
+    ///
+    /// Non-vacuity: rewriting the forward call to the NON-budgeted `partial_decap_masked` — the
+    /// realistic regression, since it type-checks and every other gate test still passes — makes
+    /// this fail with `budget.used()` of 0 against 1.
+    #[test]
+    fn budgeted_gate_charges_budget_on_success() {
+        let t0 = fixture_t0();
+        let ct = encapsulate_derand(&t0, &[0x11u8; 32]);
+        let share = decodable_zero_share();
+        let mut rng = new_deterministic_rng([7u8; 32]);
+        let seeds = ZeroShareSeeds::setup(3, &mut rng);
+        let mut budget = DecapBudget::new(5);
+
+        let emitted = gated_partial_decap_masked_budgeted(
+            || true,
+            &share,
+            &[1u8, 2, 3],
+            &ct,
+            &seeds,
+            &mut rng,
+            &mut budget,
+        );
+        assert!(
+            emitted.is_ok(),
+            "a verified proof over a decodable share must emit a partial: {emitted:?}"
+        );
+        assert_eq!(
+            budget.used(),
+            1,
+            "a successfully emitted partial must charge exactly one unit of budget"
         );
     }
 
