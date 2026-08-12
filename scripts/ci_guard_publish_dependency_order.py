@@ -62,29 +62,75 @@ CD = ROOT / ".github" / "workflows" / "cd.yml"
 FATAL_KINDS = {"normal", "build"}
 
 
-def publish_tiers() -> dict[str, int]:
-    """Map package name -> tier index, in cd.yml job order.
+def parse_jobs() -> tuple[dict[str, list[str]], dict[str, list[str]]]:
+    """Parse cd.yml into (job -> packages it publishes, job -> its `needs:` list).
 
-    Packages in the SAME job share a tier index, because matrix entries run in parallel.
+    ORDER COMES FROM `needs:`, NOT FROM POSITION IN THE FILE. This is the whole point of the
+    rewrite: GitHub Actions runs jobs CONCURRENTLY unless a `needs:` edge orders them, so a job's
+    line number says nothing about when it runs. The previous implementation assigned tier indices
+    with `enumerate()` over jobs in file order and compared those indices -- a model of an ordering
+    that does not exist. It reported "OK (no fatal ordering violations)" on the v0.0.11 tree and
+    the release then died exactly where it said there was no problem (see the FATAL text below).
+
+    All top-level jobs are parsed, not just `publish-rust-*`, so the ancestor closure can traverse
+    through non-publishing jobs (e.g. pre-release-validation).
     """
     text = CD.read_text(encoding="utf-8")
-    job_re = re.compile(r"^  (publish-rust-[a-z0-9-]+):\s*$", re.M)
+    job_re = re.compile(r"^  ([a-z0-9][a-z0-9-]*):\s*$", re.M)
     matrix_pkg_re = re.compile(r'package:\s*"([^"]+)"')
     plain_pkg_re = re.compile(r"^\s+package:\s+([a-z0-9-]+)\s*$", re.M)
+    # Every `needs:` in this file is the inline-list form (`needs: [a, b]`); the single-scalar
+    # form is accepted too. If a block/dash form is ever introduced this regex silently returns no
+    # edges for that job, which would make the guard MORE strict (an absent edge is a violation),
+    # not less -- it cannot go quiet in the unsafe direction.
+    needs_re = re.compile(r"^\s+needs:\s*(?:\[([^\]]*)\]|([a-z0-9][a-z0-9-]*))\s*$", re.M)
 
-    order: dict[str, int] = {}
-    tier = 0
+    packages: dict[str, list[str]] = {}
+    needs: dict[str, list[str]] = {}
     jobs = list(job_re.finditer(text))
     for i, m in enumerate(jobs):
+        jid = m.group(1)
         end = jobs[i + 1].start() if i + 1 < len(jobs) else len(text)
         body = text[m.end():end]
-        pkgs = matrix_pkg_re.findall(body) or plain_pkg_re.findall(body)
-        if not pkgs:
-            continue
-        tier += 1
+        packages[jid] = matrix_pkg_re.findall(body) or plain_pkg_re.findall(body)
+        nm = needs_re.search(body)
+        if nm:
+            raw = nm.group(1) if nm.group(1) is not None else nm.group(2)
+            needs[jid] = [d.strip() for d in raw.split(",") if d.strip()]
+        else:
+            needs[jid] = []
+    return packages, needs
+
+
+def publish_jobs(packages: dict[str, list[str]]) -> dict[str, str]:
+    """Map package name -> the job that publishes it (first wins, as before)."""
+    owner: dict[str, str] = {}
+    for jid, pkgs in packages.items():
         for p in pkgs:
-            order.setdefault(p, tier)
-    return order
+            owner.setdefault(p, jid)
+    return owner
+
+
+def ancestor_closure(needs: dict[str, list[str]]) -> dict[str, set[str]]:
+    """job -> every job that is guaranteed to COMPLETE before it starts."""
+    memo: dict[str, set[str]] = {}
+    visiting: set[str] = set()
+
+    def walk(jid: str) -> set[str]:
+        if jid in memo:
+            return memo[jid]
+        if jid in visiting:
+            return set()  # cycle: Actions rejects these, do not hang on one
+        visiting.add(jid)
+        acc: set[str] = set()
+        for d in needs.get(jid, []):
+            acc.add(d)
+            acc |= walk(d)
+        visiting.discard(jid)
+        memo[jid] = acc
+        return acc
+
+    return {jid: walk(jid) for jid in needs}
 
 
 def workspace_deps():
@@ -96,14 +142,18 @@ def workspace_deps():
 
 
 def main() -> int:
-    order = publish_tiers()
+    job_packages, job_needs = parse_jobs()
+    owner = publish_jobs(job_packages)
+    ancestors = ancestor_closure(job_needs)
     packages, members = workspace_deps()
 
-    later, same_tier, untiered = [], [], []
+    no_edge, same_job, untiered = [], [], []
     for pkg in packages:
         name = pkg["name"]
-        if name not in order:
+        if name not in owner:
             continue  # not published (publish = false, or excluded); membership is another guard
+        ja = owner[name]
+        anc = ancestors.get(ja, set())
         for dep in pkg.get("dependencies", []):
             dn = dep["name"]
             if dn not in members or dn == name:
@@ -112,32 +162,38 @@ def main() -> int:
                 continue
             if (dep.get("req") or "*") == "*":
                 continue  # path-only: stripped from the published manifest
-            if dn not in order:
+            if dn not in owner:
                 untiered.append((name, dn, dep.get("req")))
-            elif order[dn] > order[name]:
-                later.append((name, order[name], dn, order[dn], dep.get("req")))
-            elif order[dn] == order[name]:
-                same_tier.append((name, dn, order[name]))
+                continue
+            jb = owner[dn]
+            if jb == ja:
+                same_job.append((name, dn, ja))
+            elif jb not in anc:
+                no_edge.append((name, ja, dn, jb, dep.get("req")))
 
-    print(f"ci-guard-publish-dependency-order: {len(order)} package(s) across "
-          f"{max(order.values()) if order else 0} tier(s) in cd.yml")
+    print(f"ci-guard-publish-dependency-order: {len(owner)} package(s) across "
+          f"{sum(1 for j, p in job_packages.items() if p)} publishing job(s) in cd.yml; "
+          "ordering derived from `needs:`")
 
     bad = False
-    if later:
+    if no_edge:
         bad = True
-        print("\nFATAL: a versioned dependency publishes AFTER its dependent. `cargo publish`")
-        print("       resolves these against crates.io and will fail mid-release:")
-        for n, no, d, do, req in sorted(later, key=lambda v: v[1]):
-            print(f"  tier {no:>2}  {n:<34} needs  {d:<34} (tier {do:>2})  {req}")
-    if same_tier:
+        print("\nFATAL: a versioned dependency is NOT ordered before its dependent. There is no")
+        print("       `needs:` path from the dependent's job to the dependency's job, so Actions")
+        print("       may run them CONCURRENTLY -- `cargo publish` then resolves the dep against")
+        print("       crates.io and fails mid-release. This is what killed v0.0.11:")
+        for n, ja, d, jb, req in sorted(no_edge):
+            print(f"  {n:<28} [{ja}]")
+            print(f"      needs {d:<24} [{jb}]  {req}")
+    if same_job:
         bad = True
-        print("\nFATAL: dependency inside a single tier. Matrix entries run in PARALLEL, so this")
+        print("\nFATAL: dependency inside a single job. Matrix entries run in PARALLEL, so this")
         print("       is a race that may pass once and fail on rerun:")
-        for n, d, t in sorted(same_tier):
-            print(f"  tier {t:>2}  {n:<34} needs  {d:<34} (same tier)")
+        for n, d, j in sorted(same_job):
+            print(f"  {n:<34} needs  {d:<34} (same job: {j})")
     if untiered:
         bad = True
-        print("\nFATAL: versioned dependency on a workspace crate with no publish tier:")
+        print("\nFATAL: versioned dependency on a workspace crate with no publish job:")
         for n, d, req in sorted(untiered):
             print(f"  {n:<34} needs  {d:<34} {req}")
 
