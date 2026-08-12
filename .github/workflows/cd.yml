@@ -75,6 +75,16 @@ jobs:
       - name: Guard against publishing on top of a yanked dependency (registry drift)
         run: bash ./scripts/ci-guard-yanked-deps.sh --published .
 
+      # ci.yml runs this guard's static half on every PR. Here we run the TRUE predicate: actually
+      # `cargo build -p <crate> --lib` (bare default features, host) every publishable cdylib crate
+      # whose defaults do not enable `std`, so the KNOWN_LINKABLE allowlist cannot rot into a stale
+      # claim. This is the combination `cargo publish --verify` builds and nothing else does; when
+      # it fails during publishing instead of here, earlier crates are already immutable on
+      # crates.io and the release can only be completed, never rolled back (v0.0.11, 35 crates in).
+      # Runs before anything is built or published, and its own exit code is the step's.
+      - name: Guard cdylib crates link with bare default features (publish --verify's combination)
+        run: bash ./scripts/ci-guard-cdylib-default-link.sh --build
+
       - name: Run comprehensive validation
         uses: ./.github/actions/rust-build
         with:
