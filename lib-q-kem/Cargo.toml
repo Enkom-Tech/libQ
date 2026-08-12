@@ -42,7 +42,20 @@ wasm-bindgen = { workspace = true, optional = true }
 lib-q-random = { path = "../lib-q-random", version = "0.0.11", features = ["std"] }
 
 [features]
-default = []
+# `std` is ON by default and must stay that way, for the same reason as `lib-q-core` and
+# `lib-q-intrinsics`: this crate declares `crate-type = ["cdylib", "rlib"]` below, and a native
+# cdylib needs a panic runtime / global allocator. With `default = []` AND
+# `lib-q-core = { default-features = false }` (tightened this cycle), a plain default-feature host
+# build puts `lib-q-core` in `no_std` and the cdylib cannot link:
+#
+#     error: unwinding panics are not supported without std
+#     error: could not compile `lib-q-core` (lib)
+#
+# That is exactly what `cargo publish --verify` builds, so it broke the v0.0.11 release at tier 3
+# (CD run 31550791318) while every CI job stayed green -- CI never builds this crate with bare
+# default features on the host. `no_std` consumers are unaffected: depend with
+# `default-features = false` and pick the algorithm features you need.
+default = ["std"]
 # Host / `cargo test` / coverage: enable alongside algorithm features so optional deps get `std`
 # without forcing it when only `ml-kem` / `hqc` / `wasm` is used (`no_std`, wasm no-std builds).
 std = [

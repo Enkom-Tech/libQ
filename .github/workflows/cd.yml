@@ -405,7 +405,14 @@ jobs:
 
   publish-rust-lib-q-fn-dsa:
     name: Publish lib-q-fn-dsa
-    needs: [publish-rust-fn-dsa-alg]
+    # MUST include lib-q-random and tier-0 (lib-q-core), not just the nested fn-dsa chain:
+    # lib-q-fn-dsa/Cargo.toml declares VERSIONED deps on both, and `cargo publish` resolves those
+    # against crates.io at package time. Without these edges the jobs are concurrent, not ordered.
+    # This is what broke the v0.0.11 release (CD run 31550791318): fn-dsa won the race against
+    # lib-q-random and died with `failed to select a version for the requirement
+    # lib-q-random = "^0.0.11" / candidate versions found which didn't match: 0.0.10`, skipping
+    # tier 2 onward. File order in this YAML is NOT execution order -- only `needs:` is.
+    needs: [publish-rust-fn-dsa-alg, publish-rust-lib-q-random, publish-rust-tier-0]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
