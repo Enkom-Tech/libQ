@@ -14,7 +14,15 @@ Internal `path` dependencies must include a **version** (same as `[workspace.pac
 
 **`lib-q` umbrella (tier 17)**: publish last (after `lib-q-zkp`, `lib-q-mve` + `lib-q-transcript`, and other path dependencies). Configure Trusted Publishing on the crate the same way as the rest of the workspace ([docs](https://crates.io/docs/trusted-publishing)).
 
-**Bump:** When the workspace version changes, update every internal `version = "…"` on path dependencies to match, or re-run the script with `WS_VERSION` updated.
+**Bump:** When the workspace version changes, every internal `version = "…"` on a path dependency must move with it — 434 pins across 84 manifests at 0.0.11. Use the bumper rather than doing it by hand or with a blanket search-and-replace:
+
+```bash
+python3 scripts/bump-workspace-version.py --to 0.0.12 --npm                  # dry run first
+python3 scripts/bump-workspace-version.py --to 0.0.12 --npm --apply
+python3 scripts/bump-workspace-version.py --to 0.0.11 --report-docs          # triage docs BY HAND
+```
+
+`--npm` also fixes `npm/**/package.json`, which drifts invisibly because CD overwrites the version at publish time (`npm pkg set version=`) — at 0.0.11 `npm/lib-q-types/package.json` still said `0.0.2`. `--report-docs` **lists and never rewrites**: most matches are history (a CHANGELOG heading, a "fixed in 0.0.10" note) and some are deliberately pinned to the old version. At 0.0.11 both `lib-q-hqc/SECURITY.md` and `lib-q-types/src/hqc.rs` correctly said `lib-q-types <= 0.0.10`, describing a break that ships *in* 0.0.11; a blanket replace falsifies them.
 
 **Not every workspace member is in `cd.yml`.** A member stays path-only until it is added to a publish tier. As of 0.0.10 the only members `cd.yml` does not publish are the ones that carry `publish = false` in their own `[package]` (a withdrawn crate, and `examples/`) — the research and internal crates this note used to list as path-only (`lib-q-lattice-zkp`, `lib-q-ring-sig`, `lib-q-prf`, `lib-q-sca-test`, `lib-q-ring`) have all since been added to tiers and do publish. Do not read a crate's publish status off this paragraph; derive it:
 
@@ -30,3 +38,40 @@ python3 scripts/cd_publish_manifest.py --format crates    # what cd.yml publishe
 - `lib-q-stark-baby-bear` (tier 10), `lib-q-mve`, and `lib-q-transcript` (tier 16b) are also crates.io-only; they are not in any tier whose guard requires a matching npm package, so they need no explicit exemption.
 
 **npm:** After Rust tiers through `lib-q` (umbrella), publish `@lib-q/*` with [npm-publish.md](npm-publish.md) (`scripts/publish-npm-ordered.sh` / `.ps1`).
+
+## The failure class CI cannot see: `cargo publish --verify`'s build
+
+`cargo publish --verify` builds each crate with **bare default features, on the host**. No CI job
+builds that combination — CI builds `--all-features`, `std,all-algorithms`, and
+`--no-default-features` cross-compiled to `thumbv7em-none-eabi`. So a crate can be green everywhere
+and still fail to package.
+
+v0.0.11 shipped 35 crates and then died at tier 3:
+
+```
+error: unwinding panics are not supported without std
+error: could not compile `lib-q-core` (lib) due to 1 previous error
+```
+
+`lib-q-kem` declares `crate-type = ["cdylib", "rlib"]`, and a native cdylib needs a panic runtime.
+That cycle tightened its dependency to `lib-q-core = { default-features = false }` while its own
+`default` was `[]`, so the bare-default host build put `lib-q-core` in `no_std`. `--all-features`
+structurally cannot catch this (it turns `std` on); the `thumbv7em` no_std build is a different
+target with no cdylib to link. Fixed with `default = ["std"]`.
+
+`scripts/ci-guard-cdylib-default-link.sh` now covers it, in two modes:
+
+```bash
+bash scripts/ci-guard-cdylib-default-link.sh            # static shape check — every PR (ci.yml)
+bash scripts/ci-guard-cdylib-default-link.sh --build    # really links them — release path (cd.yml)
+```
+
+The static shape (cdylib whose `default` does not reach `std`) is **necessary but not sufficient**:
+`lib-q-blind-pcs`, `lib-q-hpke` and `lib-q-stark` have exactly that shape and link fine, so they sit
+in the guard's `KNOWN_LINKABLE` allowlist. `--build` re-proves every allowlist entry with a real
+`cargo build -p <crate> --lib` before anything is published, so an entry cannot rot into a stale
+claim. **Do not add a crate to that allowlist without running the build and recording the date.**
+
+If you add a crate with `crate-type = ["cdylib", …]`, give it `default = ["std"]` — the pattern
+`lib-q-core`, `lib-q-intrinsics` and `lib-q-kem` all use. `no_std` consumers are unaffected: they
+depend with `default-features = false` and select algorithm features explicitly.

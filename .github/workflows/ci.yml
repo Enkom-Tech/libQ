@@ -84,6 +84,19 @@ jobs:
       - name: Guard cd.yml publish tiers against the dependency graph
         run: bash ./scripts/ci-guard-publish-dependency-order.sh
 
+      # Both guards above ask whether the publish ORDER is possible. This one asks whether a crate
+      # can be PACKAGED AT ALL, which is a different failure and the one that killed v0.0.11 at
+      # tier 3: `cargo publish --verify` builds with BARE DEFAULT FEATURES ON THE HOST, and no CI
+      # job builds that combination. `lib-q-kem` (crate-type cdylib) had `default = []` plus
+      # `lib-q-core = { default-features = false }`, so a native cdylib was asked to link against a
+      # no_std core -- "unwinding panics are not supported without std". `--all-features` cannot
+      # see this (it turns std on) and the thumbv7em no_std build has no cdylib to link, so the
+      # defect reached a tag with everything green and 35 crates shipped before it surfaced.
+      # Static here (one `cargo metadata`, no build, no network) so it runs on every PR; cd.yml
+      # runs the same guard with --build to actually link the allowlisted crates before releasing.
+      - name: Guard cdylib crates against a non-linking default feature set
+        run: bash ./scripts/ci-guard-cdylib-default-link.sh
+
       # The sibling gap to BOTH guards above: those check that publish order/tiers are
       # satisfiable at package time; this one checks that a lib-q-* crate is not shipped
       # depending on a version of another lib-q-* crate that crates.io has YANKED. Real incident:
