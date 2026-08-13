@@ -64,7 +64,8 @@
 #     GET /crates/<crate-name>/<version>/dependencies.
 #     A missing or empty fixture file is treated exactly like a network failure: FAIL.
 #   YANK_GUARD_PUBLISHED_CRATES="name1 name2 ..." (mode 2 only) overrides crate-list discovery.
-#   YANK_GUARD_WS_VERSION=X.Y.Z (mode 2 only) overrides workspace-version discovery.
+#     (Mode 2 has no workspace-version knob: it resolves each crate's latest LIVE version from the
+#     registry response. Auditing the workspace version is the bug it was rewritten to fix.)
 #
 # Usage:
 #   bash scripts/ci-guard-yanked-deps.sh [REPO_ROOT]              # mode 1: Cargo.lock, every PR
@@ -312,37 +313,51 @@ list_published_crates() {
     -name "Cargo.toml" -print 2>/dev/null)
 }
 
-# get_workspace_version <root>
-get_workspace_version() {
-  local root="$1"
-  if [[ -n "${YANK_GUARD_WS_VERSION:-}" ]]; then
-    printf '%s' "$YANK_GUARD_WS_VERSION"
+# latest_live_version <crate-json>
+# Prints the highest version of a crate that is currently NON-YANKED on crates.io, or nothing if
+# the crate is fully yanked / has no versions.
+#
+# Prefers crates.io's own `crate.max_stable_version` (which already excludes yanked releases) and
+# falls back to the first non-yanked entry in `.versions`, which the API returns newest-first. The
+# fallback is what keeps the self-test fixtures (bare `{"versions":[...]}` objects) meaningful.
+latest_live_version() {
+  local json="$1"
+  local v
+  v="$(printf '%s' "$json" | jq -r '.crate.max_stable_version // empty' 2>/dev/null)"
+  if [[ -n "$v" && "$v" != "null" ]]; then
+    printf '%s' "$v"
     return
   fi
-  awk '
-    /^\[workspace\.package\]/ { in_block=1; next }
-    /^\[/ { in_block=0 }
-    in_block && /^version[[:space:]]*=/ { print; exit }
-  ' "$root/Cargo.toml" 2>/dev/null | sed -E 's/.*"([^"]*)".*/\1/'
+  printf '%s' "$json" | jq -r 'first(.versions[]? | select(.yanked == false) | .num) // empty' 2>/dev/null
 }
 
 # published_mode <root>
-# Populates PROBLEMS and FAILS[]. For every published crate that is currently LIVE (non-yanked)
-# at the workspace version, fetch its registry dependency list and fail on any lib-q-* dependency
-# that is fully yanked (no non-yanked version exists anywhere for it).
+# Populates PROBLEMS and FAILS[]. For every published crate, fetch the registry dependency list of
+# its LATEST LIVE (non-yanked) version and fail on any lib-q-* dependency that is fully yanked.
+#
+# WHY THE LATEST LIVE VERSION AND NOT THE WORKSPACE VERSION
+# ---------------------------------------------------------
+# This mode used to audit crates at `[workspace.package] version`, and was VACUOUS everywhere it
+# actually ran. It is wired into cd.yml's pre-release-validation, which runs on a tag, *before*
+# anything is published -- and cd.yml's own "Validate version consistency" step fails the release
+# unless the tag equals the workspace version. So the version being audited was, by construction,
+# the one not yet on crates.io: every crate reported `missing`, every crate was skipped by
+#
+#     [[ "$ver_status" != "false" ]] && continue
+#
+# and the guard passed without examining a single dependency, every release. OBSERVED at the
+# 0.0.11 release: `curl .../crates/lib-q-core` reported `0.0.11: MISSING, 0.0.10: live`.
+#
+# The artifacts that can actually suffer post-publication yank drift are the ones already on the
+# registry, so that is what this now audits. The version is resolved PER CRATE rather than from one
+# workspace number: crates enter and leave the workspace between releases, so they are not all live
+# at the same version (and after a half-shipped release like v0.0.11's first two attempts, they are
+# demonstrably not).
 published_mode() {
   local root="$1"
   PROBLEMS=0
   FAILS=()
-  local wsver crates name json ver_status deps_json dep any_live depjson
-
-  wsver="$(get_workspace_version "$root")"
-  if [[ -z "$wsver" ]]; then
-    echo "ci-guard-yanked-deps --published: could not determine workspace version" >&2
-    PROBLEMS=$((PROBLEMS + 1))
-    FAILS+=("(setup) could not determine workspace version -- treated as FAIL")
-    return
-  fi
+  local crates name json auditver deps_json dep any_live depjson audited=0
 
   crates="$(list_published_crates "$root")"
   if [[ -z "$crates" ]]; then
@@ -357,12 +372,15 @@ published_mode() {
     [[ -z "$name" ]] && continue
     json="$(fetch_crate_json "$name")" || { PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name: could not verify (network/data error)"); continue; }
 
-    ver_status="$(printf '%s' "$json" | jq -r --arg v "$wsver" '[.versions[] | select(.num == $v) | .yanked] | if length == 0 then "missing" else (.[0] | tostring) end')"
-    # Not live at the workspace version (not yet published under it, or yanked) -> nothing to
-    # audit for THIS crate; its own yanked-ness is not what this guard checks.
-    [[ "$ver_status" != "false" ]] && continue
+    # The crate's newest version that is still live. Empty means the crate is fully yanked or has
+    # never been published -- in either case there is no live artifact of ours pointing at anything,
+    # so there is nothing for THIS guard to audit. Note this is a genuine "nothing to check", unlike
+    # the workspace-version skip it replaces, which fired for every crate on every release.
+    auditver="$(latest_live_version "$json")"
+    [[ -z "$auditver" || "$auditver" == "null" ]] && continue
+    audited=$((audited + 1))
 
-    deps_json="$(fetch_deps_json "$name" "$wsver")" || { PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name@$wsver: could not verify dependency list (network/data error)"); continue; }
+    deps_json="$(fetch_deps_json "$name" "$auditver")" || { PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name@$auditver: could not verify dependency list (network/data error)"); continue; }
 
     while IFS= read -r dep; do
       # `read` splits on \n only; jq on this platform emits trailing \r before its \n even for
@@ -371,14 +389,23 @@ published_mode() {
       # silently misses its fixture/registry entry.
       dep="${dep%$'\r'}"
       [[ -z "$dep" ]] && continue
-      depjson="$(fetch_crate_json "$dep")" || { PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name@$wsver -> $dep: could not verify (network/data error)"); continue; }
+      depjson="$(fetch_crate_json "$dep")" || { PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name@$auditver -> $dep: could not verify (network/data error)"); continue; }
       any_live="$(printf '%s' "$depjson" | jq -r '[.versions[] | select(.yanked == false)] | length')"
       if [[ "$any_live" == "0" ]]; then
         PROBLEMS=$((PROBLEMS + 1))
-        FAILS+=("$name@$wsver -> $dep: dependency crate is FULLY YANKED (no live version anywhere) while $name@$wsver is still live -- registry drift")
+        FAILS+=("$name@$auditver -> $dep: dependency crate is FULLY YANKED (no live version anywhere) while $name@$auditver is still live -- registry drift")
       fi
     done < <(printf '%s' "$deps_json" | jq -r '.dependencies[]? | select(.crate_id | startswith("lib-q-")) | .crate_id' | sort -u)
   done <<< "$crates"
+
+  # A run that audited nothing is the vacuity this mode was rewritten to end. Reaching zero here
+  # means either discovery or the live-version resolution is broken, and a silent pass would look
+  # exactly like a clean registry. Fail instead, and say which it was.
+  if [[ $audited -eq 0 ]]; then
+    PROBLEMS=$((PROBLEMS + 1))
+    FAILS+=("(setup) audited ZERO crates -- no discovered crate has a live version on crates.io. That is what the old workspace-version bug looked like; treated as FAIL, not pass")
+  fi
+  AUDITED=$audited
 }
 
 # ---------------------------------------------------------------------------------------------
@@ -553,7 +580,7 @@ JSON
   cat > "$fixtures/lib-q-live-consumer-0.0.10-deps.json" <<'JSON'
 {"dependencies":[{"crate_id":"lib-q-clean-dep","req":"^0.0.10"}]}
 JSON
-  YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" YANK_GUARD_WS_VERSION="0.0.10" \
+  YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" \
     YANK_GUARD_FIXTURE_DIR="$fixtures" published_mode "$tmp"
   if [[ $PROBLEMS -ne 0 ]]; then
     echo "  MUTATION-CHECK FAIL (I): --published mode, live crate + live dep must not fire (got $PROBLEMS: ${FAILS[*]:-})"
@@ -567,7 +594,7 @@ JSON
   cat > "$fixtures/lib-q-live-consumer-0.0.10-deps.json" <<'JSON'
 {"dependencies":[{"crate_id":"lib-q-bad-dep","req":"^0.0.10"}]}
 JSON
-  YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" YANK_GUARD_WS_VERSION="0.0.10" \
+  YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" \
     YANK_GUARD_FIXTURE_DIR="$fixtures" published_mode "$tmp"
   if [[ $PROBLEMS -eq 0 ]]; then
     echo "  MUTATION-CHECK FAIL (J): --published mode must fire when a live crate depends on a fully-yanked crate"
@@ -576,10 +603,42 @@ JSON
 
   # === Case K (--published mode, network-failure discipline): unreachable fixture dir -> MUST fail ===
   cases=$((cases + 1))
-  YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" YANK_GUARD_WS_VERSION="0.0.10" \
+  YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" \
     YANK_GUARD_FIXTURE_DIR="$tmp/this-fixture-dir-does-not-exist" published_mode "$tmp"
   if [[ $PROBLEMS -eq 0 ]]; then
     echo "  MUTATION-CHECK FAIL (K): --published mode network failure must FAIL, not silently pass"
+    problems=1
+  fi
+
+  # === Case L (THE VACUITY REGRESSION -- the whole point of the rewrite): the RELEASE-PATH shape.
+  # The workspace has been bumped to a version that is NOT yet on crates.io (which is exactly the
+  # state cd.yml runs this guard in, since it fails the release unless tag == workspace version).
+  # The crate's live 0.0.10 release depends on a now-fully-yanked crate. The OLD implementation
+  # audited the workspace version, found it `missing`, skipped the crate, and returned 0 -- passing
+  # the one incident this mode exists to catch. It MUST fire. ===
+  cases=$((cases + 1))
+  cat > "$fixtures/lib-q-live-consumer-0.0.10-deps.json" <<'JSON'
+{"dependencies":[{"crate_id":"lib-q-bad-dep","req":"^0.0.10"}]}
+JSON
+  YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" \
+    YANK_GUARD_FIXTURE_DIR="$fixtures" published_mode "$tmp"
+  if [[ $PROBLEMS -eq 0 ]]; then
+    echo "  MUTATION-CHECK FAIL (L): with the workspace bumped to an UNPUBLISHED version (the release-path state), the guard must still audit the crate's latest LIVE version and fire -- passing here is the vacuity bug"
+    problems=1
+  fi
+  if [[ ${AUDITED:-0} -ne 1 ]]; then
+    echo "  MUTATION-CHECK FAIL (L): expected exactly 1 crate to be audited at its live version (AUDITED=${AUDITED:-unset})"
+    problems=1
+  fi
+
+  # === Case M: a crate with NO live version anywhere -> nothing to audit, and auditing nothing at
+  # all must FAIL rather than report a clean registry. This is the tripwire that would have made
+  # the original bug loud instead of silent. ===
+  cases=$((cases + 1))
+  YANK_GUARD_PUBLISHED_CRATES="lib-q-bad-dep" \
+    YANK_GUARD_FIXTURE_DIR="$fixtures" published_mode "$tmp"
+  if [[ $PROBLEMS -eq 0 ]]; then
+    echo "  MUTATION-CHECK FAIL (M): a run that audits ZERO crates must FAIL, not read as clean"
     problems=1
   fi
 
@@ -617,7 +676,9 @@ if [[ $PUBLISHED_MODE -eq 1 ]]; then
     done
     exit 1
   fi
-  echo "ci-guard-yanked-deps --published: OK -- no live published lib-q-* crate depends on a fully-yanked crate"
+  # Report the count, not just "OK": this mode passed vacuously on every release while auditing
+  # zero crates, and the output gave no way to tell that from a clean registry.
+  echo "ci-guard-yanked-deps --published: OK -- audited ${AUDITED:-0} live crate(s); none depends on a fully-yanked crate"
   exit 0
 fi
 
