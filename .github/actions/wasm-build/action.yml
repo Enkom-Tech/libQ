@@ -59,7 +59,14 @@ runs:
           cargo install wasm-pack --locked
         fi
         wasm-pack --version
-    
+
+    # Pre-install the pinned binaryen so `wasm-pack build` finds wasm-opt on PATH instead of
+    # fetching a 91 MB tarball from GitHub releases in every job (that fetch has failed
+    # transiently and reddened whole runs). wasm-opt still runs; only its provenance changes.
+    - name: Install wasm-opt (binaryen)
+      if: inputs.check-only != 'true'
+      uses: ./.github/actions/install-wasm-opt
+
     - name: Cache dependencies
       uses: actions/cache@v6
       with:

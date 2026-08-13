@@ -1,0 +1,104 @@
+# yaml-language-server: $schema=../../schemas/github-action.json
+name: Install wasm-opt (binaryen)
+description: >-
+  Install a pinned binaryen `wasm-opt` onto PATH, from an actions/cache entry when warm and
+  from a retried download when cold. wasm-pack's `find_wasm_opt` looks up `wasm-opt` in PATH
+  FIRST and only downloads binaryen itself when that lookup fails (rustwasm/wasm-pack
+  src/wasm_opt.rs), so putting the binary on PATH removes the per-job 91 MB fetch that has
+  intermittently reddened WASM jobs. wasm-opt stays ENABLED — this changes where the tool comes
+  from, never whether it runs, so published artifacts are byte-comparable to before.
+inputs:
+  version:
+    description: >-
+      binaryen release tag. Defaults to version_117, which is the version wasm-pack 0.15 itself
+      downloads ("latest" is a hardcoded pin in wasm-pack's install table), so the optimizer
+      behaviour is unchanged.
+    default: "version_117"
+    required: false
+  attempts:
+    description: Download attempts before failing the job.
+    default: "5"
+    required: false
+
+runs:
+  using: composite
+  steps:
+    # Non-Linux/x64 runners fall through with no wasm-opt on PATH; wasm-pack then does what it
+    # does today. Nothing is silently disabled by this action on any platform.
+    - name: Cache binaryen
+      if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
+      id: cache-binaryen
+      uses: actions/cache@v6
+      with:
+        path: ~/.cache/binaryen/${{ inputs.version }}
+        key: binaryen-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}
+
+    # Deliberately NOT gated on `cache-hit != 'true'`. A restored-but-broken cache entry (partial
+    # save, evicted mid-write, a future key collision) would otherwise skip the download and fail
+    # the PATH step below on every single run, with a fixed key and no way to self-heal short of
+    # editing this file. Instead the step always runs and returns early when the binary is already
+    # good, so a bad entry costs one download rather than a permanently red CI.
+    - name: Download binaryen (retry with backoff)
+      if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        VERSION='${{ inputs.version }}'
+        ATTEMPTS='${{ inputs.attempts }}'
+        DEST="$HOME/.cache/binaryen/$VERSION"
+        URL="https://github.com/WebAssembly/binaryen/releases/download/${VERSION}/binaryen-${VERSION}-x86_64-linux.tar.gz"
+        TARBALL="$RUNNER_TEMP/binaryen-${VERSION}.tar.gz"
+
+        if [ -x "$DEST/bin/wasm-opt" ]; then
+          echo "binaryen $VERSION already present at $DEST (cache hit: ${{ steps.cache-binaryen.outputs.cache-hit }}) -- skipping download"
+          exit 0
+        fi
+
+        rm -rf "${DEST:?}"
+        mkdir -p "$DEST"
+
+        i=1
+        rc=1
+        while [ "$i" -le "$ATTEMPTS" ]; do
+          echo "Attempt $i/$ATTEMPTS: $URL"
+          rm -f "$TARBALL"
+          # No pipes: curl's own exit status is the verdict (a `curl | tar` would report tar's).
+          # `rc=0; cmd || rc=$?` — NOT `if cmd; then ... fi; rc=$?`: a failed `if` with no `else`
+          # exits 0, which made this loop record every 404 as "exit 0" and fall through to tar.
+          rc=0
+          curl --fail --location --show-error --silent \
+               --connect-timeout 20 --max-time 600 \
+               --retry 3 --retry-delay 5 --retry-connrefused \
+               --output "$TARBALL" "$URL" || rc=$?
+          if [ "$rc" -eq 0 ]; then
+            break
+          fi
+          echo "curl failed with exit $rc"
+          if [ "$i" -lt "$ATTEMPTS" ]; then
+            sleep $(( i * 15 ))
+          fi
+          i=$(( i + 1 ))
+        done
+
+        if [ "$rc" -ne 0 ]; then
+          echo "::error::Failed to download binaryen $VERSION after $ATTEMPTS attempts (last curl exit $rc)"
+          exit "$rc"
+        fi
+
+        # Keep the whole tree: wasm-opt links libbinaryen from ../lib via rpath.
+        tar -xzf "$TARBALL" -C "$DEST" --strip-components=1
+        rm -f "$TARBALL"
+        test -x "$DEST/bin/wasm-opt"
+
+    - name: Put wasm-opt on PATH
+      if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        DEST="$HOME/.cache/binaryen/${{ inputs.version }}"
+        if [ ! -x "$DEST/bin/wasm-opt" ]; then
+          echo "::error::$DEST/bin/wasm-opt is missing or not executable after install/cache restore"
+          exit 1
+        fi
+        echo "$DEST/bin" >> "$GITHUB_PATH"
+        "$DEST/bin/wasm-opt" --version
