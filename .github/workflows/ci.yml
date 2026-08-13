@@ -665,6 +665,11 @@ jobs:
           fi
           wasm-pack --version
 
+      # Same rationale as .github/actions/wasm-build: keep wasm-opt (the budgets below are
+      # -Oz sizes) but take it from a cached pinned binaryen instead of a per-job download.
+      - name: Install wasm-opt (binaryen)
+        uses: ./.github/actions/install-wasm-opt
+
       - name: WASM size gate (per-crate budgets)
         env:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort'

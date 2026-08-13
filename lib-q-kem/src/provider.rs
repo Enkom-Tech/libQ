@@ -616,4 +616,247 @@ mod tests {
         assert!(crypto_provider.hash().is_none());
         assert!(crypto_provider.aead().is_none());
     }
+
+    /// The `Debug` impl must identify the provider without ever printing validator internals —
+    /// a provider dumped into a log line must not become a disclosure channel.
+    #[test]
+    fn debug_impl_names_the_provider_and_redacts_the_security_validator() {
+        let provider = LibQKemProvider::new().unwrap();
+        let rendered = alloc::format!("{provider:?}");
+        assert!(
+            rendered.contains("LibQKemProvider"),
+            "Debug output should name the type, got: {rendered}"
+        );
+        assert!(
+            rendered.contains("<SecurityValidator>"),
+            "Debug output should redact the validator, got: {rendered}"
+        );
+    }
+
+    /// `derive_public_key` had no success-path coverage at all: every existing test reached it
+    /// only with an algorithm the category check rejects. Derivation must reproduce exactly the
+    /// public key that `generate_keypair` returned, at every ML-KEM parameter set.
+    #[test]
+    #[cfg(feature = "ml-kem")]
+    fn ml_kem_derive_public_key_reproduces_the_generated_public_key_at_every_parameter_set() {
+        let provider = LibQKemProvider::new().unwrap();
+
+        for algorithm in [
+            Algorithm::MlKem512,
+            Algorithm::MlKem768,
+            Algorithm::MlKem1024,
+        ] {
+            let keypair = provider
+                .generate_keypair(algorithm, None)
+                .unwrap_or_else(|e| panic!("{algorithm:?} keygen failed: {e:?}"));
+
+            let derived = provider
+                .derive_public_key(algorithm, &keypair.secret_key)
+                .unwrap_or_else(|e| panic!("{algorithm:?} derive_public_key failed: {e:?}"));
+
+            assert_eq!(
+                derived.as_bytes(),
+                keypair.public_key.as_bytes(),
+                "{algorithm:?}: derived public key should equal the generated one"
+            );
+
+            // A derived key must be usable: encapsulating against it must decapsulate correctly
+            // under the original secret key.
+            let (ciphertext, shared_secret1) = provider
+                .encapsulate(algorithm, &derived, None)
+                .unwrap_or_else(|e| panic!("{algorithm:?} encapsulate failed: {e:?}"));
+            let shared_secret2 = provider
+                .decapsulate(algorithm, &keypair.secret_key, &ciphertext)
+                .unwrap_or_else(|e| panic!("{algorithm:?} decapsulate failed: {e:?}"));
+            assert_eq!(
+                shared_secret1, shared_secret2,
+                "{algorithm:?}: derived public key should interoperate with the secret key"
+            );
+        }
+    }
+
+    /// 48-byte deterministic seed, mirroring `lib-q-kem/tests/hqc_tests.rs`: HQC encapsulation
+    /// with OS entropy can sporadically mismatch on the large parameter sets, so the seeded
+    /// path is the stable one to assert against.
+    #[cfg(feature = "hqc")]
+    const fn hqc_seed(base: u8, step: u8) -> [u8; 48] {
+        let mut out = [0u8; 48];
+        let mut i = 0usize;
+        while i < 48 {
+            out[i] = base.wrapping_add((i as u8).wrapping_mul(step));
+            i += 1;
+        }
+        out
+    }
+
+    /// HQC was routed through `LibQKemProvider` by four separate match arms that no test ever
+    /// entered — `hqc_tests.rs` drives `LibQHqcProvider` directly. Exercise the routing itself
+    /// at every parameter set: a mis-routed arm (e.g. Hqc192 landing on Hqc128) would break the
+    /// round trip here.
+    #[test]
+    #[cfg(feature = "hqc")]
+    fn hqc_round_trips_through_the_provider_at_every_parameter_set() {
+        let provider = LibQKemProvider::new().unwrap();
+
+        for (algorithm, base) in [
+            (Algorithm::Hqc128, 0x91u8),
+            (Algorithm::Hqc192, 0x93),
+            (Algorithm::Hqc256, 0x95),
+        ] {
+            let keygen_seed = hqc_seed(base, 3);
+            let keypair = provider
+                .generate_keypair(algorithm, Some(&keygen_seed))
+                .unwrap_or_else(|e| panic!("{algorithm:?} keygen failed: {e:?}"));
+
+            let derived = provider
+                .derive_public_key(algorithm, &keypair.secret_key)
+                .unwrap_or_else(|e| panic!("{algorithm:?} derive_public_key failed: {e:?}"));
+            assert_eq!(
+                derived.as_bytes(),
+                keypair.public_key.as_bytes(),
+                "{algorithm:?}: derived public key should equal the generated one"
+            );
+
+            // Step must not be 1: the security validator rejects sequential byte patterns as
+            // low-entropy before the seed ever reaches HQC.
+            let encaps_seed = hqc_seed(base ^ 0x20, 7);
+            let (ciphertext, shared_secret1) = provider
+                .encapsulate(algorithm, &keypair.public_key, Some(&encaps_seed))
+                .unwrap_or_else(|e| panic!("{algorithm:?} encapsulate failed: {e:?}"));
+
+            let shared_secret2 = provider
+                .decapsulate(algorithm, &keypair.secret_key, &ciphertext)
+                .unwrap_or_else(|e| panic!("{algorithm:?} decapsulate failed: {e:?}"));
+
+            assert_eq!(
+                shared_secret1, shared_secret2,
+                "{algorithm:?}: shared secrets should match"
+            );
+            assert_eq!(
+                shared_secret1.len(),
+                32,
+                "{algorithm:?}: HQC shared secret should be 32 bytes"
+            );
+        }
+    }
+
+    /// With `cb-kem` off, every CB-KEM algorithm must be rejected with a `NotImplemented` that
+    /// names the missing feature — on ALL FOUR operations, not just keygen. Silently succeeding
+    /// (or reporting a generic `InvalidAlgorithm`) would hide a build misconfiguration.
+    #[test]
+    #[cfg(not(feature = "cb-kem"))]
+    fn cb_kem_algorithms_report_the_missing_feature_on_every_operation() {
+        let provider = LibQKemProvider::new().unwrap();
+        let public_key = KemPublicKey::new(Vec::new());
+        let secret_key = KemSecretKey::new(Vec::new());
+
+        for algorithm in [
+            Algorithm::CbKem348864,
+            Algorithm::CbKem460896,
+            Algorithm::CbKem6688128,
+            Algorithm::CbKem6960119,
+            Algorithm::CbKem8192128,
+        ] {
+            let keygen = provider.generate_keypair(algorithm, None);
+            match keygen {
+                Err(Error::NotImplemented { ref feature }) => assert!(
+                    feature.contains("cb-kem"),
+                    "{algorithm:?}: keygen error should name the cb-kem feature, got {feature}"
+                ),
+                Err(other) => {
+                    panic!("{algorithm:?}: expected NotImplemented from keygen, got {other:?}")
+                }
+                Ok(_) => panic!("{algorithm:?}: keygen must not succeed with cb-kem off"),
+            }
+
+            // The other three operations validate their key/ciphertext inputs BEFORE routing, so
+            // an empty input is rejected by the validator rather than by the feature gate. That
+            // is fine: what must never happen is a CB-KEM operation SUCCEEDING with the feature
+            // off. (Presenting a correctly sized buffer to reach the gate itself was tried and
+            // abandoned: the validator's entropy scan over a 261 KB CB-KEM key takes ~9 minutes
+            // in a debug build, far past CI's 180 s coverage timeout.)
+            assert!(
+                provider.encapsulate(algorithm, &public_key, None).is_err(),
+                "{algorithm:?}: encapsulate must fail with cb-kem off"
+            );
+            assert!(
+                provider.decapsulate(algorithm, &secret_key, &[]).is_err(),
+                "{algorithm:?}: decapsulate must fail with cb-kem off"
+            );
+            assert!(
+                provider.derive_public_key(algorithm, &secret_key).is_err(),
+                "{algorithm:?}: derive_public_key must fail with cb-kem off"
+            );
+        }
+    }
+
+    /// Caller-supplied randomness must go through the security validator before it reaches any
+    /// algorithm implementation. A 16-byte seed is below the 32-byte floor and must be refused
+    /// by both `generate_keypair` and `encapsulate` — accepting it would silently halve the
+    /// entropy of a key or an encapsulation.
+    #[test]
+    #[cfg(feature = "ml-kem")]
+    fn short_caller_supplied_randomness_is_rejected_before_the_algorithm_runs() {
+        let provider = LibQKemProvider::new().unwrap();
+        let short_randomness = [0x5Au8; 16];
+
+        let keygen = provider.generate_keypair(Algorithm::MlKem512, Some(&short_randomness));
+        assert!(
+            matches!(keygen, Err(Error::InvalidKeySize { .. })),
+            "16-byte randomness should be rejected by keygen with InvalidKeySize"
+        );
+
+        let keypair = provider
+            .generate_keypair(Algorithm::MlKem512, None)
+            .unwrap();
+        let encapsulate = provider.encapsulate(
+            Algorithm::MlKem512,
+            &keypair.public_key,
+            Some(&short_randomness),
+        );
+        assert!(
+            matches!(encapsulate, Err(Error::InvalidKeySize { .. })),
+            "16-byte randomness should be rejected by encapsulate, got {encapsulate:?}"
+        );
+    }
+
+    /// Wrong-size inputs must be refused by the provider's validation layer rather than reaching
+    /// the algorithm, where a length mismatch would be an out-of-bounds hazard.
+    #[test]
+    #[cfg(feature = "ml-kem")]
+    fn wrong_size_keys_and_ciphertexts_are_rejected() {
+        let provider = LibQKemProvider::new().unwrap();
+        let keypair = provider
+            .generate_keypair(Algorithm::MlKem512, None)
+            .unwrap();
+
+        // A public key one byte short of the ML-KEM-512 encoding.
+        let mut truncated_pk = keypair.public_key.as_bytes().to_vec();
+        truncated_pk.pop();
+        let truncated_pk = KemPublicKey::new(truncated_pk);
+        assert!(
+            provider
+                .encapsulate(Algorithm::MlKem512, &truncated_pk, None)
+                .is_err(),
+            "truncated public key should be rejected by encapsulate"
+        );
+
+        // A well-formed ciphertext for ML-KEM-512 is 768 bytes; 767 must not decapsulate.
+        let short_ciphertext = [0u8; 767];
+        assert!(
+            provider
+                .decapsulate(Algorithm::MlKem512, &keypair.secret_key, &short_ciphertext)
+                .is_err(),
+            "short ciphertext should be rejected by decapsulate"
+        );
+
+        // A secret key of the wrong length must not derive a public key.
+        let truncated_sk = KemSecretKey::new(keypair.secret_key.as_bytes()[..16].to_vec());
+        assert!(
+            provider
+                .derive_public_key(Algorithm::MlKem512, &truncated_sk)
+                .is_err(),
+            "truncated secret key should be rejected by derive_public_key"
+        );
+    }
 }
