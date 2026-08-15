@@ -276,6 +276,44 @@
 //!   designers state the ideal-cipher model in print, so naming it is a documentation duty, not
 //!   an open problem.
 //!
+//! Three further obligations were opened on **2026-08-15**, when the DOI-gated fault and
+//! cryptanalysis papers were finally obtained and read. **None is about the CTX transform**, and
+//! none is about `SaturninQcb` specifically — they are listed here because this is where this
+//! crate keeps its obligation register. Full evidence: `SECURITY.md`, sections *Single-key
+//! cryptanalysis of the block cipher* and *Fault injection*.
+//!
+//! - **F-1 — do the published fault counts hold against the two-S-layer cipher?** Both fault
+//!   papers (IEEE TIFS 18 (2023) 1487–1496 at 656 faults; *Journal on Communications* 44(4)
+//!   (2023) 167–175 at 1 097 ineffective faults) measured their counts against a Saturnin with
+//!   **one** S-box layer per super-round — TIFS Algorithm 1 p.1489, J. Communications Algorithm 2
+//!   p.170 — where the specification and [`crate::core`]'s `apply_round` have **two**. That is the
+//!   design report's own pseudocode typo, documented by Hou, Cui and Zhang (Computer Journal
+//!   66(2) p.479). Neither paper states whether its C++ implementation followed its own pseudocode
+//!   or the reference code. Doubling the non-linear layers changes fault propagation and the
+//!   distinguisher's bias in an unquantified direction. **Not closable by citation** — it needs
+//!   the authors or a re-derivation. The doc half is already discharged: quote both figures as the
+//!   best published numbers, never as measured against what this crate ships.
+//! - **F-2 — SIFA makes the obvious countermeasure the wrong one; which class is right?** The
+//!   Saturnin-Short attack is a *statistical ineffective* fault analysis, whose oracle is the
+//!   mode's own reject verdict. A detection-or-redundancy countermeasure — the first thing a
+//!   hardware team specifies — **supplies** that oracle rather than removing it. No published
+//!   Saturnin countermeasure exists to copy; both papers decline to propose one. A cryptographer
+//!   must choose the class (masking-plus-detection, infective computation, or an architectural
+//!   answer) before any fault-resistance number enters a hardware budget. **Not closable by
+//!   citation.** SUSPECTED, ours and not either paper's: adding an encrypt-then-verify redundancy
+//!   check to `SaturninShortAead` would make this worse, not better.
+//! - **RK-2 — is the R = 10 related-key position acceptable, given the depth margin is zero?**
+//!   Note-RK-1's 10-super-round related-key key recovery at `2^236`, and ePrint 2021/703 §5.3's
+//!   10-super-round quantum multi-collision distinguisher, land **exactly** on the depth that
+//!   `SaturninAead`, `SaturninShortAead`, the stream cipher and `SaturninBlockCipher` run — all
+//!   four build `SaturninCore::new(10, …)`. **Nothing is violated**: the spec's related-key claim
+//!   covers Saturnin16 only, `2^236 > 2^224`, and no mode here exposes a related-key oracle. This
+//!   is a **scoping** question, not a break: does this crate want to say anywhere that its R = 10
+//!   modes are related-key secure, and is a consumer who derives per-message keys by a related
+//!   transform in scope or out? Every other statement of this figure in the repo frames it as
+//!   "10 of 16, margin 6", which is right for QCB and hides the R = 10 reading. **RK-1 is
+//!   untouched** — that one is about QCB's Saturnin16 assumption.
+//!
 //! Do not describe `SaturninQcb` as "committing" or "CMT-4 secure" without these qualifiers.
 
 #[cfg(feature = "alloc")]

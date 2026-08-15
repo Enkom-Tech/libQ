@@ -40,6 +40,27 @@
 //! remote-adversary assumptions as full AEAD unless a higher layer enforces additional timing
 //! mediation.
 //!
+//! ## Saturnin-Short is the named target of a published mode-level fault attack
+//!
+//! Recorded 2026-08-15. This mode — not the bare block cipher — is the specific subject of a
+//! statistical *ineffective* fault analysis that recovers the **full 256-bit key**: Li Wei, Liu
+//! Chun, Gu Dawu, Sun Wenqian, Gao Jianning and Qin Mengyang, *Journal on Communications* 44(4)
+//! (2023) 167–175, doi `10.11959/j.issn.1000-436x.2023084`. Random single-byte faults,
+//! **ciphertext-only**, ≥99% success from as few as **1 097 ineffective faults**. Its own abstract
+//! concludes that Saturnin-Short "cannot resist statistical ineffective fault analysis".
+//!
+//! It requires a physical fault-injection capability, so it does not touch a remote adversary, and
+//! it is software-simulated rather than demonstrated on hardware. But two properties make it worth
+//! reading before using this mode in an exposed device. First, **SIFA's oracle is this mode's own
+//! reject verdict** — the constant-time and fixed-layout work described above is orthogonal to it
+//! and provides no defence. Second, **adding a redundancy or detection countermeasure would supply
+//! the oracle rather than remove it**; that is the class SIFA is defined to defeat. Obligation
+//! **F-2** in [`crate::commit`] is precisely the question of which countermeasure class is right,
+//! and it is open.
+//!
+//! Scope, caveats — including that the paper models Saturnin with half its S-box layers — and the
+//! companion attack on the block cipher: `SECURITY.md`, *Fault injection*.
+//!
 //! ## Usage Example
 //!
 //! ```rust

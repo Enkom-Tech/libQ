@@ -165,6 +165,90 @@ and full evidence: card `t_5d1460b7`.
 Decision: card `t_5d1460b7`. Question to the designers: card `t_7123c738`. If/when they publish
 QCB KATs, pin them and reconcile before treating this mode as a standard.
 
+## Single-key cryptanalysis of the block cipher, and which round count applies
+
+Nothing in this section violates a designer claim; all of it is reduced-round. It is here because
+every margin quoted elsewhere in this file is **of 16** — QCB's related-key margin, the
+Saturnin-Hash margins behind the CTX tag — while the modes most callers reach run **10**
+super-rounds. `SaturninAead` (CTR-Cascade), `SaturninShortAead`, the stream cipher and
+`SaturninBlockCipher` all build `SaturninCore::new(10, …)`; only the hash and QCB's `SaturninTbc`
+run 16. The spec draws that line itself: "by default, Saturnin denotes the block cipher with at
+least 10 super-rounds, i.e. 20 single-rounds as a super-round is formed by 2 rounds. When explicitly
+mentioned, Saturnin16 corresponds to the block cipher with 16 super-rounds or more" (LWC spec v1.1
+§1.2). **Every depth below is in super-rounds.** Halving them by reading them as rounds is the
+standard way to get this wrong — see `src/commit.rs`, obligation H-1.
+
+**Deepest key recovery: 7.5 super-rounds, and it is the designers' own.** The DS-MITM attack of LWC
+spec §5.2 costs `2^244` chosen-plaintext queries, equivalent time and `2^244` memory. Still the
+frontier in 2023: Zhang, Wu, Zheng and Wang, *Cryptanalysis on Reduced-Round 3D and Saturnin*, The
+Computer Journal **66**(4):1017–1029 (doi `10.1093/comjnl/bxac116`), p.1018 — "The best analysis
+result is a Demirci–Selçuk meet-in-the-middle (DS-MITM) attack on 7.5-super-round in the design
+report, which is the longest key recovery attack requiring `2^244` data and time complexity"; Hou,
+Cui and Zhang concur (Computer Journal **66**(2):479–495, doi `10.1093/comjnl/bxab174`, p.480):
+"there is no better classic attack for Saturnin than those in the design report". Against the R = 10
+modes that is a **2.5-super-round margin**; against Saturnin16 it is 8.5. The designers chose 10
+with this number in hand — "a super-round in Saturnin offers a resistance similar to a single round
+in the AES. Therefore, 10 super-rounds, i.e. 20 rounds, appears to be a natural choice" (§4.2.1).
+
+**Deepest distinguisher: 6 super-rounds, and it is dominated.** bxac116 §6 gives an
+impossible-differential yoyo distinguisher over six super-rounds of the **two-S-layer** version —
+the version this crate implements — at `2^250.83` data and time: "For Saturnin, we propose the first
+six-super-round impossible differential yoyo attack, which is suitable for the two-S-layer version"
+(p.1017). It is a **distinguisher, not a key recovery**, and the 7.5-super-round DS-MITM beats it on
+both axes — deeper *and* cheaper — so it does not move the frontier. What it moves is the
+impossible-differential sub-frontier, from 3 super-rounds (bxac116 Table 1, p.1019) to 6. The paper
+scopes its own claim the same way: "Compared with the previous impossible differential attacks in
+the design report of Saturnin, the attacks presented here are the best in terms of the complexity
+under the chosen-plaintext scenario". **Never paraphrase that as "the best attack on Saturnin".**
+Note also that `2^250.83` is about 1/36 of the entire `2^256` codebook of a 256-bit block, so the
+cost is close to self-limiting rather than merely large.
+
+**Cheapest key recovery: 5 super-rounds at `2^39.1` — but that figure is for the *one-S-layer*
+variant, which is not what this crate ships.** bxab174's abstract (p.479) states the attack "requires
+`2^39.1` plaintext pairs and adaptively chosen ciphertext pairs and `2^46` one-round encryptions" —
+note the cost unit is *one-round* encryptions, not full ones. The attack itself is "suitable for both
+one-S-layer version and two-S-layer version", but the cheap number is not: it comes from their
+*reducing key sets* technique, and "This technique will fail on the other version, which proves the
+necessity of containing two S-layers in one-super-round" (abstract). Against the two-S-layer version
+`src/core.rs` implements, their own figure is the unimproved one: "If we directly adapt the yoyo
+trick on 5-super-round Saturnin, we need `2^78` computations and `2^14` plaintext pairs."
+**Never quote `2^39.1` for this crate without that scope attached.**
+
+**bxab174 is also the third-party record of the design report's S-layer typo, and it cuts our way.**
+The design report's pseudocode omits one of the two S-layers — "one was inadvertently omitted in the
+algorithm description" — and this crate follows the reference code, not the pseudocode:
+`src/core.rs`'s `apply_round` calls `apply_sbox` twice per super-round. The paper's verdict on that
+choice: "our analysis also confirms the wisdom of designers" (§7). **Do not read it as immunity** —
+bxac116's six-super-round distinguisher is explicitly against the two-S-layer version, and the
+5-super-round key recovery is "suitable for both". The same typo is why both published *fault*
+attacks measured their fault counts against a weaker cipher (see *Fault injection* below).
+
+**"First six-super-round" is a first carried out, not a first conceived.** bxac116, p.1028:
+"Canteaut et al. estimated that a similar impossible differential attack can be applied to seven
+super-rounds of Saturnin with twice these complexity exponents. However, the author did not carry
+out this idea." A seven-super-round impossible differential is anticipated in the design report and
+remains unpublished; if it appears it still lands below the DS-MITM's 7.5.
+
+**Two different sixes — do not merge them.** The "6 of 16 super-rounds" elsewhere in this file and in
+`src/commit.rs` is a chosen-prefix collision on **Saturnin-Hash** at `2^112` (obligation H-1).
+bxac116's six super-rounds is a distinguisher on the **block cipher** at `2^250.83`, against a
+baseline of 10 rather than 16. Different primitive, different attack, different denominator.
+
+**The related-key picture at R = 10 is separate, and much thinner — obligation RK-2.** The
+related-key results quoted in the QCB section below reach **10 super-rounds**, which is *exactly* the
+depth the R = 10 modes run: Note-RK-1's key recovery at `2^236` and ePrint 2021/703 §5.3's quantum
+multi-collision distinguisher. **Nothing is violated** — the spec's related-key claim covers
+Saturnin16 only, and `2^236 > 2^224` — and neither is an attack on any mode here, since a
+related-key adversary must control key differences and this crate's AEAD API gives no such oracle.
+But the depth margin at R = 10 is **zero**, where every other statement of the same figure in this
+repo frames it as "10 of 16, margin 6". That framing is right for QCB and wrong for everything else.
+Whether this crate should take a position on related-key security for its R = 10 modes is a
+cryptographer question, tracked as **RK-2** alongside RK-1 in `src/commit.rs`.
+
+Neither `2^244` nor `2^250.83` comes near the spec §2.1 claim's `T/p < 2^224` threshold, and both are
+reduced-round in any case. No claim in this crate is affected and no code change follows from either
+paper; this section exists so the margin is stated in the units the deployed modes actually run in.
+
 ## Fault injection
 
 **This crate implements no fault countermeasure of any kind, and two published attacks recover
