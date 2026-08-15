@@ -153,7 +153,9 @@ Our post-quantum asymmetric primitives are drawn from NIST's Post-Quantum Crypto
   - Superior post-quantum security compared to classical alternatives
   - **Saturnin-SIV** (`lib-q-aead`, feature `saturnin-siv`): a **256-bit, misuse-resistant**
     (SIV-style) AEAD built from KMAC256-derived keys + Saturnin-CTR. It is the only AEAD in this
-    repo combining full 256-bit post-quantum margin with nonce-misuse resistance — Romulus-M
+    repo combining a 256-bit key and tag with nonce-misuse resistance — "256-bit" being the key and
+    tag *width*, not a claimed security level; the designers claim 224-bit classical and 112-bit
+    quantum (LWC spec v1.1 §1.2), never 256, as this file itself says eight lines below — Romulus-M
     (below) is misuse-resistant but only at 128-bit strength, and the other 256-bit Saturnin modes
     (CTR-Cascade/Short) are nonce-respecting only. Prefer it for file encryption or any scenario
     where nonce reuse across re-encryptions is plausible and 256-bit margin is required.
@@ -181,6 +183,19 @@ The following classical algorithms are explicitly forbidden in lib-Q:
 - **ECDSA**: Broken by Shor's algorithm
 - **Ed25519**: Broken by Shor's algorithm
 - **Ed448**: Broken by Shor's algorithm
+
+> **On the "Grover halves it" convention used throughout this section.** Naive halving is the
+> standard, conservative way to state a post-quantum margin and this document keeps it. It is worth
+> knowing that the one published *concrete* Grover circuit for Saturnin-256 is materially worse for
+> the attacker than halving suggests: Jang, Baksi, Kim, Song, Seo and Chattopadhyay, IACR ePrint
+> 2020/1485, Table 16 (p.22), put unlimited-depth key search at **G-cost 1.13 · 2^147** — not
+> `2^128` — and Table 20(a) (p.26) puts it at **1.63 · 2^246**, **1.63 · 2^222** and
+> **1.63 · 2^190** under NIST MAXDEPTH limits of `2^40`, `2^64` and `2^96` respectively, needing
+> circuit widths of `1.50 · 2^211`, `1.50 · 2^163` and `1.50 · 2^99` qubits. Once a depth limit
+> binds, cost scales linearly in `2^k` rather than as `2^{k/2}`. **Cite these as an upper bound on
+> one particular, visibly unoptimised circuit — never as a lower bound on Saturnin's security, and
+> never as a replacement for the designers' own `2^112` quantum claim**, which remains the number
+> this repo publishes.
 
 #### Forbidden Hash Functions
 - **MD5**: Completely broken (collision and preimage attacks)

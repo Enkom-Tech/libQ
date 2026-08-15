@@ -36,7 +36,25 @@
 //! - **Throughput**: ~50-200 MB/s for single blocks
 //! - **Memory usage**: Constant, independent of number of blocks
 //! - **Security claim** (LWC spec §2.1, single-key setting): no classical attack with
-//!   `T/p < 2^224`; no quantum attack with `T/p < 2^112`
+//!   `T/p < 2^224`; no quantum attack with `T^2/p < 2^224` (equivalently `T/√p < 2^112`; at
+//!   success probability `p = 1`, the familiar `T < 2^112`)
+//! - **Round count, and the margin that follows from it.** [`SaturninBlockCipher::new`] builds
+//!   `SaturninCore::new(10, 1)` — **10 super-rounds** (20 rounds), which is the spec's default
+//!   target for the claim above ("by default, Saturnin denotes the block cipher with at least 10
+//!   super-rounds", LWC spec v1.1 §1.2), **not** Saturnin16. Depths below are in super-rounds,
+//!   deepest first. The deepest single-key *key recovery* is the designers' own DS-MITM at
+//!   **7.5 of 10** at `2^244` data, time and memory (spec §5.2), still the frontier as of 2023
+//!   ("there is no better classic attack for Saturnin than those in the design report" — Hou, Cui
+//!   and Zhang, The Computer Journal 66(2):479–495, p.480), so this type carries a
+//!   **2.5-super-round** margin. Deeper *distinguishers* exist: **6 of 10** at `2^250.83` (Zhang,
+//!   Wu, Zheng and Wang, The Computer Journal 66(4):1017–1029, doi `10.1093/comjnl/bxac116`), and
+//!   theirs is the one result explicitly "suitable for the two-S-layer version", i.e. the cipher
+//!   [`crate::core`] implements. The deepest single-key result at *practical* complexity is a
+//!   5-super-round yoyo key recovery whose `2^39.1`/`2^46` cost is one-S-layer-only — quote it only
+//!   with that scope, and note `2^46` is counted in *one-round* encryptions. Both `2^244` and
+//!   `2^250.83` exceed the `2^224` claim and both are reduced-round, so neither is an attack on
+//!   this type. Do **not** carry the "of 16" margins from [`crate::commit`] here — those are
+//!   Saturnin16, i.e. the hash and QCB's TBC. Full frontier and quotes: `SECURITY.md`.
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;

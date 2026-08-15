@@ -14,7 +14,13 @@ pub struct SideChannelProtection {
     pub power_analysis_protection: bool,
     /// Enable cache attack protection
     pub cache_attack_protection: bool,
-    /// Enable fault injection protection
+    /// Caller-declared intent to run under fault-injection protection.
+    ///
+    /// **Advisory only — nothing in this crate, or anywhere in the workspace, consumes it.**
+    /// Setting it `true` enables no redundancy, recomputation, detection or infective
+    /// countermeasure. It is sharper here than elsewhere because this crate's default AEAD is
+    /// Saturnin, against which a ciphertext-only attack recovers the full 256-bit key from 656
+    /// nibble faults (Li et al., IEEE TIFS 18 (2023) 1487–1496). See `lib-q-saturnin/SECURITY.md`.
     pub fault_injection_protection: bool,
 }
 

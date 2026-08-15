@@ -1,6 +1,6 @@
 # Anon-cred wire size spike: the parameterised harness and a spread table
 
-Board card `t_05e76e6c`. Companion to `anon-cred-wire-fork-recommendation.md`, which recorded the
+Board card `ENK-266`. Companion to `anon-cred-wire-fork-recommendation.md`, which recorded the
 one-shot FRI-vs-LNP22 comparison. This doc records the *harness* that was built so the comparison
 re-runs the moment the two missing human inputs (below) are supplied, plus the spread it produces
 today with plausible stand-in numbers.

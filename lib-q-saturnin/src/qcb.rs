@@ -94,18 +94,23 @@
 //! designers' own follow-up (*A note on related-key attacks on Saturnin*, Note-RK-1) gives a
 //! classical related-key key recovery on **10 of Saturnin16's 16 super-rounds** — "The total
 //! complexity will be about `2 × γ × 2^128 = 2^236`" with `γ = 2^107` structures of `2^128`
-//! plaintexts — and Dong et al. (IACR ePrint 2021/703 §5.3) reach the same 10-super-round
+//! plaintexts — and Bao et al. (IACR ePrint 2021/703 §5.3) reach the same 10-super-round
 //! boundary with a quantum multi-collision distinguisher ("we successfully mount QMC
 //! distinguishing attack on 10-round Saturnin. It does not directly violate designers' claim
 //! above since ours are not key-recovery attack, however reaches the 10-round boundary"). Neither
 //! violates the `2^224` claim, but the related-key margin behind QCB is **6 super-rounds of 16**
 //! (10 attacked). Compare like with like — the Saturnin-Hash literature also counts in
 //! super-rounds of 16, and an earlier draft of this paragraph mis-stated it as "6 of 32 rounds":
-//! the best *in-model* attack on Saturnin-Hash is 6 of 16 super-rounds, i.e. a **10**-super-round
-//! margin, so QCB's related-key margin is the thinner of the two — but only in-model. Free-start
-//! collision attacks on the Saturnin-Hash compression function already reach 10 of 16 super-rounds
-//! (Chen et al., IACR ePrint 2022/731 §5.2), exactly QCB's depth; they are out of scope for
-//! Saturnin-Hash because MMO fixes `IV = 0`, and no analogous escape applies here. See
+//! the best *in-model* **classical collision** attack on Saturnin-Hash is 6 of 16 super-rounds,
+//! i.e. a 10-super-round margin *at that goal*. The deepest in-model result of any kind is
+//! **7 of 16** — a quantum collision at `2^113.5` and a classical preimage at `2^232`, both
+//! 2021/1119 Table 1 — so **the in-model margin is 9**, and an unqualified "best in-model attack
+//! is 6 of 16" is false. QCB's related-key margin of 6 is still the thinner of the two, so the
+//! conclusion survives; the gap it implies was one super-round too wide.
+//! Free-start **quantum** collision attacks on the Saturnin-Hash compression function reach 10 of
+//! 16 super-rounds at `2^127.2` (Dong, Guo, Li and Pham, IACR ePrint 2022/731 §5.2) — the best
+//! *classical* free-start is 6 of 16 at `2^80` — which is exactly QCB's depth; they are out of
+//! scope for Saturnin-Hash because MMO fixes `IV = 0`, and no analogous escape applies here. See
 //! [`crate::commit`], obligation H-1, for the full round-count table. Note also that the designers
 //! claim related-key security only "against
 //! related-key attacks involving a small number of keys", footnoted "with related-key deriving
@@ -215,7 +220,7 @@
 //! Applied here, `160 + 95 = 255` leaves one bit unaccounted for, and `10*` is exactly that bit.
 //!
 //! **This is still a reading, not a confirmed fact** — the designers have not been asked yet (card
-//! `t_7123c738`), and one sentence or one KAT from them could overturn it. It was changed now, at
+//! `ENK-216`), and one sentence or one KAT from them could overturn it. It was changed now, at
 //! `0x80`, because the Saturnin hardware was at trace design: the switch costs nothing while QCB
 //! has no consumers and is opt-in, and cannot be made at all once silicon exists. Decision and its
 //! full evidence: card `t_5d1460b7`. The private `tweak` fn has its own unit test pinning the byte.

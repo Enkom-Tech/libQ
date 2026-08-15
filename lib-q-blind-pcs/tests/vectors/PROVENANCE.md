@@ -7,7 +7,7 @@ vectors for EXPERIMENTAL_NON_NIST blind PCS APIs, produced by this crate's own c
 **These are not a conformance oracle, and do not treat them as one.** Being this crate's own
 output, they move with the implementation and cannot detect a change to the commitment format —
 which is not hypothetical: `df33c57` swapped the commitment hash SHA-256 -> SHA3-256, changing
-every commitment byte, and nothing in the tree went red (board card `t_a8f6abd8`).
+every commitment byte, and nothing in the tree went red (board card `ENK-244`).
 
 The detector for that is `../commitment_kat.rs`, whose expected digests come from **Python's
 `hashlib.sha3_256`** rather than from this crate, and which is therefore the file to consult (and
