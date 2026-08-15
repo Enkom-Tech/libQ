@@ -191,6 +191,25 @@ Example: `cargo build --target wasm32-unknown-unknown --features wasm`
     `T < 2^75`, because we necessarily have `M_q < T`"); at the other corner a memoryless quantum
     attacker (`M_q = 1`) is claimed secure to `T < 2^(448/5) = 2^89.6`. Quote `~2^75` as the
     conservative corner it is, never as the whole claim.
+- **Published single-key cryptanalysis of the block cipher — read the depths with their units and
+  their attack types.** Counted in super-rounds against the R = 10 baseline that
+  `SaturninBlockCipher`, `SaturninAead`, `SaturninShortAead` and the stream cipher all instantiate
+  (and which is the minimum configuration the §2.1 claim box covers): the deepest single-key **key
+  recovery** is still the design report's own DS-MITM at **7.5 of 10** super-rounds, `2^244` data
+  and time; the deepest **distinguisher against the two-S-layer cipher we actually ship** is Zhang,
+  Wu, Zheng and Wang's six-super-round impossible-differential yoyo at `2^250.83` (The Computer
+  Journal 66(4):1017–1029, 2023, doi `10.1093/comjnl/bxac116`, "suitable for the two-S-layer
+  version"); and the deepest single-key result at **practical** complexity is Hou, Cui and Zhang's
+  4-super-round yoyo distinguisher plus **5-super-round** yoyo key recovery (doi
+  `10.1093/comjnl/bxab174`). Against `Saturnin16` (hash, TBC/QCB) each depth is out of 16 rather
+  than 10. Two things must travel with the yoyo numbers. **The unit is super-rounds, not rounds.**
+  **And its headline cost is scoped to a cipher this crate does not implement:** `2^39.1` plaintext
+  pairs and `2^46` *one-round* encryptions come from the authors' *reducing key sets* technique, of
+  which they write "This technique will fail on the other version, which proves the necessity of
+  containing two S-layers in one-super-round" (abstract, p.479) — the other version being the
+  two-S-layer one in `src/core.rs`. The 5-super-round attack itself is "suitable for both"; only
+  its cost against ours is unpublished. No published single-key result violates the §2.1 claim box.
+  Full statement and quotes: `src/block_cipher.rs` and [SECURITY.md](SECURITY.md).
 - **Saturnin-QCB's security is an ideal-cipher-model claim, with classical tweaks.** It is not a
   standard-model result and must not be reported as one — Saturnin update note §5: "*In the
   ideal-cipher model*, we can prove the indistinguishability and unforgeability of QCB under
@@ -200,7 +219,12 @@ Example: `cargo build --target wasm32-unknown-unknown --features wasm`
   only: superposition *tweak* or nonce queries recover the key in `O(256)` queries via Simon's
   algorithm, because in this construction the tweak is the key offset (Rötteler–Steinwandt, IACR
   ePrint 2013/378). And the whole thing assumes Saturnin16 is related-key secure, where the best
-  published attack already reaches 10 of its 16 super-rounds. Full statement, quotes and scope:
+  published **related-key** attack already reaches 10 of its 16 super-rounds — the single-key
+  position is better, but not by as much as that contrast suggests: the design report's own DS-MITM
+  reaches 7.5 of 16 single-key (`2^244` data and time), so the margins are 6 super-rounds
+  related-key against 8.5 single-key, and the related-key one is the thin one. Note that 10 of 16
+  is the *Saturnin16* reading; for the R = 10 modes the same attack is at full depth — obligation
+  RK-2, see [SECURITY.md](SECURITY.md). Full statement, quotes and scope:
   `src/qcb.rs` (*Security model*) and [SECURITY.md](SECURITY.md).
 - Constant-time operations; AEAD tag verification uses constant-time comparison (see [SECURITY.md](SECURITY.md)).
 - **No masked or threshold implementation.** Saturnin has no published DPA- or fault-resistant

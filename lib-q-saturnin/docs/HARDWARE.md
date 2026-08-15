@@ -157,6 +157,20 @@ Each of these was live in a shipped crate. None is hypothetical.
    (2) was invisible because a correct ROM shadowed it at exactly the two configurations under
    test.
 
+**A fifth trap that was never live here, because we built from the reference code: the *published
+algorithm description* is wrong.** Hou, Cui and Zhang (*Practical Attacks on Reduced-Round 3D and
+Saturnin*, The Computer Journal 66(2):479–495, 2023, footnote 1 on p.479) report it: "In their
+paper, the algorithm description on page 170 is inconsistent with the provided code. Its pseudocode
+only contains one S-layer per super-round, but the code contains two." A team that builds the round
+function from the ToSC paper's pseudocode gets **one** S-box layer per super-round, and no KAT will
+pass. The right shape is two — `core.rs`'s `apply_round` applies the S-box twice. Worth stating here
+rather than only in §8.4, because the error is in the peer-reviewed paper and not in the reference
+code, and because the same authors show the one-S-layer variant is measurably weaker: their
+*reducing key sets* key-recovery technique against it "will fail on the other version, which proves
+the necessity of containing two S-layers in one-super-round" (abstract, p.479). Both published
+Saturnin fault papers inherit the same wrong model (`SECURITY.md`, *Fault injection*, caveat 2).
+**Normative for RTL: the reference C, not the paper.**
+
 **The meta-lesson, which is the one worth carrying into verification planning:** every one of these
 survived a green test suite. The tests asserted `len() == 32`, or "not the identity", or — in one
 case — computed the correct constants, printed them next to the wrong table, and asserted only that
@@ -253,9 +267,12 @@ paraphrased, with the measurement configuration attached to every number. It is 
 §§1–7 because those were verified against the designers' code and this is verified against other
 people's measurements — a different kind of evidence with different failure modes.
 
-The short version: there are exactly **two** third-party hardware studies that report a Saturnin
-number, one ASIC and one FPGA, and both measure CTR-Cascade and Saturnin-Hash. Nobody has
-published a masked Saturnin, nobody has published QCB hardware, and there is a specific,
+The short version: there are exactly **two** third-party hardware measurement campaigns that report
+a Saturnin number, one ASIC and one FPGA, and both measure CTR-Cascade and Saturnin-Hash. The FPGA
+campaign was published **twice** — as ePrint 2020/1207 and, condensed to six peer-reviewed pages, at
+DATE 2021 — and the two versions **do not agree about Saturnin's hashing rank**, so read §8.3.1
+before quoting a hashing comparison. Nobody has published a masked Saturnin, nobody has
+published QCB hardware, and there is a specific,
 documented reason why the one group that built threshold implementations of the whole NIST
 lightweight field built one for every candidate except this one.
 
@@ -379,6 +396,31 @@ the right order of magnitude to start from — but they are a **lower bound**, b
 S-box splits into two quadratics where Saturnin's needs three, and because Pyjamask's TI leaves
 the keypath unshared where Saturnin's cannot. Do not present the scaled number as a budget.
 
+**A second bracket on the same multiplier, from the FPGA side.** The GMU benchmarking team sized
+their entire Round-2 FPGA study around this question, and their assumption is worth having next to
+the Pyjamask gate-equivalent figures because it comes from a different technology and a different
+group. DATE 2021 p.165, verbatim:
+
+> Our underlying assumption is that the implementation of an LWC algorithm protected against
+> side-channel attacks should take no more than all look-up tables (LUTs) of the selected Xilinx
+> FPGA device, Artix-7 : xc7a12tcsg325-3. Taking into account that protected implementations
+> typically take up to 3-4 times more LUTs than unprotected implementations, our unprotected
+> design should take no more than one-fourth of the total number of LUTs, i.e., 2000 LUTs.
+
+Their "up to 3–4 times" sits inside the 2.7–4.1× read off Pyjamask's GE columns, from an
+independent direction — and being an *upper* bound, what follows is a ceiling band, not a two-sided
+estimate. Two consequences for Saturnin, both **derived here and not stated by that paper**, which
+says nothing about masking Saturnin and benchmarks only unprotected designs. First, `Saturnin-v2`
+at 2321 LUTs (§8.3) is already over their 2000-LUT unprotected target, so at their own rule a
+protected v2 lands at roughly 7.0k–9.3k LUTs against the 8,000 LUTs that device has (p.165) — it
+fits at the optimistic end of the rule and does not at the pessimistic end. Second, `Saturnin-v1`,
+the folded variant at 1725 LUTs, is the one that meets the target, and scales to roughly 5.2k–6.9k
+LUTs, inside the device. If a side-channel-resistant FPGA Saturnin is in scope, that is an argument
+for starting from the folded architecture, and it pushes the same way as this section's
+round-based-only constraint and against §8.2's 4-round energy optimum. Note also that 3–4× is a
+generic LWC assumption: §8.1's two obstacles are reasons to expect Saturnin at or past its top end,
+not inside it.
+
 **Adjacent, weaker evidence.** Li et al., "Transparency order versus confusion coefficient: a
 case study of NIST lightweight cryptography S-Boxes" (Cybersecurity 4:35, 2021) computes leakage
 metrics for nine round-2 4-bit S-boxes; σ0 and σ1 score identically (VTO0 3.0000, CCV 0.3602,
@@ -464,7 +506,7 @@ SKINNY-AEAD and SATURNIN." Also: "The situation is different for the fully-unrol
 implementation where inverse-gating equalizes most of the measured values" — which is visible
 above, where `Unrolled-IG` is the best energy figure in the table.
 
-### 8.3 The only published FPGA figures — 2020/1207
+### 8.3 The published FPGA figures — 2020/1207, and the DATE 2021 condensation that disagrees with it
 
 Mohajerani, Haeussler, Nagpal, Farahmand, Abdulgadir, Kaps and Gaj, "FPGA Benchmarking of Round
 2 Candidates in the NIST Lightweight Cryptography Standardization Process", ePrint 2020/1207.
@@ -490,7 +532,14 @@ within the study):
 | encryption, PT | 791.7 Mbit/s | 14 | 139.7 Mbit/s | 54 / 394 |
 | encryption, AD | 1583.4 Mbit/s | 9 | 279.4 Mbit/s | 27 / 197 |
 | encryption, AD+PT | 1055.6 Mbit/s | 12 | 186.3 Mbit/s | 81 / 591 |
-| hashing | 1295.5 Mbit/s | 6 | 180.5 Mbit/s | 33 / 305 |
+| hashing † | 1295.5 Mbit/s | 6 | 180.5 Mbit/s | 33 / 305 |
+
+† **The number is corroborated; its ranking against SHA-2 is not.** The study's peer-reviewed
+condensation independently puts Saturnin's hashing throughput "between 1.3 and 1.5 Gbits/s"
+(DATE 2021, p.168), which agrees with the 1295.5 Mbit/s here — but it concludes (p.169) that
+Saturnin is one of only three candidates hashing *faster* than SHA-2, where 2020/1207's own Table 7
+(p.38) ranks SHA2-v1 above Saturnin-v2. Budget from the throughput; read §8.3.1 before quoting the
+SHA-2 comparison in either direction.
 
 Other devices, for portability rather than for a decision: Cyclone 10 LP gives v2 3892 LEs at
 104.6 MHz (495.7 Mbit/s PT), ECP5 gives v2 3648 LUTs at 79.0 MHz (374.5 Mbit/s PT).
@@ -543,7 +592,10 @@ Two shape findings worth more than the absolute numbers:
   of the hashing throughput to the plaintext processing throughput is the highest for Saturnin
   and the smallest for KNOT and Subterranean 2.0" (§4). "Saturnin approaches the speed of
   AES-GCM and, at the same time, uses about 200 less LUTs." "Very close behind SHA-2 are
-  DryGASCON and Saturnin, with the throughputs between 1.4 and 1.6 Gbits/s." Against that:
+  DryGASCON and Saturnin, with the throughputs between 1.4 and 1.6 Gbits/s." **That last sentence
+  is reversed by the same study's DATE 2021 condensation, which concludes Saturnin is one of only
+  three candidates hashing *faster* than SHA-2 — see §8.3.1, and do not lean on either
+  direction.** Against that:
   "A candidate particularly fast in hashing but not so good for processing small plaintexts is
   Saturnin"; "For 16-byte ADs, Elephant drops to position 14 and Saturnin to position 19"; and
   for hashing, "The ranking of Saturnin gets significantly worse … for 16-byte inputs." The
@@ -555,6 +607,49 @@ Two shape findings worth more than the absolute numbers:
   comparable and destroyed the corroboration.
 - **Folded versus unrolled is a real fork, not a tuning knob.** v2 is 5.7× v1's plaintext
   throughput for 35% more LUTs — but at roughly 8× the power.
+
+#### 8.3.1 The same study was published twice, and the two versions disagree about SHA-2
+
+**Read this before quoting a hashing comparison out of §8.3.** The GMU FPGA campaign exists in two
+publications. ePrint 2020/1207 is the long version and the source of every number above.
+Mohajerani, Haeussler, Nagpal, Farahmand, Abdulgadir, Kaps and Gaj, "Hardware Benchmarking of
+Round 2 Candidates in the NIST Lightweight Cryptography Standardization Process", **DATE 2021,
+pp. 164–169** (doi `10.23919/DATE51398.2021.9473930`) is the peer-reviewed six-page condensation;
+its own reference [11] is 2020/1207 and it defers "Details of all results" to it (p.169). Same
+team, same device `xc7a12tcsg325-3`, same LWC Hardware API, same optimisation flow. It is therefore
+**not** an independent second opinion. It is also **not** a subset: Saturnin's standing moved
+between the two.
+
+**The two conclusions contradict each other on Saturnin versus SHA-2.** 2020/1207 §7:
+
+> All these algorithms, as well as Saturnin, Elephant, and ISAP, outperform AES-GCM for the
+> processing of long ADs while meeting the area limit. Out of them, only Gimli, Xoodyak, and
+> **Ascon** support hashing faster than SHA-2. Two additional ones, DryGASCON and **Saturnin**,
+> perform hashing faster than the folded implementation of SHA-3.
+
+DATE 2021 p.169:
+
+> All these algorithms, as well as Saturnin and Elephant, outperform AES-GCM also for processing
+> of long ADs, while meeting the area limit. Out of them, only Gimli, Xoodyak, and **Saturnin**
+> support hashing faster than SHA-2. Two additional ones, DryGASCON and **Ascon**, perform
+> hashing faster than the folded implementation of SHA-3.
+
+Saturnin and Ascon swap places. This is a re-measurement, not a slip in one clause: the whole
+hashing field moved, with Gimli and Xoodyak quoted at "4.4 and 3.6 Gbits/s" in 2020/1207 and at
+"approximately equal to 3 and 2 Gbits/s" in DATE (p.168), and the candidate count going from
+"10 out of 27" to "10 out of 25".
+
+**Neither version is fully self-consistent, and the eprint is the worse offender.** Its own Table 7
+(p.38, "FPGA Rankings based on Hash Throughput for Long Messages") gives the Artix-7 order as
+Gimli, Xoodyak, Ascon, **SHA2-v1**, DryGASCON, **Saturnin-v2**, SHA3-v1 — i.e. Saturnin behind
+SHA-2, which is what §8.3's table above reflects. DATE's conclusion puts it ahead.
+
+**DATE does print one Saturnin hashing figure, and it does *not* conflict with §8.3's table:**
+p.168, "Very close behind are Saturnin and DryGASCON, with the throughputs between 1.3 and 1.5
+Gbits/s" — against the eprint's "between 1.4 and 1.6 Gbits/s" and the tabulated 1295.5 Mbit/s. So
+the measured speed is stable across both publications; what moved is everything it is being
+compared against. **Cite Saturnin's hashing throughput freely; cite the Saturnin-versus-SHA-2
+ranking in neither direction.**
 
 ### 8.4 S-box circuits — 2024/1996 improves depth, and nothing else
 
@@ -636,6 +731,14 @@ returned an error without doing any work. **UNVERIFIED**, but do not quote the r
   behaviour differed from the original source code are not included in the analysis". The paper
   never names which ciphers were dropped, so **why** Saturnin is absent is not established and
   must not be asserted. Recorded here so the search is not repeated.
+- **The GMU benchmarking group had no ASIC results either, as of 2021.** The obvious next place to
+  look for third-party ASIC numbers is the team that produced §8.3's FPGA data. Their DATE 2021
+  paper closes that door in its last sentence, p.169: "Future work will include ASIC benchmarking
+  and energy per bit evaluation in FPGAs and ASICs." 2020/1207 itself reports no ASIC results, so
+  2020/607 (§8.2) remains the only ASIC source for Saturnin. Recorded so that search is not
+  repeated either. (Re-checkers: a case-**insensitive** grep for "asic" in 2020/1207 is useless —
+  it matches "Basic iterative" hundreds of times. Case-sensitive "ASIC" hits only pp. 3 and 5, both
+  prior work, and p.56 on Vivado's clock gating.)
 - **No fault-*resistance* work exists for Saturnin**, masked or otherwise — no published
   countermeasure, so there is no area, power or latency figure to scale from. **Fault *analysis*
   does exist, and until 2026-08-15 this bullet denied it.** Two ciphertext-only attacks recover the
