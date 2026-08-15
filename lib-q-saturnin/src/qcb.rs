@@ -220,7 +220,7 @@
 //! Applied here, `160 + 95 = 255` leaves one bit unaccounted for, and `10*` is exactly that bit.
 //!
 //! **This is still a reading, not a confirmed fact** — the designers have not been asked yet (card
-//! `t_7123c738`), and one sentence or one KAT from them could overturn it. It was changed now, at
+//! `ENK-216`), and one sentence or one KAT from them could overturn it. It was changed now, at
 //! `0x80`, because the Saturnin hardware was at trace design: the switch costs nothing while QCB
 //! has no consumers and is opt-in, and cannot be made at all once silicon exists. Decision and its
 //! full evidence: card `t_5d1460b7`. The private `tweak` fn has its own unit test pinning the byte.

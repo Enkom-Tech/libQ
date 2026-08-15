@@ -155,14 +155,14 @@ TRAX-QCB accounting ("3 bits … for domain separation, 80 bits of IV and 45 bit
 … at most 2^45 − 1 blocks") shows fields summing exactly to the tweak width; here 160 + 95 = 255
 leaves one bit unaccounted for, and the `10*` pad bit is exactly it.
 
-**The designers have not confirmed this** (card `t_7123c738`); one sentence or one KAT from them
+**The designers have not confirmed this** (card `ENK-216`); one sentence or one KAT from them
 could still overturn it. Byte compatibility with a paper-conformant Saturnin-QCB is in any case
 unreachable, because this mode emits the CTX tag `T'` rather than Algorithm 1's `T`. There is no
 security consequence either way: byte 16 is a constant under both readings and the tweak is XORed
 into the key, so they differ by a fixed key offset — a bijection on the related-key family.
 Ciphertexts produced before the change do not decrypt under it; nothing had produced any. Decision
 and full evidence: card `t_5d1460b7`.
-Decision: card `t_5d1460b7`. Question to the designers: card `t_7123c738`. If/when they publish
+Decision: card `t_5d1460b7`. Question to the designers: card `ENK-216`. If/when they publish
 QCB KATs, pin them and reconcile before treating this mode as a standard.
 
 ## Single-key cryptanalysis of the block cipher, and which round count applies

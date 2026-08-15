@@ -106,6 +106,18 @@ protected was broken. Before reporting a gate as green, rule these out:
 - **A search that finds nothing proves nothing until it has found something.** Positive-control
   every grep against input you know matches, then trust the zero.
 
+## Board card ids in docs and comments
+
+Cards are cited as **`ENK-<n>`**. You will also find **`t_<8 hex>`** ids scattered through the
+security and design docs: those are **legacy** ids from the board this project used before the Hive
+migration, and **most of them no longer resolve** — the migration imported open work only, so
+anything that was already `done` was not carried over. Looking one up returns HTTP 500, not a clean
+"not found", which reads like an outage and is not one.
+
+Treat an unresolvable `t_` id as a provenance marker, not a link; the prose around it is the durable
+record. Mapping table, the six that do still resolve, and the list of known-dead ids:
+[docs/board-card-ids.md](docs/board-card-ids.md). Do not mint new `t_` ids.
+
 ## Security Review Process
 
 ### Before Submitting

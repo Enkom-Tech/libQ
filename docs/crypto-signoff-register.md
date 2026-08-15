@@ -16,7 +16,7 @@
 | B | Membership AIR soundness/ZK (Arm A + Arm B) | `lib-q-zkp` | `lib-q-zkp/docs/membership-adr113-freeze-gate-review.md`, `…-arm-b-obligation-packet.md`, `…-arm-{a,b}-soundness-params.md` | built + wire-frozen v0 |
 | C | Threshold-KEM CCA closure + its ZK encryption proof | `lib-q-threshold-kem-lattice`, `lib-q-zk-encryption-proof` | `lib-q-threshold-kem-lattice/SECURITY-STATUS.md` (shipped summary), those crates' `README.md` / `src/lib.rs`, `dev/conformance/…` design docs | KEM shipped (KAT v1); proof partial |
 | D | Saturnin CTX committing transform (H-1, S-2, Q-1, L-1, RK-1) | `lib-q-saturnin` | `lib-q-saturnin/src/commit.rs`, `src/aead_ctx.rs`, `src/qcb.rs`, `SECURITY.md` | **shipped and reachable** — opt-in `SaturninAeadCtx` / `SaturninQcb` |
-| E | CTR-Cascade's own IND-qCCA claim (Q-2) | `lib-q-saturnin` | `lib-q-saturnin/src/aead.rs` §"Open obligation Q-2", `README.md`; card `t_1af26ff2` | **shipped, frozen wire, reached by every product** |
+| E | CTR-Cascade's own IND-qCCA claim (Q-2) | `lib-q-saturnin` | `lib-q-saturnin/src/aead.rs` §"Open obligation Q-2", `README.md`; card `ENK-223` | **shipped, frozen wire, reached by every product** |
 
 > **Gate E was promoted out of a footnote on 2026-08-11, and the promotion is the point.** Q-2 was
 > recorded only as one clause inside Gate D's S-2 bullet ("A third, **Q-2**, lands on the base

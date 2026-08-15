@@ -148,7 +148,7 @@ if [[ -n "$FIPS206_HITS" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# Third check: IND-qCCA CONTAINMENT (board card `t_1af26ff2`, obligation Q-2).
+# Third check: IND-qCCA CONTAINMENT (board card `ENK-223`, obligation Q-2).
 #
 # The Saturnin submission claims IND-qCCA for CTR-Cascade and argues it (spec §4.3.1) via the
 # Soukharev-Jao-Seshadri composition theorem, which IACR ePrint 2025/387 DISPROVES. The repair
@@ -199,7 +199,7 @@ if [[ -n "$QCCA_HITS" ]]; then
   echo "CTR-Cascade's IND-qCCA claim is UNPROVEN: the Saturnin spec argues it via the" >&2
   echo "Soukharev-Jao-Seshadri composition theorem, which IACR ePrint 2025/387 disproves. The" >&2
   echo "repair (2025/387 Thm 3 + Thm 4 + Cor 1, needing the MAC to be a qPRF) is unratified --" >&2
-  echo "open obligation Q-2, board card t_1af26ff2." >&2
+  echo "open obligation Q-2, board card ENK-223." >&2
   echo "The full caveat lives in lib-q-saturnin/README.md and src/aead.rs; a mention outside that" >&2
   echo "crate is a restatement separated from its footnote. Keep it there, or extend the" >&2
   echo "allow-list in this script deliberately:" >&2
