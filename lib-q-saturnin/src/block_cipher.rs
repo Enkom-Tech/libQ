@@ -36,7 +36,8 @@
 //! - **Throughput**: ~50-200 MB/s for single blocks
 //! - **Memory usage**: Constant, independent of number of blocks
 //! - **Security claim** (LWC spec §2.1, single-key setting): no classical attack with
-//!   `T/p < 2^224`; no quantum attack with `T/p < 2^112`
+//!   `T/p < 2^224`; no quantum attack with `T^2/p < 2^224` (equivalently `T/√p < 2^112`; at
+//!   success probability `p = 1`, the familiar `T < 2^112`)
 
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;

@@ -284,10 +284,21 @@ undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here i
   resistance, and the designers *claim* rather than prove `2^112` classical / `~2^75` quantum. The
   quotes are verified current: the hash claim box is byte-identical across spec v1, spec v1.1 and the
   ToSC published version, and the `~2^75` is the designers' own derivation (ToSC line 756: "we
-  necessarily have `Mq < T`", so `T⁵·Mq < 2^448` becomes `T⁶ < 2^448`). Best published cryptanalysis
-  leaves wide margin: classical hash collision 6 of 32 rounds at `2^112`, quantum 7 of 32 at
-  `2^113.5`, free-start 8 of 32. **A cryptographer must still accept the designers' claim as a bound
-  to publish.** Not closable by citation.
+  necessarily have `Mq < T`", so `T⁵·Mq < 2^448` becomes `T⁶ < 2^448`).
+  **CORRECTION 2026-08-15 — this bullet stated every depth in the wrong unit, halving it.** It read
+  "classical hash collision 6 of 32 rounds at `2^112`, quantum 7 of 32 at `2^113.5`, free-start
+  8 of 32". Those figures are **super-rounds of 16**, not rounds of 32. The identical error was
+  found and corrected on 2026-08-07 in `lib-q-saturnin/src/commit.rs` (H-1), `src/qcb.rs` and
+  `lib-q-saturnin/SECURITY.md`; this register was left out of that sweep and so was the last
+  surviving copy of the halved reading — in the document a reviewer reads first. Correct values:
+  classical collision **6 of 16 super-rounds** (12 of 32) at `2^112`; quantum collision **7 of 16**
+  (14 of 32) at `2^113.5`; in-model classical preimage **7 of 16** at `2^232` (2021/427 App. E);
+  out-of-model free-start **8 of 16** (16 of 32) at `2^122.5`, extended to **10 of 16** (20 of 32)
+  at `2^127.2` quantum (2022/731 §5.2). Best published cryptanalysis still leaves margin, but state
+  it correctly: the deepest **in-model** result is 7 of 16, so the margin is **9**, not the 10 this
+  bullet implied — and the out-of-model free-start line reaches the same 10 of 16 as the designers'
+  own related-key attack on the block cipher. **A cryptographer must still accept the designers'
+  claim as a bound to publish.** Not closable by citation.
 - **S-2 — does CTX's Theorem 2 apply to our base schemes?** Thm 2 assumes the base scheme's core `C`
   has the same length as `M`. **Does not apply to `SaturninAeadCtx`**: CTR-Cascade XORs a keystream,
   so `|C| = |M|` natively and the hypothesis holds. **Still open for `SaturninQcb`**, whose `10*`
@@ -319,8 +330,16 @@ undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here i
 **Three things a reviewer must not miss.**
 
 1. **Any QCB security sentence we publish is an ideal-cipher claim.** QCB's TBC is tweak-rekeyable,
-   `E(K ⊕ T, x)`, and Mennink (ePrint 2017/474, CRYPTO 2017) *proves* the impossibility of a
-   standard-model optimal-security proof for that class.
+   `E(K ⊕ T, x)`, and Mennink (ePrint 2017/474, CRYPTO 2017) gives a **heuristic** impossibility —
+   §7 is explicitly "a heuristic argument", it rests on his Assumption 1, and it rules out only
+   *optimal* `2^n` standard-model security for that class. Quote his own scope with it: "the result
+   does not imply that the generic standard-to-ideal reduction is unavoidable, nor that optimal
+   security cannot be achieved". **CORRECTION 2026-08-15:** this bullet previously said Mennink
+   "*proves* the impossibility of a standard-model optimal-security proof for that class", which
+   the 2026-08-07 source review had already corrected in `lib-q-saturnin/SECURITY.md`,
+   `src/qcb.rs` and `reference/saturnin/_TO-DOWNLOAD.md` — the correction never reached this
+   register. The ideal-cipher conclusion itself is unaffected and is closed by citation without
+   Mennink (QCB §6.3 and the Saturnin update note §5 both say so in print).
 2. **QCB's usage exceeds the qualifier on the claim it relies on.** The Saturnin spec says Saturnin16
    resists related-key attacks "involving **a small number of keys**"; QCB uses up to `2^95` tweaks,
    each a distinct related key. The spec separately states Saturnin "**does not provide security

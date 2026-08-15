@@ -156,7 +156,10 @@ Example: `cargo build --target wasm32-unknown-unknown --features wasm`
   floors*, deliberately set below the best-known generic bounds for margin — not measured attack
   costs, and not a flat "256-bit" level:
   - Block cipher, single-key (§2.1): no classical attack with `T/p < 2^224`; no quantum attack
-    with `T/p < 2^112`.
+    with `T^2/p < 2^224` (equivalently `T/√p < 2^112`; at success probability `p = 1` this is the
+    familiar `T < 2^112`). `p` is the adversary's success probability (spec §1.2). Earlier
+    revisions of this file wrote the quantum claim as `T/p < 2^112`, which is a strictly smaller
+    region than the designers claim — conservative, but not their inequality.
   - Saturnin-CTR-Cascade (§2.2) and Saturnin-Short (§2.3), single-key: no classical and no quantum
     attack meeting the `2^224` bound of the respective claim box. The submission states verbatim:
     "None of the AE schemes in Saturnin provides security in nonce-misuse, nonce repetition or
@@ -202,7 +205,12 @@ Example: `cargo build --target wasm32-unknown-unknown --features wasm`
 - Constant-time operations; AEAD tag verification uses constant-time comparison (see [SECURITY.md](SECURITY.md)).
 - **No masked or threshold implementation.** Saturnin has no published DPA- or fault-resistant
   implementation and this crate does not provide one. Do not read "constant-time" as covering
-  power or EM side channels — it does not.
+  power or EM side channels — it does not, and it does not cover fault injection either. Two
+  published ciphertext-only attacks recover Saturnin's full 256-bit key under faults: 656 faults
+  on the block cipher (Li et al., IEEE TIFS 18 (2023) 1487–1496) and 1 097 ineffective faults on
+  Saturnin-Short (*Journal on Communications* 44(4) (2023) 167–175). Both need physical access to
+  the encrypting device; both are simulation-only; neither proposes a countermeasure. Scope and
+  caveats: [SECURITY.md](SECURITY.md) (*Fault injection*).
 - Validated against the designers' NIST LWC submission: the scalar core reproduces their generated
   hash, CTR-Cascade and Short KAT vectors. The AVX2 and NEON backends have **not** been compared
   against that reference — see [docs/HARDWARE.md](docs/HARDWARE.md) §6.

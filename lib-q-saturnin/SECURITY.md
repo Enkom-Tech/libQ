@@ -8,6 +8,42 @@ Full AEAD (`aead.rs`) tag verification uses constant-time comparison (`lib_q_cor
 
 Short mode is a single 32-byte block: there is no separate authentication tag. Validity is established by constant-time nonce binding and padding validation over the decrypted block, then fixed-layout assembly of a candidate plaintext buffer. The public decrypt API maps that result to `Ok` or `Err(VerificationFailed)` only after the symmetric inverse and parsing work complete—the same structural pattern as full Saturnin AEAD (full symmetric decrypt work before returning plaintext versus authentication failure at the API boundary). `AeadDecryptSemantic::decrypt_semantic` is implemented for Short as well. Remote timing analyses should assume verification can influence control flow at that API boundary; callers with stricter separation requirements must mediate timing above this layer.
 
+### Saturnin-CTR-Cascade (`SaturninAead`, the default) — open obligation Q-2
+
+**This is the mode with the widest blast radius on this page, and until 2026-08-15 this file did
+not mention it.** Everything below about QCB concerns opt-in types; `SaturninAead` is the frozen
+wire every consumer of this crate decrypts through.
+
+Nothing here says the mode is broken. It says the published *argument* for one of its advertised
+properties has a hole. The Saturnin LWC spec §4.3 claims IND-qCCA security for the CTR-Cascade
+AEAD and argues it at §4.3.1 via Soukharev–Jao–Seshadri \[SJS16\]: that IND-qCPA encryption
+composed with a quantum-secure MAC yields IND-qCCA. IACR ePrint 2025/387 (Lang, Leuther, Lucks)
+disproves exactly that implication. That preprint has since **cleared peer review** — it appears as
+\[LLL26\] "Generic composition: from classical to quantum security", *Post-Quantum Cryptography*,
+LNCS 16491, pp. 37–70, Springer 2026, doi `10.1007/978-3-032-22695-2_2` (observed in the
+bibliography of Fischlin–Schmalz, ToSC 2026(2) p.20) — so Q-2's premise is **firmer** than when the
+obligation was opened, not weaker.
+
+The repair looks available but is unratified: 2025/387's own Theorem 3 (carried to EtM by Theorem 4
+and Corollary 1) gives IND-qCCA when the MAC is a **qPRF**, strictly stronger than the hypothesis
+shown insufficient, and the Saturnin spec argues the qPRF property separately at §4.3.3. **Whether
+§4.3.3 discharges 2025/387's hypothesis is the open question, and nobody has ratified it.**
+
+Two scope notes a reader should not over-read. First, Fischlin–Schmalz diagnose GCM's quantum
+failure as coming from a universal-hash-with-pseudorandom-masking MAC ("it is exactly this MAC
+property which renders GCM insecure in the quantum setting", ToSC 2026(2) p.3), and CTR-Cascade's
+MAC has no such structure — its running tag is the block-cipher *key* and the data block its input
+(`src/aead.rs`), with no polynomial evaluation. That is **our** reading of **our** code, not their
+claim, and the same paper lists CBC and PMAC among the period-finding casualties, neither of which
+is universal-hash-based. "The GCM cause does not apply" is therefore not "no Q2 attack applies".
+Second, Q-2 concerns nonce-respecting adversaries with classical nonces; the designers already
+disclaim nonce-misuse and nonce-superposition security (spec §4.3), and so does this crate.
+
+Classical AE security is unaffected either way. Full statement and the proposed citation chain:
+`src/aead.rs` ("Open obligation Q-2") and `src/aead_ctx.rs`. Repo-wide gate: `docs/crypto-signoff-register.md`
+Gate E. `scripts/ci-guard-standards-claims.sh` fails CI if `IND-qCCA` appears anywhere outside this
+crate, so the claim cannot leak away from this caveat.
+
 ### Saturnin-QCB (`qcb` feature)
 
 Saturnin-QCB (`qcb.rs`) is the one-pass AEAD from "An Update on Saturnin", built on the Saturnin
@@ -59,14 +95,20 @@ model). Full statement: `src/commit.rs`.
 **The related-key assumption is the thin one.** QCB §5: "This construction motivates further
 inquiry of related-key attacks, as it needs Saturnin16 to be related-key secure." The designers'
 own *A note on related-key attacks on Saturnin* (Note-RK-1) reaches **10 of 16 super-rounds**
-classically at `2^236` time; Dong et al. (IACR ePrint 2021/703 §5.3) reach the same 10-super-round
+classically at `2^236` time; Bao et al. (IACR ePrint 2021/703 §5.3) reach the same 10-super-round
 boundary with a quantum multi-collision distinguisher. No claim is violated (`2^236 > 2^224`), but
 the related-key margin behind QCB is **6 super-rounds of 16** (10 attacked). The Saturnin-Hash
 literature that the CTX tag rests on counts in the same units, and the margin there is larger
-*in-model* — the best in-model attack is 6 of 16 super-rounds, leaving 10 — but not by as much as
-it first appears: free-start collision attacks on the Saturnin-Hash compression function already
-reach 10 of 16 super-rounds (Chen et al., IACR ePrint 2022/731 §5.2), and they are only out of
-scope because MMO fixes `IV = 0`. An earlier revision of this file compared "10/16" against
+*in-model* — the best in-model **classical collision** attack is 6 of 16 super-rounds, leaving 10 at
+that goal — but not by as much as it first appears. Two qualifiers are load-bearing and were both
+missing here until 2026-08-15. First, "classical collision" is not "attack": the best in-model
+*quantum* collision reaches **7 of 16** at `2^113.5` (2021/1119 Table 1, under Hash/Collision), and
+there is an in-model *classical preimage* at 7 of 16 at `2^232` ([17] in the same table). So the
+deepest in-model result of any kind is 7 of 16 and **the in-model margin is 9, not 10**; an
+unqualified "6 of 16 is the best in-model attack" is false. Second, free-start **quantum** collision attacks on
+the Saturnin-Hash compression function reach 10 of 16 super-rounds at `2^127.2` (Dong, Guo, Li and
+Pham, IACR ePrint 2022/731 §5.2) — the best *classical* free-start is 6 of 16 at `2^80` — and they
+are only out of scope because MMO fixes `IV = 0`. An earlier revision of this file compared "10/16" against
 "6-of-32-rounds"; that mixed units and understated the hash-side cryptanalysis by a factor of two
 in depth. Round-count table and sources: `src/commit.rs`, obligation H-1. The designers also scope their related-key
 claim to "a small number of keys" with "[BK03]"-conforming deriving functions, while this mode's
@@ -122,6 +164,67 @@ Ciphertexts produced before the change do not decrypt under it; nothing had prod
 and full evidence: card `t_5d1460b7`.
 Decision: card `t_5d1460b7`. Question to the designers: card `t_7123c738`. If/when they publish
 QCB KATs, pin them and reconcile before treating this mode as a standard.
+
+## Fault injection
+
+**This crate implements no fault countermeasure of any kind, and two published attacks recover
+Saturnin's full 256-bit key under fault injection.** Both are ciphertext-only. Neither is a break of
+the cipher as software: both require an attacker who can physically induce faults in the device
+performing the encryption. If your threat model excludes that — a server, a phone app, anything the
+attacker cannot hold — neither result applies to you. If it includes it, this section is the whole
+of what is known, and the answer today is that nothing here defends against it.
+
+Recorded 2026-08-15, when both papers were read. Until then `docs/HARDWARE.md` asserted that no
+fault work existed for Saturnin at all, which was false.
+
+| Target | Attack | Faults | Model | Source |
+|---|---|---|---|---|
+| Saturnin block cipher | SDFA (statistical *differential* fault analysis) | 656 | random faults at the fourth-to-last single round, ciphertext-only, ≥99% reliability | Li, Liu, Gu, Gao, Sun, IEEE TIFS **18** (2023) 1487–1496, doi `10.1109/TIFS.2023.3244083` |
+| **Saturnin-Short** (`aead-short`) | SIFA (statistical *ineffective* fault analysis) | 1 097 | random single-byte, ciphertext-only, ≥99% success | Li, Liu, Gu, Sun, Gao, Qin, *Journal on Communications* **44**(4) (2023) 167–175, doi `10.11959/j.issn.1000-436x.2023084` |
+
+Both quote full 256-bit key recovery. Verbatim from the TIFS abstract (p.1487): "it recovered the
+256-bit secret key using 656 faults in the fourth-to-last round of Saturnin". Verbatim from the
+Journal on Communications abstract (p.167): "最少仅需 1 097 个无效故障并以不低于 99% 的成功率恢复
+Saturnin-Short 算法的 256 bit 原始密钥 … 因此，Saturnin-Short 算法不能抵抗统计无效故障分析的攻击"
+("as few as 1 097 ineffective faults recover Saturnin-Short's 256-bit original key with no less than
+99% success … therefore Saturnin-Short cannot resist statistical ineffective fault analysis").
+
+**Four caveats, all of which narrow the results, none of which dismisses them.**
+
+1. **Both are software simulations on a laptop CPU**, not hardware experiments. Neither paper
+   analyses the trigger precision a real attacker needs to hit one round boundary, and the SIFA
+   paper additionally needs the attacker to observe the mode's own reject verdict.
+2. **Both model a cipher with half the S-box layers this crate implements.** The TIFS paper's
+   Algorithm 1 (p.1489) applies `SL` **once** per iteration of `r = 1..R` super-rounds; the Journal
+   on Communications paper's Algorithm 2 (p.170) does the same. Specification-correct Saturnin
+   applies two, and `src/core.rs`'s `apply_round` calls `apply_sbox` twice. This is the design
+   report's own pseudocode typo, documented by Hou, Cui and Zhang (*The Computer Journal* 66(2),
+   p.479 fn.1: "Its pseudocode only contains one S-layer per super-round, but the code contains
+   two"). Neither paper states whether its C++ implementation followed its pseudocode or the
+   reference code. **Quote 656 and 1 097 as the best published figures; do not report them as
+   measured against a specification-correct implementation.**
+3. **Round indices are in mixed units and must not be over-translated.** The TIFS paper gives the
+   fault position as "the (2R−3)-th single round with R ∈ [10, 31]" (p.1491) — i.e. protection
+   would have to cover the last four *single* rounds, not the last one or two. The SIFA paper's
+   position is one super-round from the end. In their cipher one super-round remaining means one
+   S-box layer remaining; in ours it means two.
+4. **Neither paper proposes a countermeasure.** TIFS p.1494 offers only "it is more challenging to
+   take counter measurements against fault analysis for the deeper round of fault injections"; the
+   SIFA paper recommends "necessary effective measures" and names none. A fault-resistance position
+   for silicon must therefore come from elsewhere — and SIFA is the harder half, because the
+   obvious first move, detection or redundancy, is precisely the class SIFA is defined to defeat.
+
+**Reachability.** `aead-short` is **not** a default feature (`default = ["std", "aead",
+"block-cipher", "hash", "stream", "alloc"]`), so the SIFA result reaches only callers who opt in.
+The SDFA result is against the bare block cipher and therefore underlies every mode here.
+
+**Do not mistake the workspace's flags for a control.** `lib-q-aead` and `lib-q-hpke` expose a
+`fault_injection_protection` boolean. It is advisory: callers set it and read it back, and no call
+site anywhere in the workspace consumes it. It enables no redundancy, recomputation, detection or
+infective countermeasure. Both modules said otherwise until 2026-08-15.
+
+Hardware consequences, including what a protected datapath would have to cover, are in
+`docs/HARDWARE.md` §8.6.
 
 ## KAT validation
 

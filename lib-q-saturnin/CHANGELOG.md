@@ -6,6 +6,54 @@ crate in more detail than the root file carries.
 
 ## Unreleased
 
+### CORRECTION — citation and claim-quotation defects found by reading the primary sources (2026-08-15)
+
+Documentation only; no code, no wire format, no test changed. Found by reading papers that had been
+downloaded into `reference/saturnin/` and never actually read. Every defect erred *conservative* —
+none overstated security — but each is a misquotation in a document whose stated discipline is to
+quote claimed floors exactly. Earlier entries in this file are **not** retro-edited; this entry
+supersedes them where they conflict.
+
+1. **The designers' quantum claim box was misquoted in three shipped files.** `README.md`,
+   `src/block_cipher.rs` and `src/stream.rs` all read "no quantum attack with `T/p < 2^112`". The
+   designers write `𝒯²/𝑝 < 2^224` — verified verbatim at ToSC 2020(S1) p.174 *and*
+   `SATURNIN-spec-v1.1-round2.pdf` p.7, at both sources identically. `T^2/p < 2^224` ⟺
+   `T/√p < 2^112`, which coincides with the old text only at `p = 1`; since `p ≤ 1`, the old text
+   named a strict subset of the designers' region, i.e. a strictly weaker claim. Corrected at all
+   three sites. Nothing downstream moves — every downstream use is the `p = 1` corner.
+   (The `p` glyph is math-set in the PDF; `pdftotext` drops it, which is the likely entry route.)
+
+2. **Three papers were attributed to the wrong authors across nine citation sites.** Verified
+   against each paper's own title page: ePrint 2021/703 is **Bao**, Guo, Li and Pham (was cited as
+   "Dong et al."); 2021/427 is **Dong**, Hua, Sun, Li, Wang and Hu (was cited as "Bao et al." —
+   i.e. those two were swapped); 2022/731 is **Dong, Guo, Li and Pham** (was cited as "Chen et al.",
+   and the string "Chen" occurs zero times in that paper). Every ePrint number, section reference,
+   quoted string and complexity figure was already correct — only the surnames were wrong.
+   Three *distinct* author lists share the surname Dong (2021/1119, 2021/427, 2022/731), so these
+   are now cited by ePrint number rather than by "Dong et al."; `src/commit.rs` carries a warning
+   against reintroducing the ambiguity.
+
+3. **`SECURITY.md` and `src/qcb.rs` claimed "the best in-model attack on Saturnin-Hash is 6 of 16
+   super-rounds".** False as written, and contradicted by this crate's own `src/commit.rs`. In
+   2021/1119's Table 1 (p.7), under Saturnin-hash → Hash → Collision, a **7/16 quantum collision at
+   `2^113.5`** is in-model, as is a **7/16 classical preimage at `2^232`**. Scoped to "the best
+   in-model *classical collision* attack". The margin conclusion is unchanged (10 left vs 9 left,
+   both wider than QCB's 6) — this is a correctness fix, not a posture change.
+
+4. **The 10-of-16 free-start collision result was missing its "quantum" qualifier** in `SECURITY.md`
+   and `src/qcb.rs`, where `src/commit.rs` had it right. 2022/731 §5.2 is a *quantum* free-start
+   attack at `2^127.2`; the best classical free-start is 6 of 16 at `2^80`. The unqualified text
+   read more alarming than the literature is.
+
+5. **`src/commit.rs` said ePrint 2022/268 "is not relevant at all" to obligation S-2.** Its three
+   supporting term counts are true (zero "CTX", zero "tag-based", does not cite Chan–Rogaway) but
+   the conclusion is wrong, and it is the sentence that stopped anyone following the pointer.
+   2022/268 Appendix A (p.33) proves `CMT-3 ⇒ CMT-4` from the correctness requirement and the
+   determinism of `SE.Dec` alone — no length relation, no tidiness — which is S-2's own four-case
+   argument in published, general form. S-2 is **not** thereby closed: the specialization to
+   CTX-of-QCB still needs review. Also recorded there: 2022/268 has no Theorem 3.3 or 3.4 (its §3
+   stops at 3.2), so those numbers belong to 2024/875 and to nothing in that paper.
+
 ### BREAKING — `qcb` is no longer a default feature (fe64036, 2026-08-06)
 
 `qcb` (and therefore `SaturninQcb`, `lib_q_saturnin::commit`, and `QCB_CTX_LABEL_V0`) has been

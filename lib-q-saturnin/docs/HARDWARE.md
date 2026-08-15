@@ -209,7 +209,12 @@ Concretely, the checks that would have caught all four:
   three quadratic factors where its peers need two. **See §8.1, which supersedes this bullet's
   earlier reasoning:** the 256-bit state is real but is not the dominant term, and §8.2's
   flip-flop table shows Saturnin is not even the sequentially heaviest core in its field. If DPA
-  resistance is in scope, cost it from §8.1. Fault resistance still has no prior art at all.
+  resistance is in scope, cost it from §8.1. Fault *resistance* still has no prior art at all —
+  but fault *analysis* does, as of 2023: two ciphertext-only attacks recover the full 256-bit key
+  (656 faults on the block cipher, 1 097 on Saturnin-Short), both simulation-only, neither
+  proposing a countermeasure. If fault resistance is in scope it must cover the last four *single*
+  rounds, not the last one or two, and detection/redundancy alone is not enough because one of the
+  two attacks is a SIFA. See §8.6 and `SECURITY.md` (*Fault injection*).
 
 ---
 
@@ -631,7 +636,17 @@ returned an error without doing any work. **UNVERIFIED**, but do not quote the r
   behaviour differed from the original source code are not included in the analysis". The paper
   never names which ciphers were dropped, so **why** Saturnin is absent is not established and
   must not be asserted. Recorded here so the search is not repeated.
-- **No fault-injection or fault-resistance work exists for Saturnin**, masked or otherwise.
+- **No fault-*resistance* work exists for Saturnin**, masked or otherwise — no published
+  countermeasure, so there is no area, power or latency figure to scale from. **Fault *analysis*
+  does exist, and until 2026-08-15 this bullet denied it.** Two ciphertext-only attacks recover the
+  full 256-bit key: Li et al., IEEE TIFS **18** (2023) 1487–1496, using 656 faults at the
+  fourth-to-last single round on the block cipher ("It is recommended that the fault injection
+  position is in the (2R−3)-th single round with R ∈ [10, 31]", p.1491); and Li et al., *Journal on
+  Communications* **44**(4) (2023) 167–175, using 1 097 ineffective faults on Saturnin-Short. Both
+  are simulation-only and neither proposes a countermeasure. They **size** the requirement — a
+  protected datapath must cover the last four single rounds, and SIFA specifically defeats
+  detection/redundancy — they do not supply one. Full scope and caveats, including that both papers
+  model Saturnin with half its S-box layers: `SECURITY.md` (*Fault injection*).
 - **No third party has measured the configuration this crate actually ships.** The ASIC and FPGA
   numbers are for the specification's CTR-Cascade. This crate's QCB tweak layout differs from the
   QCB paper (§6), and no published measurement covers Saturnin-Short in hardware at all.

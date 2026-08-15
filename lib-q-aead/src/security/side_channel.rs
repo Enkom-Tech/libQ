@@ -1,10 +1,18 @@
 //! Side-channel attack protection
 //!
-//! This module provides protection against various side-channel attacks including:
-//! - Timing attacks
-//! - Power analysis attacks
-//! - Cache attacks
-//! - Fault injection attacks
+//! This module carries the workspace's side-channel *policy flags* plus the constant-time helpers
+//! that back the timing ones. Read the distinction carefully — the flags are declarations of
+//! intent, not mechanisms:
+//! - Timing attacks — constant-time helpers here are real
+//! - Power analysis attacks — flag only; no masking or threshold implementation exists
+//! - Cache attacks — flag only
+//!
+//! **Fault injection is not a side channel and is not implemented here.** It is an *active*
+//! attack, not an observation channel, so it does not belong in the list above; and
+//! `fault_injection_protection` is an advisory boolean with no consumer anywhere in the workspace.
+//! Until 2026-08-15 this header listed "Fault injection attacks" among the things the module
+//! "provides protection against", which was false. See `lib-q-saturnin/SECURITY.md` for the
+//! published fault attacks on the default AEAD's primitive.
 
 #[cfg(feature = "alloc")]
 use alloc::vec;
