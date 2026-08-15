@@ -44,7 +44,7 @@ the two id spaces.
 |---|---|---|---|
 | `t_05e76e6c` | **ENK-266** | todo | anon-cred wire through LNP22/ABDLOP |
 | `t_12eb0701` | **ENK-255** | blocked | gip-crypto RED: HQC-192/256 secret keys cannot round-trip |
-| `t_1af26ff2` | **ENK-223** | blocked | libq Q-2: CTR-Cascade's IND-qCCA argument |
+| `t_1af26ff2` | **ENK-223** | blocked | libq Q-2: CTR-Cascade's quantum-CCA argument (statement and caveat: `lib-q-saturnin/SECURITY.md`) |
 | `t_7123c738` | **ENK-216** | blocked | contact the Saturnin/QCB designers before silicon |
 | `t_79295151` | **ENK-52** | todo | tkem-lattice: close RED boundaries |
 | `t_a8f6abd8` | **ENK-244** | todo | blind-pcs unversioned commitment wire break |

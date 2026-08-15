@@ -105,6 +105,12 @@ protected was broken. Before reporting a gate as green, rule these out:
   whatever the features say. Cross-compile to `thumbv7em-none-eabi` to exercise the property.
 - **A search that finds nothing proves nothing until it has found something.** Positive-control
   every grep against input you know matches, then trust the zero.
+- **`git grep` does not see untracked files, so a guard can pass on a file it would reject.**
+  Every `scripts/ci-guard-*.sh` enumerates with `git grep`. Run one before `git add` and a brand-new
+  file is invisible to it: you get a clean exit locally and a red job in CI, which reads as a CI
+  problem rather than yours. Observed 2026-08-15 — `ci-guard-standards-claims.sh` passed locally
+  over an untracked `docs/board-card-ids.md` and failed the same file on CI one commit later.
+  **`git add` first, then run the guard.**
 
 ## Board card ids in docs and comments
 
