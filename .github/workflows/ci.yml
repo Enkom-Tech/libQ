@@ -60,6 +60,22 @@ jobs:
       - name: Guard banned terms in new primitive crates
         run: bash ./scripts/ci-guard-primitive-banned-terms.sh
 
+      # The pre-push health gate (fmt + clippy + cargo-audit) lives in .githooks/, wired by
+      # core.hooksPath. On 2026-08-15 a working clone still had that pointing at the path the repo
+      # occupied BEFORE it was moved; the directory was gone, Git found no hooks, and the gate was
+      # silently skipped on every push for as long as that had been true. Nothing reported it.
+      #
+      # A runner never sets core.hooksPath, so "assert it resolves" would pass vacuously here and
+      # prove nothing — the guard therefore enforces the REPO-side half on CI (hook chain present,
+      # and the installer writes a RELATIVE path, which is what stops it rotting when a clone
+      # moves) and says out loud that the developer-side half is skipped rather than passed. The
+      # developer-side half fires in real clones, which is where the defect actually lives.
+      # --self-test first, so the guard's own failure paths are observed before it is trusted.
+      - name: Guard the pre-push hook chain is wired and cannot rot
+        run: |
+          bash ./scripts/ci-guard-githooks-wired.sh --self-test
+          bash ./scripts/ci-guard-githooks-wired.sh
+
       # ci-guard-new-crates-and-npm.sh (above) checks that every workspace crate REACHES cd.yml.
       # This one checks the other direction: that the hand-maintained restatements of cd.yml — the
       # crates.io/npm fallback scripts an operator uses when the tag-triggered CD path is not

@@ -53,7 +53,16 @@ cargo install wasm-pack cargo-audit cargo-tarpaulin
 git clone https://github.com/Enkom-Tech/libQ.git
 cd libQ
 cargo build
+
+# Wire the pre-push health gate (fmt + clippy + cargo-audit). Optional, but recommended:
+# it runs before every push and catches what CI would otherwise catch minutes later.
+bash scripts/install-git-hooks.sh
 ```
+
+> Use `scripts/install-git-hooks.sh` rather than setting `core.hooksPath` by hand — the installer
+> writes a **relative** path, so it keeps working if the clone moves. An absolute path baked in at
+> install time stops resolving after a move, and Git then finds no hooks and skips the gate
+> **silently**. `scripts/ci-guard-githooks-wired.sh` exists to catch exactly that.
 
 ## Code Standards
 
