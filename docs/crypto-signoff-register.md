@@ -399,6 +399,38 @@ containment control, **not** a resolution.
 
 ---
 
+## Cross-cutting, added 2026-08-15 — the fault adversary (F-1, F-2) and the R = 10 scope (RK-2)
+
+**Not a sixth gate, and deliberately not folded into Gate D or E** — these are about the Saturnin
+primitive and its deployed round count, not about the CTX transform or the CTR-Cascade composition.
+They are indexed here because this file is what a reviewer reads first, and because until this date
+the repo asserted that no fault work on Saturnin existed at all. Full statement and evidence:
+`lib-q-saturnin/SECURITY.md` (*Fault injection*, and *Single-key cryptanalysis of the block
+cipher*), obligations recorded in `lib-q-saturnin/src/commit.rs`.
+
+Two published ciphertext-only attacks recover Saturnin's **full 256-bit key** under fault injection:
+656 faults at the fourth-to-last single round of the block cipher (Li et al., IEEE TIFS **18** (2023)
+1487–1496), and 1 097 *ineffective* faults on Saturnin-Short (Li et al., *Journal on Communications*
+**44**(4) (2023) 167–175). Both are software simulations, neither proposes a countermeasure, and
+both model Saturnin with **one** S-box layer per super-round where the specification and
+`src/core.rs` have two. Nothing in this repo implements a fault countermeasure; the
+`fault_injection_protection` flags in `lib-q-aead` and `lib-q-hpke` are advisory and consumed by
+nothing.
+
+- **F-1 — do 656 and 1 097 hold against the two-S-layer cipher?** Not closable by citation; needs
+  the authors or a re-derivation. The documentation half is discharged.
+- **F-2 — which countermeasure class is right, given SIFA?** The ineffectiveness oracle is the
+  mode's own reject verdict, so detection-or-redundancy *supplies* the oracle rather than removing
+  it. No published Saturnin countermeasure exists to copy. Must be settled before any
+  fault-resistance number enters a hardware budget.
+- **RK-2 — is the R = 10 related-key position acceptable?** The 10-super-round related-key results
+  land exactly on the depth `SaturninAead`, `SaturninShortAead`, the stream cipher and
+  `SaturninBlockCipher` run, so the depth margin there is **zero**, where this register and every
+  other statement of the figure frames it as "10 of 16, margin 6". **Nothing is violated** — the
+  spec's related-key claim covers Saturnin16 only, `2^236 > 2^224`, and no mode here exposes a
+  related-key oracle. A scoping question, not a break. RK-1 (QCB's Saturnin16 assumption) is
+  untouched.
+
 ## What "signed off" requires (all gates)
 
 For each gate, two independent human cryptographers must: accept the stated assumptions, confirm the
