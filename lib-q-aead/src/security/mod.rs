@@ -6,7 +6,16 @@
 //! - Secure memory handling
 //! - Input validation and sanitization
 //! - Constant-time operation wrapper (fixed wall-clock duration)
-//! - Fault injection resistance
+//!
+//! **Fault injection is NOT in that list, and this module does not resist it.** Until 2026-08-15
+//! this line read "Fault injection resistance". It was false: `fault_injection_protection` is an
+//! advisory `bool` that callers set and read back, and **no call site anywhere in the workspace
+//! consumes it** — there is no redundancy, no recomputation, no infective countermeasure, and no
+//! detection. Treat it as a caller-declared intent flag for policy plumbing, never as a control.
+//! This matters concretely for Saturnin, the default AEAD here: a published ciphertext-only attack
+//! recovers its full 256-bit key from 656 nibble faults (Li et al., IEEE TIFS 18 (2023) 1487–1496),
+//! and a companion paper does the same to Saturnin-Short with 1 097 ineffective faults
+//! (Journal on Communications 44(4) (2023) 167–175). See `lib-q-saturnin/SECURITY.md`.
 
 pub mod constant_time;
 pub mod memory;

@@ -207,7 +207,7 @@ pub struct KeygenSharesOutput {
     /// These are public by construction — they are what makes the sharing verifiable — and the KEM
     /// public key is only the `t0` half of `C_0`. They used to be dropped here: `keygen_shares`
     /// built all `t` commitments, kept `encode_t0(&commitments[0].t0)`, and let the rest go out of
-    /// scope. That made verifiable partial decapsulation (board card `t_79295151` item 2)
+    /// scope. That made verifiable partial decapsulation (board card `ENK-52` item 2)
     /// impossible for a reason that had nothing to do with proof systems: a verifier handed a
     /// [`PartialDecap`] had **no public value** binding it to party `index`'s share, so the
     /// statement a proof would prove had no public input to refer to.

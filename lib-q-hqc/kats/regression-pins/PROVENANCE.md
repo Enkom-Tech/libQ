@@ -168,7 +168,7 @@ The gated tests were mutation-checked, not merely observed green: swapping the `
 `test result: FAILED. 1 passed; 3 failed` — so the layout assertions can in fact fail. The
 mutation was reverted.
 
-**To flip the default** once GIP's migration (`t_12eb0701`) lands: add `hqc-sk-v5-layout` to the
+**To flip the default** once GIP's migration (`ENK-255`) lands: add `hqc-sk-v5-layout` to the
 crate's `default` feature list in `lib-q-hqc/Cargo.toml`. This is a BREAKING wire change for any
 consumer that persisted secret keys via `to_nist_bytes` — the encoding both reorders fields and
 grows by 32 bytes, so stored keys must be migrated, not merely re-parsed.

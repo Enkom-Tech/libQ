@@ -37,7 +37,7 @@
 //! - **Memory usage**: Constant, independent of data size
 //! - **Security claim**: inherits the Saturnin block cipher's single-key claim via CTR-mode
 //!   keystream (LWC spec §2.1) — no classical attack with `T/p < 2^224`; no quantum attack with
-//!   `T/p < 2^112`
+//!   `T^2/p < 2^224` (equivalently `T/√p < 2^112`; at success probability `p = 1`, `T < 2^112`)
 //!
 //! ## Secret material handling
 //!

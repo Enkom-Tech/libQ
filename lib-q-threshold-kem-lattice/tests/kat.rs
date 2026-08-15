@@ -45,7 +45,7 @@ const PIN_PROFILE_DIGEST: &str = "a3a566b1112bf8e9e210357b5bbfcc9cd25189d27125de
 /// rejection, and constant-time compaction; see `kem.rs`, with `e` and `f` each drawn as one flat
 /// fixed-budget block). The emitted coefficients are the same distribution, but the fixed
 /// consumption boundaries shift where `f`/`g` begin in the XOF stream, changing the wire. →
-/// `44c97ce8…` on 2026-08-09 (card t_79295151): `Ciphertext::to_bytes` now prepends a leading
+/// `44c97ce8…` on 2026-08-09 (card ENK-52): `Ciphertext::to_bytes` now prepends a leading
 /// `WIRE_VERSION_V1` byte so `from_bytes` can reject an unrecognized future wire revision instead
 /// of silently misparsing it; the profile digest and shared secret are unaffected (neither is
 /// derived from `to_bytes`).

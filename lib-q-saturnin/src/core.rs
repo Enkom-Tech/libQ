@@ -220,6 +220,21 @@ impl SaturninCore {
     }
 
     /// Apply one super-round of the cipher (consists of two rounds)
+    ///
+    /// **The two `apply_sbox` calls below are load-bearing and must not be "simplified" to one.**
+    /// The Saturnin design report's pseudocode contains only one S-layer per super-round while its
+    /// reference code contains two; the omission is a typo, confirmed by Hou, Cui and Zhang
+    /// (*Practical Attacks on Reduced-Round 3D and Saturnin*, The Computer Journal 66(2):479–495,
+    /// p.479: "one was inadvertently omitted in the algorithm description"). This code follows the
+    /// reference, which is correct — and the difference is not cosmetic: their *reducing key sets*
+    /// technique cuts a 5-super-round key recovery from `2^78` computations to `2^46` one-round
+    /// encryptions **only** against the one-S-layer version, "which proves the necessity of
+    /// containing two S-layers in one-super-round".
+    ///
+    /// Three published papers have modelled Saturnin with one S-layer per super-round, including
+    /// both fault-analysis papers, which is why their fault counts must not be quoted as measured
+    /// against this implementation. See `SECURITY.md`, *Fault injection*, and obligation F-1 in
+    /// [`crate::commit`].
     fn apply_round(&self, state: &mut [u16; 16], round: usize, key: &[u8]) {
         // Even round: S-box + MDS
         self.apply_sbox(state);

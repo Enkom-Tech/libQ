@@ -632,7 +632,7 @@ mod tests {
         assert_eq!(lnp22_abdlop_presentation_size_model(8), 29_093);
     }
 
-    /// Parameterised anon-cred wire size spike (card `t_05e76e6c`). This is decision-support
+    /// Parameterised anon-cred wire size spike (card `ENK-266`). This is decision-support
     /// apparatus, not a security measurement — nothing here is a soundness or security claim.
     /// Run: `cargo test -p lib-q-zkp --release --lib
     /// stark_baby_bear::tests::anon_cred_wire_size_spike -- --ignored --nocapture`.
@@ -664,7 +664,7 @@ mod tests {
         use crate::air::unlinkable_membership_baby_bear::MEMBERSHIP_ROW_WIDTH;
 
         println!(
-            "=== anon-cred wire size spike (card t_05e76e6c) — decision support, not a security claim ==="
+            "=== anon-cred wire size spike (card ENK-266) — decision support, not a security claim ==="
         );
         println!();
         println!(

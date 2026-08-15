@@ -1,6 +1,6 @@
 # Anon-cred wire: the three-way fork, measured — and the recommendation
 
-Board card `t_05e76e6c`. This is the third acceptance item of that card ("an explicit comparison
+Board card `ENK-266`. This is the third acceptance item of that card ("an explicit comparison
 against the FRI number and against `t_0aa1a2c8`'s, with a recommendation"), written down here so a
 reviewer can check the reasoning rather than take it from a card comment thread. Items 1 and 2 of
 that card — expressing **our** relation and deriving **our** size — are **not** done; §5 says

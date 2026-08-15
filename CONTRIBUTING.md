@@ -53,7 +53,16 @@ cargo install wasm-pack cargo-audit cargo-tarpaulin
 git clone https://github.com/Enkom-Tech/libQ.git
 cd libQ
 cargo build
+
+# Wire the pre-push health gate (fmt + clippy + cargo-audit). Optional, but recommended:
+# it runs before every push and catches what CI would otherwise catch minutes later.
+bash scripts/install-git-hooks.sh
 ```
+
+> Use `scripts/install-git-hooks.sh` rather than setting `core.hooksPath` by hand — the installer
+> writes a **relative** path, so it keeps working if the clone moves. An absolute path baked in at
+> install time stops resolving after a move, and Git then finds no hooks and skips the gate
+> **silently**. `scripts/ci-guard-githooks-wired.sh` exists to catch exactly that.
 
 ## Code Standards
 
@@ -105,6 +114,24 @@ protected was broken. Before reporting a gate as green, rule these out:
   whatever the features say. Cross-compile to `thumbv7em-none-eabi` to exercise the property.
 - **A search that finds nothing proves nothing until it has found something.** Positive-control
   every grep against input you know matches, then trust the zero.
+- **`git grep` does not see untracked files, so a guard can pass on a file it would reject.**
+  Every `scripts/ci-guard-*.sh` enumerates with `git grep`. Run one before `git add` and a brand-new
+  file is invisible to it: you get a clean exit locally and a red job in CI, which reads as a CI
+  problem rather than yours. Observed 2026-08-15 — `ci-guard-standards-claims.sh` passed locally
+  over an untracked `docs/board-card-ids.md` and failed the same file on CI one commit later.
+  **`git add` first, then run the guard.**
+
+## Board card ids in docs and comments
+
+Cards are cited as **`ENK-<n>`**. You will also find **`t_<8 hex>`** ids scattered through the
+security and design docs: those are **legacy** ids from the board this project used before the Hive
+migration, and **most of them no longer resolve** — the migration imported open work only, so
+anything that was already `done` was not carried over. Looking one up returns HTTP 500, not a clean
+"not found", which reads like an outage and is not one.
+
+Treat an unresolvable `t_` id as a provenance marker, not a link; the prose around it is the durable
+record. Mapping table, the six that do still resolve, and the list of known-dead ids:
+[docs/board-card-ids.md](docs/board-card-ids.md). Do not mint new `t_` ids.
 
 ## Security Review Process
 

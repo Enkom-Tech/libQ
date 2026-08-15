@@ -1,4 +1,4 @@
-//! The public values verifiable partial decapsulation needs — board card `t_79295151` item 2.
+//! The public values verifiable partial decapsulation needs — board card `ENK-52` item 2.
 //!
 //! That item was blocked by something that is not a proof obligation: this crate **discarded the
 //! commitments a verifier would check against**. `keygen_shares` built all `t` BDLOP coefficient

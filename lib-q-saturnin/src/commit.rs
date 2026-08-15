@@ -99,12 +99,14 @@
 //!   Saturnin-Hash. **Read the round counts in this literature carefully — they are in
 //!   *super-rounds*, and an earlier draft of this bullet halved the attacked depth by reading
 //!   them as rounds.** Saturnin-Hash is Saturnin16, i.e. 16 super-rounds = 32 rounds, and the
-//!   papers write their results as fractions of 16: Dong et al. (ASIACRYPT 2021 / IACR ePrint
-//!   2021/1119) tabulate "Collision 5/16", "7/16 … Quantum", "Free-start 8/16"; Chen et al.
-//!   (IACR ePrint 2022/731 §5) restate the target as "Saturnin-Hash is built on 16-super-round
-//!   Saturnin block cipher with the MMO hashing mode"; and Bao et al. (IACR ePrint 2021/427
-//!   App. E) describe their round function as acting on "16-bit `supernibbles`" via "the 16-bit
-//!   Super-Sbox", which is the super-round representation. In those units:
+//!   papers write their results as fractions of 16: Dong, Zhang, Sun, Wei, Wang and Hu
+//!   (ASIACRYPT 2021 / IACR ePrint 2021/1119) tabulate "Collision 5/16", "7/16 … Quantum",
+//!   "Free-start 8/16"; Dong, Guo, Li and Pham (IACR ePrint 2022/731 §5) restate the target as
+//!   "Saturnin-Hash is built on 16-super-round Saturnin block cipher with the MMO hashing mode";
+//!   and Dong, Hua, Sun, Li, Wang and Hu (IACR ePrint 2021/427 App. E) describe their round
+//!   function as acting on "16-bit `supernibbles`" via "the 16-bit Super-Sbox", which is the
+//!   super-round representation. **Three distinct author lists share the surname Dong; cite these
+//!   three by ePrint number, never as "Dong et al.".** In those units:
 //!   - Best **in-model classical** result: a chosen-prefix collision on **6 of 16 super-rounds**
 //!     (12 of 32 rounds) *at* — not below — the claimed floor (Chen, Dong, Guo and Zhang,
 //!     ToSC 2024(4) / IACR ePrint 2024/1888 §6.1: "the overall time complexity of this 6-round
@@ -112,12 +114,13 @@
 //!     generic birthday search; that paper improves the collision line "from 5 to 6 rounds",
 //!     the 5 being Dong et al.'s tabulated 5/16).
 //!   - Best **in-model quantum** result: **7 of 16 super-rounds** (14 of 32) at `2^113.5`
-//!     (Dong et al., tabulated "7/16 … 2^113.5 … Quantum"), i.e. `2^38.5` *above* the `2^75`
+//!     (2021/1119, tabulated "7/16 … 2^113.5 … Quantum"), i.e. `2^38.5` *above* the `2^75`
 //!     corner.
 //!   - **Out-of-model** free-start results go deeper still and must not be omitted just because
-//!     they do not apply: Dong et al. reach 8/16 at `2^122.5` and Chen et al. (2022/731 §5.1–5.2)
-//!     improve that to `2^89.65` and then give "the first 10-round free-start quantum collision
-//!     attack … with two more rounds than Dong et al.'s result", at `2^127.2` for **10 of 16
+//!     they do not apply: 2021/1119 reaches 8/16 at `2^122.5` and 2022/731 §5.1–5.2 improves that
+//!     to `2^89.65` and then gives "the first 10-round free-start quantum collision
+//!     attack … with two more rounds than Dong et al.'s result" (their "Dong et al." is
+//!     2021/1119), at `2^127.2` for **10 of 16
 //!     super-rounds** (20 of 32). These are outside the claimed model — Saturnin-Hash is MMO with
 //!     a fixed `IV = 0`, so the adversary does not get to choose the chaining value — but 10/16 is
 //!     the same depth the designers' own related-key attack reaches on the block cipher, so the
@@ -177,8 +180,19 @@
 //!   Bellare–Hoang's Theorem 3.3 (2024/875 p.12) is about **CTY**, not CTX, and they explicitly
 //!   "omit a statement and proof about the security of our general form of CTX because we are
 //!   going to improve it to CTY" (p.12). Do not cite Theorem 3.3 as a CTX result. ePrint
-//!   2022/268 is not relevant at all: it contains zero occurrences of "CTX" and zero of
-//!   "tag-based", and does not cite Chan–Rogaway.
+//!   2022/268 states no CTX result either: it contains zero occurrences of "CTX" and zero of
+//!   "tag-based", and does not cite Chan–Rogaway. **CORRECTION 2026-08-15: an earlier revision
+//!   of this bullet concluded from those three counts that 2022/268 "is not relevant at all".
+//!   The counts are right; the conclusion is wrong, and it is the sentence that stopped anyone
+//!   following the pointer.** Its Appendix A (p.33) proves `CMT-3 ⇒ CMT-4` from the correctness
+//!   requirement and the determinism of `SE.Dec` alone — "Since `C1 = C2` and
+//!   `(K1, N1, A1) = (K2, N2, A2)`, the determinism of `SE.Dec` implies that `M1 = M2`" — with no
+//!   length relation and no tidiness (tidiness is used on that page only for the *separate*
+//!   `CMT-ℓ ⇒ CMTD-ℓ` arrow; Fig. 4 caption, p.11). The four-case argument above is a
+//!   specialization of that published lemma to CTX-of-QCB, and Chen–Karadzic rely on the same
+//!   equivalence (ePrint 2025/320 p.10). Numbering hazard while you are here: 2022/268 has **no**
+//!   Theorem 3.3 and no Theorem 3.4 — its §3 stops at 3.2 — so those numbers belong to 2024/875
+//!   and to nothing in this paper.
 //! - **Q-1** — CTX's own nAE-preservation proof (Theorem 3, ePrint 2022/1260) is in the
 //!   *classical* random-oracle model. Saturnin-QCB exists specifically for resistance to
 //!   superposition-query (Q2) adversaries — precisely: adversaries that query the *message* in
@@ -261,6 +275,44 @@
 //!   by citation (see `crate::qcb`, *Security model*): both the QCB authors and the Saturnin
 //!   designers state the ideal-cipher model in print, so naming it is a documentation duty, not
 //!   an open problem.
+//!
+//! Three further obligations were opened on **2026-08-15**, when the DOI-gated fault and
+//! cryptanalysis papers were finally obtained and read. **None is about the CTX transform**, and
+//! none is about `SaturninQcb` specifically — they are listed here because this is where this
+//! crate keeps its obligation register. Full evidence: `SECURITY.md`, sections *Single-key
+//! cryptanalysis of the block cipher* and *Fault injection*.
+//!
+//! - **F-1 — do the published fault counts hold against the two-S-layer cipher?** Both fault
+//!   papers (IEEE TIFS 18 (2023) 1487–1496 at 656 faults; *Journal on Communications* 44(4)
+//!   (2023) 167–175 at 1 097 ineffective faults) measured their counts against a Saturnin with
+//!   **one** S-box layer per super-round — TIFS Algorithm 1 p.1489, J. Communications Algorithm 2
+//!   p.170 — where the specification and [`crate::core`]'s `apply_round` have **two**. That is the
+//!   design report's own pseudocode typo, documented by Hou, Cui and Zhang (Computer Journal
+//!   66(2) p.479). Neither paper states whether its C++ implementation followed its own pseudocode
+//!   or the reference code. Doubling the non-linear layers changes fault propagation and the
+//!   distinguisher's bias in an unquantified direction. **Not closable by citation** — it needs
+//!   the authors or a re-derivation. The doc half is already discharged: quote both figures as the
+//!   best published numbers, never as measured against what this crate ships.
+//! - **F-2 — SIFA makes the obvious countermeasure the wrong one; which class is right?** The
+//!   Saturnin-Short attack is a *statistical ineffective* fault analysis, whose oracle is the
+//!   mode's own reject verdict. A detection-or-redundancy countermeasure — the first thing a
+//!   hardware team specifies — **supplies** that oracle rather than removing it. No published
+//!   Saturnin countermeasure exists to copy; both papers decline to propose one. A cryptographer
+//!   must choose the class (masking-plus-detection, infective computation, or an architectural
+//!   answer) before any fault-resistance number enters a hardware budget. **Not closable by
+//!   citation.** SUSPECTED, ours and not either paper's: adding an encrypt-then-verify redundancy
+//!   check to `SaturninShortAead` would make this worse, not better.
+//! - **RK-2 — is the R = 10 related-key position acceptable, given the depth margin is zero?**
+//!   Note-RK-1's 10-super-round related-key key recovery at `2^236`, and ePrint 2021/703 §5.3's
+//!   10-super-round quantum multi-collision distinguisher, land **exactly** on the depth that
+//!   `SaturninAead`, `SaturninShortAead`, the stream cipher and `SaturninBlockCipher` run — all
+//!   four build `SaturninCore::new(10, …)`. **Nothing is violated**: the spec's related-key claim
+//!   covers Saturnin16 only, `2^236 > 2^224`, and no mode here exposes a related-key oracle. This
+//!   is a **scoping** question, not a break: does this crate want to say anywhere that its R = 10
+//!   modes are related-key secure, and is a consumer who derives per-message keys by a related
+//!   transform in scope or out? Every other statement of this figure in the repo frames it as
+//!   "10 of 16, margin 6", which is right for QCB and hides the R = 10 reading. **RK-1 is
+//!   untouched** — that one is about QCB's Saturnin16 assumption.
 //!
 //! Do not describe `SaturninQcb` as "committing" or "CMT-4 secure" without these qualifiers.
 
