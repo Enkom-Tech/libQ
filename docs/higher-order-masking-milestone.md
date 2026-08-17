@@ -65,6 +65,38 @@ Candidate tools: `maskVerif`, `IronMask`, `SILVER`, `scVerif`. Selection is part
 the milestone; the choice constrains the gadget representation and the leakage
 model that can be expressed.
 
+## Related literature (radar)
+
+Tracked from the IACR eprint radar (ENK-464). These are inputs to the
+**masked comparison / bound check** row above and to the "128-bit fixed-point
+CDT" production item repeatedly listed as outstanding in the lattice-KEM /
+signature `SECURITY_ANALYSIS.md` files; they are *not* a port target, because
+libQ does not implement FrodoKEM.
+
+- **Abou Haidar, Espitau, Hoffmann, Tibouchi — "Slicing Bits and Cutting Costs
+  in CDT Sampling: High-Order Masking of FrodoKEM's Gaussian Sampler,
+  Revisited"** ([ePrint 2026/1363](https://eprint.iacr.org/2026/1363)). Masks
+  the CDT sampler's core operation — comparing a fixed-precision uniform value
+  against each cumulative-table entry — at arbitrary order. Reports that, once
+  bitsliced across the many samples drawn per invocation, the **ripple-carry
+  adder is the optimal masked comparison circuit**, and applies algebraic
+  normal form to the masked multiplexers. This is directly the gadget libQ's
+  constant-time reverse-CDT base samplers use today (the full-table branchless
+  `u < threshold` / `ct_lt_u64` scan in
+  [`lib-q-blind-token`](../lib-q-blind-token/src/lattice/gaussian_ct.rs) and
+  [`lib-q-dkg`](../lib-q-dkg/src/lattice/gaussian.rs), shared by the threshold
+  crates) — those scans are isochronous but unmasked, so this paper is the
+  reference to consult when the masked-comparison gadget is designed.
+- Prior masked-CDT gadgets it improves on, useful as comparison baselines:
+  Gérard–Guerreau (CASCADE 2026), masking each table comparison with a
+  ripple-carry adder; and Eid et al. (TCHES 2026), a binary-search-tree
+  approach over the table with a Kogge–Stone comparator.
+
+Caveat: the above summary is taken from the ENK-464 issue abstract; the eprint
+PDF was not fetched (no external network in the radar VM). Numeric speedup
+claims and the optimality proof should be re-read from the source before they
+are relied on for a design decision.
+
 ## Non-goals
 
 - Microarchitectural channels (cache, SMT, transient execution). These are
