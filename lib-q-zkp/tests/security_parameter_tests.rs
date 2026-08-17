@@ -40,6 +40,22 @@ fn min_soundness_bits(
     field.min(query_conjectured).min(HASH_COLLISION_BITS)
 }
 
+// PROVEN (Johnson-bound) soundness: the FRI query phase priced in the Johnson list-decoding regime,
+// where the per-query soundness error is sqrt(rate), i.e. log_blowup/2 bits per query. Unlike the
+// conjectured/capacity number above, this is a theorem (BCIKS Proximity Gaps, eprint 2020/654) and is
+// unaffected by the late-2025 disproof of the up-to-capacity soundness conjectures (SoK, eprint
+// 2026/1367). Production configs must clear 128-bit on THIS bound, not only the conjectured one.
+fn min_soundness_bits_provable(
+    challenge_field_bits: f64,
+    log_blowup: usize,
+    num_queries: usize,
+    pow_bits: usize,
+) -> f64 {
+    let field = challenge_field_bits - DEEP_TERM_BITS;
+    let query_johnson = ((log_blowup * num_queries) / 2 + pow_bits) as f64;
+    field.min(query_johnson).min(HASH_COLLISION_BITS)
+}
+
 /// `default_config` (the SHARED Arm A config used by recursion / auth / credential) uses the value
 /// field `Complex<Mersenne31>` (~62 bits) as its FRI challenge field, which HARD-CAPS its
 /// Fiat–Shamir/DEEP soundness near 62 bits regardless of query count. This test documents that
@@ -79,6 +95,14 @@ fn test_membership_config_reaches_128bit_classical_and_pq() {
     assert!(
         bits >= 128.0,
         "membership_config must reach >= 128-bit post-quantum, got {bits}"
+    );
+    // The load-bearing check the SoK (eprint 2026/1367) motivates: the config must clear 128-bit on
+    // the PROVEN Johnson query bound too, not only the conjectured/capacity one. This is what keeps
+    // the claimed level intact after the late-2025 disproof of the up-to-capacity conjectures.
+    let bits_provable = min_soundness_bits_provable(challenge_field_bits, 3, 96, 20);
+    assert!(
+        bits_provable >= 128.0,
+        "membership_config must reach >= 128-bit on the PROVEN Johnson bound, got {bits_provable}"
     );
 }
 
