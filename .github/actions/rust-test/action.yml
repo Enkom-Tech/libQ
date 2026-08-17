@@ -138,7 +138,7 @@ runs:
     # timeout budget on the heaviest coverage target (lib-q-zkp).
     - name: Install cargo-tarpaulin (if coverage enabled)
       if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
-      uses: taiki-e/install-action@6c6fd71fe4fb72c3697d269963d0e15df8adedad # v2.85.10
+      uses: taiki-e/install-action@82cd3e7658a6f96c86c0234aeeda1748937cb0a1 # v2.85.13
       with:
         tool: cargo-tarpaulin
     
