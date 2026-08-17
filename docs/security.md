@@ -184,6 +184,15 @@ The following classical algorithms are explicitly forbidden in lib-Q:
 - **Ed25519**: Broken by Shor's algorithm
 - **Ed448**: Broken by Shor's algorithm
 
+#### Forbidden identity-based / pairing-based public-key schemes
+- **Pairing-based / bilinear-group encryption and signatures** (e.g. BLS, and identity-based
+  encryption or identity-based *matchmaking* encryption built on the Bilinear Diffie–Hellman
+  assumption): rest on the discrete-log/pairing hardness that Shor's algorithm breaks — same
+  class as ECC/ECDH above. lib-Q implements none and adds none.
+- Radar dispositions that land in this class are recorded under [docs/radar/](radar/); see
+  [ePrint 2023/1435 IB-ME](radar/eprint-2023-1435-ib-me.md) (card `ENK-459`) for a worked
+  example of why a pairing-based IB-ME scheme is out of scope for a post-quantum workspace.
+
 > **On the "Grover halves it" convention used throughout this section.** Naive halving is the
 > standard, conservative way to state a post-quantum margin and this document keeps it. It is worth
 > knowing that the one published *concrete* Grover circuit for Saturnin-256 is materially worse for

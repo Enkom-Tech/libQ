@@ -2,6 +2,20 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
+## Unreleased
+
+### Documentation
+
+- **Radar disposition for IACR ePrint 2023/1435 (identity-based matchmaking encryption,
+  card `ENK-459`).** Documentation only; no code, wire-format, dependency, or test change.
+  The `iacr-radar` classifier flagged the paper "high relevance (identity-based
+  encryption)", but it is out of scope: `lib-q` ships no IBE/IB-ME or pairing arithmetic, and
+  the paper's concrete scheme rests on the Bilinear Diffie–Hellman assumption (pairing/DL,
+  broken by Shor), contradicting the post-quantum threat model. Recorded the rationale in a
+  new [`docs/radar/eprint-2023-1435-ib-me.md`](docs/radar/eprint-2023-1435-ib-me.md) and added
+  a "Forbidden identity-based / pairing-based public-key schemes" subsection to
+  [`docs/security.md`](docs/security.md) pointing at it.
+
 ## 0.0.11
 
 > **Upgrade priority: high for `lib-q-ml-dsa` consumers.** The published 0.0.10 `lib-q-ml-dsa`
