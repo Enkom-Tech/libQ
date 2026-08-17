@@ -299,6 +299,11 @@ Engineering trackers for Phase 7 “deferred” items. Implementations are **not
 - [ ] Advanced cryptographic protocols
 - [ ] Quantum-resistant protocols
 
+Research-radar paper triage (durable verdicts for `iacr-radar` cards) is logged in
+[`docs/research-radar.md`](docs/research-radar.md). Assessed so far: k-Anonymous Group
+Signatures (eprint 2025/2007, ENK-469) — tracked, not actionable; the paper's efficient
+instantiation is classical pairing/DL, not post-quantum.
+
 ## Success metrics
 
 ### Security
