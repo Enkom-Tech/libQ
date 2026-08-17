@@ -35,6 +35,7 @@ lib-Q provides three security tiers to balance quantum resistance with performan
 - **HPKE**: Pure post-quantum HPKE with Saturnin AEAD
 - **Hash**: SHAKE256, SHAKE128, cSHAKE256
 - **Use Case**: Maximum security, performance secondary
+- **Note (CB-KEM):** CB-KEM's *conservative* public-key-pseudorandomness assumption is eroded by a provable quasipolynomial distinguisher (ePrint 2026/1630) — not a message/key break, but see the [Code-based KEMs](#code-based-kems-workspace-implementations) caveat below before treating it as strictly "ultra-secure."
 
 #### Tier 2: Balanced (Post-Quantum)
 - **KEMs**: ML-KEM, CB-KEM, HQC
@@ -145,6 +146,7 @@ Our post-quantum asymmetric primitives are drawn from NIST's Post-Quantum Crypto
 
 #### Code-based KEMs (workspace implementations)
 - **CB-KEM** (Classic McEliece–family parameter sets) and **HQC** are implemented as **post-quantum KEMs** in this repository; track each crate’s README and NIST publications for the exact standardization status of the parameter sets you enable.
+  - **Structural-cryptanalysis caveat (CB-KEM).** IACR ePrint 2026/1630 (2026) gives a provable classical *quasipolynomial-time distinguisher* of Goppa–McEliece public keys from random, with concrete estimates (2^114–2^124 binary operations) below generic decoding for **every** Classic McEliece parameter set — and, for `mceliece348864`, below that set's nominal ~2^128 target. It is a **public-key distinguisher, not a message- or key-recovery attack**, and is "not yet practical"; the message-recovery extension is heuristic and far from practical. No code/wire/parameter change follows from it. Full, source-verified write-up and the tracking obligation (CM-1): [lib-q-cb-kem/SECURITY.md](../lib-q-cb-kem/SECURITY.md).
 
 #### Emerging Post-Quantum Algorithms
 - **Saturnin**: Lightweight symmetric algorithm suite with 256-bit block cipher

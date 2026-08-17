@@ -19,6 +19,15 @@
 //! - **Classic McEliece**: All round-4 submission variants (348864, 460896, 6688128, 6960119, 8192128) — not NIST-selected or approved
 //! - **Hash Functions**: SHA3 (SHAKE256) support
 //!
+//! ## Structural cryptanalysis (public-key distinguishers)
+//!
+//! See [`SECURITY.md`](../SECURITY.md). Notably, IACR ePrint 2026/1630 gives a provable
+//! classical *quasipolynomial-time distinguisher* for Goppa–McEliece public keys, with
+//! concrete estimates (2^114–2^124 binary operations) below generic decoding for every
+//! Classic McEliece parameter set. It is a **public-key distinguisher, not a message- or
+//! key-recovery attack**, and is "not yet practical"; no code/wire/parameter change follows
+//! from it (obligation CM-1 in `SECURITY.md`).
+//!
 //! ## Feature Support
 //!
 //! All KEM algorithms support:
