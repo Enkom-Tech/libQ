@@ -15,7 +15,7 @@ This is a pure-rust safe-rust implementation of the Classic McEliece post-quantu
 * It passes the 100 testcases of the C reference implementation
 * It implements all 10 variants of the Classic McEliece KEM
 * The implementation takes between 100 milliseconds (`mceliece348864`) and 500 milliseconds (`mceliece8192128f`) to run on a modern computer
-* The implementation is constant-time on software instruction level
+* The implementation is constant-time on software instruction level. This is a *timing* property (no secret-dependent branches). It does **not** imply resistance to physical power/EM analysis — see [Side-channel scope: Berlekamp-Massey power/EM attack](#side-channel-scope-berlekamp-massey-powerem-attack) below.
 * The random number generator is based on AES256 in counter mode
 * First described in 1978, the cryptographic scheme has a rich history in security analysis. Its large public key size, however, often limits adoption.
 
@@ -154,8 +154,69 @@ std::thread::Builder::new()
 
 ### libQ Integration
 
-This crate is fully integrated with the libQ cryptography library, providing a secure,
-production-ready implementation of Classical McEliece KEM with comprehensive security validation.
+This crate is integrated with the libQ cryptography library as its Classic McEliece–family KEM
+path (behind the `cb-kem` feature of `lib-q-kem`). Its test suite validates functional correctness
+against the reference KATs (see above). See [Side-channel scope: Berlekamp-Massey power/EM
+attack](#side-channel-scope-berlekamp-massey-powerem-attack) for a documented physical side-channel
+limitation of the decoder that this validation does not cover.
+
+### Side-channel scope: Berlekamp-Massey power/EM attack
+
+`decrypt` (`src/decrypt.rs`) decodes using the Berlekamp–Massey (BM) algorithm (`src/bm.rs`), a
+direct port of the Classic McEliece NIST round-4 reference decoder. A power/electromagnetic (EM)
+side-channel key-recovery attack against exactly this decoder was published in 2025:
+
+> Andrei Alexei, Marios Omar Choudary, Vlad-Florin Drăgoi. *Key-Recovery Side-Channel Attack on the
+> Berlekamp-Massey Decoding Algorithm in the Classic McEliece KEM.* IACR ePrint 2025/2043,
+> <https://eprint.iacr.org/2025/2043>.
+
+**What it recovers, and how.** With a chosen ciphertext whose underlying error vector has Hamming
+weight 1, the decapsulation syndrome is `s = (g(αᵢ)⁻²·αᵢʲ)` for a single secret Goppa support
+element `αᵢ`. The BM discrepancy loop then evaluates `d ^= gf_mul(C[i], s[N - i])` with `C[i] = αᵢ`
+held **fixed** across `2t − 2` iterations. Each `gf_mul` (`src/gf.rs`) does `GFBITS` conditional
+word-multiplications of that fixed secret operand (`GFBITS = 12` for `mceliece348864`, `13` for the
+other parameter sets) — the paper's Listing 3 — and a profiled *template attack* on the power trace
+turns that repeated multiplication into `αᵢ`. The paper recovers the **entire** secret support of
+`mceliece348864` with a *single trace per coefficient* in under 50 s on an ARM Cortex-M4
+(ChipWhisperer-Lite); Kirshanova–May "Breaking Goppa with hints" then recovers `g(x)` in under a
+minute — i.e. a full private-key break.
+
+**This crate is affected.** `src/bm.rs::bm` and `src/gf.rs::gf_mul` reproduce the reference
+structure the attack targets. The leak is a property of the algorithm and its data flow, not a bug
+introduced by this port, and it is present for every parameter set (only the per-multiply count
+`GFBITS` differs).
+
+**What does _not_ mitigate it:**
+
+* *Instruction-level constant time* — the property claimed at the top of this README. BM is already
+  branchless; this attack is on data-dependent **power/EM**, not on timing, so constant-time is
+  orthogonal to it.
+* *Implicit rejection / the FO re-encryption check.* `decrypt` runs `synd → bm`
+  (`src/decrypt.rs:51-53`) **before** the decoding-consistency / weight check
+  (`src/decrypt.rs:66-78`) and before decapsulation's re-encryption comparison. BM has already
+  processed the attacker's ciphertext — and leaked — by the time any ciphertext is rejected.
+* *Codeword masking* (adding a codeword to the ciphertext before decoding). The paper observes that
+  `H_priv·(v ⊕ c)ᵀ = H_priv·vᵀ` because `H_priv·cᵀ = 0`, so the syndrome is unchanged and "our
+  attack still holds".
+* *Rejecting low-weight ciphertexts.* A weight-1 check is cheap, but the paper extends the attack to
+  weight-2 (and higher) plaintexts, where an exhaustive check is prohibitive — ≈6.08 million
+  comparisons for weight 2 at `n = 3488`, and >7×10⁹ for weight 3 — so the attack "remains effective
+  against current state-of-the-art countermeasures".
+
+The authors' own assessment: *"The vulnerability that we identify in the BM is unavoidable in the
+current implementation, and no practical means of mitigating it exist as of now without incurring
+undesirable overhead."* Suggested (non-trivial, higher-overhead) directions are a different decoder
+(Patterson, or Bernstein's interpolation method) or a masked BM variant.
+
+**Scope / status in this repo.** This is a *physical-adversary* attack: it requires local power/EM
+measurement of the device performing decapsulation with a fixed, repeatedly-used McEliece private
+key. It does **not** apply to a purely remote/network adversary, and it is not a timing attack.
+`lib-q-cb-kem` is deliberately **not** a target of the workspace side-channel self-certification
+harness (`docs/sca-self-certification.md`), which screens *timing*/TVLA on the hardened
+`lib-q-ml-kem`, `lib-q-ml-dsa`, `lib-q-lattice-zkp` and `lib-q-hqc` paths only; **no power/EM
+hardening is claimed for this crate.** If your threat model includes an attacker with physical
+access to the decapsulating device and a long-term private key, treat BM decoding here as
+unprotected against key extraction.
 
 ### Feature zeroize: Clear out secrets from memory
 
