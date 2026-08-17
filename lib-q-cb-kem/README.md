@@ -157,6 +157,12 @@ std::thread::Builder::new()
 This crate is fully integrated with the libQ cryptography library, providing a secure,
 production-ready implementation of Classical McEliece KEM with comprehensive security validation.
 
+See [`SECURITY.md`](SECURITY.md) for standardization status and tracked structural
+cryptanalysis — in particular IACR ePrint 2026/1630 (2026), a provable classical
+*quasipolynomial-time public-key distinguisher* against Goppa–McEliece (a distinguisher,
+**not** a message- or key-recovery attack, and not yet practical) whose concrete estimates
+fall below generic decoding for every Classic McEliece parameter set.
+
 ### Feature zeroize: Clear out secrets from memory
 
 If the `zeroize` feature is enabled (it is by default), all key types that contain anything secret
