@@ -29,13 +29,31 @@ impl<M> FriParameters<M> {
         1 << self.log_final_poly_len
     }
 
-    /// Returns the soundness bits of this FRI instance based on the
-    /// [ethSTARK](https://eprint.iacr.org/2021/582) conjecture.
+    /// Returns the *conjectured* soundness bits of this FRI instance, i.e. the query phase priced in
+    /// the capacity regime of the [ethSTARK](https://eprint.iacr.org/2021/582) conjecture: each query
+    /// contributes `log_blowup` bits (per-query soundness error `rate = 2^-log_blowup`).
     ///
-    /// Certain users may instead want to look at proven soundness, a more complex calculation which
-    /// isn't currently supported by this crate.
+    /// This is the *deployed* number (Plonky3 / ethSTARK / SP1 / Risc0), but it is NOT a proven
+    /// bound. The strongest up-to-capacity soundness conjectures — including the
+    /// mutual-correlated-agreement conjecture behind the newest RS-proximity schemes — were
+    /// **disproved over large fields in late 2025** (see SoK: Hash-Based Polynomial Commitments and
+    /// Low-Degree Tests, <https://eprint.iacr.org/2026/1367>). Soundness up to the Johnson bound is
+    /// unaffected. Callers that need a *proven* number should use [`Self::johnson_soundness_bits`] and
+    /// price parameters against it.
     pub const fn conjectured_soundness_bits(&self) -> usize {
         self.log_blowup * self.num_queries + self.proof_of_work_bits
+    }
+
+    /// Returns the *proven* (Johnson-bound) soundness bits of this FRI instance's query phase.
+    ///
+    /// In the Johnson list-decoding regime the per-query soundness error is `sqrt(rate)`, so each
+    /// query contributes `log_blowup / 2` bits — half the conjectured rate. This bound follows from
+    /// the Proximity Gaps analysis (BCIKS, <https://eprint.iacr.org/2020/654>) and, unlike
+    /// [`Self::conjectured_soundness_bits`], is a theorem, not a conjecture; it is unaffected by the
+    /// late-2025 disproof of the up-to-capacity conjectures. This is the conservative number to price
+    /// production parameters against. The integer division floors, so the result is a lower bound.
+    pub const fn johnson_soundness_bits(&self) -> usize {
+        (self.log_blowup * self.num_queries) / 2 + self.proof_of_work_bits
     }
 
     /// Validate FRI parameters for security and correctness.
@@ -194,5 +212,57 @@ pub const fn create_benchmark_fri_params_zk<Mmcs>(mmcs: Mmcs) -> FriParameters<M
         num_queries: 100,
         proof_of_work_bits: 16,
         mmcs,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Params with a trivial mmcs so we can exercise the soundness accounting in isolation.
+    const fn params(log_blowup: usize, num_queries: usize, proof_of_work_bits: usize) -> FriParameters<()> {
+        FriParameters {
+            log_blowup,
+            log_final_poly_len: 0,
+            num_queries,
+            proof_of_work_bits,
+            mmcs: (),
+        }
+    }
+
+    #[test]
+    fn conjectured_is_log_blowup_times_queries_plus_pow() {
+        // Arm B membership production config: log_blowup 4 / q 96 / PoW 20.
+        assert_eq!(params(4, 96, 20).conjectured_soundness_bits(), 4 * 96 + 20);
+        // Arm A membership production config: log_blowup 3 / q 96 / PoW 20.
+        assert_eq!(params(3, 96, 20).conjectured_soundness_bits(), 3 * 96 + 20);
+    }
+
+    #[test]
+    fn johnson_is_half_the_query_rate() {
+        // Johnson per-query error is sqrt(rate), i.e. log_blowup/2 bits per query. Matches the
+        // provable-Johnson column of lib-q-zkp/tools/fri_soundness.py (Arm A 164, Arm B 212).
+        assert_eq!(params(3, 96, 20).johnson_soundness_bits(), 3 * 96 / 2 + 20); // 164
+        assert_eq!(params(4, 96, 20).johnson_soundness_bits(), 4 * 96 / 2 + 20); // 212
+    }
+
+    #[test]
+    fn johnson_never_exceeds_conjectured() {
+        for &(lb, q, pow) in &[(1, 100, 16), (2, 64, 16), (3, 96, 20), (4, 96, 20), (8, 1000, 64)] {
+            let p = params(lb, q, pow);
+            assert!(
+                p.johnson_soundness_bits() <= p.conjectured_soundness_bits(),
+                "Johnson bound must not exceed the conjectured bound"
+            );
+        }
+    }
+
+    #[test]
+    fn production_membership_configs_clear_128_on_the_proven_bound() {
+        // The load-bearing check the SoK (eprint 2026/1367) motivates: production configs must
+        // clear 128-bit on the PROVEN Johnson query bound, not only the conjectured one, so the
+        // late-2025 disproof of the up-to-capacity conjectures does not touch the claimed level.
+        assert!(params(3, 96, 20).johnson_soundness_bits() >= 128); // Arm A membership
+        assert!(params(4, 96, 20).johnson_soundness_bits() >= 128); // Arm B membership
     }
 }
