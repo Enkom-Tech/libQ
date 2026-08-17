@@ -46,6 +46,17 @@ Parameter validation tests in `tests/compliance_parameter_validation.rs` and
 `tests/compliance/parameter_validation.rs` check these constants against the
 specification.
 
+### Non-standard code/decoder optimizations (tracked, not adopted)
+
+Published proposals reduce HQC key/ciphertext sizes by redesigning the error-correcting
+code or decoder — e.g. ePrint [2026/656](https://eprint.iacr.org/2026/656) (a two-level
+generalized concatenated code plus reliability-based errors-and-erasures decoding, up to
+4.34 % smaller for NIST-1) and HARE. These change `n` and the wire sizes, so they are
+**breaking, non-interoperable, and off-standard**; this crate does not implement them and
+targets the NIST spec above instead. Rationale, verified figures, and the side-channel
+caveat the 2026/656 authors raise for the threshold-based scheme are in
+[docs/code-decoder-optimizations.md](docs/code-decoder-optimizations.md).
+
 ## What is verified in this repository
 
 | Area | Evidence |
