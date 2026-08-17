@@ -173,6 +173,14 @@ Self-certification provides repeatable internal evidence. It does **not** provid
 - **Higher-order leakage coverage.** First-order TVLA does not detect higher-order
   leakage; higher-order masking and its evaluation are tracked in
   [higher-order-masking-milestone.md](higher-order-masking-milestone.md).
+- **Single-trace analytical coverage (SASCA).** Fixed-vs-random TVLA is a
+  *multi-trace* leakage-detection test; it does not exercise Soft-Analytical
+  Side-Channel Attacks against the NTT, which recover a key from a single trace via
+  belief propagation on a factor graph. The ML-KEM NTT hardening (single-scalar
+  multiplicative blind + butterfly shuffle) is a multi-trace DPA/CPA countermeasure,
+  not a SASCA countermeasure; the gap, and the constructions that would close it, are
+  recorded in [hardened-attestation.md](hardened-attestation.md#residual-risks-ml-kem)
+  (see IACR ePrint 2025/181).
 - **Accredited certification.** Only an accredited laboratory can issue an ISO/IEC
   17825 or FIPS 140-3 result. No libQ crate has completed independent side-channel
   certification unless stated in a signed release note.
