@@ -14,8 +14,7 @@ cited location before being written in.
 
 ## ENK-469 — k-Anonymous Group Signatures (eprint 2025/2007)
 
-- **Paper:** Shalini Banerjee, Andrey Bozhko, Andy Rupp, *"k-Anonymous Group
-  Signatures: Addressing Strict Content ..."*, IACR eprint 2025/2007
+- **Paper:** Shalini Banerjee, Andrey Bozhko, Andy Rupp, *"k-Anonymous Group Signatures"*, IACR eprint 2025/2007
   (<https://eprint.iacr.org/2025/2007>).
 - **Radar rationale (as imported):** *"medium (conf 0.85) — anonymous credentials.
   Offers post-quantum anonymous group signatures with selective disclosure
