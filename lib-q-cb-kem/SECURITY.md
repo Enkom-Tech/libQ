@@ -5,6 +5,11 @@
 Classic McEliece was a **NIST round-4 submission** that NIST evaluated and **did not select**
 for standardization (NIST selected HQC as the code-based KEM). There is **no NIST/FIPS encoding**
 for this algorithm. This crate implements the round-4 submission's own wire format and parameter
+
+It is, however, standardized elsewhere and deployed: ePrint 2026/1630 records that Classic
+McEliece **was incorporated into ISO/IEC 18033-2 in 2026**, and names Mullvad and Rosenpass
+as deployments. "No NIST/FIPS encoding" is not the same as "unstandardized", and reading it
+that way would understate who is affected by anything in this file.
 sets; the five sets (348864, 460896, 6688128, 6960119, 8192128, each with an `f` "fast keygen"
 variant) are **frozen to that submission** and are not something this repository may re-parametrize
 unilaterally — doing so would break the KATs and interoperability.
@@ -63,7 +68,7 @@ The distinguisher's cost (`2^114`–`2^124`) is **below** the paper's generic-de
 
 - **It is a distinguisher of the *public key*, not a message- or key-recovery attack.** It
   breaks the *conservative* "public key is pseudorandom" assumption (ePrint 2026/1630
-  Definition 2.4), **not** the OW-CPA / IND-CCA message-secrecy assumption (Definition 2.6)
+  Definition 2.4), **not** OW-CPA (Definition 2.6), on which the KEM's IND-CCA security is built
   on which confidentiality of an encapsulation rests. The authors state plainly that
   "distinguishing does not by itself compromise security" but "reveals non-random algebraic
   structure and is therefore considered a serious warning sign" (§1).
