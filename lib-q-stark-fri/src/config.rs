@@ -47,11 +47,16 @@ impl<M> FriParameters<M> {
     /// Returns the *proven* (Johnson-bound) soundness bits of this FRI instance's query phase.
     ///
     /// In the Johnson list-decoding regime the per-query soundness error is `sqrt(rate)`, so each
-    /// query contributes `log_blowup / 2` bits — half the conjectured rate. This bound follows from
-    /// the Proximity Gaps analysis (BCIKS, <https://eprint.iacr.org/2020/654>) and, unlike
-    /// [`Self::conjectured_soundness_bits`], is a theorem, not a conjecture; it is unaffected by the
-    /// late-2025 disproof of the up-to-capacity conjectures. This is the conservative number to price
-    /// production parameters against. The integer division floors, so the result is a lower bound.
+    /// query contributes `log_blowup / 2` bits — half the conjectured rate. This follows from the
+    /// Proximity Gaps analysis (BCIKS, <https://eprint.iacr.org/2020/654>) and, unlike
+    /// [`Self::conjectured_soundness_bits`], rests on a theorem rather than a conjecture; it is
+    /// unaffected by the late-2025 disproof of the up-to-capacity conjectures.
+    ///
+    /// Precisely: BCIKS gives per-query error `sqrt(rate) * (1 + eps)` for proximity strictly below
+    /// `1 - sqrt(rate)`, plus an additive field-size term, so `log_blowup / 2` bits per query is the
+    /// LIMIT of that bound rather than a strict lower bound including the lower-order terms. At
+    /// production parameters the slack is far below the margin, but do not read this as a rigorous
+    /// floor to the last bit. The integer division also floors, which errs in the safe direction.
     pub const fn johnson_soundness_bits(&self) -> usize {
         (self.log_blowup * self.num_queries) / 2 + self.proof_of_work_bits
     }
