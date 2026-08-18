@@ -6,8 +6,11 @@ This document describes the `hardened` feature on `lib-q-ml-kem`, `lib-q-ml-dsa`
 
 ### `lib-q-ml-kem` (`hardened` feature)
 
-- Coefficient **masking** during sensitive operations ([`src/masking.rs`](../lib-q-ml-kem/src/masking.rs))
-- **Hardened RNG** path for decapsulation randomness ([`src/hardened_rng.rs`](../lib-q-ml-kem/src/hardened_rng.rs))
+- **NTT-domain blinding** ([`src/algebra.rs`](../lib-q-ml-kem/src/algebra.rs)): `Polynomial::ntt` / `NttPolynomial::ntt_inverse` multiply the transform I/O by a single random nonzero scalar `r ∈ Z_q*` and `r⁻¹` (the Kyber NTT is `Z_q`-linear, so the result is unchanged) and apply a per-layer Fisher–Yates shuffle of butterfly order
+- **Masked NTT-domain products** ([`src/masking.rs`](../lib-q-ml-kem/src/masking.rs)): the decapsulation inner product `ŝ · û` and the re-encryption matrix–vector `Â · r̂` use first-order additive sharing of `ŝ`, multiplicative `ρ`/`ρ⁻¹` masking of both factors, and shuffled accumulation order
+- **Constant-time CBD sampling**: table lookup into `Eta::ONES` avoids secret-dependent indexing
+- **Constant-time ciphertext comparison**: implicit-rejection selection combines byte-wise and arithmetic-domain `subtle` equality
+- **Hardened RNG** path for decapsulation / mask randomness, which panics rather than silently degrading to a constant on CSPRNG failure ([`src/hardened_rng.rs`](../lib-q-ml-kem/src/hardened_rng.rs))
 - **Subtle** constant-time comparisons when the feature is enabled
 - Requires `random` + `getrandom`; enable the complete feature set only
 
@@ -61,6 +64,26 @@ Downstream products map this string to their own attestation gate identifiers.
 
 - No crate in this workspace has completed independent side-channel certification unless explicitly stated in a signed release note.
 - `hardened` reduces known implementation risks; it does not guarantee resistance on all targets.
+
+## Residual risks (ML-KEM)
+
+The ML-KEM `hardened` countermeasures target **multi-trace** power/EM analysis
+(DPA/CPA) and first-order leakage on the decapsulation and re-encryption paths.
+Two attack classes studied throughout the Kyber side-channel literature are **not**
+covered, and the `hardened` feature does not claim them:
+
+| Risk | Disposition |
+|------|-------------|
+| SASCA / single-trace analytical attack on the NTT | **Not covered.** The NTT-domain blinding here is a *single global* multiplicative scalar plus a butterfly shuffle. Per 2025/181 (§3, p. 7; §3.3, p. 10) the property that impedes SASCA belief-propagation is a per-block *masking-twiddle-factor* blinding that "introduc[es] loops into the factor graph" and makes butterflies "surjective (… 2²⁴-to-one)"; a single scalar adds one unknown without creating those loops, and [HSST23] shows shuffle-only "blinding in time" [RPBC20] "is not impervious to attacks by a powerful adversary". The improved blinded-NTT of 2025/181 and the per-block masking of [RPBC20] are **not** implemented. First-order fixed-vs-random TVLA (see [sca-self-certification.md](sca-self-certification.md)) is multi-trace and does not exercise single-trace SASCA. |
+| Fault injection on decryption | **Not covered.** Fault resistance rests solely on the FO re-encryption equality check (`kem.rs` byte-wise + arithmetic-domain `subtle` comparison). Per 2025/181 (§2.4.3, p. 7), Pessl & Prokop [PP21] show that skipping a single instruction during decryption can bypass the FO transform's protection. No CRT/RNR redundancy or recomputation is implemented; the CRT-based fault protection of Heinz & Pöppelmann [HP21] and its improvement in 2025/181 are **not** present. |
+
+The primary reference for both rows is Max Duparc and Mounir Taha, *Improved NTT and
+CRT-based RNR Blinding for Side-Channel and Fault Resistant Kyber*, IACR ePrint
+2025/181 (2025). Bracketed keys ([RPBC20],
+[HP21], [HSST23], [PP21], and the SASCA line [PPM17, PP19, HHP+21]) are used in the
+notation of that paper's bibliography, which surveys them; the quoted phrases above
+were verified against the ePrint PDF at the cited pages. libQ does not vendor these
+sources (`/reference` is git-ignored).
 
 ## Residual risks (lattice-ZKP)
 
