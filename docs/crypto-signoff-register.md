@@ -433,11 +433,45 @@ nothing.
 
 ## What "signed off" requires (all gates)
 
-For each gate, two independent human cryptographers must: accept the stated assumptions, confirm the
+For each gate, **one** human cryptographer must: accept the stated assumptions, confirm the
 estimator instances at the **deployed** parameters (not the draft numbers), and check the soundness/ZK
 proofs actually exist and compose. Until then every gate stays RED — test-only where noted, wire-frozen
 but unsigned where noted, and **not** to be advertised as secure. Gate A additionally must not be
 **merged to `main`** or wired downstream until signed.
+
+### Amendment 2026-08-19 — the reviewer bar is one human, not two
+
+**This section previously required "two independent human cryptographers" per gate.** It was
+amended to **one** on 2026-08-19, by the operator's decision, to match
+`red-policy-no-second-reviewer`, the fleet's recorded and dated policy: there is **one** human
+cryptographer of record (the operator), so the operative RED bar is *one human cryptographer +
+adversarial AI passes + tests*. Sign-offs already executed in this fleet — including
+`GIP/sdk/adr/146-KEMSPHINX-CONSTANT-SIZE-RED-REVIEW.md` and uGrid's `ugrid.access.v0` — were
+executed under that one-human bar.
+
+**Why this needed fixing, and not by either document quietly:** with a single human cryptographer
+on the fleet, a two-human requirement is not a high bar, it is an unsatisfiable one — under the
+previous text **no gate in this register could ever be discharged**, which made the register
+describe a process nobody could run rather than the process actually in use. The contradiction was
+recorded in `ops/assessments/red-gate-review-packet.md` (header) and explicitly left for the
+operator to resolve.
+
+**What this trades away, stated plainly:** a second, independent pair of human eyes on every
+crypto sign-off. That is a real reduction in assurance, not a formality. Independent review is the
+control that historically catches the class of error a single reviewer — and an adversarial AI
+pass — is worst at: an assumption the reviewer already shares, and a proof read for the argument
+the reader expects rather than the one on the page. Nothing in this amendment claims that the AI
+adversarial passes substitute for it. **They are evidence, never a signature.** The one-human bar
+is what is *achievable* here; it is not equivalent to what two independent cryptographers would
+give, and this register should not be cited as if it were.
+
+**If a second human cryptographer ever joins the fleet, this amendment should be revisited** and
+the two-human bar restored, at minimum for gates covering shipped, universally reachable wire
+(Gates D and E).
+
+**Decision provenance:** operator (Nexlab-One), 2026-08-19. Recorded editorially by an agent; this
+amendment changes the stated *bar*, and **signs, ratifies and discharges nothing** — no gate's
+status, verdict, reviewer or date in this register is altered by it.
 
 This previously read "must not be committed". That was reworded, not relaxed: leaving ~3,800 lines
 of drafted protocol on a single machine's working tree is itself a risk (unbacked, and it blocks
