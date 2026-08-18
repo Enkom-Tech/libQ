@@ -55,6 +55,15 @@ are data-dependent **by construction** and are not hardened (e.g. non-hardened
 rejection sampling in blind issuance) are excluded; their timing is not a
 meaningful TVLA target and is documented as such.
 
+`lib-q-cb-kem` (Classic McEliece–family) is **not** a target here, and this omission is
+deliberate rather than pending. Its Berlekamp–Massey decoder has a published physical
+**power/EM** key-recovery leak (IACR ePrint 2025/2043) that a single trace per secret support
+element suffices to exploit, and for which the authors report no low-overhead mitigation. That is a
+physical-channel weakness this timing/TVLA harness does not measure and does not claim to defend;
+it is documented at the crate level in
+[`lib-q-cb-kem/README.md` § *Side-channel scope*](../lib-q-cb-kem/README.md#side-channel-scope-berlekamp-massey-powerem-attack)
+so that the gap is recorded where an integrator reads it.
+
 ## Method
 
 ### Fixed-vs-random classes
