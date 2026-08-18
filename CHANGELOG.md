@@ -16,6 +16,22 @@ All notable changes to this workspace are documented here. Versions follow the s
   a "Forbidden identity-based / pairing-based public-key schemes" subsection to
   [`docs/security.md`](docs/security.md) pointing at it.
 
+### Security
+
+- **`lib-q-cb-kem`: documented a published physical power/EM key-recovery side-channel on the
+  Berlekamp–Massey decoder (IACR ePrint 2025/2043).** Documentation only — no code, wire-format, or
+  test-behaviour change. The decapsulation decoder (`src/bm.rs::bm` + `src/gf.rs::gf_mul`) is a
+  direct port of the Classic McEliece reference decoder the paper attacks: with a weight-1 chosen
+  ciphertext the discrepancy loop multiplies a *fixed* secret Goppa support element `αᵢ` by
+  `GFBITS` (12/13) syndrome-derived words each iteration, which a template attack recovers from a
+  single power trace per coefficient. Instruction-level constant time, implicit rejection (BM runs
+  before the validity check), and codeword masking do **not** mitigate it, and the authors report
+  no low-overhead countermeasure. Recorded in `lib-q-cb-kem/README.md` (§ *Side-channel scope*), and
+  the crate's deliberate exclusion from the timing/TVLA self-cert harness is noted in
+  `docs/sca-self-certification.md`. The two README claims a reader could over-read as physical-SCA
+  resistance ("constant-time on software instruction level"; "secure, production-ready … with
+  comprehensive security validation") were scoped accordingly.
+
 ## 0.0.11
 
 > **Upgrade priority: high for `lib-q-ml-dsa` consumers.** The published 0.0.10 `lib-q-ml-dsa`
