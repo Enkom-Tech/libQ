@@ -53,11 +53,54 @@
 //!
 //! For maximum security, consider additional mitigations in production deployments.
 //!
+//! ## Fault Injection (Active Attacks)
+//! The constant-time and zeroization measures above address only *passive*
+//! (side-channel) adversaries. This crate implements **no** countermeasures
+//! against *active* fault injection, and the zero-knowledge property below is
+//! stated for a fault-free prover.
+//!
+//! Dalton, Page and Schofnegger, "Fault Injection Attacks Against zkSTARKs"
+//! (IACR ePrint 2026/835), give the first fault-injection attacks specific to
+//! zkSTARK provers. They target the step that encodes the private transcript
+//! into the trace polynomial `f` and then batch-evaluates it over the LDE
+//! domain -- precisely the NTT path this crate uses. Their Lemma 1 shows that
+//! leaking even a *single* coefficient of `f` that is not fixed by the public
+//! statement is enough to break zero knowledge.
+//!
+//! The relevant primitives here are radix-2 Cooley-Tukey butterfly NTTs:
+//! `Mersenne31ComplexnDit` (radix-2 DIT) for the default `Complex<Mersenne31>`
+//! field and `Radix2DFTSmallBatch` (DIF then DIT) on the FRI folding path --
+//! the same iterative DIT/DIF variants the paper attacks (its Table 1 lists
+//! Plonky3, from which this code is adapted, as "Iterative DIF/DIT"). Under the
+//! paper's fault models a single loop-skip (DIF) or a single-bit-upset on the
+//! loop control variable (DIT) suppresses the mixing butterflies, so raw or
+//! partially mixed coefficients of `f` reach the leaves of the trace Merkle
+//! tree and are exposed when those leaves are opened to the verifier.
+//!
+//! The hiding PCS and witness-/leaf-masking this crate relies on for zero
+//! knowledge do **not** stop these attacks: masking changes the coefficients of
+//! `f`, but the faulted evaluation still leaks whatever coefficients it lands on
+//! (ePrint 2026/835, sec. 2.3).
+//!
+//! None of the countermeasures the paper proposes are implemented here:
+//! - a loop/recursion-counter assertion (verify each butterfly loop reached its
+//!   expected terminal index) on the NTT path;
+//! - the algebraic output checksum `sum_j y_j == n * a_0` (with `a_0` the
+//!   constant input coefficient) on the NTT path;
+//! - duplicate-and-compare for Horner evaluation (used by the paper's targets
+//!   only in interactive configurations, which this crate does not expose);
+//! - prover-side self-verification of a non-interactive proof before release.
+//!
+//! Deployments that must resist fault injection have to add these out of band.
+//!
 //! ## Zero-Knowledge Property
 //! The STARK implementation provides zero-knowledge proofs when configured with
 //! a hiding polynomial commitment scheme (PCS). The zero-knowledge property ensures
 //! that proofs reveal no information about the witness beyond what is implied by
-//! the public statement.
+//! the public statement. This holds against a computationally bounded adversary
+//! observing an honestly generated proof; it assumes a fault-free prover and
+//! does not survive the active fault-injection attacks noted above (ePrint
+//! 2026/835).
 //!
 //! ## Threat Model Alignment
 //! This implementation aligns with lib-Q's security model:
@@ -65,6 +108,8 @@
 //! - Assumes unlimited computational adversaries
 //! - Protects against side-channel attacks (constant-time, zeroization)
 //! - Ensures memory safety (Rust's ownership model, zeroization)
+//! - Does **not** defend against active fault injection: the zero-knowledge
+//!   property assumes a fault-free prover (see "Fault Injection" above)
 //!
 //! # Secure Usage Guidelines
 //!
