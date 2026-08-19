@@ -6,6 +6,20 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Documentation
 
+- **Radar disposition for IACR ePrint 2026/1444 (compressed post-quantum silent OT from
+  isogenies, card `ENK-481`).** Documentation only; no code, wire-format, dependency, or test
+  change. The `iacr-radar` classifier flagged it "medium relevance — Post-Quantum OT", which is
+  accurate: unlike `ENK-459` this construction is genuinely post-quantum (isogeny group action
+  with a QROM proof), so it is **not** rejected on threat-model grounds. It is dispositioned
+  **out of scope / not adopted (tracked)** because `lib-q` ships no oblivious-transfer / PCF /
+  secure-computation layer for it to feed, no isogeny / group-action arithmetic to build it on,
+  and its security rests on a newly-introduced, non-standardized assumption (the *parallelization
+  problem with auxiliary inputs*). Recorded the rationale, the paper's claimed results, and a
+  verified-vs-inferred split in a new
+  [`docs/radar/eprint-2026-1444-isogeny-silent-ot.md`](docs/radar/eprint-2026-1444-isogeny-silent-ot.md),
+  and cross-linked it from [`lib-q-prf/DESIGN.md`](lib-q-prf/DESIGN.md) (the nearest in-tree
+  neighbor — a plain, non-oblivious PRF).
+
 - **Radar disposition for IACR ePrint 2023/1435 (identity-based matchmaking encryption,
   card `ENK-459`).** Documentation only; no code, wire-format, dependency, or test change.
   The `iacr-radar` classifier flagged the paper "high relevance (identity-based
