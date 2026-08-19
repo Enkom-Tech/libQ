@@ -16,6 +16,21 @@ All notable changes to this workspace are documented here. Versions follow the s
   a "Forbidden identity-based / pairing-based public-key schemes" subsection to
   [`docs/security.md`](docs/security.md) pointing at it.
 
+- **Radar disposition for IACR ePrint 2026/1003 (blockchain access control with hidden
+  attributes and policies, card `ENK-477`).** Documentation only; no code, wire-format,
+  dependency, or test change. The `iacr-radar` classifier flagged the paper "medium relevance
+  (zero-knowledge & credentials)". It is topically on-radar (hidden attributes + hidden policy
+  + a publicly verifiable inner-product satisfaction proof is the `lib-q-lattice-zkp` anon-cred
+  domain), but out of scope: its entire asymmetric/ZK stack is classical discrete log —
+  multi-generator Pedersen commitments, Schnorr signatures, and a Bulletproof inner-product
+  argument over Ristretto255 (`curve25519-dalek`/`ed25519-dalek`/`bulletproofs`), all broken by
+  Shor and hard-blocked by [`scripts/security_check_classical_crypto.py`](scripts/security_check_classical_crypto.py).
+  `lib-q-lattice-zkp` already proves the same class of committed-vector inner-product relation
+  over post-quantum Ajtai commitments (`src/sigma/linear.rs`, QROM Fiat–Shamir). Recorded the
+  rationale, the "IPA is modeled not implemented" reproducibility caveat, and a verified-vs-
+  inferred provenance split in
+  [`lib-q-lattice-zkp/docs/radar-2026-1003-hidden-attr-access-control.md`](lib-q-lattice-zkp/docs/radar-2026-1003-hidden-attr-access-control.md).
+
 ### Security
 
 - **`lib-q-cb-kem`: documented a published physical power/EM key-recovery side-channel on the
