@@ -1049,6 +1049,16 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # This job had NO toolchain step at all -- checkout, then straight into a script full of
+      # `cargo check`. cargo is not in the runner image, so every run exited 127 and the script
+      # reported six crates as failing to compile without compiling anything (task 4924).
+      # Pinned to the same dtolnay revision .github/actions/rust-build uses, so this job and the
+      # composites cannot drift onto different toolchains.
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: stable
+
       - name: Build every cargo-fuzz harness (cargo check only)
         run: bash ./scripts/ci-check-fuzz-harnesses.sh
 
