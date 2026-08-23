@@ -218,6 +218,12 @@ hardening is claimed for this crate.** If your threat model includes an attacker
 access to the decapsulating device and a long-term private key, treat BM decoding here as
 unprotected against key extraction.
 
+See [`SECURITY.md`](SECURITY.md) for standardization status and tracked structural
+cryptanalysis — in particular IACR ePrint 2026/1630 (2026), a provable classical
+*quasipolynomial-time public-key distinguisher* against Goppa–McEliece (a distinguisher,
+**not** a message- or key-recovery attack, and not yet practical) whose concrete estimates
+fall below generic decoding for every Classic McEliece parameter set.
+
 ### Feature zeroize: Clear out secrets from memory
 
 If the `zeroize` feature is enabled (it is by default), all key types that contain anything secret
