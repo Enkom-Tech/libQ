@@ -91,3 +91,69 @@ this run independently re-ran the load-bearing positive and negative tests and t
 The three residual RED labels are human-cryptographer sign-off items, not defects and not code gaps,
 so no additional sound code change was warranted this run. The card is NOT closable by an agent:
 each remaining boundary asserts something a human must still check.
+
+## Addendum — second independent re-run, 2026-08-28 (separate agent, HEAD unchanged at `5eea44c`)
+
+Re-derived from code, not carried from this file's own claims. Board channel was unavailable this
+run too (see below) so this is filed the same way as the first pass: in-tree.
+
+Branch was 36 commits behind `origin/main` (all unrelated radar/docs/CI commits since `8788981`);
+diffed clean, no rebase needed to re-verify (`git merge-base` confirms this file is the only
+content difference from `main`).
+
+**Boundary (1) wiring, checked explicitly this pass:** `lib-q-threshold-kem-lattice` does **not**
+depend on `lib-q-zk-encryption-proof` (`grep -rl lib-q-zk-encryption-proof --include=Cargo.toml .`
+returns only the proof crate's own manifest and the workspace root) — confirmed *by design*
+(`gate.rs` §"Why the gate lives here", direction `zk-encryption-proof → tkem` to avoid a cycle), not
+an oversight. `threshold::partial_decap_masked{,_budgeted}` and
+`partial_decap_authenticated_budgeted` in `lib-q-threshold-kem-lattice/src/threshold.rs` enforce
+**only closures B/C** (authenticator, budget) directly; closure A (the PoK-of-`μ` STARK gate) is
+reachable **only** by a caller explicitly invoking `gate::gated_partial_decap_masked*` from the
+separate, exported (`pub mod gate;`) `lib-q-zk-encryption-proof` crate. A caller that imports only
+`lib-q-threshold-kem-lattice` and calls its `partial_decap_masked_budgeted` directly is **not**
+protected by closure A and remains exposed to the §4 malformed-ct probe, mitigated only by B/C. This
+is consistent with — not contradicting — `THRESHOLD_SECURITY.md` §6's own title ("what the library
+enforces (**closure C**, in code)") and §5's table (row A status: "RED pending cryptographer
+sign-off"); flagged here because "closed in code" in this file's own Boundary (1) verdict above is
+true of the *gate as a tested, composable primitive*, not of the tkem crate's direct API being
+safe-by-default against the probe without a caller opting into the gate.
+
+VERIFIED (fresh `cargo test`, this pass, serial per the OOM note above, wall-clock observed
+directly):
+
+    cargo test -p lib-q-threshold-kem-lattice --release
+      -> tests/roundtrip.rs: 16 passed; tests/share_commitments.rs: 4 passed; 0 failed (32.4s total)
+    cargo test -p lib-q-zk-encryption-proof --release --lib gate:: -- --test-threads=1
+      -> 7 passed; 0 failed (65.6s, includes a cold compile)
+    cargo test -p lib-q-zk-encryption-proof --release --lib \
+      encryption_proof::tests::spike_tampered_f_witness_rejected -- --test-threads=1
+      -> 1 passed (90.97s)
+    cargo test -p lib-q-zk-encryption-proof --release --lib \
+      encryption_proof::tests::spike_tampered_e_witness_rejected -- --test-threads=1
+      -> 1 passed (174.76s)
+    cargo test -p lib-q-zk-encryption-proof --release --lib -- --test-threads=1 --skip spike_tampered
+      -> 107 passed; 0 failed; 5 ignored (466.8s)
+
+Total zk-encryption-proof: 109 passed / 0 failed / 5 ignored (107 + the 2 spike tests run alone) —
+matches this file's first pass and comment 37's figure exactly. `KeygenSharesOutput
+::coefficient_commitments` and `share_verifiers_from_dkg` (boundary 2's public-input prerequisite)
+read as described; both are documented in their own doc comments as "the public input a
+verifiable-partial-decapsulation proof would need, not a verification the crate performs" — i.e.
+the crate itself does not overclaim here.
+
+**Net of this pass:** no new code change is warranted. The three boundaries are exactly where the
+first pass left them: (1) implementable machinery built, tested, and reproduced twice now, gated
+behind an explicit caller opt-in rather than being tkem's default API behavior (a design constraint,
+not a bug — documented above and in `gate.rs` itself), residual is FS/QROM sign-off; (2) public
+inputs published and tested, the cheater-ID ZK proof over pairwise-masked `value_i` is genuinely
+unbuilt research-grade work — implementing a speculative version here would be worse than leaving it
+RED (card rule 9); (3) explicitly out of agent scope by the card's own text.
+
+**Board channel note:** `hive` was present on `PATH` but had **no company or agent identity
+configured anywhere in this VM** (`~/.config/hive/config.json` absent, `HIVE_COMPANY_ID` /
+`HIVE_AGENT_ID` unset, no value recoverable from the launch script's env, `hive show`/`list`/`kb`/
+`identity` all refused with "no agent id configured"). This is a different failure mode than the
+documented SHIM-vs-BINARY split (`hive close --help` exits 0, so the binary is present) — it is a
+staging gap, not a CLI-variant issue. No board comment, no KB entry, and no close could be filed
+this run; this addendum is the only record. Reported as an image bug in the terminal response of
+this run (not in-repo — this file does not carry ops findings).
