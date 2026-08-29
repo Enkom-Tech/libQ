@@ -1,20 +1,26 @@
-//! ENK-142 RED-first verification: the dealerless DKG has no proactive-refresh lifecycle
-//! operation, so a custody set that is compromised *slowly* -- below threshold in any single
-//! epoch, but accumulating across epochs -- eventually reconstructs the group secret from shares
-//! that all remain valid forever.
+//! ENK-142 verification: the dealerless DKG has a same-committee, identity-preserving
+//! proactive-refresh lifecycle operation ([`dkg_run_honest_refresh`], `dkg.rs`), closing the gap
+//! where a custody set compromised *slowly* -- below threshold in any single epoch, but
+//! accumulating across epochs -- could eventually reconstruct the group secret from shares that
+//! all remained valid forever.
 //!
 //! `rg` across `gip` and `libQ` for `dkg_refresh|proactive.?refresh|refresh.?share` (2026-08-30)
-//! finds no such operation anywhere. The only resharing primitive that exists,
+//! found no such operation anywhere. The only resharing primitive that existed,
 //! [`lib_q_dkg::dkg_reshare`], is a **change-of-committee key rotation**, not a same-committee
-//! refresh: `reshare_group_key.rs` (M6a) already proves, with an executed RED test, that it
-//! re-randomizes the group's public identity (the commitment `T`, which is byte-for-byte the
+//! refresh: `reshare_group_key.rs` (M6a) proves, with an executed RED test, that it re-randomizes
+//! the group's public identity (the commitment `T`, byte-for-byte the
 //! `lib-q-threshold-kem-lattice` public key -- see `public_key_from_dkg`'s `t0 = B0*r`) even
 //! though it preserves the secret. Reusing `dkg_reshare` for same-committee refresh would still
-//! rotate the identity every epoch, which fails ENK-142's own "FCK/identity must survive refresh"
-//! and "threshold-KEM decap continues to work post-refresh" acceptance criteria. A real fix needs a
-//! NEW primitive: a same-committee, identity-preserving refresh (Herzberg-style joint zero-sharing
-//! whose commitment randomness ALSO cancels across the group, so `T` is unchanged) -- e.g. along
-//! the lines of IACR 2022/1586. That primitive does not exist in `lib-q-dkg` today.
+//! rotate the identity every epoch, failing ENK-142's own "FCK/identity must survive refresh" and
+//! "threshold-KEM decap continues to work post-refresh" acceptance criteria.
+//!
+//! The fix landed here is [`dkg_run_honest_refresh`] (and its building blocks
+//! `dkg_round1_commit_refresh` / `dkg_check_zero_dealer` / `dkg_apply_refresh` /
+//! `dkg_apply_refresh_vk`, all in `dkg.rs`): a Herzberg-style joint zero-sharing whose
+//! constant-term commitment randomness is pinned to the public, randomness-free zero commitment,
+//! so combining a qualified round's deltas into the live shares changes every higher-degree
+//! coefficient while leaving the constant term -- and the BDLOP commitment randomness that opens
+//! it into `t0` -- byte-identical.
 //!
 //! Run with `--release` (Gaussian-masking FS proofs are heavy in debug builds).
 
@@ -26,14 +32,19 @@ use common::{
     det_rng,
 };
 use lib_q_dkg::lattice::ring::{
+    RQ_BYTES,
     Rq,
     centered_coeffs,
     ring_add,
+    rq_from_le_bytes,
     scalar_mul,
 };
 use lib_q_dkg::{
+    SigningShare,
     dkg_eval_share,
     dkg_round1_commit,
+    dkg_run_honest,
+    dkg_run_honest_refresh,
     lagrange_coeff_at_zero,
     setup,
 };
@@ -50,6 +61,13 @@ fn interpolate_zero(subset: &[u8], values: &[(u8, Rq)]) -> Rq {
         acc = ring_add(&acc, &scalar_mul(v, lam));
     }
     acc
+}
+
+/// Decode a finalized [`SigningShare`]'s VALUE component -- the raw Shamir-style point each
+/// custodian actually holds (the first [`RQ_BYTES`] of `share_bytes`, ahead of the `rand`
+/// component; see `dkg.rs`'s private `encode_value_rand`).
+fn share_value(share: &SigningShare) -> Rq {
+    rq_from_le_bytes(&share.share_bytes[..RQ_BYTES]).expect("well-formed finalized share")
 }
 
 /// Run one honest `t`-of-`n` dealerless DKG (every party deals to every party) and return each
@@ -79,8 +97,8 @@ fn run_ceremony_and_collect_values() -> Vec<(u8, Rq)> {
     values
 }
 
-/// GREEN -- pins today's real, vulnerable behaviour (the ENK-142 premise, executed rather than
-/// assumed): with no refresh lifecycle operation, a `t-1`-share capture in "epoch N" plus a
+/// GREEN -- pins today's real, vulnerable behaviour of a committee that never runs a refresh (the
+/// ENK-142 premise, executed rather than assumed): a `t-1`-share capture in "epoch N" plus a
 /// DISJOINT `t-1`-share capture in a later "epoch N+1" reconstructs the group secret, because
 /// nothing about any share changed between the two captures -- they are points on the very same
 /// never-refreshed polynomial. Cross-checked against two different `t`-subsets of the pooled union
@@ -98,9 +116,8 @@ fn cross_epoch_share_union_reconstructs_without_refresh() {
         "epoch-N capture must be sub-threshold"
     );
 
-    // Epoch N+1: no refresh ran (there is no such operation in this codebase), so the polynomial
-    // is still exactly the one from epoch N. The attacker slowly captures a further t-1 shares,
-    // from DIFFERENT custodians: {3, 4}.
+    // Epoch N+1: no refresh ran on THIS committee, so the polynomial is still exactly the one from
+    // epoch N. The attacker slowly captures a further t-1 shares, from DIFFERENT custodians: {3, 4}.
     let epoch_n_plus_1: [u8; 2] = [3, 4];
     assert_eq!(
         epoch_n_plus_1.len(),
@@ -122,8 +139,8 @@ fn cross_epoch_share_union_reconstructs_without_refresh() {
     assert_eq!(
         centered_coeffs(&via_subset_a),
         centered_coeffs(&ground_truth),
-        "epoch-N union epoch-(N+1) reconstructs the TRUE group secret -- this IS the ENK-142 gap, \
-         observed rather than assumed"
+        "epoch-N union epoch-(N+1) reconstructs the TRUE group secret on an un-refreshed \
+         committee -- this IS the ENK-142 gap, observed rather than assumed"
     );
     assert_eq!(
         centered_coeffs(&via_subset_b),
@@ -134,8 +151,8 @@ fn cross_epoch_share_union_reconstructs_without_refresh() {
 }
 
 /// Positive control named explicitly in ENK-142's acceptance: "an honest quorum within one epoch
-/// still can [reconstruct]". Pinned so the RED gap above has an explicit, executed contrast rather
-/// than an implicit assumption that Shamir/Feldman reconstruction works at all.
+/// still can [reconstruct]". Pinned so the refresh test below has an explicit, executed contrast
+/// rather than an implicit assumption that Shamir/Feldman reconstruction works at all.
 #[test]
 fn honest_quorum_within_one_epoch_reconstructs() {
     let values = run_ceremony_and_collect_values();
@@ -148,34 +165,99 @@ fn honest_quorum_within_one_epoch_reconstructs() {
     );
 }
 
-/// THE TARGET (ENK-142's actual acceptance criterion). RED by design: there is no refresh
-/// primitive to make this pass. Once a same-committee, identity-preserving refresh ceremony exists
-/// and is actually run between the two capture windows, epoch-N shares become points on a
-/// DIFFERENT (freshly re-randomized, but secret- and identity-preserving) polynomial than
-/// epoch-(N+1) shares, so pooling `t-1` of each no longer yields `t` points on one polynomial and
-/// this assertion should start passing.
+/// THE TARGET (ENK-142's actual acceptance criterion) -- GREEN: a same-committee,
+/// identity-preserving proactive refresh ([`dkg_run_honest_refresh`]) runs on the LIVE committee
+/// between the two capture windows (no committee change, no custody outage -- it is just another
+/// DKG-shaped round over the existing mesh). Epoch-N shares are therefore points on a DIFFERENT
+/// (freshly re-randomized, but secret- and identity-preserving) polynomial than epoch-(N+1)
+/// shares, so pooling `t-1` of each no longer yields `t` points on one polynomial.
 ///
-/// Landed and left RED on purpose, exactly like `lib-q-dkg`'s own `reshare_group_key.rs` M6a
-/// precedent: `#[ignore]`d so a normal `cargo test` run stays green, reproducible with
-/// `cargo test -p lib-q-dkg --release --test proactive_refresh_gap -- --ignored`. Do not "fix" this
-/// by weakening the assertion, and do not "fix" it by wiring `dkg_reshare` as the refresh op with
-/// `new_committee == old_committee` -- `reshare_group_key.rs` already proves that primitive
-/// re-randomizes the group's public identity (the KEM `t0` public key) on every call, which is
-/// disqualifying on its own.
+/// This test used to be `#[ignore]`d as RED-by-design. The fix is `dkg_run_honest_refresh`
+/// (Herzberg-style same-committee zero-sharing) -- NOT `dkg_reshare` with
+/// `new_committee == old_committee`, which `reshare_group_key.rs`'s own M6a RED test already
+/// proves re-randomizes the group's public identity (the KEM `t0` public key) on every call.
 #[test]
-#[ignore = "RED by design -- no refresh primitive exists yet (ENK-142); kept in the suite as \
-            executed evidence, not something to fix here"]
 fn cross_epoch_union_cannot_reconstruct_after_refresh() {
-    let values = run_ceremony_and_collect_values();
-    let ground_truth = interpolate_zero(&[1, 2, 3, 4, 5], &values);
+    let profile = setup();
+    let mut rng = det_rng(0xE2);
 
-    // Identical capture pattern to the RED-observed test above. Absent an actual refresh ceremony
-    // mutating the live shares between the two captures, this is definitionally the same data, so
-    // the assertion below is expected to FAIL today.
-    let via_union = interpolate_zero(&[1, 2, 3], &values);
+    // Epoch N: the live committee's shares right after keygen.
+    let epoch_n_output = dkg_run_honest(&profile, PARTIES, THRESHOLD, &mut rng).expect("keygen");
+    let epoch_n_values: Vec<(u8, Rq)> = epoch_n_output
+        .secret_shares
+        .iter()
+        .map(|s| (s.index, share_value(s)))
+        .collect();
+
+    // A proactive refresh runs on the SAME committee -- between epoch N and epoch N+1 -- with no
+    // key reconstruction and no custody outage.
+    let epoch_n_plus_1_output =
+        dkg_run_honest_refresh(&profile, PARTIES, THRESHOLD, &epoch_n_output, &mut rng)
+            .expect("refresh");
+
+    // The refresh preserves the group's public identity: `t0 = B0*r`, the
+    // lib-q-threshold-kem-lattice public key, is exactly `group_key`'s `t0` half
+    // (`public_key_from_dkg`), so byte-identical `group_key` bytes IS identity preservation.
+    assert_eq!(
+        epoch_n_output.public_key.group_key, epoch_n_plus_1_output.public_key.group_key,
+        "a proactive refresh must preserve the group's public identity -- unlike dkg_reshare (see \
+         reshare_group_key.rs)"
+    );
+
+    let epoch_n_plus_1_values: Vec<(u8, Rq)> = epoch_n_plus_1_output
+        .secret_shares
+        .iter()
+        .map(|s| (s.index, share_value(s)))
+        .collect();
+
+    // Ground truth: the (unchanged) group secret, reconstructible from a full epoch-(N+1) quorum.
+    let ground_truth = interpolate_zero(&[1, 2, 3, 4, 5], &epoch_n_plus_1_values);
+    assert_eq!(
+        centered_coeffs(&interpolate_zero(&[1, 2, 3, 4, 5], &epoch_n_values)),
+        centered_coeffs(&ground_truth),
+        "the refresh must preserve the group secret itself, not just its public commitment"
+    );
+
+    // Positive control: an honest quorum captured wholly within epoch N+1 still reconstructs.
+    assert_eq!(
+        centered_coeffs(&interpolate_zero(&[1, 2, 3], &epoch_n_plus_1_values)),
+        centered_coeffs(&ground_truth),
+        "an honest quorum within one epoch must still reconstruct"
+    );
+
+    // THE ACCEPTANCE CRITERION: t-1 shares from epoch N ({1,2}) pooled with a DISJOINT t-1 shares
+    // from epoch N+1 ({3,4}) must NOT reconstruct -- they are points on two different polynomials
+    // now, agreeing only at x=0 (the secret they were both careful to preserve).
+    let mut pooled: Vec<(u8, Rq)> = Vec::new();
+    for &i in &[1u8, 2] {
+        let v = epoch_n_values
+            .iter()
+            .find(|(idx, _)| *idx == i)
+            .unwrap()
+            .1
+            .clone();
+        pooled.push((i, v));
+    }
+    for &i in &[3u8, 4] {
+        let v = epoch_n_plus_1_values
+            .iter()
+            .find(|(idx, _)| *idx == i)
+            .unwrap()
+            .1
+            .clone();
+        pooled.push((i, v));
+    }
+    let via_subset_a = interpolate_zero(&[1, 2, 3], &pooled);
+    let via_subset_b = interpolate_zero(&[2, 3, 4], &pooled);
     assert_ne!(
-        centered_coeffs(&via_union),
+        centered_coeffs(&via_subset_a),
         centered_coeffs(&ground_truth),
         "post-refresh, a cross-epoch union must NOT reconstruct the group secret"
+    );
+    assert_ne!(
+        centered_coeffs(&via_subset_b),
+        centered_coeffs(&ground_truth),
+        "not a single-basis fluke: a second, differently-straddling cross-epoch subset also fails \
+         to reconstruct"
     );
 }
