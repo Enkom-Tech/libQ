@@ -344,6 +344,56 @@ fn dealerless_dkg_key_encaps_and_decaps() {
 }
 
 #[test]
+fn dealerless_dkg_key_decaps_after_proactive_refresh() {
+    // ENK-142 acceptance criterion: "threshold-KEM decap continues to work post-refresh". A
+    // same-committee proactive refresh (`dkg_run_honest_refresh`) must leave the group's public
+    // identity (`t0 = B0*r`, this crate's public key) unchanged and produce shares that still
+    // decapsulate correctly -- with no key reconstruction and no committee change.
+    let dkg_profile = lib_q_dkg::setup();
+    let mut rng = new_deterministic_rng([0x46u8; 32]);
+    let before =
+        lib_q_dkg::dkg_run_honest(&dkg_profile, PARTIES, THRESHOLD, &mut rng).expect("dkg");
+    let after =
+        lib_q_dkg::dkg_run_honest_refresh(&dkg_profile, PARTIES, THRESHOLD, &before, &mut rng)
+            .expect("refresh");
+
+    let pk_before = public_key_from_dkg(&before.public_key).expect("pk from dkg");
+    let pk_after = public_key_from_dkg(&after.public_key).expect("pk from refreshed dkg");
+    assert_eq!(
+        pk_before, pk_after,
+        "a proactive refresh must not change the KEM public key"
+    );
+
+    let shares: Vec<_> = after.secret_shares.iter().map(share_from_dkg).collect();
+    let (ss_encap, ct) = encapsulate(&pk_after, &mut rng).expect("encap");
+    let subset = &shares[..usize::from(THRESHOLD)];
+    let ss_decap = decapsulate_reference(&pk_after, subset, &ct).expect("decap post-refresh");
+    assert_eq!(
+        ss_encap, ss_decap,
+        "refreshed shares must still decapsulate correctly"
+    );
+
+    // The refreshed shares must NOT decapsulate correctly if mixed with a pre-refresh share --
+    // they are now points on different polynomials (agreeing only at x=0), so a "partially
+    // refreshed" quorum is not silently accepted as valid by combine()'s FO check.
+    let mixed: Vec<_> = std::iter::once(share_from_dkg(&before.secret_shares[0]))
+        .chain(
+            after.secret_shares[1..usize::from(THRESHOLD)]
+                .iter()
+                .map(share_from_dkg),
+        )
+        .collect();
+    let subset_ids: Vec<u8> = mixed.iter().map(|s| s.index).collect();
+    let partials: Vec<_> = mixed
+        .iter()
+        .map(|s| partial_decap(s, &subset_ids, &ct).expect("partial"))
+        .collect();
+    let err = combine(&pk_after, &partials, &ct)
+        .expect_err("a share pooled from a stale epoch must not silently decapsulate");
+    assert_eq!(err, ThresholdKemError::InvalidCiphertext);
+}
+
+#[test]
 fn wrong_subset_size_fails_to_recover() {
     // Fewer than `threshold` shares cannot interpolate ⟨r, p⟩. The API rejects the subset up
     // front (InvalidSubset) rather than wasting an FO cycle on guaranteed garbage — the FO

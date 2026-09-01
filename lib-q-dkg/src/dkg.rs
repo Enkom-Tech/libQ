@@ -204,6 +204,43 @@ pub fn dkg_round1_commit<R: CryptoRng + Rng>(
     party: u8,
     rng: &mut R,
 ) -> Result<(SecretPolynomial, CoeffCommitments), DkgError> {
+    round1_commit_impl(profile, n, t, party, rng, false)
+}
+
+/// Round 1 of a same-committee **proactive refresh** (ENK-142): sample a degree-`t-1` polynomial
+/// exactly like [`dkg_round1_commit`], except the constant term is pinned to `(a_0, ρ_0) = (0, 0)`
+/// instead of a fresh secret. This is a **verifiable zero-sharing** (Herzberg et al., "Proactive
+/// Secret Sharing Or: How to Cope With Perpetual Leakage", 1995): every recipient can publicly
+/// check the pin via [`dkg_check_zero_dealer`] before folding this dealer's contribution in, and
+/// the pin is unconditional (not merely probable) because `(0, 0)` commits to the fixed public
+/// value [`bdlop::commit_zero`] with **zero randomness** — there is no cancellation to argue about.
+///
+/// Combining a qualified set of these deltas via [`dkg_finalize_share`] / [`dkg_assemble_vk_set`]
+/// therefore yields a delta whose constant-term commitment is exactly [`bdlop::commit_zero`]:
+/// adding it to an existing [`SigningShare`] / [`VerificationKeySet`] ([`dkg_apply_refresh`] /
+/// [`dkg_apply_refresh_vk`]) leaves the group secret's constant term *and* its BDLOP commitment
+/// randomness untouched — so `t0 = B0·r`, the `lib-q-threshold-kem-lattice` group identity,
+/// survives unchanged — while every higher-degree coefficient is freshly re-randomized, exactly
+/// like an honest [`dkg_round1_commit`] round. A share captured before this round and one captured
+/// after are therefore points on two different polynomials that happen to agree only at `x = 0`.
+pub fn dkg_round1_commit_refresh<R: CryptoRng + Rng>(
+    profile: &DkgProfileV1,
+    n: u8,
+    t: u8,
+    party: u8,
+    rng: &mut R,
+) -> Result<(SecretPolynomial, CoeffCommitments), DkgError> {
+    round1_commit_impl(profile, n, t, party, rng, true)
+}
+
+fn round1_commit_impl<R: CryptoRng + Rng>(
+    profile: &DkgProfileV1,
+    n: u8,
+    t: u8,
+    party: u8,
+    rng: &mut R,
+    zero_constant: bool,
+) -> Result<(SecretPolynomial, CoeffCommitments), DkgError> {
     validate_profile(profile)?;
     validate_n_t(n, t)?;
     if party == 0 || party > n {
@@ -215,17 +252,25 @@ pub fn dkg_round1_commit<R: CryptoRng + Rng>(
     let mut rho = Vec::with_capacity(usize::from(t));
     let mut commitments = Vec::with_capacity(usize::from(t));
     for i in 0..t {
-        // The constant term (this dealer's secret contribution) is sampled **short** so the
-        // reconstructed group secret is a valid lattice signing key (Module-LWE-style). BDLOP binds
-        // an arbitrary message, so the blinding coefficients can stay uniform for maximal hiding of
-        // the sharing polynomial — only the secret `f(0) = a_0` must be short.
-        let a = if i == 0 {
-            // Constant-time CDT sampler at the fixed secret width (see lattice::gaussian).
-            sample_secret_poly(&mut br)
+        // The constant term is either this dealer's secret contribution (sampled **short**, so the
+        // reconstructed group secret is a valid lattice signing key) or, for a refresh round, the
+        // fixed public value 0 with zero randomness (see `dkg_round1_commit_refresh`). BDLOP binds
+        // an arbitrary message, so the blinding coefficients always stay uniform for maximal hiding
+        // of the sharing polynomial.
+        let (a, r) = if i == 0 && zero_constant {
+            (Rq::zero(), core::array::from_fn(|_| Rq::zero()))
+        } else if i == 0 {
+            (
+                // Constant-time CDT sampler at the fixed secret width (see lattice::gaussian).
+                sample_secret_poly(&mut br),
+                bdlop::sample_randomness(&mut br),
+            )
         } else {
-            sample_uniform_poly(&mut br)
+            (
+                sample_uniform_poly(&mut br),
+                bdlop::sample_randomness(&mut br),
+            )
         };
-        let r = bdlop::sample_randomness(&mut br);
         commitments.push(bdlop::commit(key, &a, &r));
         coeffs.push(a);
         rho.push(r);
@@ -363,6 +408,21 @@ pub fn dkg_check_complaint(commitments: &CoeffCommitments, c: &Complaint) -> boo
     !dkg_verify_share(commitments, c.dealer, c.recipient, &c.share)
 }
 
+/// Verify that a refresh dealer's round-1 commitments are a genuine **zero-sharing**
+/// ([`dkg_round1_commit_refresh`]): the constant-term commitment must be exactly
+/// [`bdlop::commit_zero`], the public, randomness-free commitment to `0`. Every recipient MUST run
+/// this on every dealer's [`CoeffCommitments`] before folding that dealer's contribution into a
+/// refresh via [`dkg_apply_refresh`] / [`dkg_apply_refresh_vk`] — an unchecked dealer could shift
+/// the group secret and its `t0 = B0·r` identity by any amount it likes, which is exactly the
+/// property a same-committee refresh must not have.
+#[must_use]
+pub fn dkg_check_zero_dealer(commitments: &CoeffCommitments) -> bool {
+    match commitments.commitments.first() {
+        Some(c0) => bdlop::commit_ct_eq(c0, &bdlop::commit_zero()),
+        None => false,
+    }
+}
+
 /// Combine the sub-shares a recipient received from the qualified dealer set into its signing
 /// share. All inputs must share one recipient and one threshold.
 pub fn dkg_finalize_share(qualified: &[ShareEvaluation]) -> Result<SigningShare, DkgError> {
@@ -386,6 +446,38 @@ pub fn dkg_finalize_share(qualified: &[ShareEvaluation]) -> Result<SigningShare,
     Ok(SigningShare {
         index: recipient,
         threshold,
+        share_bytes: Zeroizing::new(encode_value_rand(&value, &rand)),
+    })
+}
+
+/// Apply a qualified proactive-refresh delta to an existing signing share (ENK-142):
+/// `new = old + delta`. `delta` MUST be [`dkg_finalize_share`]'s combination of sub-shares from
+/// dealers that all passed [`dkg_check_zero_dealer`] — the caller is responsible for that check
+/// (this function has no public state to verify it against). Because every contributing dealer's
+/// constant term is pinned to `(0, 0)`, `delta`'s constant term is exactly `(0, 0)`: the group
+/// secret and the BDLOP commitment randomness that opens it (`t0 = B0·r`) survive this call
+/// unchanged, while every higher-degree coefficient moves by a freshly re-randomized amount.
+pub fn dkg_apply_refresh(
+    old: &SigningShare,
+    delta: &SigningShare,
+) -> Result<SigningShare, DkgError> {
+    if old.index != delta.index || old.threshold != delta.threshold {
+        return Err(DkgError::Mismatch);
+    }
+    let (old_value, old_rand) = decode_value_rand(&old.share_bytes)?;
+    let (delta_value, delta_rand) = decode_value_rand(&delta.share_bytes)?;
+    if old_rand.len() != KAPPA || delta_rand.len() != KAPPA {
+        return Err(DkgError::Encoding);
+    }
+    let value = ring_add(&old_value, &delta_value);
+    let rand: Vec<Rq> = old_rand
+        .iter()
+        .zip(delta_rand.iter())
+        .map(|(a, b)| ring_add(a, b))
+        .collect();
+    Ok(SigningShare {
+        index: old.index,
+        threshold: old.threshold,
         share_bytes: Zeroizing::new(encode_value_rand(&value, &rand)),
     })
 }
@@ -430,6 +522,50 @@ pub fn dkg_assemble_vk_set(
     Ok(VerificationKeySet {
         threshold,
         group_key: encode_commitment(&group),
+        share_verifiers,
+    })
+}
+
+/// Apply a qualified proactive-refresh delta to an existing verification-key set (ENK-142):
+/// `new = old (+) delta`, the BDLOP homomorphic sum. `delta` MUST be [`dkg_assemble_vk_set`]'s
+/// assembly of a round whose every input dealer passed [`dkg_check_zero_dealer`] — checked here
+/// too (not merely assumed): `delta.group_key` is required to already decode to
+/// [`bdlop::commit_zero`], so a delta from an unchecked or malformed round is rejected rather than
+/// silently applied. When that holds, `new.group_key == old.group_key` — the group identity is
+/// unchanged — while every per-party [`ShareVerifier`] moves to match the refreshed share it now
+/// verifies.
+pub fn dkg_apply_refresh_vk(
+    old: &VerificationKeySet,
+    delta: &VerificationKeySet,
+) -> Result<VerificationKeySet, DkgError> {
+    if old.threshold != delta.threshold || old.share_verifiers.len() != delta.share_verifiers.len()
+    {
+        return Err(DkgError::Mismatch);
+    }
+    let delta_group = decode_commitment(&delta.group_key)?;
+    if !bdlop::commit_ct_eq(&delta_group, &bdlop::commit_zero()) {
+        return Err(DkgError::Mismatch);
+    }
+    let old_group = decode_commitment(&old.group_key)?;
+    let group_key = encode_commitment(&bdlop::commit_add(&old_group, &delta_group));
+
+    let mut share_verifiers = Vec::with_capacity(old.share_verifiers.len());
+    for (o, d) in old.share_verifiers.iter().zip(delta.share_verifiers.iter()) {
+        if o.index != d.index {
+            return Err(DkgError::Mismatch);
+        }
+        let combined = bdlop::commit_add(
+            &decode_commitment(&o.verifying_key)?,
+            &decode_commitment(&d.verifying_key)?,
+        );
+        share_verifiers.push(ShareVerifier {
+            index: o.index,
+            verifying_key: encode_commitment(&combined),
+        });
+    }
+    Ok(VerificationKeySet {
+        threshold: old.threshold,
+        group_key,
         share_verifiers,
     })
 }
@@ -541,6 +677,75 @@ pub fn dkg_run_honest<R: CryptoRng + Rng>(
     })
 }
 
+/// Convenience: run a full same-committee **proactive refresh** for the honest `t`-of-`n` case
+/// (every party deals a zero-sharing to every party, every dealer verified via
+/// [`dkg_check_zero_dealer`] before its contribution is folded in). Mirrors [`dkg_run_honest`]'s
+/// simplification — no complaint round, so this is for a synchronous, reliably-connected committee;
+/// a deployment that needs to tolerate a faulty dealer during refresh drives
+/// [`dkg_round1_commit_refresh`] / [`dkg_eval_share`] / [`dkg_verify_share`] /
+/// [`dkg_build_complaint`] / [`dkg_check_complaint`] directly, exactly as [`dkg_run_honest`]'s own
+/// callers do for the initial ceremony, then folds the qualified set with [`dkg_apply_refresh`] /
+/// [`dkg_apply_refresh_vk`] instead of [`dkg_finalize_share`] / [`dkg_assemble_vk_set`] alone.
+///
+/// `current` is the committee's existing keygen output (from [`dkg_run_honest`] or a prior
+/// refresh); `n`/`t` must match its shape. Returns the refreshed output: same
+/// `public_key.group_key` (the `t0 = B0·r` identity — `lib_q_threshold_kem_lattice`'s
+/// `public_key_from_dkg` is unaffected), new `secret_shares` that no longer combine with any share
+/// captured before this call.
+pub fn dkg_run_honest_refresh<R: CryptoRng + Rng>(
+    profile: &DkgProfileV1,
+    n: u8,
+    t: u8,
+    current: &KeygenSharesOutput,
+    rng: &mut R,
+) -> Result<KeygenSharesOutput, DkgError> {
+    validate_profile(profile)?;
+    validate_n_t(n, t)?;
+    if current.secret_shares.len() != usize::from(n) {
+        return Err(DkgError::Mismatch);
+    }
+
+    let mut polys = Vec::with_capacity(usize::from(n));
+    let mut all_commitments = Vec::with_capacity(usize::from(n));
+    for party in 1..=n {
+        let (poly, comms) = dkg_round1_commit_refresh(profile, n, t, party, rng)?;
+        if !dkg_check_zero_dealer(&comms) {
+            return Err(DkgError::Mismatch);
+        }
+        polys.push(poly);
+        all_commitments.push(comms);
+    }
+
+    let mut secret_shares = Vec::with_capacity(usize::from(n));
+    for recipient in 1..=n {
+        let mut received = Vec::with_capacity(usize::from(n));
+        for (dealer_idx, poly) in polys.iter().enumerate() {
+            let share = dkg_eval_share(poly, recipient, rng)?;
+            debug_assert!(dkg_verify_share(
+                &all_commitments[dealer_idx],
+                poly.party,
+                recipient,
+                &share,
+            ));
+            received.push(share);
+        }
+        let delta = dkg_finalize_share(&received)?;
+        let old_share = current
+            .secret_shares
+            .iter()
+            .find(|s| s.index == recipient)
+            .ok_or(DkgError::Mismatch)?;
+        secret_shares.push(dkg_apply_refresh(old_share, &delta)?);
+    }
+
+    let delta_vk = dkg_assemble_vk_set(&all_commitments, n)?;
+    let public_key = dkg_apply_refresh_vk(&current.public_key, &delta_vk)?;
+    Ok(KeygenSharesOutput {
+        public_key,
+        secret_shares,
+    })
+}
+
 /// Recompute the public verification key `commit(share_value; share_rand)` for a finalized signing
 /// share, encoded the same way as [`ShareVerifier::verifying_key`]. A holder can compare this
 /// against the published verification-key set to confirm its share matches.
@@ -635,6 +840,23 @@ fn encode_commitment(c: &Commitment) -> Vec<u8> {
     out
 }
 
+/// Deserialize a commitment: `MU` `t0` elements followed by `t1` (inverse of [`encode_commitment`]).
+fn decode_commitment(bytes: &[u8]) -> Result<Commitment, DkgError> {
+    use crate::lattice::ring::RQ_BYTES;
+    if bytes.len() != (bdlop::MU + 1) * RQ_BYTES {
+        return Err(DkgError::Encoding);
+    }
+    let mut t0 = Vec::with_capacity(bdlop::MU);
+    for i in 0..bdlop::MU {
+        t0.push(
+            rq_from_le_bytes(&bytes[i * RQ_BYTES..(i + 1) * RQ_BYTES]).ok_or(DkgError::Encoding)?,
+        );
+    }
+    let t1 = rq_from_le_bytes(&bytes[bdlop::MU * RQ_BYTES..(bdlop::MU + 1) * RQ_BYTES])
+        .ok_or(DkgError::Encoding)?;
+    Ok(Commitment { t0, t1 })
+}
+
 /// Encode `value ‖ rand` (`1 + KAPPA` ring elements) for a finalized share.
 fn encode_value_rand(value: &Rq, rand: &[Rq]) -> Vec<u8> {
     let mut out = rq_to_le_bytes(value);
@@ -696,5 +918,52 @@ mod tests {
             dkg_round1_commit(&profile, 0, 1, 1, &mut rng),
             Err(DkgError::InvalidPartyCount)
         ));
+    }
+
+    #[test]
+    fn refresh_preserves_group_key_and_rekeys_shares() {
+        let profile = setup();
+        let mut rng = new_deterministic_rng([0x02u8; 32]);
+        let (n, t) = (5u8, 3u8);
+        let before = dkg_run_honest(&profile, n, t, &mut rng).expect("initial ceremony");
+        let after = dkg_run_honest_refresh(&profile, n, t, &before, &mut rng).expect("refresh");
+
+        // The group identity (t0 = B0*r, the lib-q-threshold-kem-lattice public key) is
+        // byte-identical across the refresh.
+        assert_eq!(before.public_key.group_key, after.public_key.group_key);
+
+        // Every party's finalized share bytes actually changed (freshly re-randomized higher
+        // coefficients), and each new share still opens against its new per-party verification key.
+        for (b, a) in before.secret_shares.iter().zip(after.secret_shares.iter()) {
+            assert_eq!(b.index, a.index);
+            assert_ne!(
+                b.share_bytes.as_slice(),
+                a.share_bytes.as_slice(),
+                "party {} share must change on refresh",
+                b.index
+            );
+            let recomputed = signing_share_commitment(a).expect("recompute vk");
+            let published =
+                &after.public_key.share_verifiers[usize::from(a.index) - 1].verifying_key;
+            assert_eq!(
+                &recomputed, published,
+                "party {} share must open against the refreshed vk",
+                a.index
+            );
+        }
+    }
+
+    #[test]
+    fn refresh_rejects_a_non_zero_dealer() {
+        let profile = setup();
+        let mut rng = new_deterministic_rng([0x03u8; 32]);
+        // A regular (non-refresh) round-1 commit deals a real secret at the constant term, so it
+        // must never be mistaken for a zero-sharing dealer.
+        let (_poly, comms) = dkg_round1_commit(&profile, 5, 3, 1, &mut rng).expect("round1");
+        assert!(!dkg_check_zero_dealer(&comms));
+
+        let (_poly, refresh_comms) =
+            dkg_round1_commit_refresh(&profile, 5, 3, 1, &mut rng).expect("refresh round1");
+        assert!(dkg_check_zero_dealer(&refresh_comms));
     }
 }
