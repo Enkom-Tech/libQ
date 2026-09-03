@@ -179,6 +179,33 @@ that asymmetry was measured with GCC 14.2.1 on real Cortex-M4 EM traces, is a
 compiler+register-allocator-specific property, and confirming it for rustc/LLVM here
 would need actual traces, which this assessment does not have.
 
+**Independent re-check, no ARM disassembler (this assessment, follow-up pass):** this
+VM's `objdump`/`readelf` toolchain has no ARM decoder (`objdump -i` lists only
+`i386`/`x86-64`; `rustup component add llvm-tools-preview` fails offline —
+`error opening file for download: Read-only file system`), so the binary-level check
+above could not be repeated with a disassembler. It was repeated a different way
+instead: `RUSTFLAGS="-C opt-level=s" cargo rustc -p lib-q-hqc --no-default-features
+--features "no_std,hqc128" --target thumbv7em-none-eabi -- --emit=asm` (verified via
+`cargo rustc -v` that `-C opt-level=s`, appearing after the profile's own `-C
+opt-level=2`, is the flag rustc actually applies — repeated `-C` flags are last-wins)
+emits readable Thumb-2 `.s` text directly, with `.loc` directives tying each
+instruction back to a `hqc_pke.rs` source line — no disassembler needed at all, and
+reproducible in any VM with only `cargo`. In the emitted
+`schoolbook_vect_mul_mod_xnm1`, the `.loc 33 1047 …` instructions (source line 1047,
+`for (i, &ai) in a.iter().enumerate()`) are `ldrd r0, r1, [r4], #8` (load `ai`,
+post-increment the pointer) immediately followed by `strd r1, r0, [sp, #32]` (spill
+both halves to two adjacent stack slots, one word apart); the `.loc 33 1049 …`
+instructions (source line 1049, the `(ai >> bit) & 1` mask) then reload the two halves
+with two separate `ldr` instructions, `ldr r2, [sp, #32]` and `ldr r1, [sp, #36]`, once
+per one of the 64 bit-loop iterations. This confirms, independently of the paper's GCC
+build and of the prior objdump-based check, that rustc/LLVM produces the same
+load-then-spill-then-repeated-half-reload shape for this function — the general
+load/store leakage class the paper's attack depends on is not GCC-specific. It still
+does not confirm the paper's measured low-half/high-half *signal-strength* asymmetry:
+that is an EM-measurement property of the physical part and traces, not something
+readable off assembly text, and remains unverified here as the paragraph above
+already states.
+
 Existing side-channel coverage remains whole-operation only (`SECURITY.md:12`, `:70`);
 the nearest CT test times full `decapsulate` (`tests/hardened_dudect_smoke.rs:9`), not
 the multiply's per-word memory-access pattern, so nothing in this crate's test suite
