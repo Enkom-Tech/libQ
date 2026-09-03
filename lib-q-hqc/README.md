@@ -110,7 +110,10 @@ Requires x86_64 with AVX2; falls back to portable code when unavailable.
 
 Documented in [SECURITY.md](SECURITY.md) and [docs/audit-package/README.md](docs/audit-package/README.md):
 
-- No independent side-channel evaluation; constant-time discipline in source only.
+- No independent side-channel evaluation; constant-time discipline in source only. The
+  fixed-weight sampler (`vect_generate_random_support1`/`2`) has no masking or hiding
+  countermeasure against power/EM analysis — see SECURITY.md's "Power/EM side channel on
+  fixed-weight sampling" (citing [ePrint 2026/1462](https://eprint.iacr.org/2026/1462)).
 - Full NIST KEM KAT conformance is not yet established by a non-ignored test suite.
 
 ## Security
