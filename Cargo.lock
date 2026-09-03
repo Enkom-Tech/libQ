@@ -1635,6 +1635,7 @@ dependencies = [
  "lib-q-random",
  "lib-q-ring",
  "lib-q-ring-sig",
+ "lib-q-slh-dsa",
  "rand_core 0.10.1",
 ]
 

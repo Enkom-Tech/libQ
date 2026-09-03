@@ -146,14 +146,24 @@ this change).
 
 Verdict: GAP
 
+**Update (ENK-1364):** Gap closed — `lib-q-sca-test/src/self_cert.rs::run_timing_battery`
+now carries an `lib-q-slh-dsa:sign` target behind a new `slhdsa` feature, wired into the
+`ci.yml` self-cert smoke the same way `hqc-hardened`/`lattice-zkp-hardened` are; see
+PR_URL_PLACEHOLDER.
+
 ## Not checked
 
-- Whether SLH-DSA's reference algorithm (hash-based, randomized signing) is
+- ~~Whether SLH-DSA's reference algorithm (hash-based, randomized signing) is
   amenable to the same fixed-vs-random Welch's-*t* harness shape the
   ML-KEM/ML-DSA targets use, or needs a different construction (e.g. a
   fixed-vs-random *randomizer* axis instead of a fixed-vs-random *key* axis,
   the way the paper's own ML-DSA/SLH-DSA dudect harnesses hold the message
-  fixed rather than the key) — left to ENK-1364.
+  fixed rather than the key) — left to ENK-1364.~~ Resolved by ENK-1364: the
+  new `slhdsa_sign_tvla_timings` target holds the signing key **and** the
+  message fixed in both classes and varies only the FIPS 205 `addrnd`
+  randomizer axis, matching the paper's own SLH-DSA dudect construction
+  rather than ML-DSA's key-rotation shape (rotating the key too would
+  conflate two different questions in one statistic).
 - Whether `lib-q-sig`'s SLH-DSA facade (`lib-q-sig/src/slh_dsa.rs`) has any
   timing coverage distinct from the `lib-q-slh-dsa` crate's own — not read.
 - Whether GIP's `sdk/.libq-revision` pin tracks this assessment's commit —
