@@ -31,6 +31,11 @@ use lib_q_ml_kem::{
     KemCore,
     MlKem768,
 };
+#[cfg(feature = "slhdsa")]
+use lib_q_slh_dsa::{
+    Shake128f,
+    SigningKey,
+};
 
 /// Collect fixed-vs-random wall-clock timings for ML-KEM decapsulation (TVLA-style smoke harness).
 ///
@@ -543,6 +548,73 @@ pub fn lattice_zkp_prove_opening_dudect_screen(samples: usize, threshold: f64) -
     crate::dudect::timing_passes_loose(threshold, &fixed, &random)
 }
 
+/// Collect fixed-vs-random wall-clock timings for SLH-DSA signing (TVLA-style smoke harness).
+///
+/// SLH-DSA signing is hash-based and randomized: in libQ's default configuration signing draws
+/// a fresh per-signature randomizer (FIPS 205 `addrnd`, via `RandomizedSigner`/`sign_with_rng`),
+/// so unlike ML-KEM/HQC there is no deterministic function of "fixed key + fixed ciphertext" to
+/// repeat verbatim, and unlike ML-DSA's masking shares there is no per-key countermeasure state
+/// to catch by rotating the key. This harness therefore varies **only the randomizer axis**:
+/// both classes reuse the same fixed signing key and the same fixed message (via
+/// `try_sign_with_context`'s explicit `opt_rand` parameter, matching CT-KAT's own SLH-DSA
+/// dudect construction — see `docs/ct-kat-assessment.md`'s "Not checked" note); the `fixed`
+/// class repeats one fixed `addrnd` value, the `random` class rotates `addrnd` per sample.
+/// Rotating the key too (as [`mldsa_sign_tvla_timings`] does) would conflate "does timing depend
+/// on the key" with "does timing depend on the randomizer" in a single statistic.
+#[cfg(feature = "slhdsa")]
+pub fn slhdsa_sign_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
+    let mut rng = lib_q_random::LibQRng::new_secure().expect("secure rng");
+    let signing_key = SigningKey::<Shake128f>::new(&mut rng);
+    let msg = b"lib-q-sca-tvla-slhdsa";
+    let ctx = b"";
+    let fixed_rand = [0x42u8; 16];
+
+    let random_rands: Vec<[u8; 16]> = (0..samples)
+        .map(|i| {
+            let mut r = [0u8; 16];
+            r[0] = (i >> 8) as u8;
+            r[1] = i as u8;
+            r
+        })
+        .collect();
+
+    let fixed = crate::sample_wall_times(
+        || {
+            let sig = signing_key
+                .try_sign_with_context(msg, ctx, Some(&fixed_rand))
+                .expect("sign");
+            std::hint::black_box(sig);
+        },
+        samples,
+    );
+    let mut idx = 0usize;
+    let random = crate::sample_wall_times(
+        || {
+            let sig = signing_key
+                .try_sign_with_context(msg, ctx, Some(&random_rands[idx]))
+                .expect("sign");
+            std::hint::black_box(sig);
+            idx = (idx + 1) % random_rands.len();
+        },
+        samples,
+    );
+    (fixed, random)
+}
+
+/// CI-friendly first-order TVLA screen for SLH-DSA signing.
+#[cfg(feature = "slhdsa")]
+pub fn slhdsa_sign_tvla_screen(samples: usize) -> Option<bool> {
+    let (fixed, random) = slhdsa_sign_tvla_timings(samples);
+    screen_fixed_vs_random(&fixed, &random)
+}
+
+/// CI-friendly dudect-style timing screen for SLH-DSA signing.
+#[cfg(feature = "slhdsa")]
+pub fn slhdsa_sign_dudect_screen(samples: usize, threshold: f64) -> bool {
+    let (fixed, random) = slhdsa_sign_tvla_timings(samples);
+    crate::dudect::timing_passes_loose(threshold, &fixed, &random)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -565,6 +637,13 @@ mod tests {
     fn mldsa_tvla_and_dudect_smoke() {
         let _ = mldsa_sign_tvla_screen(32).expect("t-stat");
         let _ = mldsa_sign_dudect_screen(32, DEFAULT_TVLA_ABS_T);
+    }
+
+    #[cfg(feature = "slhdsa")]
+    #[test]
+    fn slhdsa_tvla_and_dudect_smoke() {
+        let _ = slhdsa_sign_tvla_screen(8).expect("t-stat");
+        let _ = slhdsa_sign_dudect_screen(8, DEFAULT_TVLA_ABS_T);
     }
 
     #[cfg(feature = "lattice-zkp-hardened")]

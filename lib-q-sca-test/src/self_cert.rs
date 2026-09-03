@@ -28,7 +28,8 @@ use crate::report::SelfCertReport;
     feature = "mlkem",
     feature = "mldsa",
     feature = "lattice-zkp-hardened",
-    feature = "hqc-hardened"
+    feature = "hqc-hardened",
+    feature = "slhdsa"
 ))]
 use crate::report::{
     Channel,
@@ -87,7 +88,8 @@ impl BatteryConfig {
     feature = "mlkem",
     feature = "mldsa",
     feature = "lattice-zkp-hardened",
-    feature = "hqc-hardened"
+    feature = "hqc-hardened",
+    feature = "slhdsa"
 ))]
 #[must_use]
 pub fn run_timing_battery(config: BatteryConfig) -> SelfCertReport {
@@ -216,6 +218,19 @@ pub fn run_timing_battery(config: BatteryConfig) -> SelfCertReport {
         }
     }
 
+    #[cfg(feature = "slhdsa")]
+    {
+        let (fixed, random) = crate::evaluation::slhdsa_sign_tvla_timings(config.samples_per_class);
+        report.push(EvaluationReport::new(
+            "lib-q-slh-dsa:sign",
+            Channel::WallClockTiming,
+            config.samples_per_class,
+            crate::welch_t_statistic(&fixed, &random),
+            config.abs_t_threshold,
+            "fixed signing key/message + fixed randomizer vs rotated randomizer; SLH-DSA-Shake128f signing",
+        ));
+    }
+
     report
 }
 
@@ -224,7 +239,8 @@ pub fn run_timing_battery(config: BatteryConfig) -> SelfCertReport {
     feature = "mlkem",
     feature = "mldsa",
     feature = "lattice-zkp-hardened",
-    feature = "hqc-hardened"
+    feature = "hqc-hardened",
+    feature = "slhdsa"
 )))]
 #[must_use]
 pub fn run_timing_battery(_config: BatteryConfig) -> SelfCertReport {
@@ -260,7 +276,8 @@ mod tests {
             feature = "mlkem",
             feature = "mldsa",
             feature = "lattice-zkp-hardened",
-            feature = "hqc-hardened"
+            feature = "hqc-hardened",
+            feature = "slhdsa"
         ))]
         assert!(
             !report.reports.is_empty(),
