@@ -431,6 +431,34 @@ nothing.
   related-key oracle. A scoping question, not a break. RK-1 (QCB's Saturnin16 assumption) is
   untouched.
 
+### ML-DSA (`lib-q-ml-dsa`), added 2026-09-05, card `ENK-498` — the fault adversary, MLDSA-F-1
+
+**Also not a sixth gate.** Same reason as the Saturnin block above: until this date, nothing in
+`lib-q-ml-dsa`'s docs named fault injection as a threat at all (checked: no "fault" hit anywhere
+under `lib-q-ml-dsa/docs/`, `MODES.md`, or `SECURITY_AUDIT.md` before this entry). Full statement
+and evidence: `lib-q-ml-dsa/docs/SECURITY_AUDIT.md` §*Fault Injection*.
+
+Two published attacks recover an ML-DSA/Dilithium secret key by fault injection during
+**randomized (hedged) signing** — the mode FIPS 204 and this crate select by default, chosen
+specifically to blunt the deterministic-mode attacks: Krahmer, Pessl, Land, Güneysu, *"Correction
+Fault Attacks on Randomized CRYSTALS-Dilithium"* (IACR TCHES 2024(4), ePrint 2024/138; demonstrated
+on real ARM Cortex-M4 hardware, 512–1024 faulty signatures for Dilithium2/ML-DSA-44); and Ouyang,
+Wang, Liu, Wu, Wang, Fan, *"Improving Skipping Fault Correction Attacks on Randomized Dilithium via
+MILP"* (ePrint 2026/1448), which needs **fewer** faults than Krahmer et al. at every NIST level —
+plain-setting reductions of 25.9% (L2), 16.2% (L3), 25.6% (L5); **shuffling-setting** reductions of
+25.6% (L2), 13.5% (L3), 26.3% (L5). The shuffling setting both papers attack is the same
+countermeasure class `lib-q-ml-dsa`'s `hardened` feature ships (Fisher-Yates-permuted NTT
+layer-0 execution order, `src/simd/portable/{ntt,invntt}.rs`) — that code's own doc comment scopes
+itself to side-channel timing/EM, correctly, and neither paper's result was reachable from this
+crate's docs before now. Nothing in this repo implements a fault-attack countermeasure for
+ML-DSA; `lib-q-ml-dsa` does not even carry the advisory `fault_injection_protection` flag `lib-q-aead`
+and `lib-q-hpke` have.
+
+- **MLDSA-F-1 — is a software correction-fault countermeasure worth adding, or is this out of the
+  library's stated threat model?** Both attacks require physical fault-injection access that
+  `docs/security.md`'s adversary list does not name. Neither paper proposes a countermeasure to
+  implement, so this is recorded as an open question for a human call, not a fix in progress.
+
 ## What "signed off" requires (all gates)
 
 For each gate, **one** human cryptographer must: accept the stated assumptions, confirm the
