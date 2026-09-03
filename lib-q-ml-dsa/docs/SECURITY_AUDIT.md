@@ -62,10 +62,25 @@ that it defeats key recovery*. A reader of `MODES.md`'s "Hardened Mode ... high-
 deployments" framing had no way to learn that shuffled NTT-layer-0 order is not a fault-injection
 countermeasure.
 
-**Nothing in this crate implements a fault-attack countermeasure of any kind** — no redundant
-recomputation, no error detection on the masked-nonce combination both attacks fault, no infective
-countermeasure. `lib-q-ml-dsa` does not even carry an advisory `fault_injection_protection` flag
-like `lib-q-aead`/`lib-q-hpke` do.
+**OBSERVED, `src/ml_dsa_generic.rs`: the exact key-addition step both attacks fault has no
+self-check, and `sign_internal` never re-verifies its own output before releasing it.** The
+"key addition combining the secret masking polynomial with the random nonce" that Krahmer et
+al. and this paper's fault model target is `add_vectors::<SIMDUnit>(COLUMNS_IN_A, &mut mask,
+&challenge_times_s1[...])` — `src/ml_dsa_generic.rs:349` (plain path) / `:423` (`hardened`
+path, after the masked-share merge), repeated at `:1208`/`:1282` and `:2112`/`:2186` for the
+other two parameter-set instantiations (ML-DSA-44/65/87, i.e. L2/L3/L5 — identical pattern all
+three times). `sign_internal` serializes `mask` into the signature and returns `Ok(())`
+immediately after (`:529`–`:554`) with no recomputation or comparison of its own output; the
+only place in this file that recomputes a commitment hash to check a signature is
+`verify_internal` (`:643`–`:666`), which runs on the *receiving* side, not the signer's. So a
+fault that corrupts this addition (skips it, flips it, or otherwise perturbs it) without
+pushing `mask`/`w0` outside the rejection-sampling bounds checked at `:353`/`:356`/`:368`
+(exactly the fault class both papers assume, since a caught fault just triggers rejection
+resampling, not key exposure) is signed and returned with zero further validation. This
+confirms, rather than merely suspects, the gap: no redundant recomputation, no error
+detection on the masked-nonce combination both attacks fault, no infective countermeasure.
+`lib-q-ml-dsa` does not even carry an advisory `fault_injection_protection` flag like
+`lib-q-aead`/`lib-q-hpke` do.
 
 **MLDSA-F-1 — is a software correction-fault countermeasure worth adding, or is this out of the
 library's stated threat model?** Both attacks require physical fault-injection access
