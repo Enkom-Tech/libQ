@@ -104,6 +104,35 @@ are software timing regression evidence only; see
 [side-channel self-certification](../docs/sca-self-certification.md) for boundaries vs
 accredited evaluation.
 
+### Power/EM side channel on fixed-weight sampling (not implemented, not mitigated)
+
+[Hesse, Krausz, Murugananthan, Wollinger, Güneysu, "Power Reveals Timing Conceals" (ePrint
+2026/1462)](https://eprint.iacr.org/2026/1462) demonstrates a practical power-analysis
+key-recovery attack on HQC's fixed-weight vector sampling — the exact algorithm this
+crate ports as `HqcPke::vect_generate_random_support1` / `vect_generate_random_support2`
+(`src/hqc_pke.rs`; see `docs/vector-operations.md`'s posture table). Their first attack
+targets support generation directly (100% key-recovery success, 900,000 distinguisher
+calls against an unmasked implementation, following the Guo et al. CHES 2022 strategy);
+their second targets a masked implementation's support *conversion* step with a
+single-trace attack, also 100% success, by exploiting unintended share recombination.
+
+This crate implements neither masking nor a hiding countermeasure (dummy operations,
+shuffling, bitslicing) anywhere in the HQC fixed-weight sampler — `support1` is used
+directly on the long-term secret key material `x`, `y` in keygen. The paper is concrete,
+published evidence that the "instrumented power/EM TVLA remain out of scope" limitation
+above is not hypothetical for this code path on any target with physical or
+co-located-process power/EM access (e.g. embedded, smartcard, cloud coresident). The
+paper finds dummy-operation hiding scales only linearly with the number of dummy ops
+(weak), while shuffling on the masked target fully prevented their second attack —
+i.e. a masking-only or dummy-op-only fix would not be sufficient if this crate ever
+targets that threat model; both masking *and* hiding (shuffling) would be required.
+
+No code change is made here: adding masking/shuffling to the sampler is a deliberate
+architecture and threat-model decision (target platform, performance budget) for a
+maintainer, not a drive-by literature-triage patch. Tracked as an open design question,
+not a defect in the current unprotected-software threat model this crate otherwise
+documents.
+
 ### Formal verification
 
 No machine-checked proof (Kani, etc.) ships with this crate. Correctness relies on tests
