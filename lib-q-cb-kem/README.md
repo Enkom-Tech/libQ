@@ -36,6 +36,16 @@ The 10 variants have the following designated identifiers:
 
 Anyone, how wants to use Classic McEliece to negotiate a key between two parties.
 
+### Which parameter set should I use?
+
+See [`SECURITY.md`](SECURITY.md#parameter-set-security-margin-and-long-term-recommendation-eprint-20261512-nist-ir-8545)
+for parameter-margin and standardization-scope notes: NIST's independent estimates place
+`mceliece460896`/`f` below its claimed Category 3 (still >= Category 2); the 2026 ISO
+standardization excludes `mceliece348864`; the Classic McEliece team recommends
+`mceliece6688128`/`f` or `mceliece6960119`/`f` for long-term security. `SECURITY.md` also
+covers [multi-instance security and key rotation](SECURITY.md#multi-instance-security-and-key-rotation-eprint-2026517)
+for the "distribute one public key, reuse it for many encapsulations" pattern recommended below.
+
 ## How does one use it storing keys on the heap (default feature `alloc`)?
 
 Add this to your `Cargo.toml`:
@@ -222,7 +232,11 @@ See [`SECURITY.md`](SECURITY.md) for standardization status and tracked structur
 cryptanalysis — in particular IACR ePrint 2026/1630 (2026), a provable classical
 *quasipolynomial-time public-key distinguisher* against Goppa–McEliece (a distinguisher,
 **not** a message- or key-recovery attack, and not yet practical) whose concrete estimates
-fall below generic decoding for every Classic McEliece parameter set.
+fall below generic decoding for every Classic McEliece parameter set. `SECURITY.md` also lists
+[further physical side-channel and fault-injection literature](SECURITY.md#further-physical-side-channel-and-fault-injection-literature-not-verified-against-this-code)
+(Guo/Johansson/Johansson TCHES 2022; Cayrel et al.; Pircher et al.) beyond the BM attack above —
+cited from a survey, not independently verified against this crate's code the way the BM entry
+above was.
 
 ### Feature zeroize: Clear out secrets from memory
 
