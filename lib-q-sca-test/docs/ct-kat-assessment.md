@@ -149,7 +149,7 @@ Verdict: GAP
 **Update (ENK-1364):** Gap closed — `lib-q-sca-test/src/self_cert.rs::run_timing_battery`
 now carries an `lib-q-slh-dsa:sign` target behind a new `slhdsa` feature, wired into the
 `ci.yml` self-cert smoke the same way `hqc-hardened`/`lattice-zkp-hardened` are; see
-PR_URL_PLACEHOLDER.
+Enkom-Tech/libQ PR #44 (branch `agent/ENK-1364`).
 
 ## Not checked
 
