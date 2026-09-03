@@ -25,6 +25,58 @@
 - [ ] No timing variations based on secret values
 - [ ] No branching on secret data in critical paths
 
+## Fault Injection
+
+**Not covered by the checklist above, and until this card (`ENK-498`, 2026-09-05) nothing in this
+crate's docs named fault injection as a threat at all.** The Side-Channel Resistance checklist
+above only asks about timing/branching; there is no "Fault Injection" heading anywhere under
+`lib-q-ml-dsa/docs/` or in `MODES.md` before this entry.
+
+Two published attacks recover an ML-DSA/Dilithium secret key by fault injection during
+**randomized (hedged) signing** — the mode FIPS 204 and this crate select by default (`random`
+feature; see [MODES.md](MODES.md)), chosen specifically because randomized signing was believed to
+blunt the deterministic-mode attacks:
+
+- Krahmer, Pessl, Land, Güneysu, *"Correction Fault Attacks on Randomized CRYSTALS-Dilithium"*,
+  IACR TCHES 2024(4) (ePrint 2024/138): a "skipping fault correction" attack that faults the key
+  addition combining the secret masking polynomial with the random nonce, then corrects the faulty
+  signature to recover a secret intermediate. Demonstrated on real hardware (clock glitches on an
+  ARM Cortex-M4); 512–1024 faulty signatures suffice for Dilithium2 (≈ ML-DSA-44).
+- Ouyang, Wang, Liu, Wu, Wang, Fan, *"Improving Skipping Fault Correction Attacks on Randomized
+  Dilithium via MILP"*, ePrint 2026/1448 (card `ENK-498`): proves Krahmer et al.'s full-rank
+  collection strategy is unnecessary, derives a minimum fault count `M_min` from an MILP model, and
+  needs **fewer faults** than Krahmer et al. at every NIST level. Plain-setting reductions: 25.9%
+  (L2/ML-DSA-44), 16.2% (L3/ML-DSA-65), 25.6% (L5/ML-DSA-87). **Shuffling-setting** reductions:
+  25.6% (L2), 13.5% (L3), 26.3% (L5).
+
+**The "shuffling setting" both papers attack is the same countermeasure class this crate's
+`hardened` feature ships as `ntt_at_layer_0_shuffled` / `invert_ntt_at_layer_0_shuffled`
+(`src/simd/portable/ntt.rs`, `src/simd/portable/invntt.rs`) — a Fisher-Yates-permuted execution
+order for NTT layer 0.** That code's own doc comment scopes its purpose correctly ("mitigating
+order-dependent side channels") and never claims fault resistance, so nothing here is
+misadvertised (contrast the pre-2026-08-15 `fault_injection_protection` flags in `lib-q-aead` /
+`lib-q-hpke`, corrected in `docs/crypto-signoff-register.md`'s fault cross-cutting section). But
+neither paper's finding was reachable from this crate's docs before now: both model "shuffling" as
+an attacked countermeasure and show it *raises the fault count an attacker needs by 13.5–26.3%, not
+that it defeats key recovery*. A reader of `MODES.md`'s "Hardened Mode ... high-security
+deployments" framing had no way to learn that shuffled NTT-layer-0 order is not a fault-injection
+countermeasure.
+
+**Nothing in this crate implements a fault-attack countermeasure of any kind** — no redundant
+recomputation, no error detection on the masked-nonce combination both attacks fault, no infective
+countermeasure. `lib-q-ml-dsa` does not even carry an advisory `fault_injection_protection` flag
+like `lib-q-aead`/`lib-q-hpke` do.
+
+**MLDSA-F-1 — is a software correction-fault countermeasure worth adding, or is this out of the
+library's stated threat model?** Both attacks require physical fault-injection access
+(clock/voltage glitching, EM/laser fault injection), which `docs/security.md`'s adversary list
+(quantum, unlimited classical compute, timing/power/cache side-channel, memory-safety) does not
+name. Whether `lib-q-ml-dsa` should add a detection/redundancy countermeasure — and which class, since
+both attacks target the mode NIST selected specifically to blunt physical attacks — is a human
+call. Recorded here as an open question, not as a fix in progress: neither paper proposes a
+countermeasure to implement. Indexed in `docs/crypto-signoff-register.md`'s fault cross-cutting
+section as **MLDSA-F-1**.
+
 ## Memory Safety
 
 - [ ] No unsafe code with undefined behavior
