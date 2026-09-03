@@ -109,29 +109,57 @@ accredited evaluation.
 [Hesse, Krausz, Murugananthan, Wollinger, Güneysu, "Power Reveals Timing Conceals" (ePrint
 2026/1462)](https://eprint.iacr.org/2026/1462) demonstrates a practical power-analysis
 key-recovery attack on HQC's fixed-weight vector sampling — the exact algorithm this
-crate ports as `HqcPke::vect_generate_random_support1` / `vect_generate_random_support2`
-(`src/hqc_pke.rs`; see `docs/vector-operations.md`'s posture table). Their first attack
+crate ports as `HqcPke::vect_generate_random_support1` (`src/hqc_pke.rs:506`, keygen
+secret `x`/`y`) and `vect_generate_random_support2` (`:550`, ephemeral encryption noise
+`r1`/`r2`/`e`); see `docs/vector-operations.md`'s posture table. Their first attack
 targets support generation directly (100% key-recovery success, 900,000 distinguisher
 calls against an unmasked implementation, following the Guo et al. CHES 2022 strategy);
 their second targets a masked implementation's support *conversion* step with a
 single-trace attack, also 100% success, by exploiting unintended share recombination.
 
 This crate implements neither masking nor a hiding countermeasure (dummy operations,
-shuffling, bitslicing) anywhere in the HQC fixed-weight sampler — `support1` is used
-directly on the long-term secret key material `x`, `y` in keygen. The paper is concrete,
+shuffling, bitslicing) anywhere in the HQC fixed-weight sampler. The attacked control flow
+is present verbatim: the variable-iteration rejection loop's data-dependent `break`
+(`src/hqc_pke.rs:530`) and the O(i) duplicate scan over already-accepted secret positions
+(`:538-543`) in `vect_generate_random_support1`, used directly on the long-term secret key
+material `x`, `y` in keygen — the more sensitive of the two paths. The sibling
+`vect_generate_random_support2` (ephemeral noise, lower severity) already uses an
+arithmetic sign-bit mask for its own dedup write (`:588-593`), so the crate has the masked-
+flow idiom in-crate already; it is simply not applied to `support1`. The paper is concrete,
 published evidence that the "instrumented power/EM TVLA remain out of scope" limitation
 above is not hypothetical for this code path on any target with physical or
-co-located-process power/EM access (e.g. embedded, smartcard, cloud coresident). The
-paper finds dummy-operation hiding scales only linearly with the number of dummy ops
-(weak), while shuffling on the masked target fully prevented their second attack —
-i.e. a masking-only or dummy-op-only fix would not be sufficient if this crate ever
-targets that threat model; both masking *and* hiding (shuffling) would be required.
+co-located-process power/EM access (e.g. embedded, smartcard, cloud coresident) — and this
+crate explicitly supports `no_std`/WASM targets (README.md), which are exactly that class.
+The paper finds dummy-operation hiding scales only linearly with the number of dummy ops
+(weak), while shuffling on the masked target fully prevented their second attack — i.e. a
+masking-only or dummy-op-only fix would not be sufficient if this crate ever hardens this
+path; both masking *and* hiding (shuffling) would be required.
+
+Distinct from sibling iacr-radar card ENK-508 (ePrint 2026/1491), which targets load/store
+leakage of `vect_generate_random_support1`/`2`'s *output* support words — a different
+observable (memory access pattern) than this paper's target (the sampler's data-dependent
+*control flow*, observed via power). Both papers attack the same two functions from
+different angles; a hardening pass should address both assessments together.
 
 No code change is made here: adding masking/shuffling to the sampler is a deliberate
 architecture and threat-model decision (target platform, performance budget) for a
-maintainer, not a drive-by literature-triage patch. Tracked as an open design question,
-not a defect in the current unprotected-software threat model this crate otherwise
-documents.
+maintainer, not a drive-by literature-triage patch. A source review cannot settle a
+power-domain claim either way — power leakage is a physical/per-device property, not a
+source-level one (unlike timing or constant-time-source review) — so this section records
+the paper's findings and their mapping onto this crate's symbols, not an independent
+confirmation. Current side-channel coverage for this crate is whole-operation wall-clock
+only (`SECURITY.md:12`, `:100-105`); no test isolates the sampler, and no power/EM trace of
+any kind has been taken of this code.
+
+Verdict: GAP
+
+libQ's `no_std`/WASM support means an embedded or co-located-adversary deployment target is
+plausible, and no power-domain check of this sampler has ever been run — this is not a
+deployment libQ has formally excluded from its threat model. Follow-up hardening (masked
+and/or shuffled rewrite of `vect_generate_random_support1`, gated behind the `hardened`
+feature, output byte-identical to today's KATs) is tracked separately as board card
+`ENK-1320` so it does not block this documentation
+change; this card is not reopened for it.
 
 ### Formal verification
 
