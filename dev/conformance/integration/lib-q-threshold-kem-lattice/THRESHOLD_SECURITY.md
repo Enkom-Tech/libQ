@@ -152,6 +152,9 @@ parameters; a **decapping-party-only interactive check** — the parties cannot 
 without `e`, the encryptor's secret. `lib-q-mve` proves ML-KEM single-`K` multi-recipient consistency
 — a **different statement** over a **different field** — and does not certify knowledge of `μ` here.)*
 
+*External validation:* eprint 2025/1665 (Brzuska–Klooß–Woo) documents the identical class of gap for
+TPKE in general (their footnote 11, §4). See §9.
+
 ---
 
 ## 5. Closing the boundary — the landscape
@@ -168,6 +171,9 @@ deployment premise — at the cost of a heavy, novel, still-RED SHAKE-in-STARK c
 sound-but-conditional and are how deployed threshold decryption schemes handle this class of oracle;
 they are what the library can enforce *today* (§6). A production deployment SHOULD combine (B) and
 (C): authenticated origin as the primary control, the epoch budget + rotation as defense-in-depth.
+
+*External validation:* eprint 2025/1665 §5's non-interactive proof of randomness (NIPoR) is a candidate
+formal target for closure A's PoK of `μ`. See §9.
 
 ### 5.1 The budget arithmetic (closure C)
 
@@ -218,6 +224,9 @@ scheme so as not to dictate the deployment's PKI.
   probe (§4) is a real gap, not an artifact. "IND-CCA" for this construction is **conditional on the
   §5 closure in force** and remains the primary item for human-cryptographer sign-off.
 
+*External input:* eprint 2025/1665 Theorem 10 (§5, NIPoR) is a candidate proof route for turning closure
+A's "argued not proven" claim into a cited construction. See §9.
+
 ---
 
 ## 8. Repronotes / open items for the reviewer
@@ -230,3 +239,55 @@ scheme so as not to dictate the deployment's PKI.
    `lib-q-stark-fri`), noting the field is FRI-native (BabyBear/M31) while `q ≈ 2^48`, so the lattice
    relation `p = B0ᵀe + f` must be carried by a bridged/emulated argument — this is the hard part.
 4. Sign off (or refute) the §7 conditional threshold IND-CCA statement.
+
+---
+
+## 9. Related literature (external validation — ENK-1321)
+
+Brzuska, Klooß, and Woo, "Threshold Public-Key Encryption: Definitions, Relations, and CPA-to-CCA
+Transforms" (Cryptology ePrint Archive, Report 2025/1665, https://eprint.iacr.org/2025/1665;
+CRYPTO'25/TCC'25), independently documents, for TPKE in general, the same class of gap this document
+derives concretely for dual-Regev in §4.2–§4.3.
+
+- **Matches §4.2.** Their footnote 11 (§4, immediately before Definition 7): *"The gap in [FP01,
+  Theorem 1] is, at a high level, that the Naor–Yung transform requires perfect correctness, but the
+  natural analogue is not enough for TPKE when partial decryption queries are admitted."* This is the
+  general-TPKE statement of the failure mode §4.2 derives concretely here: a ciphertext
+  well-formedness/bounded-norm proof (the classic Naor–Yung-style attached NIZK) does not stop a
+  partial-decapsulation-oracle adversary, because well-formedness does not pin the ciphertext to the
+  *specific* honest `(e, f)` decomposition the encryptor used (§4.2 items 1–2 here; their Section 4
+  intro, same root cause). Their own fix for the classic Naor–Yung route is not "attach any NIZK" but
+  requiring the underlying TPKE to be **semi-malicious CPA**-secure first (Definition 7: adversary may
+  choose randomness for non-challenge ciphertexts) before their NIZK-well-formedness transform (Theorem
+  7) is sound — this crate's dual-Regev TPKE has not been shown semi-malicious-CPA-secure, so Theorem
+  7's route does not apply here without further work, consistent with §4.2's finding.
+
+- **Candidate closure for §4.3 / closure A (§5, §7).** Their second transform (Theorem 10, their
+  Section 5) instead attaches a **non-interactive proof of randomness (NIPoR)** (their Definitions 8–9,
+  Sections 5.1–5.2): a proof that a public value `y = f(m; r)` was produced by evaluating a function `f`
+  on secret `m` under fresh, honestly-sampled `r`. Instantiated with `f := Enc(pk, ·; ·)`, a NIPoR is
+  exactly a proof of *knowledge of the plaintext under honest, pseudorandom encryption* — the §4.3
+  minimal-sufficient statement this document derives independently for dual-Regev (knowledge of `μ`
+  such that `(e,f,g) = XOF(pk‖μ)` and `p = B0ᵀe+f`). Their Theorem 10 shows plain CPA-security of the
+  base TPKE suffices for this route (SIM-CPA/IND-CPA ⇒ SIM-CCA/IND-CCA in the ROM) — it does **not**
+  require the semi-malicious strengthening Theorem 7 needs.
+
+  libQ's `lib-q-zk-encryption-proof`'s `encryption_proof::assemble_full_provenance_prover/_verifier`
+  (closure A, §5 row A) — the SHAKE-in-STARK PoK of `μ` — is structurally a NIPoR applied to the
+  dual-Regev encryption function `Enc(pk, μ; XOF(pk‖μ))`, in the sense of their Definition 8 (a proof
+  that a public value was produced from a secret input under fresh pseudorandom coins). §7 currently
+  records closure A as "argued not proven." [CLW25] (Cini–Lai–Woo, ASIACRYPT 2025 — cited in this same
+  eprint) already uses this paper's NIPoR result to upgrade a *lattice-based* TPKE from CPA to CCA, so
+  the technique is not merely abstract. eprint 2025/1665's Theorem 9 (NIPoR construction) + Theorem 10
+  (CPA-to-CCA transform) is therefore a concrete, citable formal target for turning closure A into a
+  proven construction: mapping libQ's SHAKE-in-STARK circuit onto their NIPoR syntax
+  (Setup/Prove/Verify with a straightline-extractable commitment + SIMEXT NIZK, their Fig. 10) and
+  checking it against their (weak) simulation-extractability definition (their Definition 9) would let
+  closure A cite Theorem 10 instead of resting on an ad hoc "argued not proven" claim.
+
+- **Status of this note.** This is external validation and a candidate proof route, **not** a proof:
+  nobody has yet checked that libQ's specific SHAKE-in-STARK circuit satisfies their NIPoR syntax or
+  their (weak) SIMEXT security definition. It is a concrete input for the pending human-cryptographer
+  sign-off on §7's conditional threshold IND-CCA statement (§8 item 4), not a resolution of it. No
+  crate, parameter, wire format, or public API is touched by this note.
+
