@@ -166,6 +166,124 @@ change; this card is not reopened for it.
 No machine-checked proof (Kani, etc.) ships with this crate. Correctness relies on tests
 and manual review.
 
+### Side-channel: load/store leakage of sparse secret vectors (ePrint 2026/1491)
+
+Banegas, Smith, and Zahreddine, "Exploiting Load/Store Leakage of Sparse Vectors for
+Key Recovery in HQC" ([ePrint 2026/1491](https://eprint.iacr.org/2026/1491)), attack
+the HQC reference C implementation on Cortex-M4: they compile it with GCC 14.2.1 `-Os`
+for `ARMv7E-M`, find that the multiply routine loads each 64-bit word of the secret
+sparse vector `y` with an `ldrd` instruction and spills at least one half to the stack,
+and build a zero-word distinguisher from EM traces that classifies each word as
+zero/nonzero. Because `y` (`ω = 66` of `n = 17 669` bits for HQC-1, `hw(y) ≪ n`) is
+overwhelmingly zero, this leaks most of the long-term secret key directly, cutting
+HQC-1 key recovery to ≈2^46 bit operations at 32-bit hint granularity. Their own
+Table 2 names the attacked C functions precisely: `schoolbook_mul` (called from
+`vect_mul`) loading `y` on **every decapsulation** (`u·y`) and on keygen (`h·y`), plus
+`vect_write_support_to_vector` (storing the freshly-sampled support in dense form) and
+`vect_add`.
+
+**Correction to an earlier assessment on this issue's board card (2026-08-31):** that
+comment concluded libQ's exposure was "narrowed to the transient `support[]` array in
+the sampler, not a sparse-form multiply" because `PolynomialOps::sparse_dense_mul` is
+off the KEM path (`simd/avx2/mod.rs:53-59`). That conflates two different things:
+`sparse_dense_mul` is an unrelated trait method HQC never calls for its polynomial
+product; the paper's actual target, `vect_mul`→`schoolbook_mul`, is a **dense×dense**
+multiply over a vector that happens to hold a sparse secret — precisely what libQ's
+`schoolbook_vect_mul_mod_xnm1` (`src/hqc_pke.rs:1029`) is. That prior conclusion is
+superseded by this section.
+
+**libQ's structural counterpart, confirmed present and reachable:**
+- `schoolbook_vect_mul_mod_xnm1` (`src/hqc_pke.rs:1029-1075`) is a line-for-line port of
+  the reference C `schoolbook_mul`: it loads `a[i]` once per outer iteration
+  (`src/hqc_pke.rs:1047`, `for (i, &ai) in a.iter().enumerate())`) and tests each of its
+  64 bits in an inner loop (`:1048-1064`) — the same structure the paper diagrams.
+- `vect_mul` (`src/hqc_pke.rs:737-750`) calls it whenever AVX2 is unavailable: any
+  non-x86_64 target, or x86_64 without runtime AVX2 support (`simd-avx2` is
+  gated `target_arch = "x86_64"` only — `src/hqc_pke.rs:742`).
+- The secret vector is passed as the **first** operand at both call sites the paper's
+  Table 2 lists as decapsulation/keygen targets: `decrypt`'s `vect_mul(&mut tmp1, &y,
+  &u)` (`src/hqc_pke.rs:298`, executed on every decapsulation) and `keygen`'s
+  `vect_mul(&mut s, &y, &h)` (`src/hqc_pke.rs:200`) — matching the paper's observation
+  that "secret sparse vectors are always passed as the first operand."
+- `vect_write_support_to_vector` (`src/hqc_pke.rs:613`), the dense-encoding store the
+  paper's Table 2 names as a second leakage source, is unchanged from the prior
+  assessment; the keygen sampler `vect_generate_random_support1` still branches on
+  secret positions (`src/hqc_pke.rs:530` rejection test, `:538-543` collision scan).
+
+**libQ explicitly ships this code for the attacked microcontroller class.** The crate's
+`no_std` feature is CI-verified against `thumbv7em-none-eabi` — ARMv7E-M, the Cortex-M4
+ISA family the paper's experiments target — for `hqc128` (HQC-1, the parameter set the
+paper's headline numbers use): `.github/actions/test-hqc/action.yml:122-129`
+(`cargo check --no-default-features --features "no_std,hqc128" --target
+thumbv7em-none-eabi`). AVX2 is x86_64-only, so on this target `vect_mul` always takes
+the `schoolbook_vect_mul_mod_xnm1` path above. This assessment re-ran that exact CI
+check (`cargo check -p lib-q-hqc --no-default-features --features "no_std,hqc128"
+--target thumbv7em-none-eabi`) and it built clean today, confirming the claim rather
+than trusting the CI config.
+
+**Binary-level check (new for this assessment, not merely source-level plausibility):**
+compiling `lib-q-hqc` for `thumbv7em-none-eabi` with `hqc128,no_std` at `-C
+opt-level=s` (matching the paper's `-Os`) and disassembling
+`schoolbook_vect_mul_mod_xnm1`'s emitted Thumb-2 asm shows the same instruction-level
+shape the paper exploits: the secret word is loaded with a register-pair `ldrd r0, r2,
+[r5], #8` and immediately spilled to the stack with `strd r2, r0, [sp, #36]`, then
+reloaded a 32-bit half at a time (`ldr r3, [sp, #36]`) inside the per-bit loop that
+tests it. This is an `ldrd`-load-then-stack-spill-then-reload pattern for the secret
+word — the general load/store leakage class (Marshall, Page & Webb) the paper's attack
+depends on — observed directly in libQ's own compiled output, not inferred from the
+reference C. It is not a reproduction of the paper's measured low/high-half asymmetry:
+that asymmetry was measured with GCC 14.2.1 on real Cortex-M4 EM traces, is a
+compiler+register-allocator-specific property, and confirming it for rustc/LLVM here
+would need actual traces, which this assessment does not have.
+
+**Independent re-check, no ARM disassembler (this assessment, follow-up pass):** this
+VM's `objdump`/`readelf` toolchain has no ARM decoder (`objdump -i` lists only
+`i386`/`x86-64`; `rustup component add llvm-tools-preview` fails offline —
+`error opening file for download: Read-only file system`), so the binary-level check
+above could not be repeated with a disassembler. It was repeated a different way
+instead: `RUSTFLAGS="-C opt-level=s" cargo rustc -p lib-q-hqc --no-default-features
+--features "no_std,hqc128" --target thumbv7em-none-eabi -- --emit=asm` (verified via
+`cargo rustc -v` that `-C opt-level=s`, appearing after the profile's own `-C
+opt-level=2`, is the flag rustc actually applies — repeated `-C` flags are last-wins)
+emits readable Thumb-2 `.s` text directly, with `.loc` directives tying each
+instruction back to a `hqc_pke.rs` source line — no disassembler needed at all, and
+reproducible in any VM with only `cargo`. In the emitted
+`schoolbook_vect_mul_mod_xnm1`, the `.loc 33 1047 …` instructions (source line 1047,
+`for (i, &ai) in a.iter().enumerate()`) are `ldrd r0, r1, [r4], #8` (load `ai`,
+post-increment the pointer) immediately followed by `strd r1, r0, [sp, #32]` (spill
+both halves to two adjacent stack slots, one word apart); the `.loc 33 1049 …`
+instructions (source line 1049, the `(ai >> bit) & 1` mask) then reload the two halves
+with two separate `ldr` instructions, `ldr r2, [sp, #32]` and `ldr r1, [sp, #36]`, once
+per one of the 64 bit-loop iterations. This confirms, independently of the paper's GCC
+build and of the prior objdump-based check, that rustc/LLVM produces the same
+load-then-spill-then-repeated-half-reload shape for this function — the general
+load/store leakage class the paper's attack depends on is not GCC-specific. It still
+does not confirm the paper's measured low-half/high-half *signal-strength* asymmetry:
+that is an EM-measurement property of the physical part and traces, not something
+readable off assembly text, and remains unverified here as the paragraph above
+already states.
+
+Existing side-channel coverage remains whole-operation only (`SECURITY.md:12`, `:70`);
+the nearest CT test times full `decapsulate` (`tests/hardened_dudect_smoke.rs:9`), not
+the multiply's per-word memory-access pattern, so nothing in this crate's test suite
+would catch a regression here.
+
+**Not checked:** actual EM/power traces of a `thumbv7em-none-eabi` build (this
+assessment is disassembly-only, no hardware-in-the-loop measurement); the AVX2 path
+(`avx2_vect_mul_mod_xnm1`, Toom-3 + Karatsuba + PCLMUL) is a structurally different
+algorithm the paper does not analyse and this assessment did not separately audit;
+whether the same `ldrd`/spill shape appears at other optimization levels or rustc
+versions.
+
+libQ ships, and CI-verifies, a build of the paper's exact attacked function shape for
+the paper's exact target microcontroller family, with no masking or alternate
+representation of `y`/`x` to remove the sparsity. Follow-up card ENK-1322 tracks the
+remediation options the paper itself proposes (per-call additive masking of the sparse
+vector, or storing it in a transform domain) and, if masking is adopted, re-running
+this disassembly check to confirm the spill no longer carries secret-zero information.
+
+Verdict: GAP
+
 ## Recommendations
 
 **Development**
