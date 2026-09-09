@@ -147,13 +147,15 @@ Do not describe this module as uniformly constant-time. Use the following classi
 |-----------|---------|-------|
 | `vect_write_support_to_vector` | Reference-style CT word select | Masks for `tmp == 0` |
 | `barrett_reduce` | Fixed-latency reduction step | |
-| `vect_generate_random_support1` | Variable time | Rejection + branched duplicate check |
-| `vect_generate_random_support2` | Variable time | Collision resolution passes |
+| `vect_generate_random_support1` | Variable time; power side channel not mitigated | Rejection + branched duplicate check (`src/hqc_pke.rs:530` reject `break`, `:538-543` dedup scan). Weight `P::OMEGA` on the long-term secret `x`, `y` — see [ePrint 2026/1462](https://eprint.iacr.org/2026/1462), which power-attacks exactly this structure to 100% key recovery on an unmasked implementation. ePrint 2026/1491 (card `ENK-508`) separately attacks this function's output-word load/store leakage |
+| `vect_generate_random_support2` | Variable time; power side channel not mitigated | Collision resolution passes (arithmetic mask already at `src/hqc_pke.rs:588-593`); same paper's target class, lower severity here (ephemeral `r1`/`r2`/`e`, not the long-term secret) |
 | `schoolbook_vect_mul_mod_xnm1` | Variable time | Per-set-bit updates |
 | AVX2 `vect_mul` | Fast path | Equivalence-tested vs schoolbook, not CT-audited |
 | `vect_add` / `vect_truncate` | Public-length operations | Operand values may still be secret |
 
 HQC reference code uses the same patterns for interoperability and KAT alignment. Any hardening fork must re-run KATs and cross-implementation tests.
+
+No masking or hiding countermeasure (dummy operations, shuffling, bitslicing) is implemented for the fixed-weight sampler; see [SECURITY.md](../SECURITY.md)'s "Power/EM side channel on fixed-weight sampling" for the threat-model discussion and why this is an open design question rather than a defect in the current unprotected-software posture.
 
 ## Verification map
 
