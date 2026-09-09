@@ -5,14 +5,99 @@
 Classic McEliece was a **NIST round-4 submission** that NIST evaluated and **did not select**
 for standardization (NIST selected HQC as the code-based KEM). There is **no NIST/FIPS encoding**
 for this algorithm. This crate implements the round-4 submission's own wire format and parameter
+sets; the five sets (348864, 460896, 6688128, 6960119, 8192128, each with an `f` "fast keygen"
+variant) are **frozen to that submission** and are not something this repository may re-parametrize
+unilaterally — doing so would break the KATs and interoperability.
 
 It is, however, standardized elsewhere and deployed: ePrint 2026/1630 records that Classic
 McEliece **was incorporated into ISO/IEC 18033-2 in 2026**, and names Mullvad and Rosenpass
 as deployments. "No NIST/FIPS encoding" is not the same as "unstandardized", and reading it
 that way would understate who is affected by anything in this file.
-sets; the five sets (348864, 460896, 6688128, 6960119, 8192128, each with an `f` "fast keygen"
-variant) are **frozen to that submission** and are not something this repository may re-parametrize
-unilaterally — doing so would break the KATs and interoperability.
+
+## Parameter-set security margin and long-term recommendation (ePrint 2026/1512, NIST IR 8545)
+
+Source: Jafarzade Mojaveri & Khosravi, *"The McEliece Cryptosystem After Nearly Five Decades: A
+Survey of Security, Cryptanalysis, and Future Directions"*, IACR ePrint **2026/1512** (read in
+full — abstract through bibliography — against the ePrint PDF). It is a literature survey with
+no new attack of its own; the items below are primary-source facts it collects that this crate's
+docs did not previously carry.
+
+- **`mceliece460896`/`mceliece460896f` fall short of their nominal category.** NIST IR 8545
+  ("Status report on the fourth round of the NIST PQC standardization process", March 2025)
+  reports independent estimates placing this family below its claimed Category 3 target, while
+  still assessing it at least Category 2. This is a category-margin observation, not a break —
+  no message or key recovery is implied — but it means `mceliece460896`/`f` should not be treated
+  as interchangeable with the other Category-3-and-above sets for a Category-3 requirement.
+- **`mceliece348864`/`mceliece348864f` are outside the 2026 ISO-standardized scope.** The ISO/IEC
+  18033-2:2006/Amd 2:2026 amendment (June 2026) standardizes `mceliece460896`, `mceliece6688128`,
+  `mceliece6960119`, and `mceliece8192128` (with their `f`, `pc`, `pcf` variants); it does **not**
+  include `mceliece348864`. (Source: Classic McEliece Team, "Classic McEliece: ISO",
+  <https://classic.mceliece.org/iso.html>, version 2026.06.15 — already cited above for the
+  2026 ISO inclusion generally; this crate's docs did not previously note the `348864` exclusion
+  specifically.)
+- **The design team's own long-term recommendation is the `mceliece6*` families.** The Classic
+  McEliece team recommends `mceliece6688128`/`f` and `mceliece6960119`/`f` specifically for
+  long-term security, over the smaller `348864`/`460896` families.
+
+**What follows for this crate.** `src/params.rs` and `README.md` currently present all ten
+variants as equivalent, undifferentiated feature choices. Nothing here changes wire format, KATs,
+or code — the sets remain frozen to the round-4 submission per the section above — but integrators
+choosing a feature flag for a new, long-lived deployment should prefer `cbkem6688128[f]` or
+`cbkem6960119[f]`, and should not treat `cbkem348864[f]`/`cbkem460896[f]` as drop-in substitutes
+for them without accounting for the margin/scope differences above.
+
+## Multi-instance security and key rotation (ePrint 2026/517)
+
+ePrint 2026/1512 (see previous section) cites May & Sá Diogo, *"Multi-instance security
+degradation of code-based KEMs"*, IACR ePrint **2026/517**: this crate's docs cite it at second
+hand, via 2026/1512's summary, and have **not** independently read the 2026/517 PDF — flagged
+here the same way this file already flags reproduced-not-independently-verified figures elsewhere.
+
+`README.md` recommends distributing one Classic McEliece public key once and reusing it for many
+encapsulations, to amortize the key's large size — the scheme's most favorable deployment
+pattern. 2026/517 studies exactly that reuse pattern as a "decoding one out of many" problem: an
+attacker who collects several syndromes under one public key needs to solve only one of them.
+Under the classical cost model in 2026/1512's summary of 2026/517, the estimated work factor for
+`mceliece348864` falls below a 143-bit Level-1 comparison benchmark once on the order of `2^21`
+session keys have been encapsulated under the same public key. This is a multi-instance decoding
+*speedup*, not a structural break of the hidden Goppa code, and the exact threshold is specific
+to that paper's attack/cost assumptions rather than a universal limit.
+
+**What follows for this crate.** No code change: this is a deployment/usage concern, not a
+wire-format or implementation defect. `README.md` currently gives no key-rotation guidance at all
+for the "distribute once, reuse many times" pattern it itself recommends. Integrators relying on
+a long-lived `cbkem348864` public key for a high volume of encapsulations should account for the
+number of encapsulations performed under one key; the larger `mceliece6*` families give more
+margin under the same analysis.
+
+## Further physical side-channel and fault-injection literature (not verified against this code)
+
+The [Berlekamp-Massey power/EM section in `README.md`](README.md#side-channel-scope-berlekamp-massey-powerem-attack)
+documents one specific, code-verified physical attack (ePrint 2025/2043) against `src/bm.rs`.
+ePrint 2026/1512 (see above) surveys the same threat class more broadly and names further results
+this crate's docs did not previously carry. These are cited at second hand, from 2026/1512's
+summary — the underlying papers were **not** independently read for this entry, and no attempt
+was made to verify whether they apply to this crate's specific algorithm choices the way the
+2025/2043 entry above was verified against `bm.rs`/`gf.rs` (in particular, whether `src/root.rs`'s
+polynomial evaluation is a plain Horner evaluation per point or an additive FFT matters for
+whether the first item below transfers as described, and was not checked here):
+
+- Guo, Johansson & Johansson, *"A key-recovery side-channel attack on Classic McEliece
+  implementations"*, IACR TCHES 2022(4):800–827 — a power-analysis attack against an FPGA
+  implementation and software on an ARM Cortex-M4, classifying power leakage from the additive-FFT
+  evaluation of the error-locator polynomial to recover entries of the secret permutation.
+- Cayrel et al. — a laser fault-injection message-recovery attack corrupting syndrome computation.
+- Pircher et al. — a fault-injection key-recovery attack targeting the error-locator polynomial
+  and the ciphertext-validity checks; relevant to this KEM's implicit-rejection design (the same
+  "runs the same operations either way" property that defeats a *passive* valid/invalid oracle
+  does not by itself defeat an *active* fault that corrupts which branch of the bitmask is taken).
+
+**Status.** Tracked here as known literature this crate's side-channel scope does not yet address
+or rule out, consistent with the existing "no power/EM hardening is claimed for this crate"
+position in `README.md`. No obligation number assigned (unlike CM-1 below): these are not new
+results requiring a re-open trigger, they are pre-existing literature this crate's docs had not
+yet listed. A future reviewer with primary-source access to these papers should verify applicability
+before relying on this section for anything beyond "this threat class is unaddressed."
 
 ## Structural cryptanalysis: public-key distinguishers
 
@@ -130,3 +215,22 @@ The distinguisher's cost (`2^114`–`2^124`) is **below** the paper's generic-de
   combines the paper's `T_new` with the submission's Category-1 target.
 - **INFERRED (our engineering reading, not the authors' claim):** that no code/wire/parameter
   change is warranted for this crate today, and the CM-1 re-open triggers above.
+
+- **VERIFIED (read in full against the ePrint 2026/1512 PDF, added under ENK-524):** the
+  survey's own conclusion that no published attack breaks the selected Classic McEliece
+  parameter sets; NIST IR 8545's `mceliece460896`/`f` Category-3-shortfall observation; the
+  ISO/IEC 18033-2:2006/Amd 2:2026 family list and `mceliece348864` exclusion; the Classic
+  McEliece team's `mceliece6*` long-term recommendation; that no such parameter-margin,
+  ISO-scope, multi-instance, or Guo/Cayrel/Pircher citation previously existed anywhere in
+  this crate's docs (checked by `git grep` across the crate before writing this section).
+- **REPRODUCED, NOT INDEPENDENTLY VERIFIED (second-hand via 2026/1512's own summary, not the
+  primary source):** the May & Sá Diogo (ePrint 2026/517) multi-instance threshold; the Guo,
+  Johansson & Johansson (TCHES 2022) attack description; the Cayrel et al. and Pircher et al.
+  fault-injection descriptions. None of the underlying primary papers were fetched or read for
+  this entry, and — unlike the 2025/2043 entry in `README.md` — no attempt was made to check
+  these against this crate's actual source (e.g. whether `src/root.rs` implements an additive
+  FFT or a plain per-point Horner evaluation, which matters for whether Guo et al. transfers
+  as described).
+- **INFERRED (our engineering reading, not any paper's claim):** the parameter-selection and
+  key-rotation recommendations in the two sections above; that these additions require no
+  code, wire-format, or KAT change.
