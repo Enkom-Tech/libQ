@@ -137,6 +137,45 @@ security and the ZK simulators are **argued or implemented-but-unwritten**, not 
 - ((iii) capacity-9 collision ≈139, (iv) 9-cell digest ≈278: GREEN arithmetic, conditional on (i)/(ii);
   confirm (iv)'s wide-squeeze read is indifferentiability-acceptable.)
 
+**2026-09-09 addendum — strong-model (host-claude) review, ENK-1438/ENK-31. Evidence, not a
+sign-off** (this repo's own CONTRIBUTING.md: "The AI passes are evidence, never a second
+signature."). Read the AIR/prover/verifier source directly against the commit GIP is pinned to
+(`c96add671fc70802ac0917af8025eb0cf262fbc7`) and ran the real test suites (not simulated):
+`cargo test -p lib-q-zkp --test zero_knowledge_tests --test unlinkable_membership_tests` (16
+passed), `cargo test -p lib-q-zkp membership` (56 passed across `lib.rs`/`air_integration.rs`/
+`ip_soundness_tests.rs`/`security_parameter_tests.rs`), `cargo test -p gip-identity
+group_membership` (41 passed, incl. the byte-locked M0 conformance vectors).
+- **L1/L2 (ENK-31's originally-cited ZK-hiding leaks): confirmed FIXED in code, not just
+  claimed.** `DeterministicRng` (xorshift64) has zero production call sites left in `lib-q-zkp`;
+  every hiding-PCS/MMCS path uses `Kt128Rng` (KT128 XOF, 256-bit seed). `prove_unlinkable_
+  membership_zk_auto` draws both seeds from `lib_q_random::fill_entropy` and fails closed
+  (`Err`, no weak fallback) when no OS entropy source is compiled in — and, checked rather than
+  assumed, `lib-q-zkp`'s own default features already force `lib-q-random/std`⇒`getrandom` on
+  transitively via `lib-q-stark-fri`/`lib-q-stark-merkle` (`cargo tree -e features
+  -i lib-q-random` against a standalone probe crate outside both workspaces), so this is not a
+  footgun that only works by accident of GIP's own workspace pin.
+- **ENK-31's original O4 text is stale.** It reads "no blinding/randomized trace" — that was true
+  when ENK-31 was imported (2026-08-14) but is no longer true: a hiding prover exists, is wired
+  through `Kt128Rng`, and its distinctness/no-raw-witness-leak properties are exercised by green
+  tests (`test_zk_proofs_have_distinct_trace_commitments`, `test_statistical_zk_no_repeated_
+  commitments_many_proofs` over 24 samples, `test_zk_proof_bytes_do_not_contain_raw_witness_
+  value`). The residual O4 obligation is narrower than ENK-31 states: the mechanism is built: only
+  the **formal simulator write-up** remains open, matching this file's own "(vi) mechanism
+  implemented + roundtrip-tested, no formal simulator" line above.
+- **O1 Arm B, O2, O3: independently re-derived from the actual code (not restated from this
+  file), and confirmed consistent.** Arm B's `R_F=8,R_P=13,x^7,t=16` and Arm A's
+  `8+60 rounds,x^5,t=7` match the deployed constants exactly (`wide_sponge_baby_bear.rs`,
+  `wide_sponge.rs`); the capacity-collision arithmetic (139-bit / 155-bit) was recomputed from
+  those same constants and matches; the baked `domain` constant is confirmed to be a genuine
+  circuit constant (never a witness/public-input column) in both AIRs.
+- **No change to this gate's status.** Arm A's O1 (off-envelope GF(p²) round-count hazard) and
+  both arms' O4 simulator gap are still open and are exactly the kind of assumption a code
+  audit cannot discharge, per this file's own standing rule. Recommend: keep Gate B RED: the
+  operator may record the strong-model pass above as reviewed evidence for L1/L2 and for the
+  Arm-B round-count/capacity/domain arithmetic, but the sign-off itself still waits on the human
+  cryptographer for O1 (Arm A) and O4 (the simulator), as this file already says. Full write-up
+  posted as a board comment on ENK-1438 and ENK-31 (Hive/GIP board).
+
 ---
 
 ## Gate C — Threshold-KEM CCA closure + ZK encryption proof
