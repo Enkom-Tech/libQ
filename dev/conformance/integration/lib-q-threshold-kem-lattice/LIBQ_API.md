@@ -44,7 +44,10 @@ consumer-protocol references. It is the KEM analogue of
 - **References (candidate basis):** dual-Regev / GPV trapdoor encryption (Gentry–Peikert–Vaikuntanathan,
   STOC 2008); BDLOP commitments (eprint 2017/1230); threshold PKE with noise flooding / smudging
   (Boneh et al., threshold FHE lineage); the co-designed `lib-q-dkg` (GJKR-style dealerless DKG) and
-  `lib-q-threshold-raccoon`.
+  `lib-q-threshold-raccoon`; Brzuska–Klooß–Woo, "Threshold Public-Key Encryption: Definitions,
+  Relations, and CPA-to-CCA Transforms" (eprint 2025/1665) — external validation of the §7.3 /
+  `THRESHOLD_SECURITY.md` §4 malformed-ciphertext finding and a candidate NIPoR-based proof route for
+  closure A (`THRESHOLD_SECURITY.md` §9).
 
 ## 2. Parameters
 
