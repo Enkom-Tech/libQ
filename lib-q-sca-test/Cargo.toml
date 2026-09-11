@@ -19,6 +19,7 @@ privacy = [
 ]
 lattice-zkp-hardened = ["privacy", "lib-q-lattice-zkp/hardened"]
 hqc-hardened = ["dep:lib-q-hqc"]
+slhdsa = ["dep:lib-q-slh-dsa"]
 
 [dependencies]
 lib-q-hqc = { path = "../lib-q-hqc", version = "0.0.11", optional = true, default-features = false, features = ["alloc", "hqc", "random", "hardened"] }
@@ -27,6 +28,7 @@ lib-q-ring = { path = "../lib-q-ring", version = "0.0.11", optional = true, defa
 lib-q-ml-kem = { path = "../lib-q-ml-kem", version = "0.0.11", optional = true, default-features = false, features = ["std", "hardened", "random"] }
 lib-q-ml-dsa = { path = "../lib-q-ml-dsa", version = "0.0.11", optional = true, default-features = false, features = ["hardened", "random", "mldsa44"] }
 lib-q-ring-sig = { path = "../lib-q-ring-sig", version = "0.0.11", optional = true }
+lib-q-slh-dsa = { path = "../lib-q-slh-dsa", version = "0.0.11", optional = true, default-features = false, features = ["std"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.11", features = ["std"] }
 rand_core = { workspace = true }
 

@@ -1758,6 +1758,15 @@ jobs:
           run-security-tests: ${{ matrix.run-security-tests }}
           run-constant-time: ${{ matrix.run-constant-time }}
           test-algorithms: ${{ matrix.test-algorithms }}
+
+      # ENK-1364: SLH-DSA has no TVLA/dudect timing target anywhere else in CI (only
+      # functional constant_time.rs smoke tests, see lib-q-slh-dsa/tests/constant_time.rs).
+      # Mirrors the HQC/lattice-zkp self-cert smoke steps below.
+      - name: SCA SLH-DSA timing smoke (TVLA-style)
+        if: matrix.action == 'test-slh-dsa'
+        run: |
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test -p lib-q-sca-test --release --features slhdsa --test self_cert_report -- --exact self_cert_smoke
       
       - name: Run HPKE tests
         uses: ./.github/actions/test-hpke

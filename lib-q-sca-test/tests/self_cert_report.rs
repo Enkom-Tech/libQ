@@ -28,7 +28,8 @@ fn self_cert_smoke() {
         feature = "mlkem",
         feature = "mldsa",
         feature = "lattice-zkp-hardened",
-        feature = "hqc-hardened"
+        feature = "hqc-hardened",
+        feature = "slhdsa"
     ))]
     assert!(!report.reports.is_empty());
 }
