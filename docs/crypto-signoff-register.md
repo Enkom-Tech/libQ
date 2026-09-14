@@ -395,6 +395,126 @@ undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here i
 crate's default features (`c1d27a6`) — it is nonce-catastrophic and has zero consumers. The tweak's
 byte 16 was corrected to the `10*` pad bit (`c43689d`) while the hardware was still at trace design.
 
+### Astra double-check — ENK-1434 (Gate D)
+
+**Scope and disposition.** Public source review at libQ
+`27aa2fdebf3da224ac8372c923ac6c499755c370`, covering H-1, S-2 and Q-1 for
+both CTX instantiations. This is review evidence for the operator's decision,
+**not an operator signature** or external cryptographer certification. The
+2026-09-10 decision permits operator sign-off after this review; this note
+does not sign any entry or change Gates A–C.
+
+**Citation identity and security levels.** CTX is **Chan–Rogaway 2022**,
+[2022/1260, §4, Fig. 2, Theorem 2, pp.9–11](https://eprint.iacr.org/2022/1260),
+not a Bellare–Hoang 2022 transform. Bellare–Hoang
+[2022/268, §2.2/Fig. 4 and Appendix A, p.33](https://eprint.iacr.org/2022/268)
+supplies the terminology and implications: CMT-1 commits to `K`, CMT-3 to
+`(K,N,A)`, CMT-4 to `(K,N,A,M)`; CMT-3 and CMT-4 are equivalent for correct,
+deterministically decrypted schemes. The analogous decryption-based notions
+are CMTD; their equivalence to encryption-based CMT additionally needs
+tidiness in one direction. Do not silently interchange these hypotheses.
+Bellare–Hoang [2024/875, pp.12–13](https://eprint.iacr.org/2024/875) explicitly
+“omit a statement and proof about the security of our general form of CTX”;
+Theorems 3.3 and 3.4 prove **CTY**, which feeds empty AD to the base scheme.
+libQ feeds the actual AD to the base scheme: it is CTX, not CTY.
+
+1. **H-1 — conditional binding, not a proved numeric security level.**
+   Theorem 2 bounds commitment advantage by collision advantage; it does not
+   prove Saturnin-Hash collision resistance. The
+   [Saturnin v1.1 §1.2 hash claim box, p.8](https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/round-2/spec-doc-rnd2/saturnin-spec-round2.pdf)
+   actually claims no classical collision attack with `T < 2^112` and no
+   quantum collision attack with `T^5 Mq < 2^448`, deriving approximately
+   `2^75` from `Mq < T`. These are designer attack-cost claims, not an
+   explicit success-probability bound for arbitrary CTX adversaries.
+   **Gap:** the register's “bounded by Saturnin-Hash's collision resistance”
+   is valid conditionally; a numerical CMT advantage or unconditional
+   112-bit/75-bit theorem does not follow from that clause. Neither a 256-bit
+   tag nor the generic birthday cost licenses upgrading it to 128-bit
+   classical commitment or 128-bit quantum commitment.
+
+   **Implementation match verified:** `commit.rs:360–382` hashes
+   `LABEL || K[32] || N[16] || T[32] || A`, returning the complete 32-byte
+   digest, with distinct fixed QCB/Cascade labels. `A` is the sole
+   variable-length suffix, so this is an injective tuple encoding; changing
+   the paper's tuple order is harmless here. Both wrappers validate the key
+   and nonce widths before hashing. `A=None` and empty AD intentionally
+   encode the same AD value. No tag truncation is implemented by these APIs.
+   Collision resistance concerns the **full fixed-IV hash**, including an
+   adversarially chosen key as message bytes, not a secret-key MAC or
+   a free-start compression-function game. The key prefix does not itself
+   require related-key security for this binding reduction.
+
+2. **S-2 — binding argument accepted conditionally, literal citation has gaps.**
+   Chan–Rogaway §4 says “The core C is the same length as M”; §2 requires
+   constant expansion. CTR-Cascade satisfies both (`|core|=|M|`, 32-byte
+   expansion). QCB satisfies neither: `|core|=32(floor(|M|/32)+1)` and
+   total expansion is 33–64 bytes. Thus Theorem 2 is not a literal
+   syntax-matching citation for QCB.
+
+   The needed argument is nevertheless short and independent of length:
+   two successful openings of the **same** `core || T'` under distinct
+   `(K,N,A)` give distinct hash inputs with equal digest, hence a collision.
+   If `(K,N,A)` is identical, deterministic decryption gives the same
+   plaintext. This proves the conditional CMTD-3/4 bound directly; correctness
+   gives CMT-3/4, and therefore CMT-1, using the exact implications in
+   Bellare–Hoang Appendix A. Encryption-versus-decryption cases follow from
+   correctness as well. This is a construction-specific deduction from
+   inspected code and published lemmas, **not** a claim that CTY's theorem
+   proves CTX or that constant expansion is irrelevant to Theorem 3.
+
+   **New verified limitation on the existing supporting argument: QCB is
+   not tidy as implemented.** `commit.rs:163` says it is; `qcb.rs:589–597`
+   scans padding across the entire decrypted body instead of restricting
+   the marker to the last block. A known-key public-API smoke constructed
+   two decrypted blocks `80 || 00^31` and `00^32`, encrypted with domains
+   9 and 10 at index zero, computed the domain-13 checksum XOR the
+   domain-12 empty-AD tag, and applied the documented CTX hash. Result:
+   `accepted 96-byte ciphertext -> 0-byte plaintext -> 64-byte reencryption;
+   ciphertext differs`. This violates the tidiness clause
+   `Dec(K,N,A,C)=M != bottom => Enc(K,N,A,M)=C` (2024/875 p.9).
+   It is **not** an unknown-key forgery or a two-opening commitment attack.
+   The direct CMTD argument above avoids this false premise, but the source
+   claim and any theorem application relying on it must not be ratified.
+   No code was changed in this review.
+
+3. **Q-1 — the citation does not establish Q2 AE preservation.**
+   Theorem 3 explicitly works “in the random oracle model”; Appendix B,
+   pp.26–27 recovers the raw tag using a recorded hash-query table and
+   “iterates through all such entries”. That classical transcript reduction
+   is not a simulation of superposition hash queries. A QROM argument with
+   matched base and output security notions is missing for both wrappers.
+   The theorem also gives the authenticity reduction `qe+1` encryption
+   queries for `qe` attacker queries, not a ready-made preservation result
+   for QCB's counting-based plus-one integrity. Its classical single-user,
+   single-final-forgery bound does not discharge L-1 either. Collision-based
+   **binding** of classical output tuples under a quantum collision
+   assumption is a different claim from Q2 privacy/integrity preservation.
+   [2025/387](https://eprint.iacr.org/2025/387) refutes a generic EtM
+   implication; CTX is tag replacement, so that counterexample is not
+   itself an attack on CTX. Nor is raw QCB blind unforgeability a CTX
+   composition theorem.
+
+**Nonce handling.** Binding includes the 16-byte nonce and does not promise
+misuse-resistant confidentiality. Chan–Rogaway's nAE theorem requires
+nonce-respecting encryption (§2, p.5); Saturnin v1.1 §1.2 excludes nonce
+repetition and nonce superposition. The APIs check length, not uniqueness.
+QCB's base Q2 model further requires classical pre-declared tweaks/nonces;
+CTX supplies no extension of that model. CTR-Cascade and its CTX wrapper
+share the same `(K,N)` keystream, so migration requires a fresh nonce.
+
+**Verified by execution:** `cargo test --offline -p lib-q-saturnin --features
+qcb,aead,hash --test aead_kat_pin --test cascade_ctx_spec --test qcb_ctx_spec
+--test key_commitment` passed **23 tests, 0 failures** (1/13/5/4 by target).
+These verify the pinned wire, sampled binding/rejection behavior and an old
+attack's failure, not cryptographic security. The separate public-API
+tidiness counterexample above also executed successfully. Not re-run:
+reduced-round cryptanalysis or quantum-resource estimates.
+
+**DO NOT RATIFY —** Gate D as a whole still lacks Q2 AE preservation and a
+signed quantitative H-1 assumption; L-1/RK-1 are not discharged. The
+conditional CMT-1/3/4 binding argument is supported, including for padded
+QCB, but the cited tidiness premise is false and must not support sign-off.
+
 ---
 
 ## Gate E — CTR-Cascade's own IND-qCCA claim (`lib-q-saturnin`, obligation Q-2)
@@ -435,6 +555,118 @@ corrected. Classical AE security is unaffected either way.
 description, an npm blurb, or another crate's README — separated from the caveat that accompanies it
 there. That guard was observed failing against a deliberate fixture before being trusted. It is a
 containment control, **not** a resolution.
+
+### Astra double-check — ENK-1434 (Gate E / Q-2)
+
+**Scope.** Reviewed the frozen `SaturninAead` at
+`27aa2fdebf3da224ac8372c923ac6c499755c370`, not its CTX replacement tag.
+This note is evidence for an operator decision, not a signature. No wire,
+code, or primitive parameters are changed.
+
+**The citation swap is a real theorem, but not yet a proof of this
+instantiation.** Lang–Leuther–Lucks
+[2025/387, Theorem 3, Theorem 4 and Corollary 1, pp.24–26](https://eprint.iacr.org/2025/387)
+prove IND-qCCA[LoR] for the compositions in question given
+IND-qCPA[LoR] encryption and a **qPRF** used as the MAC. Theorem 3 supplies
+EatM security; Theorem 4 and Corollary 1 transfer it to EtM/EaM.
+The positive result is genuine **chosen-ciphertext privacy**, not merely
+qCPA plus integrity. Conversely, the refuted SJS16 implication used
+plus-one unforgeability; qCPA plus that integrity notion does **not**
+yield the desired qCCA conclusion. Neither this result nor its
+counterexample is a standalone theorem about CTX or a break of Saturnin.
+
+**Verified implementation mapping.** `aead.rs:125–143,181–257,299–389,489–516`
+implements CTR under domain 1 and an MMO-style cascade:
+`h_d(s,x)=E_d(s,x) XOR x`, with the chaining state in the cipher's key input.
+It initializes with the nonce under domain 2, processes full/final AD with
+domains 2/3, and full/final ciphertext with domains 4/5; a padded terminal
+block is always processed, including for empty inputs. The full 32-byte tag
+is appended. Thus this is EtM authenticating the structured
+`(N,A,C)` input, not raw fixed-length Cascade or NMAC.
+The caller's **same 32-byte key** supplies both CTR and cascade
+initialization. `core.rs:80–87` uses domain-dependent round constants;
+it does not generate independent encryption and MAC keys.
+
+**Exact unfilled hypotheses.**
+
+1. **Independent-key/joint-security bridge.** 2025/387 Definition 3, p.8,
+   defines its generic compositions with encryption key `K` and MAC key
+   `L` **chosen independently at random**. Saturnin's domain integers are
+   not this hypothesis. Even assuming each individual domain is a secure
+   quantum PRP does not establish that the encryption and MAC components
+   can be independently replaced in a joint same-key experiment.
+   Theorem 4's proof temporarily sharing keys is not permission to remove
+   independence from the starting construction. A domain-aware joint
+   reduction, or an explicit stronger assumption, is required.
+
+2. **Fixed-length versus the deployed structured MAC.**
+   [Song–Yun 2017/509, Theorem 5.1, p.21](https://eprint.iacr.org/2017/509)
+   proves `Casc_l[f]` qPRF security for **one fixed block count `l`**.
+   The preceding paragraph warns that ordinary Cascade is insecure when
+   different block lengths are allowed.
+   [Saturnin v1.1 §4.3.3](https://csrc.nist.gov/CSRC/media/Projects/lightweight-cryptography/documents/round-2/spec-doc-rnd2/saturnin-spec-round2.pdf)
+   explicitly simplifies away the different domains and AD, and says
+   “if we fix the number of message blocks as a constant”.
+   Those omissions matter here: individual fixed-length security does not
+   imply a joint qPRF across all admitted AD/ciphertext lengths and
+   boundaries. Terminal domains may prevent ordinary extension attacks;
+   this review does **not** demonstrate one. Song–Yun Theorem 5.2's
+   variable-length NMAC theorem is not a literal replacement either:
+   its outer call uses an independent key on a padded inner state,
+   whereas Saturnin's final call keys domain 5 with the inner state and
+   inputs the padded ciphertext tail.
+
+**Precisely what would make the repair conditional and valid.** In
+addition to nonce-respecting CTR IND-qCPA[LoR], assume that the actual
+full-tag function `F_K(N,A,C)` over every admitted length is a qPRF
+**jointly with same-key CTR**: replacing it by an independent random
+tuple function remains indistinguishable even with the CTR functionality
+exposed. Alternatively, derive this hybrid from a stated joint
+domain-separated primitive assumption and a variable-length MAC proof.
+This is stronger than plus-one unforgeability and more specific than the
+cited standalone fixed-length qPRF result. Accepting it can support a
+conditional application of the composition theorem without changing
+the wire; it is not a citation-only discharge of the current argument.
+
+**Which quantum notion and nonce discipline?** 2025/387 Definition 4 and
+§§6.1–6.2 permit quantum learning encryption/decryption queries and
+classical LoR challenge messages. Their nonce-based AEAD extension carries
+Theorems 1–4 across: nonces are classical and fresh across encryption
+**and challenge** queries; decryption can reuse them; AD can be queried
+in superposition. It does not prove security for quantum challenge
+messages, nonce superposition, or nonce reuse at encryption. Saturnin
+v1.1 §1.2 expressly excludes nonce repetition/superposition. Its API
+checks 16-byte nonce length and counter limits, not uniqueness; callers
+must enforce the latter. Without the additional MAC/joint assumptions,
+the cited component arguments remain restricted qCPA and integrity
+arguments, **not** a qCCA proof for the frozen mode. The refutation
+does not invalidate the separate classical AE analysis.
+
+**No concrete-bit ratification from an asymptotic swap.** Song–Yun's
+bound is
+`Adv_Casc_l(q) <= 34 l q^(3/2) sqrt(Adv_f(4q))`.
+Combining MMO with the cited quantum PRP/PRF switch gives the loose shape
+`34 l q^(3/2) sqrt(epsilon_PRP(4q) + O((4q)^3 / 2^256))`,
+or `O(l q^3 / 2^128)` after ignoring primitive advantage and constants.
+Even the fixed-length bound becomes vacuous around `q = 2^(128/3)`
+up to length/constant factors; that is **not a 43-bit attack**.
+The spec itself says the proof “seems not tight”.
+Neither a 256-bit tag nor the new asymptotic composition theorem ratifies
+the designers' quantitative AE region. A numeric claim needs explicit
+query/length limits, primitive advantage and composition-loss accounting.
+The journal [Saturnin version](https://tosc.iacr.org/index.php/ToSC/article/view/8621)
+uses §5.3.3 for the submission's §4.3.3.
+
+**Evidence boundary.** Full theorem/proof passages and the code paths above
+were inspected. The Gate D command also executed the frozen-wire KAT
+successfully; it proves compatibility, not quantum security. No quantum
+experiment, concrete security estimator or new composition proof was run
+or supplied. This is a missing-reduction finding, not an observed attack.
+
+**DO NOT RATIFY —** the proposed unconditional citation swap does not yet
+establish IND-qCCA[LoR] for CTR-Cascade as frozen. Keep Q-2 RED until the
+operator explicitly accepts the stronger joint variable-length qPRF
+assumption above or receives the missing reductions and bound accounting.
 
 ---
 
