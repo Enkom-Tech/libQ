@@ -117,21 +117,15 @@ protected was broken. Before reporting a gate as green, rule these out:
 - **`git grep` does not see untracked files, so a guard can pass on a file it would reject.**
   Every `scripts/ci-guard-*.sh` enumerates with `git grep`. Run one before `git add` and a brand-new
   file is invisible to it: you get a clean exit locally and a red job in CI, which reads as a CI
-  problem rather than yours. Observed 2026-08-15 — `ci-guard-standards-claims.sh` passed locally
-  over an untracked `docs/board-card-ids.md` and failed the same file on CI one commit later.
+  problem rather than yours. Observed 2026-08-15 — a guard passed locally over an untracked
+  new doc and failed the same file on CI one commit later.
   **`git add` first, then run the guard.**
 
-## Board card ids in docs and comments
+## Citing tracked work in docs and comments
 
-Cards are cited as **`ENK-<n>`**. You will also find **`t_<8 hex>`** ids scattered through the
-security and design docs: those are **legacy** ids from the board this project used before the Hive
-migration, and **most of them no longer resolve** — the migration imported open work only, so
-anything that was already `done` was not carried over. Looking one up returns HTTP 500, not a clean
-"not found", which reads like an outage and is not one.
-
-Treat an unresolvable `t_` id as a provenance marker, not a link; the prose around it is the durable
-record. Mapping table, the six that do still resolve, and the list of known-dead ids:
-[docs/board-card-ids.md](docs/board-card-ids.md). Do not mint new `t_` ids.
+Cite ongoing or historical work by describing it in plain prose rather than an internal tracker id
+— an id has no meaning to a reader without access to that tracker, so the durable record belongs in
+the surrounding text itself, not in a reference someone else can't resolve.
 
 ## Security Review Process
 

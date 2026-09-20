@@ -166,8 +166,8 @@ Use `@lib-q/ml-kem` instead; a faithful implementation of the paper may appear l
 the key: it computed `body[i] - mask[i]`, and both `body` and `mask` are public ciphertext fields,
 so "decryption" was public-data arithmetic with no confidentiality. `mask` is load-bearing for
 `eval` (`MulConstant` scales it, `AddCiphertext` adds them), so the defect could not be patched
-without a real RLWE rewrite; the crate was deleted in 0.0.10 rather than repaired. See board card
-t_2a349708.
+without a real RLWE rewrite; the crate was deleted in 0.0.10 rather than repaired.
+
 
 There is no `@lib-q/fhe` package built from workspace `HEAD`; the former exports (`fheKeygen`,
 `fheEncrypt`, `fheEval`, `fheDecrypt`, `fheCiphertextToBytes`) are listed here only so old call
@@ -183,8 +183,8 @@ ciphertext can recover the plaintext.
 `partial_decap` returned the party's raw Shamir share, so `t` partials reconstructed the
 underlying ML-KEM-768 decapsulation key in full. ML-KEM decapsulation is non-linear, so a
 Shamir-shared `dk` admits no correct partial-decapsulation function at all — the construction
-could not be patched, only replaced; the crate was deleted in 0.0.10 rather than repaired. See
-board card t_8ca3fd06.
+could not be patched, only replaced; the crate was deleted in 0.0.10 rather than repaired.
+
 
 There is no `@lib-q/threshold-kem` package built from workspace `HEAD`; the former exports
 (`thresholdKemSetup`, `thresholdKemKeygenShares`, `thresholdKemEncap`, `thresholdKemPartialDecap`,
@@ -209,8 +209,8 @@ in 0.0.10 (every entry point failing closed) and has since been deleted from the
 `lib-q-threshold-sig` 0.0.6, 0.0.7, 0.0.8 and 0.0.9 are all live and **unyanked** on crates.io, and
 `@lib-q/threshold-sig` 0.0.7-0.0.9 are on npm with `latest` pointing at 0.0.9 and no deprecation
 marker. No version that ever existed was sound. If any of them appears in your lockfile, remove it —
-do not rely on resolution failing. (Yanking and deprecation are tracked on board card `t_4d0a0662`;
-this paragraph is the pre-yank statement of fact and should be updated, not deleted, once they
+do not rely on resolution failing. (Yanking and deprecation are tracked separately; this
+paragraph is the pre-yank statement of fact and should be updated, not deleted, once they
 land.) The former exports
 (`thresholdSigSetup`, `thresholdSigKeygenShares`, `thresholdSigSignRound1/2`,
 `thresholdSigAggregate`, `thresholdSigVerify`, `thresholdSigIdentifyAbort`,

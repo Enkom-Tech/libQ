@@ -3,8 +3,8 @@
 Durable conclusions for cryptography papers routed to libQ from the IACR eprint
 radar (Hive `iacr-radar` board). One entry per card. The card records that a
 paper was assessed and by whom; **this file is the durable record of the verdict**,
-per the repo convention (see `docs/board-card-ids.md`: "keep the durable
-conclusion on the issue *and* in the tree").
+per the repo convention of keeping the durable conclusion in the tree, not only
+on the tracking issue.
 
 Fetched PDFs live under the git-ignored `/reference` tree and are not committed.
 Every quoted/attributed claim below was verified against the source PDF at the
