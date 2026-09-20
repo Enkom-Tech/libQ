@@ -90,6 +90,10 @@ jobs:
         with:
           run-security-audit: "true"
           run-format-check: "true"
+          # Same pin as ci.yml's "Core validation" step and for the identical reason: rust-build's
+          # "stable" default bypasses rust-toolchain.toml's pin entirely (an explicit `toolchain:`
+          # input always wins over file auto-detection), and fmt disagrees between the two.
+          rust-version: "nightly-2026-07-24"
           # Clippy and tests run once below (workspace --all-features) to avoid triple compile/test.
           run-clippy: "false"
           run-tests: "false"
