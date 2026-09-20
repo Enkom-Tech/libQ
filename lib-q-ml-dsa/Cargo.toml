@@ -24,14 +24,20 @@ ignored = [
 bench = false
 
 [dependencies]
-lib-q-ring = { path = "../lib-q-ring", version = "0.0.11", default-features = false, features = ["std"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11" }
-lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.11" }
-lib-q-platform = { path = "../lib-q-platform", version = "0.0.11" }
-lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.11", features = ["simd"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.11", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11", default-features = false, features = ["alloc"] }
+lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.11", default-features = false }
+lib-q-platform = { path = "../lib-q-platform", version = "0.0.11", default-features = false }
+lib-q-keccak = { path = "../lib-q-keccak", version = "0.0.11", default-features = false, features = ["simd"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true, default-features = false, features = ["alloc"] }
 hax-lib.workspace = true
-hex = { workspace = true }
+# `hex` is deliberately NOT a normal dependency: it is used only by this crate's tests
+# (wycheproof, nistkats, acvp, wire_format, avx2_independent_verify) and is already declared
+# in [dev-dependencies] below. The redundant entry here was unconditional and non-optional,
+# and `hex` does not declare #![no_std] unless its own `std` feature is off -- so it forced
+# std into every no_std consumer of this crate, which is what broke GIP's
+# `cargo check -p gip-packet --target thumbv7em-none-eabihf` build. Zero `hex::` uses exist
+# anywhere under src/, so removing it changes no compiled code.
 zeroize = { workspace = true, optional = true }
 subtle = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true, default-features = false }
@@ -97,10 +103,10 @@ simd128 = ["lib-q-sha3/asm", "lib-q-intrinsics/simd128"]  # ARM NEON optimizatio
 simd256 = ["lib-q-sha3/asm", "lib-q-keccak/std", "lib-q-intrinsics/simd256"]  # x86_64 AVX2 optimizations
 
 # Standard library support
-std = []
+std = ["lib-q-ring/std", "lib-q-sha3/std", "lib-q-intrinsics/std", "lib-q-platform/std", "lib-q-random?/std"]
 
 # Random number generation
-random = ["dep:lib-q-random", "lib-q-random/std"]
+random = ["dep:lib-q-random", "lib-q-random/alloc"]
 nist-drbg = ["random", "lib-q-random/nist-drbg"]  # NIST SP 800-90A DRBG for KAT compatibility
 
 # Security hardening

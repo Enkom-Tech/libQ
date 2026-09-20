@@ -22,9 +22,9 @@ ignored = [
 ]
 [features]
 default = ["std"]
-std = [] # When enabled, the crate is not `#![no_std]` (links `std`, providing the global allocator required by the `cdylib` output). `no_std` consumers must use `default-features = false`.
+std = ["lib-q-random?/std"] # When enabled, the crate is not `#![no_std]` (links `std`, providing the global allocator required by the `cdylib` output). `no_std` consumers must use `default-features = false`.
 deterministic = [] # Expose deterministic generation and encapsulation functions
-random = ["dep:lib-q-random", "lib-q-random/std"]
+random = ["dep:lib-q-random", "lib-q-random/alloc"]
 # JS/WASM bindings handle decapsulation keys and shared secrets; the `zeroize` crate is always linked for safe memory hygiene on the Rust side of the boundary.
 wasm = [
     "wasm-bindgen",
@@ -50,7 +50,7 @@ pkcs8 = ["dep:der"]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
 rand_core = { workspace = true }
 lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true }
+lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true, default-features = false }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
@@ -78,7 +78,7 @@ crate-type = ["cdylib", "rlib"]
 [package.metadata.wasm-pack.profile.release]
 wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
-[dev-dependencies]
+[target.'cfg(not(target_os = "none"))'.dev-dependencies]
 # Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
 # this crate asserts its own real computed sizes match, so drift fails CI on either side.
 lib-q-types = { path = "../lib-q-types", version = "0.0.11", default-features = false }
