@@ -394,13 +394,13 @@ All notable changes to this workspace are documented here. Versions follow the s
   implementation bug, so it cannot be patched, only replaced. **`lib-q-threshold-kem-lattice`** is
   the successor (dual-Regev / GPV KEM over a BDLOP-committed `lib-q-dkg` key, FO⊥ + flooding
   hardened) and remains in the workspace, untouched by this change; it is not wire-compatible, so
-  ciphertexts must be regenerated. Card `t_8ca3fd06`.
+  ciphertexts must be regenerated.
 - **`lib-q-fhe` deleted from the workspace.** `decrypt` never read the key: it computed
   `body[i] - mask[i]`, and both `body` and `mask` are public ciphertext fields, so "decryption" was
   public-data arithmetic with no confidentiality. `mask` is load-bearing for `eval`
   (`MulConstant` scales it, `AddCiphertext` adds them), so removing it as a fix would require a
   real RLWE rewrite of the whole scheme — a structural defect, so the crate is deleted rather than
-  repaired. Card `t_2a349708`.
+  repaired.
 - Removed with both: the `lib-q-threshold-kem/` and `lib-q-fhe/` sources (the
   `lib-q-threshold-kem/fuzz` exclude entry at `Cargo.toml` was already stale — no fuzz crate
   existed), both root `Cargo.toml` workspace entries (`members` and the fuzz `exclude`), their

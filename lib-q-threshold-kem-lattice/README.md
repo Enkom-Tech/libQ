@@ -11,8 +11,8 @@ an ML-KEM decapsulation key (a **non-linear** encoding no linear VSS can produce
 parties) — this crate is a **dual-Regev / GPV** KEM over the shared ring `R_q = Z_q[X]/(X^1024+1)`,
 `q ≈ 2^48`. Its decryption is a **linear** map of the secret, so a distributed dealerless DKG can
 produce the key and a threshold of holders can decapsulate **without ever reconstructing it**.
-`lib-q-threshold-kem` was withdrawn and deleted from the workspace in 0.0.10 as unfixable in place
-(board card t_8ca3fd06); this crate is its replacement, not a variant of it, and is not
+`lib-q-threshold-kem` was withdrawn and deleted from the workspace in 0.0.10 as unfixable in place;
+this crate is its replacement, not a variant of it, and is not
 wire-compatible with it.
 
 The crate is `no_std + alloc`-capable, ships wasm bindings (`@lib-q/threshold-kem-lattice`), and

@@ -66,7 +66,7 @@ The script skips packages that are already published at the target version (npm 
 
 **Total: 27 packages** (indices 0–26 in `publish-npm-ordered.sh`). See [npm-coverage.md](npm-coverage.md).
 `@lib-q/fhe` and `@lib-q/threshold-kem` were withdrawn and removed in 0.0.10 — see
-[Removed crates](npm-coverage.md#removed-crates) and board cards t_2a349708 / t_8ca3fd06.
+[Removed crates](npm-coverage.md#removed-crates).
 
 This table is checked against `cd.yml` on every pull request by [`scripts/ci-guard-publish-order.sh`](../scripts/ci-guard-publish-order.sh) — it claimed 22 packages against `cd.yml`'s 30 at 0.0.10. Regenerate with `python3 scripts/cd_publish_manifest.py --format npm` rather than editing by hand.
 
