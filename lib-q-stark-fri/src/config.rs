@@ -225,7 +225,11 @@ mod tests {
     use super::*;
 
     // Params with a trivial mmcs so we can exercise the soundness accounting in isolation.
-    const fn params(log_blowup: usize, num_queries: usize, proof_of_work_bits: usize) -> FriParameters<()> {
+    const fn params(
+        log_blowup: usize,
+        num_queries: usize,
+        proof_of_work_bits: usize,
+    ) -> FriParameters<()> {
         FriParameters {
             log_blowup,
             log_final_poly_len: 0,
@@ -253,7 +257,13 @@ mod tests {
 
     #[test]
     fn johnson_never_exceeds_conjectured() {
-        for &(lb, q, pow) in &[(1, 100, 16), (2, 64, 16), (3, 96, 20), (4, 96, 20), (8, 1000, 64)] {
+        for &(lb, q, pow) in &[
+            (1, 100, 16),
+            (2, 64, 16),
+            (3, 96, 20),
+            (4, 96, 20),
+            (8, 1000, 64),
+        ] {
             let p = params(lb, q, pow);
             assert!(
                 p.johnson_soundness_bits() <= p.conjectured_soundness_bits(),
