@@ -254,6 +254,14 @@ jobs:
         with:
           run-security-audit: "true"
           run-format-check: "true"
+          # rust-version pinned to match rust-toolchain.toml's channel exactly. rust-build's
+          # default is "stable", and an explicit `toolchain:` input to dtolnay/rust-toolchain
+          # always wins over rust-toolchain.toml auto-detection -- CONTRIBUTING.md's "the pin is
+          # authoritative for every cargo invocation" claim does not hold for this call site.
+          # Confirmed 2026-09-20: cargo fmt --all -- --check is clean under the pin but fails
+          # under stable (lib-q-stark-fri/src/config.rs reformats differently), which broke CI on
+          # every push to main until this was pinned explicitly (run 35502428327 and others).
+          rust-version: "nightly-2026-07-24"
           # Clippy runs once below (workspace, all features) to avoid compiling twice.
           run-clippy: "false"
           run-tests: "false"
