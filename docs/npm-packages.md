@@ -6,7 +6,7 @@
 crates were withdrawn and have since been removed from the workspace —
 `lib-q-threshold-sig` as **cryptographically unsound**, `lib-q-fhe` because `decrypt` never read
 the key, and `lib-q-threshold-kem` because its partial-decapsulation shares disclosed the full
-ML-KEM-768 decapsulation key (board cards t_2a349708 / t_8ca3fd06). See
+ML-KEM-768 decapsulation key. See
 [Removed crates](npm-coverage.md#removed-crates).
 
 Coverage vs the full Rust workspace: [npm-coverage.md](npm-coverage.md). JavaScript export names: [npm-wasm-api.md](npm-wasm-api.md).
