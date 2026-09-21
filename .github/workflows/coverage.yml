@@ -114,7 +114,7 @@ jobs:
           
       - name: Install tarpaulin (stable, prebuilt pinned binary)
         if: matrix.rust == 'stable'
-        uses: taiki-e/install-action@9534c84618278caac52cb373bb164ed464dbd8af # v2.87.11
+        uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2.87.15
         with:
           # Pinned. Previously `cargo-tarpaulin` (i.e. @latest), which meant an upstream release
           # could break this job with no change on our side -- the same failure shape as the
@@ -348,7 +348,7 @@ jobs:
           key: ${{ runner.os }}-cargo-extcov-${{ matrix.shard }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
 
       - name: Install tarpaulin
-        uses: taiki-e/install-action@9534c84618278caac52cb373bb164ed464dbd8af # v2.87.11
+        uses: taiki-e/install-action@4076c08d76dba979c11a7285295b0716c1d67908 # v2.87.15
         with:
           tool: cargo-tarpaulin@0.37.0
 
