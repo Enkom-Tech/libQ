@@ -559,7 +559,7 @@ version = "0.7.0"
 dependencies = [
  "clap 2.34.0",
  "ctrlc",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rand_chacha 0.10.0",
 ]
 
@@ -980,7 +980,7 @@ dependencies = [
  "lib-q-random",
  "lib-q-sha3",
  "lib-q-types",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -998,7 +998,7 @@ dependencies = [
  "js-sys",
  "lib-q-types",
  "once_cell",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -1067,7 +1067,7 @@ dependencies = [
  "lib-q-fn-dsa-alg",
  "lib-q-random",
  "proptest",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rand_core 0.10.1",
  "wasm-bindgen",
  "web-sys",
@@ -1187,7 +1187,7 @@ dependencies = [
  "lib-q-sca-test",
  "lib-q-sha3",
  "lib-q-types",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rand_core 0.10.1",
  "serde",
  "serde-big-array",
@@ -1546,7 +1546,7 @@ dependencies = [
  "lib-q-k12",
  "lib-q-saturnin",
  "proptest",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rand_core 0.10.1",
  "serde",
  "serde-wasm-bindgen",
@@ -1715,7 +1715,7 @@ name = "lib-q-sss"
 version = "0.0.11"
 dependencies = [
  "lib-q-sca-test",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rand_core 0.10.1",
  "thiserror",
  "zeroize",
@@ -1743,7 +1743,7 @@ dependencies = [
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
  "postcard",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "subtle",
  "thiserror",
@@ -1772,7 +1772,7 @@ dependencies = [
  "lib-q-stark-field-testing",
  "lib-q-stark-monty31",
  "num-bigint 0.5.1",
- "rand 0.10.2",
+ "rand 0.10.3",
 ]
 
 [[package]]
@@ -1806,7 +1806,7 @@ dependencies = [
  "lib-q-stark-shake128",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
 ]
 
@@ -1821,7 +1821,7 @@ dependencies = [
  "lib-q-stark-mersenne31",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
- "rand 0.10.2",
+ "rand 0.10.3",
  "spin",
  "tracing",
 ]
@@ -1835,7 +1835,7 @@ dependencies = [
  "lib-q-stark-util",
  "num-bigint 0.5.1",
  "pastey",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "subtle",
  "tracing",
@@ -1852,7 +1852,7 @@ dependencies = [
  "lib-q-stark-matrix",
  "lib-q-stark-util",
  "num-bigint 0.5.1",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "serde_json",
 ]
@@ -1876,7 +1876,7 @@ dependencies = [
  "lib-q-stark-shake256",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "subtle",
  "thiserror",
@@ -1907,7 +1907,7 @@ dependencies = [
  "lib-q-stark-mersenne31",
  "lib-q-stark-rayon",
  "lib-q-stark-util",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "tracing",
  "transpose",
@@ -1925,7 +1925,7 @@ dependencies = [
  "lib-q-stark-field",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "rand 0.10.2",
+ "rand 0.10.3",
 ]
 
 [[package]]
@@ -1945,7 +1945,7 @@ dependencies = [
  "lib-q-stark-shake256",
  "lib-q-stark-symmetric",
  "lib-q-stark-util",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "thiserror",
  "tracing",
@@ -1967,7 +1967,7 @@ dependencies = [
  "lib-q-stark-util",
  "num-bigint 0.5.1",
  "pastey",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "subtle",
 ]
@@ -1987,7 +1987,7 @@ dependencies = [
  "lib-q-stark-util",
  "num-bigint 0.5.1",
  "pastey",
- "rand 0.10.2",
+ "rand 0.10.3",
  "serde",
  "spin",
  "tracing",
@@ -2043,7 +2043,7 @@ name = "lib-q-stark-util"
 version = "0.0.11"
 dependencies = [
  "criterion",
- "rand 0.10.2",
+ "rand 0.10.3",
  "rayon",
  "serde",
  "serde_json",
@@ -2483,7 +2483,7 @@ checksum = "95c589f335db0f6aaa168a7cd27b1fc6920f5e1470c804f814d9cd6e62a0f70b"
 dependencies = [
  "env_logger",
  "log",
- "rand 0.10.2",
+ "rand 0.10.3",
 ]
 
 [[package]]
@@ -2530,9 +2530,9 @@ dependencies = [
 
 [[package]]
 name = "rand"
-version = "0.10.2"
+version = "0.10.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7f5fa3a058cd35567ef9bfa5e75732bee0f9e4c55fa90477bef2dfcdbc4be80"
+checksum = "65c9fb96cbc91e3478eaae79a69fcd3f1ae4ad052e471fe6732fff548984b4af"
 dependencies = [
  "chacha20",
  "getrandom 0.4.3",
@@ -2875,7 +2875,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.4.3",
+ "getrandom 0.3.4",
  "once_cell",
  "rustix",
  "windows-sys",
