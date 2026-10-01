@@ -1,4 +1,4 @@
-//! The **malformed-ciphertext partial-decap gate** (task #33) — the composition point at which a
+//! The **malformed-ciphertext partial-decap gate** — the composition point at which a
 //! caller-supplied encryption-proof verification is enforced *before* a share is read.
 //!
 //! ## The threat
@@ -46,7 +46,7 @@
 //! [`crate::encryption_proof::assemble_r3a_f_provenance_prover`] (binds `e` + `f` for selected R3a
 //! columns) remain as cheaper per-component entry points and as the spike-test harnesses.
 //!
-//! The closure is also **zero-knowledge** when run under the hiding-FRI config (blinds `μ`; task #32,
+//! The closure is also **zero-knowledge** when run under the hiding-FRI config (blinds `μ`;
 //! demonstrated by `encryption_proof::tests::e_provenance_zero_knowledge_round_trip`).
 //!
 //! **Remaining (RED — not soundness of THIS proof):** constant-time samplers on the KEM's FO
@@ -246,7 +246,7 @@ mod tests {
 
     use super::*;
 
-    /// **The gate's security property (task #33):** a ciphertext whose encryption proof does NOT verify
+    /// **The gate's security property:** a ciphertext whose encryption proof does NOT verify
     /// is refused with [`EncProofError::ProofRejected`] **before the share is read** — the
     /// malformed-ciphertext insider probe never reaches the secret (the `if !proof_verifies()` return is
     /// structurally before `partial_decap_masked`). A *verified* proof (`|| true`) forwards past the

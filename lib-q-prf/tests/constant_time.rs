@@ -2,7 +2,7 @@
 //! `ct_eq`/`ct_lt`-based key validation (`lib-q-prf/src/keys.rs`).
 //!
 //! Does NOT measure wall-clock timing -- that is unmeasurable in a unit test and out of scope
-//! per card t_043571b4 (a prior "constant-time" test compared two algorithms' speeds and was
+//! per the constant-time test-scope decision (a prior "constant-time" test compared two algorithms' speeds and was
 //! rejected). What these tests pin is the code shape: a key must be rejected as invalid
 //! regardless of WHICH word of the big integer carries the zero/out-of-range signal. A
 //! short-circuiting or word-truncated check (e.g. one that only inspects the low 32/64 bits

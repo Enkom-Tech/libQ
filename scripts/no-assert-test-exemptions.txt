@@ -1,6 +1,6 @@
 # #[test] functions with no direct assert/panic/unwrap/expect/`?`/should_panic in their body
 # ===========================================================================================
-# Enforced by scripts/ci_guard_no_assert_tests.py (card t_f0d676d1).
+# Enforced by scripts/ci_guard_no_assert_tests.py.
 #
 # Format:  <path>:<fn_name> | <reason>
 #
@@ -20,11 +20,11 @@
 
 # Every fn below is in tests/archive/, whose README.md states these are debug/diagnostic
 # scripts preserved from HQC's 2025 AES/DRBG porting investigation, not correctness gates.
-# CAVEAT (found while triaging this guard, card t_f0d676d1): the README claims they are
+# CAVEAT (found while triaging this guard): the README claims they are
 # excluded from default cargo test runs via an archive-tests feature, but Cargo.toml does
 # NOT gate these files behind that feature (no [[test]] required-features entry for them,
 # and autotests is not disabled) -- they DO compile and run in a plain cargo test -p
-# lib-q-hqc. That gating gap is real and worth a follow-up card, but is a SEPARATE defect
+# lib-q-hqc. That gating gap is real and worth a follow-up, but is a SEPARATE defect
 # (workflow/manifest scope) from what this guard checks (fn-body failure mechanism); every
 # fn here was individually confirmed to be println-only diagnostic output, matching the
 # README's stated historical-reference purpose, not a silently-broken correctness claim.
@@ -68,7 +68,7 @@ lib-q-hqc/src/simd/runtime.rs:test_detection_always_works | delegates to a real-
 lib-q-hqc/src/simd/runtime.rs:test_redetection | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-hqc/tests/aes_ctr_drbg_test.rs:test_feature_disabled | cfg(not(feature = aes-drbg))-only stub: nothing to test while the feature under test is compiled out; same shape as the wasm_smoke_skipped_on_native_host stubs
 lib-q-hqc/tests/basic_functionality_test.rs:test_hqc_provider_integration | stale placeholder (comment: Provider temporarily disabled during cleanup, TODO: Re-enable when provider is fixed); prints and returns, nothing to assert while the code path it names is disabled
-lib-q-hqc/tests/bearssl_vs_rust_aes_comparison.rs:test_drbg_state_comparison | unresolved dev-investigation test (own comments: Neither produces the expected KAT values / the issue is not in the AES primitive itself) -- same class as the two tests deleted from aes_verification.rs at card t_f0d676d1, kept here pending a follow-up card since it needs cryptography-literate triage of the DRBG derivation, not just a test-hygiene fix
+lib-q-hqc/tests/bearssl_vs_rust_aes_comparison.rs:test_drbg_state_comparison | unresolved dev-investigation test (own comments: Neither produces the expected KAT values / the issue is not in the AES primitive itself) -- same class as the two tests deleted from aes_verification.rs at the 2026-08 test-hygiene audit, kept here pending a follow-up since it needs cryptography-literate triage of the DRBG derivation, not just a test-hygiene fix
 lib-q-hqc/tests/drbg_interop_tests.rs:test_block_boundary_handling | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-hqc/tests/drbg_interop_tests.rs:test_ctr_drbg_update_differences | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-hqc/tests/drbg_interop_tests.rs:test_drbg_interop_with_logging | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)

@@ -1,7 +1,7 @@
 //! FIPS-204 signing-context KATs for the ML-DSA surface exposed to WASM.
 //!
-//! The bindings used to hardcode an empty context, so a context-bound signature (GIP domain
-//! separation, e.g. `wapp.sh/entitlement-v0`) could not be verified from a browser. The tests
+//! The bindings used to hardcode an empty context, so a context-bound signature (application-level domain
+//! separation, e.g. `example.org/entitlement-v0`) could not be verified from a browser. The tests
 //! that matter here are the NEGATIVE ones: a binding that accepts a context argument and then
 //! ignores it would still pass every positive test below.
 
@@ -26,9 +26,9 @@ use lib_q_sig::ml_dsa::{
 };
 use lib_q_sig::provider::LibQSignatureProvider;
 
-/// Real GIP-style domain separation strings, i.e. the ones this work exists to unblock.
-const ENTITLEMENT_CTX: &[u8] = b"wapp.sh/entitlement-v0";
-const INDEX_ENTRY_CTX: &[u8] = b"wapp.sh/index-entry-v0";
+/// Real domain separation strings, i.e. the ones this work exists to unblock.
+const ENTITLEMENT_CTX: &[u8] = b"example.org/entitlement-v0";
+const INDEX_ENTRY_CTX: &[u8] = b"example.org/index-entry-v0";
 
 fn keypair(ml_dsa: &MlDsa, seed: u8) -> (SigPublicKey, SigSecretKey) {
     let kp = ml_dsa

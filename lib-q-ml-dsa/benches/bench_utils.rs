@@ -91,7 +91,7 @@ macro_rules! bench_group_libcrux {
                 key_generation_seed
             },
             |key_generation_seed: [u8; KEY_GENERATION_RANDOMNESS_SIZE]| {
-                p::generate_key_pair(key_generation_seed)
+                p::generate_key_pair_from_seed(&lib_q_ml_dsa::Zeroizing::new(key_generation_seed))
             }
         );
 
@@ -106,7 +106,9 @@ macro_rules! bench_group_libcrux {
                     bench_utils::random_array();
                 let signing_randomness: [u8; SIGNING_RANDOMNESS_SIZE] = bench_utils::random_array();
                 let message = bench_utils::random_array::<1023>();
-                let keypair = p::generate_key_pair(key_generation_seed);
+                let keypair = p::generate_key_pair_from_seed(&lib_q_ml_dsa::Zeroizing::new(
+                    key_generation_seed,
+                ));
 
                 (keypair, message, signing_randomness)
             },
@@ -130,7 +132,9 @@ macro_rules! bench_group_libcrux {
                         bench_utils::random_array();
                     let signing_randomness: [u8; SIGNING_RANDOMNESS_SIZE] =
                         bench_utils::random_array();
-                    let keypair = p::generate_key_pair(key_generation_seed);
+                    let keypair = p::generate_key_pair_from_seed(&lib_q_ml_dsa::Zeroizing::new(
+                        key_generation_seed,
+                    ));
                     if let Ok(signature) =
                         p::sign(&keypair.signing_key, &message, b"", signing_randomness)
                     {

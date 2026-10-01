@@ -105,8 +105,8 @@ pub const FOLD_E_BUS: &str = "libq.enc.fold-e.v0";
 /// Versioned (`.v0`) as a wire-relevant identifier.
 pub const SQUEEZE_LIMB_BUS: &str = "libq.enc.squeeze-limb.v0";
 
-/// Bus carrying the sponge preimage's 16 `μ` rate limbs to the [`crate::mu_bits`] bridge (card
-/// `t_a73aaed2`, GAP 2). The sponge Sends each limb once, gated on its first row — the only row whose
+/// Bus carrying the sponge preimage's 16 `μ` rate limbs to the [`crate::mu_bits`] bridge
+/// (GAP 2). The sponge Sends each limb once, gated on its first row — the only row whose
 /// preimage is the FO seed.
 pub const MU_LIMB_BUS: &str = "libq.enc.mu-limb.v0";
 

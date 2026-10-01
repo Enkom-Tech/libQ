@@ -1,10 +1,15 @@
 name: CI
 
-# Pull requests: core checks, feature test matrix, WASM, algorithm crates, integration, ML-KEM,
-# ML-DSA targeted tests. Push to main/develop, weekly schedule, and workflow_dispatch also run
-# heavier jobs (per-crate Criterion benchmark shards, cross-OS builds, valgrind, HQC SIMD debug, full ML-DSA audit script,
-# ZKP recursive) to keep CI minutes predictable on PRs. PRs still run bench-shards-validate and bench-matrix (manifest
-# compile-check + matrix JSON verify); full Criterion shards run only on push/schedule/dispatch.
+# Two tiers. The fast gate runs everywhere, including Forgejo PRs: core checks, tier-1 build
+# checks (x86_64, wasm32 workspace, no_std/thumb smoke, hqc arch gate), algorithm crates and their
+# KATs, ML-KEM, ML-DSA compliance, integration, FN-DSA portable and emulated-float paths, the
+# hardened/FIPS test-matrix rows (test-matrix-pr-crypto), and the bench manifest checks. Jobs
+# whose `if:` names github.com (feature test matrix, WASM validation and bindgen smoke, publish
+# readiness, fuzz-harness builds, aarch64 QEMU execution, cross-OS builds, Criterion shards, HQC
+# SIMD debug, valgrind, ZKP recursive) run only on GitHub, on push to main/develop, the weekly
+# schedule and workflow_dispatch. PR branches never reach GitHub, so those jobs report after
+# merge, not before. security.yml still runs the sha3/k12/fn-dsa/random constant-time tests on
+# every PR.
 
 on:
   push:
@@ -49,7 +54,22 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: "24"
-      
+
+      # Several guards below call `cargo metadata` before the rust-build step installs Rust.
+      # Hosted GitHub runners ship cargo, so that ordering passed there; a self-hosted runner
+      # without a preinstalled toolchain fails them with "No such file or directory: 'cargo'".
+      - name: Resolve pinned toolchain
+        id: toolchain
+        run: |
+          set -euo pipefail
+          CHANNEL="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          test -n "$CHANNEL"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+
       - name: Generate cache key
         id: cache-key
         run: echo "value=${{ github.sha }}-${{ github.run_id }}" >> $GITHUB_OUTPUT
@@ -58,7 +78,9 @@ jobs:
         run: bash ./scripts/ci-guard-new-crates-and-npm.sh
 
       - name: Guard banned terms in new primitive crates
-        run: bash ./scripts/ci-guard-primitive-banned-terms.sh
+        run: |
+          bash ./scripts/ci-guard-primitive-banned-terms.sh --self-test
+          bash ./scripts/ci-guard-primitive-banned-terms.sh
 
       # The pre-push health gate (fmt + clippy + cargo-audit) lives in .githooks/, wired by
       # core.hooksPath. On 2026-08-15 a working clone still had that pointing at the path the repo
@@ -155,7 +177,7 @@ jobs:
       # A crate deleted for a soundness defect must not come back. lib-q-threshold-kem and
       # lib-q-fhe were removed at 401eb2e because they are broken (raw Shamir shares of the
       # ML-KEM-768 decapsulation key on the wire; a decrypt that never reads the key), and both
-      # still exist on two branches that cannot simply be deleted -- see card t_59609fc3.
+      # still exist on two branches that cannot simply be deleted -- see the withdrawn-crate branch cleanup.
       #
       # OBSERVED 2026-08-08: an agent hit GIP's stale path deps on these crates, which break the
       # whole GIP workspace at manifest load, and fixed it by grafting the directories back out of
@@ -168,7 +190,7 @@ jobs:
       # @latest at run time, so a third party's release can turn CI red with no change on our side
       # -- and for a MEASUREMENT tool it silently changes what the number means (tarpaulin 0.35.2
       # vs 0.37.0 disagree by up to 44 points on the same crate, so a floor tuned against one is
-      # not a floor against the other). Written while unpinning the coverage nightly (t_93dc6b27);
+      # not a floor against the other). Written while unpinning the coverage nightly;
       # on first run it found three unpinned installs beyond the two that prompted it.
       - name: Guard that CI tool installs are version-pinned
         run: bash ./scripts/ci-guard-pinned-ci-tools.sh .
@@ -180,7 +202,7 @@ jobs:
       # gets its own `hardened` feature turned on by `cargo test`/`cargo bench` -- measuring the
       # side-channel-masked path, not what users get. This already produced a wrong
       # published-sounding number (the "ML-DSA ~7x slower" result; real figure ~1.7x on signing).
-      # See card t_42086971.
+      # See the lib-q-sca-test default-features fix.
       - name: Guard lib-q-sca-test dev-dependencies opt out of default features
         run: bash ./scripts/ci-guard-sca-test-default-features.sh .
 
@@ -203,6 +225,19 @@ jobs:
       # no network, touches nothing in the working tree.
       - name: Self-test the KAT provenance guard
         run: python scripts/selftest_kat_provenance_guard.py
+
+      # This repository is published, and tracker identifiers, internal task numbers, workstation
+      # paths, private addresses and names of private hosts and tools mean nothing to its readers.
+      # They were removed in one sweep; this keeps them out. The internal-name check needs the
+      # INTERNAL_REFS_KEY secret (a keyed list; the names are not in this repository). Where the
+      # secret is not configured the guard prints a notice, skips only that check and runs the
+      # rest. Address exemptions are printed on every run and capped by
+      # scripts/internal-refs-exemptions-max.txt. The guard re-runs its own self-test before every
+      # scan. Static and stdlib-only, no network.
+      - name: Guard against internal tracker references and infrastructure names
+        env:
+          INTERNAL_REFS_KEY: ${{ secrets.INTERNAL_REFS_KEY }}
+        run: bash ./scripts/ci-guard-internal-refs.sh
 
       # Static analysis of .github/**/*.yml itself: catches a NEW `cargo test` call site landing
       # in one of the three shapes proven in this repo to report green without doing what its name
@@ -239,7 +274,7 @@ jobs:
       # lib-q-hqc/tests/kat_with_aes_drbg_test.rs (fixed at 766cb0c): a KEM round-trip test
       # printed a check-mark or cross-mark on shared-secret mismatch with no assertion, so a
       # decapsulation returning the WRONG shared secret reported "ok". The repo-wide sweep this
-      # guard was built for (card t_f0d676d1) found the same shape live in
+      # guard was built for found the same shape live in
       # lib-q-hqc/tests/official_specification_verification_test.rs (an HQC-3/HQC-5 official-vs-
       # implementation parameter check computed `all_match` but never asserted it, and two of its
       # own hardcoded "official" constants had drifted stale against the NIST Oct 2024 spec by
@@ -273,7 +308,7 @@ jobs:
       # NOT actually all code paths, and the exception matters: `--all-features` turns on
       # mutually-excluding features together, so any module gated `not(feature = X)` where X is
       # itself a feature is compiled OUT of this pass and can never be linted by it. The step
-      # below covers the known instance; see card t_3986efb2 for how it was found.
+      # below covers the known instance; see the FN-DSA float-emulation review for how it was found.
       - name: Clippy (workspace, all targets, all features)
         run: cargo clippy --all-targets --all-features -- -D warnings
 
@@ -302,6 +337,9 @@ jobs:
   # Parallel test matrix - runs after core validation
   publish-readiness:
     name: Publish readiness (${{ matrix.package }})
+    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -331,6 +369,9 @@ jobs:
   # Parallel test matrix - runs after core validation
   test-matrix:
     name: Test Matrix
+    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     # Full workspace `cargo test` + `cargo test --profile release-ci` for `std,all-algorithms`
@@ -494,10 +535,44 @@ jobs:
           packages: ${{ matrix.packages }}
           run-release-tests: "true"
 
+  # The test-matrix rows that guard side-channel hardening or a FIPS-only code path, run on every
+  # PR. test-matrix itself is GitHub-only, so without this job these rows would only report after
+  # merge: the MAYO and all-parameter-set ML-DSA dudect smoke tests run nowhere else, and the
+  # ML-DSA fips_mode_tests need `random`+`fips-mode`+`acvp` together, which no other job enables.
+  # Keep these rows identical to their test-matrix counterparts (they run twice on GitHub, once
+  # on Forgejo).
+  test-matrix-pr-crypto:
+    name: Test Matrix (PR crypto rows)
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: "lib-q-mayo-hardened"
+            features: "std,mayo2,hardened,dudect-smoke-tests"
+            package: "lib-q-mayo"
+          - name: "ml-dsa-fips"
+            features: "std,random,fips-mode,mldsa44,mldsa65,mldsa87,acvp"
+            package: "lib-q-ml-dsa"
+          - name: "ml-dsa-hardened"
+            features: "std,hardened,mldsa44,mldsa65,mldsa87,dudect-smoke-tests"
+            package: "lib-q-ml-dsa"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run tests
+        uses: ./.github/actions/rust-test
+        with:
+          features: ${{ matrix.features }}
+          package: ${{ matrix.package }}
+          run-release-tests: "true"
+
   # ZKP recursive aggregation - full prove/aggregate/verify in release (slow test)
   zkp-recursive:
     name: ZKP Recursive Aggregation
-    if: github.event_name != 'pull_request'
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -529,8 +604,8 @@ jobs:
           # `test_recursive_verifier_trace_satisfies_constraints_then_prove_verify`, which was
           # `#[ignore]`d -- so libtest reported "0 passed; 1 ignored; 12 filtered out", exited 0,
           # and the whole job asserted nothing. The vacuous-tests guard caught it. Worse, the
-          # filter was hiding two OTHER tests failing from the same MerkleInclusionAir defect
-          # (card t_4333e4ea). That defect is fixed and all three are un-ignored, so the whole
+          # filter was hiding two OTHER tests failing from the same MerkleInclusionAir defect.
+          # That defect is fixed and all three are un-ignored, so the whole
           # target now runs: 12 tests in ~5s, no runtime reason to select. The one remaining
           # `#[ignore]` is the slow batch test, excluded for the runner budget, not because it
           # fails. Do not reintroduce a name filter -- it is what hid this for two months.
@@ -549,6 +624,9 @@ jobs:
   # WASM validation - parallel with test matrix
   wasm-validation:
     name: WASM Validation
+    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -719,6 +797,9 @@ jobs:
   # portable-path FN-DSA defect survived two months of green CI.
   fn-dsa-emulated-float:
     name: FN-DSA emulated float backend (wasm32 execution)
+    # Stays on the fast PR gate everywhere (no `if:`): it is a single ~4 minute job and the
+    # only execution of the wasm32/armv7 float backend, so moving it off PRs would reopen
+    # exactly the blind spot described above.
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -801,6 +882,9 @@ jobs:
   # Execute wasm-bindgen smoke tests added for research/zkp crates.
   wasm-bindgen-smoke:
     name: WASM bindgen smoke tests
+    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 25
@@ -970,7 +1054,7 @@ jobs:
     name: Romulus no_std / wasm32 smoke
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -1016,7 +1100,7 @@ jobs:
           cargo check -p lib-q-dkg --no-default-features --target thumbv7em-none-eabi
           cargo check -p lib-q-threshold-kem-lattice --no-default-features --target thumbv7em-none-eabi
 
-  # Card t_121ec837: `lib-q-hqc --features simd-avx2` used to fail E0432 on wasm32 and aarch64
+  # The HQC `simd-avx2` target-gating fix: `lib-q-hqc --features simd-avx2` used to fail E0432 on wasm32 and aarch64
   # because hqc_pke.rs:758 gated an AVX2-only code path on the `simd-avx2` FEATURE alone, with no
   # `target_arch` guard — so enabling the feature on a non-x86_64 target imported a symbol
   # (`crate::simd::Avx2`) that `src/simd/mod.rs` only exports under `target_arch = "x86_64"`.
@@ -1026,7 +1110,7 @@ jobs:
     name: lib-q-hqc simd-avx2 off-x86_64 arch gate
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -1043,7 +1127,7 @@ jobs:
   # Builds every standalone cargo-fuzz harness (workspace.exclude'd `*/fuzz` crates) with a plain
   # `cargo check`, so a fuzz target that drifts from the library API it targets fails CI instead
   # of rotting silently. This does NOT fuzz -- it only proves each harness still compiles.
-  # Card L7/L8: lib-q-lattice-zkp/fuzz stopped compiling (verify_blind_signature signature drift,
+  # Audit findings L7/L8: lib-q-lattice-zkp/fuzz stopped compiling (verify_blind_signature signature drift,
   # E0308) and nothing caught it, because the only fuzz-related CI (zkp-fuzz-scheduled.yml) only
   # ever touches lib-q-zkp's two targets -- the other 5 excluded harnesses (lattice-zkp, ring-sig,
   # prf, dkg, threshold-raccoon) had zero CI coverage of any kind. scripts/ci-check-fuzz-harnesses.sh
@@ -1051,6 +1135,9 @@ jobs:
   # list, so a new or removed harness cannot silently drop out of coverage.
   fuzz-harnesses-build:
     name: Fuzz harnesses build (cargo check, no fuzzing)
+    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -1075,7 +1162,7 @@ jobs:
     name: K12 no_std / wasm32 / thumb smoke
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -1122,7 +1209,7 @@ jobs:
   # Cross-platform builds - parallel execution
   cross-platform:
     name: Cross-Platform Builds
-    if: github.event_name != 'pull_request'
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
@@ -1311,35 +1398,43 @@ jobs:
           cargo test -p lib-q-keccak --target ${{ matrix.target }} --features std --profile release-ci --no-run
           echo "✅ Cross-compilation tests built successfully (execution not possible on x86_64 host)"
 
-  # Card t_26d3b638 item 6: `cross-platform` above only cross-COMPILES aarch64/armv7 (its own
+  # The aarch64 NEON defect sweep item 6: `cross-platform` above only cross-COMPILES aarch64/armv7 (its own
   # "Build cross-compilation tests (without execution)" step says so explicitly) -- no job in this
   # workflow has ever EXECUTED a single aarch64 instruction. That is the systemic reason three
-  # separate, unrelated aarch64-only defects (t_d707d46b, t_9ad8ef08, t_26d3b638) all shipped:
+  # separate, unrelated aarch64-only defects all shipped:
   # every `#[cfg(target_arch = "aarch64")]` path in the workspace was unverified by construction.
   #
-  # `docker/setup-qemu-action` registers binfmt_misc interpreters for foreign architectures on the
-  # runner; `cross` (rust-embedded/cross) then builds and runs the crate's real test suite inside a
-  # linux/arm64 container, where QEMU user-mode emulation genuinely executes the aarch64 machine
-  # code -- not a cross-compile-and-skip. Verified locally (Docker Desktop + `cross` on this same
-  # toolchain): this exact invocation reproduced the t_26d3b638 NEON `KeccakStateX2` panic
-  # ("Invalid state for SHAKE-256 operation" at lib-q-ml-dsa/src/sha3_shim.rs:247) against the
-  # pre-fix tree, and passes (120 lib tests + all 15 integration-test binaries + doctests, 0
-  # failures) against the fixed tree.
+  # The job cross-compiles with the distro aarch64 GNU toolchain and runs every test binary under
+  # QEMU user-mode emulation (`qemu-aarch64`), wired in through cargo's per-target `runner`. QEMU
+  # genuinely executes the aarch64 machine code -- this is not a cross-compile-and-skip. It used to
+  # go through `cross` (rust-embedded/cross), which pulls a toolchain image and runs it in a nested
+  # container. On the self-hosted runner the job itself already runs in a container, and the nested
+  # image unpack failed on every run ("unpacking failed ... operation not permitted"), so the job
+  # was permanently red there and had been gated to GitHub only. The native toolchain needs no
+  # nested container, no privileged binfmt registration and no image pull, so it runs the same on
+  # GitHub-hosted and self-hosted runners (verified green on the self-hosted runner).
   #
   # `lib-q-ml-dsa`'s `simd128` feature is the only aarch64-gated SIMD path in the workspace with a
-  # documented, previously-shipped defect; no default feature set anywhere enables it (see
-  # t_26d3b638), so nothing else in this workflow reaches it. Deliberately NOT gated behind
-  # `if: github.event_name != 'pull_request'` -- matching `fn-dsa-emulated-float` below, whose own
-  # comment records that PR-skipping an arch-specific execution gate is exactly how a portable-path
-  # FN-DSA defect survived two months of green CI. Extend this row's package list if another
-  # aarch64-gated path is added elsewhere.
+  # documented, previously-shipped defect (the NEON `KeccakStateX2` "Invalid state for SHAKE-256
+  # operation" panic); no default feature set anywhere enables it, so nothing else in this workflow
+  # reaches it. Extend this row's package list if another aarch64-gated path is added elsewhere.
   aarch64-qemu-execution:
     name: aarch64 QEMU execution (lib-q-ml-dsa, simd128)
+    # Kept off pull requests so the PR gate stays fast (the QEMU run takes about 12 minutes). It
+    # runs on pushes to main (on the self-hosted runner and on GitHub after sync), the weekly
+    # scheduled run and workflow_dispatch. The schedule stays weekly on purpose: a nightly run of
+    # the full workflow would be too heavy for the shared runner.
+    if: github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    env:
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: qemu-aarch64 -L /usr/aarch64-linux-gnu
+      CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+      AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -1348,31 +1443,61 @@ jobs:
           toolchain: nightly
           components: rust-src
 
-      - name: Set up QEMU (binfmt_misc interpreters for foreign architectures)
-        uses: docker/setup-qemu-action@v3
+      # dtolnay only augments `nightly`; the directory override in rust-toolchain.toml is the
+      # toolchain cargo actually uses, so add the target there.
+      - name: Install aarch64 std for override toolchain
+        run: rustup target add aarch64-unknown-linux-gnu
 
-      - name: Install cross
-        uses: taiki-e/install-action@9534c84618278caac52cb373bb164ed464dbd8af # v2.87.11
-        with:
-          tool: cross@0.2.5
+      - name: Install aarch64 cross toolchain and QEMU user-mode emulator
+        run: |
+          set -euo pipefail
+          SUDO=""
+          if [ "$(id -u)" != "0" ]; then SUDO="sudo"; fi
+          $SUDO apt-get update
+          $SUDO apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
+          aarch64-linux-gnu-gcc --version | head -1
+          qemu-aarch64 --version | head -1
+          test -e /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1
+
+      # Positive control: prove the runner really executes aarch64 code before trusting a green
+      # test run. A small aarch64 C program that prints its own architecture must run
+      # under the configured runner and report aarch64.
+      - name: Verify QEMU executes aarch64 binaries
+        run: |
+          set -euo pipefail
+          d="$(mktemp -d)"
+          cat > "${d:?}/arch.c" <<'SRC'
+          #include <stdio.h>
+          int main(void) {
+          #if defined(__aarch64__)
+            puts("aarch64");
+          #else
+            puts("not-aarch64");
+          #endif
+            return 0;
+          }
+          SRC
+          aarch64-linux-gnu-gcc -o "${d:?}/arch" "${d:?}/arch.c"
+          out="$($CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER "${d:?}/arch")"
+          echo "runner output: $out"
+          test "$out" = "aarch64"
 
       - name: Cache dependencies
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-aarch64-qemu-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-aarch64-qemu-native-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-aarch64-qemu-
+            ${{ runner.os }}-aarch64-qemu-native-
 
       # Full lib + every integration-test binary + doctests, no name filter: a typo'd filter that
-      # matches zero tests exits 0 and silently stops covering anything (card t_1d516263's class of
-      # trap). No `|| echo`/`|| true` fallback either -- a real aarch64-only regression fails this
-      # step, full stop.
-      - name: Run lib-q-ml-dsa test suite under real aarch64 (QEMU, via cross)
-        run: cross test -p lib-q-ml-dsa --target aarch64-unknown-linux-gnu --features simd128
+      # matches zero tests exits 0 and silently stops covering anything. No `|| echo`/`|| true`
+      # fallback either -- a real aarch64-only regression fails this step, full stop.
+      - name: Run lib-q-ml-dsa test suite under real aarch64 (QEMU user-mode)
+        run: cargo test -p lib-q-ml-dsa --target aarch64-unknown-linux-gnu --features simd128
 
   # Benchmark manifest validation (all events, including PRs).
   bench-shards-validate:
@@ -1394,7 +1519,7 @@ jobs:
   # Compile all bench targets once and populate the shared release cache (non-PR only).
   bench-warm-cache:
     name: Benchmark warm cache
-    if: github.event_name != 'pull_request'
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 60
@@ -1458,7 +1583,7 @@ jobs:
   # Per-crate Criterion benchmarks — parallel matrix (~23 shards).
   performance-benches:
     name: Benchmarks · ${{ matrix.id }}
-    if: github.event_name != 'pull_request'
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: [bench-warm-cache, bench-matrix]
     runs-on: ubuntu-latest
     timeout-minutes: ${{ matrix.timeout_minutes }}
@@ -1487,7 +1612,7 @@ jobs:
     name: Documentation
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
 
@@ -1627,13 +1752,12 @@ jobs:
             working-directory: lib-q-hpke
             # 20 lib-q-hpke/tests/*.rs files carry `#![cfg(feature = "std")]` (grep -ln
             # '#!\[cfg(feature = "std")\]' lib-q-hpke/tests/*.rs); without `std` here they compile
-            # to EMPTY binaries -- every one of those steps reported "0 passed" and still exited 0
-            # (t_9f13e8e5).
+            # to EMPTY binaries -- every one of those steps reported "0 passed" and still exited 0.
             # `duplex-sponge-aead` gates the whole of tests/duplex_sponge_hpke_tests.rs via a
             # file-level `#![cfg(all(feature = "std", feature = "duplex-sponge-aead"))]`. Without
             # it that file compiled to an EMPTY binary -- 3 real, passing tests that no CI job
             # ran. The feature was enabled only in cd.yml/npm-publish-only.yml, which BUILD wasm
-            # and never run these tests. Same defect class as t_9f13e8e5, found via t_6ea7cb21.
+            # and never run these tests. Same defect class as the vacuous lib-q-hpke CI steps, found via the ignored-test re-enable pass.
             # Measured before adding it: the 3 tests pass, and the full suite is 328 tests across
             # 29 binaries, exit 0.
             features: "std,ml-kem,saturnin,shake256,hash,secure-rng,duplex-sponge-aead"
@@ -1767,7 +1891,7 @@ jobs:
           run-constant-time: ${{ matrix.run-constant-time }}
           test-algorithms: ${{ matrix.test-algorithms }}
 
-      # ENK-1364: SLH-DSA has no TVLA/dudect timing target anywhere else in CI (only
+      # The SLH-DSA timing-target follow-up: SLH-DSA has no TVLA/dudect timing target anywhere else in CI (only
       # functional constant_time.rs smoke tests, see lib-q-slh-dsa/tests/constant_time.rs).
       # Mirrors the HQC/lattice-zkp self-cert smoke steps below.
       - name: SCA SLH-DSA timing smoke (TVLA-style)
@@ -1808,7 +1932,7 @@ jobs:
           bash "$GUARD" -- cargo test -p lib-q-sca-test --release --features hqc-hardened --lib hqc_hardened_tvla_and_dudect_smoke
           bash "$GUARD" -- cargo test -p lib-q-sca-test --release --features hqc-hardened --test self_cert_report -- --exact self_cert_smoke
 
-      # Card t_2d79cd69 item 3: Reed-Solomon `decode()` took a secret-dependent early-return
+      # The Reed-Solomon decode timing fix item 3: Reed-Solomon `decode()` took a secret-dependent early-return
       # branch on all-zero syndromes (fixed on this branch). `--release` is not optional here —
       # timing tests are meaningless in a debug build (unoptimized codegen dominates the signal),
       # so the test file itself `#[ignore]`s all three cases under `debug_assertions` with a loud
@@ -1816,8 +1940,8 @@ jobs:
       # `cargo test` or that guard silently turns the whole gate into a no-op. No name filter is
       # used, so a typo'd filter cannot quietly match zero tests and exit 0 either — all 3
       # parameter sets (`hqc1`/`hqc3`/`hqc5`) run every time, and `test result:` from cargo itself
-      # is the count that matters, not a re-derived grep. No `|| echo`/`|| true` fallback (see card
-      # t_1d516263): a real leak fails this step, full stop.
+      # is the count that matters, not a re-derived grep. No `|| echo`/`|| true` fallback (see
+      # the swallowed-exit-code defect): a real leak fails this step, full stop.
       - name: HQC Reed-Solomon decode constant-time gate (release, pinned Welch |t| threshold)
         if: matrix.action == 'test-hqc'
         run: cargo test -p lib-q-hqc --release --test reed_solomon_constant_time -- --nocapture
@@ -1892,7 +2016,7 @@ jobs:
   # SIMD debug verification for HQC
   simd-debug-tests:
     name: SIMD Debug Verification
-    if: github.event_name != 'pull_request'
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -1979,6 +2103,8 @@ jobs:
           cargo test --features "hardened,random,mldsa44,mldsa65,mldsa87" --test nistkats --verbose
           GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
           bash "$GUARD" -- cargo test --test wire_format_tests test_against_saved_interop_vectors
+          # FIPS 204 Alg. 8 signer-response bound: portable, multiplexed and (on AVX2 runners) avx2 verify.
+          bash "$GUARD" -- cargo test --features "simd256" --test verify_signer_response_bound
 
       # Push / schedule / manual: full script (tests, clippy, audit from workspace root, etc.).
       - name: ML-DSA full security audit
@@ -2079,7 +2205,7 @@ jobs:
   # Constant-time verification - critical for crypto
   constant-time:
     name: Constant-Time Verification
-    if: github.event_name != 'pull_request'
+    if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -2115,7 +2241,7 @@ jobs:
     name: Integration Tests
     needs: [algorithm-tests]
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       
@@ -2157,7 +2283,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [publish-readiness, test-matrix, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, hqc-simd-avx2-arch-gate, zkp-recursive, cross-platform, aarch64-qemu-execution, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [publish-readiness, test-matrix, test-matrix-pr-crypto, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, hqc-simd-avx2-arch-gate, zkp-recursive, cross-platform, aarch64-qemu-execution, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:

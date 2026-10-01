@@ -9,7 +9,7 @@
 //! ([`getrandom`], a mandatory dependency of the `hardened` feature). The fresh draw is what makes
 //! the mask differ between signatures: `rnd` is the all-zero constant under FIPS 204 deterministic
 //! signing, so keying on `(SEED_FOR_SIGNING, rnd)` alone regenerates the identical mask on every
-//! signature and first-order masking then randomises nothing across traces (card `t_c801e460`).
+//! signature and first-order masking then randomises nothing across traces.
 //! If the OS entropy draw fails the split **refuses to run** and signing returns
 //! [`crate::types::SigningError::MaskEntropyUnavailable`] — it never degrades to a static mask.
 //!
@@ -210,7 +210,7 @@ mod tests {
         );
     }
 
-    /// Regression for the static-mask defect (card t_c801e460): with the SAME long-term
+    /// Regression for the static-mask defect: with the SAME long-term
     /// `seed_for_signing` and the SAME FIPS 204 `rnd` (deterministic signing uses `rnd = 0^32`),
     /// two invocations must NOT produce the same additive shares. A first-order mask that is
     /// identical on every signature randomises nothing across traces.

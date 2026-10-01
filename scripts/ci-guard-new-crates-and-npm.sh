@@ -159,10 +159,59 @@ if [[ ${#npm_dirs[@]} -eq 0 ]]; then
   echo "npm package guard: no package.json files found"
 else
 echo "npm package guard: validating ${#npm_dirs[@]} package(s)"
+LINK_SCRATCH="$(mktemp -d)"
+CURRENT_LINKED_PKG_DIR=""
+CURRENT_PKG_JSON_BACKUP=""
+cleanup_npm_guard() {
+  rm -rf "$LINK_SCRATCH"
+  # Restore a tracked package.json this loop pointed at a scratch file: dependency, including on
+  # an error exit partway through validating that package (`set -e` skips the rest of the loop
+  # body, so the ordinary restore below never runs). Restored from our own pre-edit backup, not
+  # `git checkout`, so this also works on an already-dirty package.json (e.g. mid-rebase, or a
+  # working tree with unstaged edits to that file the guard has no business discarding).
+  if [[ -n "$CURRENT_LINKED_PKG_DIR" && -n "$CURRENT_PKG_JSON_BACKUP" ]]; then
+    cp "$CURRENT_PKG_JSON_BACKUP" "$CURRENT_LINKED_PKG_DIR/package.json"
+  fi
+}
+trap cleanup_npm_guard EXIT
 for pkg_json in "${npm_dirs[@]}"; do
-  dir="$(dirname "$pkg_json")"
+  dir="$(cd "$(dirname "$pkg_json")" && pwd)"
   echo "-> validating npm package in $dir"
+
+  # Build+link any @lib-q/* dependency that is a local wasm-pack crate ahead of what's published
+  # (see ci-link-local-wasm-companions.sh's header for why this exists and what it builds). This
+  # runs BEFORE `npm install` so those deps resolve locally instead of 404ing against the registry.
+  #
+  # Captured to a temp file rather than read via `done < <(bash ... )`: a process-substitution
+  # command's exit status is invisible to the consuming `while` loop (the loop's own exit status
+  # wins), so `set -e` never sees the helper fail -- a broken/failing helper would silently
+  # validate against an empty link set instead of aborting the guard.
+  local_links_out="$(mktemp)"
+  helper_status=0
+  bash "$ROOT/scripts/ci-link-local-wasm-companions.sh" "$dir" "$LINK_SCRATCH" > "$local_links_out" || helper_status=$?
+  if [[ "$helper_status" -ne 0 ]]; then
+    echo "npm package guard: ci-link-local-wasm-companions.sh failed (exit $helper_status) for $dir" >&2
+    rm -f "$local_links_out"
+    exit "$helper_status"
+  fi
+  declare -A local_links=()
+  while IFS='=' read -r link_name link_path; do
+    [[ -n "$link_name" ]] || continue
+    local_links["$link_name"]="$link_path"
+  done < "$local_links_out"
+  rm -f "$local_links_out"
+
   pushd "$dir" > /dev/null
+  if [[ ${#local_links[@]} -gt 0 ]]; then
+    # Never leave the tracked package.json pointing at a scratch-dir file: dependency -- see
+    # cleanup_npm_guard, which restores this even if a step below fails partway through.
+    CURRENT_LINKED_PKG_DIR="$dir"
+    CURRENT_PKG_JSON_BACKUP="$(mktemp)"
+    cp package.json "$CURRENT_PKG_JSON_BACKUP"
+    for link_name in "${!local_links[@]}"; do
+      npm pkg set "dependencies.${link_name}=file:${local_links[$link_name]}"
+    done
+  fi
   if [[ -f package-lock.json ]]; then
     npm ci --ignore-scripts --no-audit --no-fund
   else
@@ -172,7 +221,14 @@ for pkg_json in "${npm_dirs[@]}"; do
   npm run -s test --if-present
   npm run -s build --if-present
   npm pack --dry-run
+  if [[ ${#local_links[@]} -gt 0 ]]; then
+    cp "$CURRENT_PKG_JSON_BACKUP" package.json
+    rm -f "$CURRENT_PKG_JSON_BACKUP"
+    CURRENT_LINKED_PKG_DIR=""
+    CURRENT_PKG_JSON_BACKUP=""
+  fi
   popd > /dev/null
+  unset local_links
 done
 
 echo "npm package guard: OK"

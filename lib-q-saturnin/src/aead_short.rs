@@ -781,7 +781,7 @@ mod tests {
 /// structure remain, so a second key is found in ~256 tries at *any* nonce length, including the
 /// 16-byte default.
 ///
-/// # This mode will not be given a committing transform (card `t_16ddf21c`)
+/// # This mode will not be given a committing transform
 ///
 /// Unlike `SaturninQcb` (see `crate::commit` for its CTX fix, gated by the `qcb` feature),
 /// Saturnin-Short is **not committing and will not be made committing**. Two reasons:

@@ -1,5 +1,5 @@
 //! Empirical proof that `KemSecretKey`, `SigSecretKey`, and `AeadKey` actually wipe
-//! their secret bytes when dropped (card t_51797de7).
+//! their secret bytes when dropped.
 //!
 //! # Why not just read the freed memory back?
 //!

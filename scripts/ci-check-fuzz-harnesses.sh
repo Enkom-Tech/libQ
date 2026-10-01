@@ -10,7 +10,7 @@
 # rather than hardcoding a list, so a new harness is covered automatically and a deleted one
 # can't leave a stale, always-skipped entry behind.
 #
-# Card: L7/L8 audit findings -- lib-q-lattice-zkp/fuzz silently stopped compiling (E0308 API
+# Audit findings L7/L8 -- lib-q-lattice-zkp/fuzz silently stopped compiling (E0308 API
 # drift) because no CI job built it; only lib-q-zkp/fuzz targets were ever exercised in CI
 # (zkp-fuzz-scheduled.yml). This script closes that blind spot for ALL harnesses.
 set -euo pipefail

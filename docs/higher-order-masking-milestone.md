@@ -67,7 +67,7 @@ model that can be expressed.
 
 ## Related literature (radar)
 
-Tracked from the IACR eprint radar (ENK-464). These are inputs to the
+Tracked from the IACR eprint radar. These are inputs to the
 **masked comparison / bound check** row above and to the "128-bit fixed-point
 CDT" production item repeatedly listed as outstanding in the lattice-KEM /
 signature `SECURITY_ANALYSIS.md` files; they are *not* a port target, because
@@ -92,7 +92,7 @@ libQ does not implement FrodoKEM.
   ripple-carry adder; and Eid et al. (TCHES 2026), a binary-search-tree
   approach over the table with a Kogge–Stone comparator.
 
-Caveat: the above summary is taken from the ENK-464 issue abstract; the eprint
+Caveat: the above summary is taken from the paper's abstract as imported by the radar; the eprint
 PDF was not fetched (no external network in the radar VM). Numeric speedup
 claims and the optimality proof should be re-read from the source before they
 are relied on for a design decision.

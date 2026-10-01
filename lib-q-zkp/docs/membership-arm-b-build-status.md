@@ -1,6 +1,6 @@
 # Membership Arm B (BabyBear / Poseidon2) — Build Status & Findings Log
 
-**Branch:** `feat/membership-arm-b-babybear` · **Card:** `t_437f3820` · **Tier: RED** (functional
+**Branch:** `feat/membership-arm-b-babybear` · **Tier: RED** (functional
 build in progress; soundness obligations unmet — see `membership-arm-b-babybear-build-spec.md` §5).
 
 > This is a living log updated each build iteration. It records (a) what is actually built and

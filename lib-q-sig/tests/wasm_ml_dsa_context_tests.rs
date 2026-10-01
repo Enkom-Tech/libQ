@@ -16,9 +16,9 @@ use lib_q_ml_dsa::constants::{
 use lib_q_sig::ml_dsa::MlDsa;
 use wasm_bindgen_test::*;
 
-/// Real GIP-style domain separation strings — the ones a browser client must be able to verify.
-const ENTITLEMENT_CTX: &[u8] = b"wapp.sh/entitlement-v0";
-const INDEX_ENTRY_CTX: &[u8] = b"wapp.sh/index-entry-v0";
+/// Real domain separation strings — the ones a browser client must be able to verify.
+const ENTITLEMENT_CTX: &[u8] = b"example.org/entitlement-v0";
+const INDEX_ENTRY_CTX: &[u8] = b"example.org/index-entry-v0";
 
 fn u8a(bytes: &[u8]) -> Uint8Array {
     Uint8Array::from(bytes)

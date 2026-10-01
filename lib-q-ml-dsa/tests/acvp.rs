@@ -120,11 +120,20 @@ fn keygen_inner(
         .unwrap();
 
     match parameter_set {
-        "ML-DSA-44" => check(ml_dsa_44::generate_key_pair(test.seed), expected_result),
+        "ML-DSA-44" => check(
+            ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(test.seed)),
+            expected_result,
+        ),
 
-        "ML-DSA-65" => check(ml_dsa_65::generate_key_pair(test.seed), expected_result),
+        "ML-DSA-65" => check(
+            ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(test.seed)),
+            expected_result,
+        ),
 
-        "ML-DSA-87" => check(ml_dsa_87::generate_key_pair(test.seed), expected_result),
+        "ML-DSA-87" => check(
+            ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(test.seed)),
+            expected_result,
+        ),
         _ => unimplemented!(),
     }
 }
@@ -141,7 +150,7 @@ fn read<T: DeserializeOwned>(variant: &str, file: &str) -> T {
     serde_json::from_reader(reader).expect("Could not deserialize KAT file.")
 }
 
-// t_f88bc433 FIXED: root cause was `AVX2Operations::reduce` (src/simd/avx2.rs) only
+// The ML-DSA AVX2 reduce defect FIXED: root cause was `AVX2Operations::reduce` (src/simd/avx2.rs) only
 // Barrett-reducing 4 of the 32 `SIMD_UNITS_IN_RING_ELEMENT` (indices 0, 8, 16, 24) instead of
 // all of them -- portable's `reduce` correctly iterates every unit. This left 28/32 units'
 // coefficients un-reduced (valid representatives mod q, but not canonical), which is invisible

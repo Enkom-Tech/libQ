@@ -79,7 +79,7 @@ macro_rules! impl_consistency_test {
 
             let message = random_message();
 
-            let key_pair = $key_gen(key_generation_seed);
+            let key_pair = $key_gen(&lib_q_ml_dsa::Zeroizing::new(key_generation_seed));
 
             let signature = $sign(&key_pair.signing_key, &message, b"", signing_randomness)
                 .expect("Rejection sampling failure probability is < 2⁻¹²⁸");
@@ -100,7 +100,7 @@ macro_rules! impl_modified_signing_key_test {
 
             let message = random_message();
 
-            let mut key_pair = $key_gen(key_generation_seed);
+            let mut key_pair = $key_gen(&lib_q_ml_dsa::Zeroizing::new(key_generation_seed));
 
             modify_signing_key::<{ $signing_key_size }>(key_pair.signing_key.as_ref_mut());
 
@@ -117,7 +117,7 @@ macro_rules! impl_modified_signing_key_test {
 #[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_44,
-    ml_dsa_44::generate_key_pair,
+    ml_dsa_44::generate_key_pair_from_seed,
     ml_dsa_44::sign,
     ml_dsa_44::verify
 );
@@ -125,7 +125,7 @@ impl_consistency_test!(
 #[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_44,
-    ml_dsa_44::generate_key_pair,
+    ml_dsa_44::generate_key_pair_from_seed,
     ml_dsa_44::MLDSA44SigningKey::len(),
     ml_dsa_44::sign,
     ml_dsa_44::verify
@@ -134,7 +134,7 @@ impl_modified_signing_key_test!(
 #[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_44_portable,
-    ml_dsa_44::portable::generate_key_pair,
+    ml_dsa_44::portable::generate_key_pair_from_seed,
     ml_dsa_44::portable::sign,
     ml_dsa_44::portable::verify
 );
@@ -142,7 +142,7 @@ impl_consistency_test!(
 #[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_44_portable,
-    ml_dsa_44::portable::generate_key_pair,
+    ml_dsa_44::portable::generate_key_pair_from_seed,
     ml_dsa_44::MLDSA44SigningKey::len(),
     ml_dsa_44::portable::sign,
     ml_dsa_44::portable::verify
@@ -151,7 +151,7 @@ impl_modified_signing_key_test!(
 #[cfg(all(feature = "simd128", feature = "random"))]
 impl_consistency_test!(
     consistency_44_simd128,
-    ml_dsa_44::neon::generate_key_pair,
+    ml_dsa_44::neon::generate_key_pair_from_seed,
     ml_dsa_44::neon::sign,
     ml_dsa_44::neon::verify
 );
@@ -159,7 +159,7 @@ impl_consistency_test!(
 #[cfg(all(feature = "simd128", feature = "random"))]
 impl_modified_signing_key_test!(
     modified_signing_key_44_simd128,
-    ml_dsa_44::neon::generate_key_pair,
+    ml_dsa_44::neon::generate_key_pair_from_seed,
     ml_dsa_44::MLDSA44SigningKey::len(),
     ml_dsa_44::neon::sign,
     ml_dsa_44::neon::verify
@@ -168,7 +168,7 @@ impl_modified_signing_key_test!(
 #[cfg(all(feature = "simd256", feature = "random"))]
 impl_consistency_test!(
     consistency_44_simd256,
-    ml_dsa_44::avx2::generate_key_pair,
+    ml_dsa_44::avx2::generate_key_pair_from_seed,
     ml_dsa_44::avx2::sign,
     ml_dsa_44::avx2::verify
 );
@@ -176,7 +176,7 @@ impl_consistency_test!(
 #[cfg(all(feature = "simd256", feature = "random"))]
 impl_modified_signing_key_test!(
     modified_signing_key_44_simd256,
-    ml_dsa_44::avx2::generate_key_pair,
+    ml_dsa_44::avx2::generate_key_pair_from_seed,
     ml_dsa_44::MLDSA44SigningKey::len(),
     ml_dsa_44::avx2::sign,
     ml_dsa_44::avx2::verify
@@ -187,7 +187,7 @@ impl_modified_signing_key_test!(
 #[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_65,
-    ml_dsa_65::generate_key_pair,
+    ml_dsa_65::generate_key_pair_from_seed,
     ml_dsa_65::sign,
     ml_dsa_65::verify
 );
@@ -195,7 +195,7 @@ impl_consistency_test!(
 #[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_65,
-    ml_dsa_65::generate_key_pair,
+    ml_dsa_65::generate_key_pair_from_seed,
     ml_dsa_65::MLDSA65SigningKey::len(),
     ml_dsa_65::sign,
     ml_dsa_65::verify
@@ -206,7 +206,7 @@ impl_modified_signing_key_test!(
 #[cfg(feature = "random")]
 impl_consistency_test!(
     consistency_87,
-    ml_dsa_87::generate_key_pair,
+    ml_dsa_87::generate_key_pair_from_seed,
     ml_dsa_87::sign,
     ml_dsa_87::verify
 );
@@ -214,7 +214,7 @@ impl_consistency_test!(
 #[cfg(feature = "random")]
 impl_modified_signing_key_test!(
     modified_signing_key_87,
-    ml_dsa_87::generate_key_pair,
+    ml_dsa_87::generate_key_pair_from_seed,
     ml_dsa_87::MLDSA87SigningKey::len(),
     ml_dsa_87::sign,
     ml_dsa_87::verify

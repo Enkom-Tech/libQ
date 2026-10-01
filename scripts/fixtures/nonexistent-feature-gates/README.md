@@ -14,7 +14,7 @@ incidentally exercises the guard's `tracked_paths() -> None` fallback.
 
 ## Why a committed fixture and not a one-time manual check
 
-The repo's card contract is explicit: *a check you have not seen fail is not evidence.* Satisfying
+The repo's evidence rule is explicit: *a check you have not seen fail is not evidence.* Satisfying
 that once, by hand, at authoring time is weaker than it looks — the next refactor can silently
 kill detection and the guard then reports OK forever.
 

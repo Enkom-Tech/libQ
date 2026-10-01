@@ -6,7 +6,10 @@ use lib_q_ml_dsa::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,
     SIGNING_RANDOMNESS_SIZE,
 };
-use lib_q_ml_dsa::ml_dsa_65;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    ml_dsa_65,
+};
 
 // In a real no_std environment, you would get randomness from:
 // - Hardware random number generator
@@ -31,7 +34,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Step 1: Generate keypair with external randomness
     println!("1. Generating keypair with external randomness...");
     let keypair_randomness = get_randomness();
-    let keypair = ml_dsa_65::portable::generate_key_pair(keypair_randomness);
+    let keypair =
+        ml_dsa_65::portable::generate_key_pair_from_seed(&Zeroizing::new(keypair_randomness));
 
     println!("   ✅ Keypair generated successfully");
     println!(
@@ -111,7 +115,9 @@ fn test_all_variants() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test ML-DSA-44
     println!("   Testing ML-DSA-44...");
-    let keypair_44 = ml_dsa_44::portable::generate_key_pair([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
+    let keypair_44 = ml_dsa_44::portable::generate_key_pair_from_seed(&Zeroizing::new(
+        [0u8; KEY_GENERATION_RANDOMNESS_SIZE],
+    ));
     let signature_44 = ml_dsa_44::portable::sign(
         &keypair_44.signing_key,
         b"Test message",
@@ -134,7 +140,9 @@ fn test_all_variants() -> Result<(), Box<dyn std::error::Error>> {
 
     // Test ML-DSA-87
     println!("   Testing ML-DSA-87...");
-    let keypair_87 = ml_dsa_87::portable::generate_key_pair([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
+    let keypair_87 = ml_dsa_87::portable::generate_key_pair_from_seed(&Zeroizing::new(
+        [0u8; KEY_GENERATION_RANDOMNESS_SIZE],
+    ));
     let signature_87 = ml_dsa_87::portable::sign(
         &keypair_87.signing_key,
         b"Test message",
@@ -163,7 +171,10 @@ mod embedded_example {
         KEY_GENERATION_RANDOMNESS_SIZE,
         SIGNING_RANDOMNESS_SIZE,
     };
-    use lib_q_ml_dsa::ml_dsa_65;
+    use lib_q_ml_dsa::{
+        Zeroizing,
+        ml_dsa_65,
+    };
 
     // Hardware RNG implementation for embedded systems
     pub struct HardwareRng;
@@ -201,7 +212,8 @@ mod embedded_example {
         rng.get_random_bytes(&mut keypair_randomness);
 
         // Generate keypair
-        let keypair = ml_dsa_65::portable::generate_key_pair(keypair_randomness);
+        let keypair =
+            ml_dsa_65::portable::generate_key_pair_from_seed(&Zeroizing::new(keypair_randomness));
 
         // Generate randomness for signing
         let mut signing_randomness = [0u8; SIGNING_RANDOMNESS_SIZE];

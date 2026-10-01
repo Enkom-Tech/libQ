@@ -4,6 +4,12 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+# Cancel superseded runs on pull-request branches only: a new push obsoletes the previous
+# run. Pushes to main/develop and scheduled runs are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   pull-requests: write
@@ -82,6 +88,9 @@ jobs:
   # For full coverage analysis, see coverage.yml workflow
   test-coverage:
     name: Test Coverage
+    # Heavy job: GitHub-only. Forgejo PRs get a fast gate; this workflow only triggers on
+    # pull_request, so main-branch coverage on GitHub comes from coverage.yml.
+    if: github.server_url == 'https://github.com'
     needs: core-validation
     runs-on: ubuntu-latest
     # 60 min: the heaviest affected-crate case is lib-q-zkp, whose instrumented lib-tests
@@ -198,7 +207,7 @@ jobs:
           package: ${{ steps.affected-packages.outputs.package }}
       
       - name: Upload coverage report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3 (GHES-compatible pin; v4+ needs an artifact backend this Forgejo lacks)
         with:
           name: coverage-report
           path: coverage/
@@ -224,7 +233,7 @@ jobs:
     name: Documentation Validation
     needs: core-validation
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       
@@ -281,9 +290,11 @@ jobs:
           echo "" >> pr-summary.md
           
           # Determine overall status
+          # test-coverage is GitHub-only (see its `if:` in this file); on Forgejo it reports
+          # "skipped", which must not read as a failure here.
           if [[ "${{ needs.core-validation.result }}" == "success" ]] && \
              [[ "${{ needs.security-validation.result }}" == "success" ]] && \
-             [[ "${{ needs.test-coverage.result }}" == "success" ]]; then
+             [[ "${{ needs.test-coverage.result }}" == "success" || "${{ needs.test-coverage.result }}" == "skipped" ]]; then
             echo "## ✅ Overall Status: PASSED" >> pr-summary.md
           else
             echo "## ❌ Overall Status: FAILED" >> pr-summary.md
@@ -303,7 +314,7 @@ jobs:
           echo "All cryptographic changes require security team review." >> pr-summary.md
       
       - name: Upload PR summary
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3 (GHES-compatible pin; v4+ needs an artifact backend this Forgejo lacks)
         with:
           name: pr-summary
           path: pr-summary.md
@@ -325,10 +336,12 @@ jobs:
                 'security-validation',
                 'test-coverage'
               ];
+              // test-coverage is GitHub-only; on Forgejo it reports "skipped", not a failure.
+              const okResults = { 'core-validation': ['success'], 'security-validation': ['success'], 'test-coverage': ['success', 'skipped'] };
 
               let shouldApprove = true;
               for (const job of criticalJobs) {
-                if (needs[job]?.result !== 'success') {
+                if (!okResults[job].includes(needs[job]?.result)) {
                   shouldApprove = false;
                   break;
                 }

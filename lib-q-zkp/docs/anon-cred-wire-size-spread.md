@@ -1,6 +1,6 @@
 # Anon-cred wire size spike: the parameterised harness and a spread table
 
-Board card `ENK-266`. Companion to `anon-cred-wire-fork-recommendation.md`, which recorded the
+Part of the anon-cred wire-format decision. Companion to `anon-cred-wire-fork-recommendation.md`, which recorded the
 one-shot FRI-vs-LNP22 comparison. This doc records the *harness* that was built so the comparison
 re-runs the moment the two missing human inputs (below) are supplied, plus the spread it produces
 today with plausible stand-in numbers.
@@ -61,7 +61,7 @@ That means the usual framing of this fork — "FRI arm vs. LNP22 arm, same state
 size" — is not apples-to-apples *today*. LNP22's 29,093 B figure (§3) proves knowledge of a
 signature on a committed attribute vector with 3-of-8 (or 0-of-8) attributes revealed — an
 attribute-bearing statement. The FRI arm as currently built proves a strictly smaller statement
-(membership only) that happens to cost ~1 MB regardless. Card items 1–2 (express + size *libQ's
+(membership only) that happens to cost ~1 MB regardless. Work items 1–2 (express + size *libQ's
 own* anon-cred relation) are what would put both arms on the same statement; until then, the
 "~1 MB vs ~20–40 KB" comparison compares a membership-only proof against an attribute+predicate
 proof, and the size gap likely understates how much a predicate-carrying FRI/STARK statement would

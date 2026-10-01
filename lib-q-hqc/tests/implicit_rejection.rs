@@ -1,6 +1,6 @@
 //! Must-reject coverage for HQC KEM decapsulation.
 //!
-//! The audit lens under card `t_f0d676d1` recorded that HQC and Classic McEliece "parse
+//! The audit lens under the 2026-08 test-hygiene audit recorded that HQC and Classic McEliece "parse
 //! attacker-supplied ciphertexts with zero must-reject cases". This is the HQC half; the Classic
 //! McEliece half is `lib-q-cb-kem/tests/implicit_rejection.rs`.
 //!

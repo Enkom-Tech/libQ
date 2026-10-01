@@ -37,7 +37,7 @@ fn test_parameter_verification_against_reference() {
 
     // Official HQC-3 parameters from the HQC v5.0.0 reference implementation
     // (gitlab.com/pqc-hqc/hqc tag v5.0.0, commit f46e542, src/ref/hqc-3/parameters.h). Corrected
-    // 2026-08-09 (card t_71d4f79a): omega/omega_r were previously 103/115, matching
+    // 2026-08-09: omega/omega_r were previously 103/115, matching
     // `Hqc3Params::OMEGA`/`OMEGA_R` before those were themselves fixed to the v5.0.0 values
     // (100/114) in the same change.
     let hqc3_official = Hqc3OfficialParams {
@@ -60,7 +60,7 @@ fn test_parameter_verification_against_reference() {
     };
 
     // Official HQC-5 parameters from the HQC v5.0.0 reference implementation
-    // (src/ref/hqc-5/parameters.h). Corrected 2026-08-09 (card t_71d4f79a): omega was previously
+    // (src/ref/hqc-5/parameters.h). Corrected 2026-08-09: omega was previously
     // 134, matching `Hqc5Params::OMEGA` before it was fixed to the v5.0.0 value (131).
     let hqc5_official = Hqc5OfficialParams {
         n: 57637,
@@ -196,7 +196,7 @@ fn verify_parameters(name: &str, official: &dyn OfficialParams) {
     }
     // The whole point of this test is to gate on `all_match` -- printing a checkmark or
     // cross mark to stdout and returning normally either way (the pre-existing shape) meant a
-    // drifted parameter constant reported "ok" to the harness and to CI. See card t_f0d676d1 /
+    // drifted parameter constant reported "ok" to the harness and to CI. See the 2026-08 test-hygiene audit /
     // the lib-q-hqc kat_with_aes_drbg_test.rs incident (766cb0c), same defect class.
     assert!(
         all_match,

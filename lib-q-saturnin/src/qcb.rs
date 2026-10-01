@@ -219,11 +219,11 @@
 //! fields summing exactly to the tweak width with the bound's exponent equal to the index width.
 //! Applied here, `160 + 95 = 255` leaves one bit unaccounted for, and `10*` is exactly that bit.
 //!
-//! **This is still a reading, not a confirmed fact** — the designers have not been asked yet (card
-//! `ENK-216`), and one sentence or one KAT from them could overturn it. It was changed now, at
+//! **This is still a reading, not a confirmed fact** — the designers have not been asked yet,
+//! and one sentence or one KAT from them could overturn it. It was changed now, at
 //! `0x80`, because the Saturnin hardware was at trace design: the switch costs nothing while QCB
 //! has no consumers and is opt-in, and cannot be made at all once silicon exists. Decision and its
-//! full evidence: card `t_5d1460b7`. The private `tweak` fn has its own unit test pinning the byte.
+//! full evidence: the Saturnin-QCB tweak-padding decision. The private `tweak` fn has its own unit test pinning the byte.
 //!
 //! Nothing else changed with it. **No interop impact** — this mode emits `T'`, not Algorithm 1's
 //! `T`, so it is wire-incompatible with paper-QCB by construction regardless (see above). **No
@@ -783,7 +783,7 @@ mod tests {
     }
 
     /// Pins the `10*` pad byte that closes the 161-bit IV field. This is the decision recorded on
-    /// card `t_5d1460b7`, taken on 2026-08-06 while the Saturnin hardware was still at trace
+    /// the Saturnin-QCB tweak-padding decision, taken on 2026-08-06 while the Saturnin hardware was still at trace
     /// design — silicon that bakes the wrong byte here cannot be corrected later. The three
     /// independent transcription gates in `tests/` would also catch a change (verified: flipping
     /// this byte in production alone turned 3 of them red), but they check all of Algorithm 1 at
@@ -903,9 +903,9 @@ mod tests {
     /// accidental change to padding, tweak encoding, domains, AD folding, or the CTX tag is
     /// caught.
     ///
-    /// Regenerated twice. First **for CTX** (card `t_16ddf21c`), which changed only the last 32
+    /// Regenerated twice. First **for CTX**, which changed only the last 32
     /// bytes — the tag became `T'` instead of `T` and the message path was untouched. Then **for
-    /// the tweak's `10*` pad byte** on 2026-08-06 (card `t_5d1460b7`), which changed *every* byte:
+    /// the tweak's `10*` pad byte** on 2026-08-06, which changed *every* byte:
     /// the tweak feeds the key of every TBC call, so the message body moves too, not just the tag.
     /// If both regenerations are ever in doubt, the independent transcription in
     /// `tests/qcb_spec.rs` is the oracle — these vectors are downstream of this module, that file

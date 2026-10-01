@@ -1,6 +1,9 @@
 //! Interoperability tests ensuring wire-format compatibility between modes
 
-use lib_q_ml_dsa::*;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    *,
+};
 
 #[test]
 fn test_baseline_mode_equivalence() {
@@ -11,7 +14,7 @@ fn test_baseline_mode_equivalence() {
     let randomness = [0x43; 32];
 
     // Test key generation produces same output
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Test signing produces same output
     let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();
@@ -34,7 +37,7 @@ fn test_cross_parameter_set_compatibility() {
 
     // Test ML-DSA-44
     {
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();
         assert!(ml_dsa_44::verify(&keys.verification_key, message, context, &sig).is_ok());
     }
@@ -42,7 +45,7 @@ fn test_cross_parameter_set_compatibility() {
     // Test ML-DSA-65
     #[cfg(feature = "mldsa65")]
     {
-        let keys = ml_dsa_65::generate_key_pair(seed);
+        let keys = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig = ml_dsa_65::sign(&keys.signing_key, message, context, randomness).unwrap();
         assert!(ml_dsa_65::verify(&keys.verification_key, message, context, &sig).is_ok());
     }
@@ -50,7 +53,7 @@ fn test_cross_parameter_set_compatibility() {
     // Test ML-DSA-87
     #[cfg(feature = "mldsa87")]
     {
-        let keys = ml_dsa_87::generate_key_pair(seed);
+        let keys = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig = ml_dsa_87::sign(&keys.signing_key, message, context, randomness).unwrap();
         assert!(ml_dsa_87::verify(&keys.verification_key, message, context, &sig).is_ok());
     }

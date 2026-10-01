@@ -115,7 +115,7 @@ jobs:
   # job (see .github/workflows/ci.yml) — cd.yml has NO workflow_run/required-status-check dependency
   # on ci.yml (tag pushes don't trigger ci.yml's `push: branches:` trigger at all), so without this
   # job the release path never re-verifies the aarch64/NEON path before publishing 77 crates plus
-  # npm/wasm packages. Four aarch64-only defects (t_d707d46b, t_3cf78cba, t_9ad8ef08, t_26d3b638)
+  # npm/wasm packages. Four aarch64-only defects
   # previously shipped this way — cross-compiling to aarch64 cannot see them; only real execution
   # under QEMU can. Deliberately given NO `needs:` so it runs in parallel with the (multi-hour)
   # pre-release-validation job rather than serializing after it — publish-rust-lib-q-types below
@@ -124,8 +124,15 @@ jobs:
     name: aarch64 QEMU execution (lib-q-ml-dsa, simd128)
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Native aarch64 cross toolchain + QEMU user-mode runner, no nested container (see ci.yml's
+    # aarch64-qemu-execution for why `cross` was dropped).
+    env:
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
+      CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER: qemu-aarch64 -L /usr/aarch64-linux-gnu
+      CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+      AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -134,31 +141,57 @@ jobs:
           toolchain: nightly
           components: rust-src
 
-      - name: Set up QEMU (binfmt_misc interpreters for foreign architectures)
-        uses: docker/setup-qemu-action@v3
+      - name: Install aarch64 std for override toolchain
+        run: rustup target add aarch64-unknown-linux-gnu
 
-      - name: Install cross
-        uses: taiki-e/install-action@9534c84618278caac52cb373bb164ed464dbd8af # v2.87.11
-        with:
-          tool: cross@0.2.5
+      - name: Install aarch64 cross toolchain and QEMU user-mode emulator
+        run: |
+          set -euo pipefail
+          SUDO=""
+          if [ "$(id -u)" != "0" ]; then SUDO="sudo"; fi
+          $SUDO apt-get update
+          $SUDO apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
+          aarch64-linux-gnu-gcc --version | head -1
+          qemu-aarch64 --version | head -1
+          test -e /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1
+
+      - name: Verify QEMU executes aarch64 binaries
+        run: |
+          set -euo pipefail
+          d="$(mktemp -d)"
+          cat > "${d:?}/arch.c" <<'SRC'
+          #include <stdio.h>
+          int main(void) {
+          #if defined(__aarch64__)
+            puts("aarch64");
+          #else
+            puts("not-aarch64");
+          #endif
+            return 0;
+          }
+          SRC
+          aarch64-linux-gnu-gcc -o "${d:?}/arch" "${d:?}/arch.c"
+          out="$($CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_RUNNER "${d:?}/arch")"
+          echo "runner output: $out"
+          test "$out" = "aarch64"
 
       - name: Cache dependencies
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-aarch64-qemu-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-aarch64-qemu-native-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
-            ${{ runner.os }}-aarch64-qemu-
+            ${{ runner.os }}-aarch64-qemu-native-
 
       # Full lib + every integration-test binary + doctests, no name filter -- a typo'd filter that
       # matches zero tests exits 0 and silently stops covering anything. No `|| echo`/`|| true`
       # fallback either -- a real aarch64-only regression fails this step, full stop, which in turn
       # blocks every downstream `publish-rust-*` / wasm / npm job via publish-rust-lib-q-types' needs:.
-      - name: Run lib-q-ml-dsa test suite under real aarch64 (QEMU, via cross)
-        run: cross test -p lib-q-ml-dsa --target aarch64-unknown-linux-gnu --features simd128
+      - name: Run lib-q-ml-dsa test suite under real aarch64 (QEMU user-mode)
+        run: cargo test -p lib-q-ml-dsa --target aarch64-unknown-linux-gnu --features simd128
 
   # Rust crate publishing in dependency order (each tier after the previous).
   # Uses crates.io Trusted Publishing (OIDC); per-crate Settings -> Trusted Publishing
@@ -568,11 +601,11 @@ jobs:
           #   lib-q-threshold-kem — `partial_decap` returns the party's raw Shamir share, so t
           #     partials reconstruct the ML-KEM-768 decapsulation key. ML-KEM decap is non-linear,
           #     so a Shamir-shared dk admits no partial-decap function at all; the successor is
-          #     lib-q-threshold-kem-lattice (published below). See board card t_8ca3fd06.
+          #     lib-q-threshold-kem-lattice (published below). See the lib-q-threshold-kem withdrawal.
           #   lib-q-fhe — `decrypt` never reads the key; it computes body[i] - mask[i] and both are
           #     public ciphertext fields. The mask field is load-bearing for `eval`, so it cannot be
-          #     removed without a real RLWE rewrite. See board card t_2a349708.
-          # Do not re-add either without the corresponding card being closed.
+          #     removed without a real RLWE rewrite. See the lib-q-fhe withdrawal.
+          # Do not re-add either without the corresponding follow-up being resolved.
           - package: "lib-q-blind-pcs"
           - package: "lib-q-dkg"
           - package: "lib-q-blind-token"
@@ -1232,7 +1265,7 @@ jobs:
             features: "wasm,blind-pcs"
             out-dir: "pkg"
           # @lib-q/fhe and @lib-q/threshold-kem are deliberately NOT published from 0.0.10 on —
-          # same reasons as the crates.io tier-4b matrix above (cards t_2a349708, t_8ca3fd06).
+          # same reasons as the crates.io tier-4b matrix above.
           # The threshold-KEM successor @lib-q/threshold-kem-lattice is still published below.
           - working-directory: "lib-q-dkg"
             package-name: "@lib-q/dkg"

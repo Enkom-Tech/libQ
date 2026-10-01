@@ -3,7 +3,7 @@
 //! re-encryption under the recovered message does not match the one presented.
 //!
 //! Does NOT measure wall-clock timing -- that is unmeasurable in a unit test and out of scope per
-//! card t_043571b4 (a prior "constant-time" test compared two algorithms' speeds and was
+//! the constant-time test-scope decision (a prior "constant-time" test compared two algorithms' speeds and was
 //! rejected). What this pins is the code SHAPE: `ct_eq` folds `diff |= x ^ y` over every
 //! coefficient of every `p` element and of `v`, with no early return -- a forged/mauled
 //! ciphertext must be rejected regardless of WHICH coefficient, in WHICH ring element, diverges.

@@ -1,7 +1,7 @@
 # Security status — what a downstream may rely on
 
 This file exists so a consumer can cite a **crate-local, published** answer instead of a chat
-message. It answers the questions board card `t_faa048e0` asked of libQ. It is deliberately short
+message. It answers the questions the threshold-KEM status review asked of libQ. It is deliberately short
 and deliberately negative where the honest answer is negative.
 
 The deep treatment lives in the repository at
@@ -14,7 +14,7 @@ published crate** — this one is. Section numbers below refer to `THRESHOLD_SEC
 ## 1. Overall position: PROVISIONAL
 
 **There is no formal threshold IND-CCA theorem for this construction, and this crate does not claim
-one.** It is not product-grade by the standard card `t_faa048e0` asks about, and it should not be
+one.** It is not product-grade by the standard the threshold-KEM status review asks about, and it should not be
 described as such downstream.
 
 Precisely what is missing: a threshold IND-CCA theorem **in the bare model**. The threshold
@@ -36,7 +36,7 @@ service but cannot make an incorrect shared secret be accepted — follows uncon
 
 ## 2. Does `partial_decap_masked` leak a party's share?
 
-This is the specific question `t_faa048e0` was filed for, because the withdrawn `lib-q-threshold-kem`
+This is the specific question the threshold-KEM status review was filed for, because the withdrawn `lib-q-threshold-kem`
 had `partial_decap` return the party's raw Shamir share. **The answer here is not a flat no.**
 
 **It is not the same defect.** Nothing in this crate hands over a share, or a reconstructible
@@ -71,7 +71,7 @@ input, which is what §3 below is about.
 **Separately: `partial_decap` (unmasked) leaks by construction and by design.** Its own rustdoc says
 so — "individually **not** private (leaks a linear image of the share)". It exists as a reference for
 a trusted combiner. A migration that keeps the old call shape and swaps the import lands on this
-function, which is the trap the card flagged. Use `threshold::partial_decap_masked_budgeted` for any
+function, which is the trap the status review flagged. Use `threshold::partial_decap_masked_budgeted` for any
 distributed path.
 
 ## 3. What a deployment MUST do to use this at all
@@ -128,8 +128,8 @@ differences change a consumer's design, not just its imports:
    The pairwise seeds are per-pair state a ceremony must establish and distribute; the old one
    needed neither.
 
-There is no compatibility shim and there should not be one — the operator confirmed (card
-`t_faa048e0`, 2026-08-06) that no deployment ever ran the withdrawn construction against real data,
+There is no compatibility shim and there should not be one — the operator confirmed
+(2026-08-06) that no deployment ever ran the withdrawn construction against real data,
 so there is no installed base to stay compatible with and no rotation obligation.
 
 ## 5. What `auth_encap` does NOT close

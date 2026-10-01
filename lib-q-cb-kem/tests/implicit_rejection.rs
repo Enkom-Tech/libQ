@@ -1,6 +1,6 @@
 //! Must-reject coverage for Classic McEliece decapsulation.
 //!
-//! The audit lens under card `t_f0d676d1` recorded that HQC and Classic McEliece "parse
+//! The audit lens under the 2026-08 test-hygiene audit recorded that HQC and Classic McEliece "parse
 //! attacker-supplied ciphertexts with zero must-reject cases". `constant_time.rs` already checks
 //! that the valid and invalid decapsulation paths take the *same time*, but nothing checked that
 //! they produce a *different answer*. Those are independent properties, and the timing test

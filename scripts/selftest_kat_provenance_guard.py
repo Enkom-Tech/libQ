@@ -3,11 +3,11 @@
 
 Why this exists
 ---------------
-The provenance guard is the systemic half of card t_71d4f79a: it is what stops a self-generated
+The provenance guard is the systemic half of the KAT-provenance audit: it is what stops a self-generated
 vector file from being named or placed as if it were genuine upstream reference data. A guard in
 that role is only worth what its failure modes are worth, and a guard that returns clean on every
 possible input looks maximally rigorous while proving nothing. That is the exact class of defect
-the card was filed about, so leaving the guard itself unpinned would repeat it one level up.
+the audit was about, so leaving the guard itself unpinned would repeat it one level up.
 
 The guard's checks were verified by hand to fail correctly when this was written. Hand
 verification does not survive the session, and a later refactor can silently invert a verdict
@@ -122,7 +122,7 @@ def mutate_empty_root(tmp: pathlib.Path) -> str:
 
 def mutate_header_contradicts_manifest(tmp: pathlib.Path) -> str:
     # The file calls itself authoritative upstream data while the manifest says self-generated.
-    # This is precisely the laundering the card was filed about.
+    # This is precisely the laundering the KAT-provenance audit was about.
     f = tmp / "vectors" / "fixture_regression_pin.rsp"
     content = "# authoritative upstream reference vectors, official NIST source\n" + VECTOR_BODY
     f.write_text(content, encoding="utf-8")

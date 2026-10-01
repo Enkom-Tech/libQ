@@ -216,7 +216,7 @@ The distinguisher's cost (`2^114`–`2^124`) is **below** the paper's generic-de
 - **INFERRED (our engineering reading, not the authors' claim):** that no code/wire/parameter
   change is warranted for this crate today, and the CM-1 re-open triggers above.
 
-- **VERIFIED (read in full against the ePrint 2026/1512 PDF, added under ENK-524):** the
+- **VERIFIED (read in full against the ePrint 2026/1512 PDF, added under the ePrint 2026/1512 review):** the
   survey's own conclusion that no published attack breaks the selected Classic McEliece
   parameter sets; NIST IR 8545's `mceliece460896`/`f` Category-3-shortfall observation; the
   ISO/IEC 18033-2:2006/Amd 2:2026 family list and `mceliece348864` exclusion; the Classic

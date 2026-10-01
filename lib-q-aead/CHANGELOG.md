@@ -6,7 +6,7 @@ crate in more detail than the root file carries.
 
 ## Unreleased
 
-### Fixed — `set_security_config` could silently not apply (card `t_8f408920`)
+### Fixed — `set_security_config` could silently not apply
 
 **No API change. No signature, type or re-export changed; external callers recompile unchanged.
 The behaviour changes are listed below and arrive only with this version.**
@@ -79,7 +79,7 @@ unaffected by the global. The setter is for the *application* to establish a pro
 default, which is consumed by `SecurityContext::new()`.
 
 Keeping the global (rather than removing or deprecating it) is a deliberate, recorded decision
-on card `t_8f408920`: no AEAD operation in this crate currently consumes the configuration —
+on the global-security-config fix: no AEAD operation in this crate currently consumes the configuration —
 `SecurityContext::new()` is its only non-test reader — so removing it would churn a published
 API without changing any cryptographic behaviour. Deprecation is deferred until an AEAD
 operation takes per-operation configuration.

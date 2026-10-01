@@ -60,9 +60,9 @@ fn test_aes_known_vectors() {
     assert_eq!(output3, expected3, "AES-256-ECB(pattern, pattern) mismatch");
 }
 
-// test_drbg_aes_sequence and test_counter_sequence were removed here (card t_f0d676d1):
+// test_drbg_aes_sequence and test_counter_sequence were removed here:
 // both were unresolved dev-investigation scripts that printed `println!("Matches: {}", ...)`
-// WITHOUT asserting -- exactly the class of vacuous test this card exists to close -- and
+// WITHOUT asserting -- exactly the class of vacuous test this cleanup exists to close -- and
 // running them (cargo test -p lib-q-hqc --test aes_verification --features aes-drbg) showed
 // they currently print `Matches: false`. That mismatch is not evidence of a live HQC defect:
 // the crate's real KAT suite (tests/nist_kem_kat.rs) passes, and these two tests' own inline

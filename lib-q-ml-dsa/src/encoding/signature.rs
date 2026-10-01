@@ -255,7 +255,7 @@ macro_rules! malformed_hint_coverage_for {
                 // count-region bytes belonging to earlier rows. A flat/zero fill there (as in an
                 // earlier draft of this test) makes that check reject FIRST, for an unrelated reason,
                 // before the scan ever reaches the genuinely unbounded region -- which is exactly the
-                // "vacuous test" failure mode the card and the brief warn about, so the sequence must
+                // "vacuous test" failure mode the work item warns about, so the sequence must
                 // stay strictly increasing all the way up to the attacked row for this test to mean
                 // anything.
                 for i in 0..ROWS_IN_A - 1 {

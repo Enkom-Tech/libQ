@@ -1,9 +1,9 @@
 # Anon-cred wire: the three-way fork, measured — and the recommendation
 
-Board card `ENK-266`. This is the third acceptance item of that card ("an explicit comparison
-against the FRI number and against `t_0aa1a2c8`'s, with a recommendation"), written down here so a
-reviewer can check the reasoning rather than take it from a card comment thread. Items 1 and 2 of
-that card — expressing **our** relation and deriving **our** size — are **not** done; §5 says
+Part of the anon-cred wire-format decision. This is its third acceptance item ("an explicit comparison
+against the FRI number and against the LaBRADOR size measurement's, with a recommendation"), written down here so a
+reviewer can check the reasoning rather than take it from a comment thread. Items 1 and 2 of
+that work item — expressing **our** relation and deriving **our** size — are **not** done; §5 says
 exactly what is left and why the recommendation does not wait on them.
 
 Nothing here is a security claim. Every construction named is RED until a cryptographer reviews it.
@@ -16,14 +16,14 @@ All three measured, none estimated.
 |---|---:|---|---|
 | **FRI/STARK (Arm B)** — shipped, merged, ours | 947 600 – 1 211 498 B | included in that figure | any |
 | **LNP22/ABDLOP** (LaZer `python/anon_cred`) | **29 093 B** | not included — see §3 | Zen 3, AVX2 |
-| **LaBRADOR** membership argument (`t_0aa1a2c8`) | — | **~7.56 KB** for a height-64 Merkle path (16 simultaneous paths: 10.00 KB) | Intel SDE (AVX-512 emulation) |
+| **LaBRADOR** membership argument | — | **~7.56 KB** for a height-64 Merkle path (16 simultaneous paths: 10.00 KB) | Intel SDE (AVX-512 emulation) |
 
 Provenance:
 - FRI: `cargo test -p lib-q-zkp --release --lib stark_baby_bear::tests::measure_arm_b -- --ignored
   --nocapture`, matching `membership-arm-b-measurement.md`.
 - LNP22: `python3 anon_cred.py` in `lazer/python/anon_cred` on a Ryzen 9 5900X. Issue 0.105 s, show
   0.202 s, all steps verified OK. The credential is 8 message polynomials.
-- LaBRADOR: measured under Intel SDE on `t_0aa1a2c8`, the AVX-512 emulation route.
+- LaBRADOR: measured under Intel SDE on the LaBRADOR size measurement, the AVX-512 emulation route.
 
 **Do not add 29.1 KB and 7.56 KB.** They are different proof systems in the same family, measured on
 different statements. The defensible statement is **"tens of KB versus ~1 MB"** — roughly two orders
@@ -31,14 +31,14 @@ of magnitude — not "36.7 KB".
 
 ## 2. Two corrections that this comparison rests on
 
-Both were mistakes made while working these cards, and the conclusion changes if either is
+Both were mistakes made during this work, and the conclusion changes if either is
 forgotten.
 
 1. **"The lattice direction needs AVX-512" is false for this branch.** LaZer has two backends.
    ABDLOP + LNP22 (`src/abdlop.c`, `src/lnp.c`) contain no AVX-512 at all and run on ordinary AVX2
    hardware; only the LaBRADOR submodule is AVX-512-only. The 29.1 KB figure was produced on a Zen 3
    host with no emulation. The earlier claim that AVX-512 gated the whole lattice direction was an
-   over-generalisation from `t_0aa1a2c8`.
+   over-generalisation from the LaBRADOR size measurement.
 2. **The 29.1 KB figure already includes selective disclosure.** The demo's default is
    `pub_mvec=[0,4,5]` — 3 of 8 attributes revealed, 5 hidden — so it is not a "no predicates"
    baseline. Measured across the range on the same host and parameters: 0-of-8 revealed (maximum
@@ -54,7 +54,7 @@ Merkle machinery (`python/succinct_zkp/membership_proof.py`) is built on LaBRADO
 backend — so the branch that is cheap to measure lacks revocation and the code that prices
 revocation needs hardware we do not have. That was the open worry.
 
-It has since been priced (`t_0aa1a2c8`, under SDE) and **the worry does not survive**: ~7.56 KB for
+It has since been priced (under SDE) and **the worry does not survive**: ~7.56 KB for
 a height-64 path, against 947 600 – 1 211 498 B for the same job on the FRI arm. Neither axis an
 accumulator loads is expensive — constraint count was flat over the 1..15 range measured, and a 64×
 witness increase cost ~33% proof size.
@@ -83,7 +83,7 @@ CONTROL: best attack 2^41.1   ->   41.1 bits.  Below 128: YES.
 The control is load-bearing, not decoration: a deliberately weak instance at the same q and d was
 run **first** and observed to report below 128, because an estimator invocation that returns a large
 number for every input looks rigorous and proves nothing. This board has already had a verdict moved
-by the ADPS16-vs-MATZOV spread once (`t_c972f73f`).
+by the ADPS16-vs-MATZOV spread once.
 
 **129.2 bits is ~1 bit of margin, and only on the MLWE side.** The MSIS / knowledge-soundness side is
 unestimated. A parameter set with real headroom will be *larger* than 29.1 KB, and that eats into
@@ -91,7 +91,7 @@ unestimated. A parameter set with real headroom will be *larger* than 29.1 KB, a
 
 ## 5. What remains, and why the recommendation does not wait for it
 
-Card items 1 and 2 — express libQ's own anon-cred relation and derive its size — are open. They are
+Work items 1 and 2 — express libQ's own anon-cred relation and derive its size — are open. They are
 now **sizing work against a toolchain known to build and run**, not an open feasibility question,
 which is the change that lets the recommendation be written. Specifically still needed:
 

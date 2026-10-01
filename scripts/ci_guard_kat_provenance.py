@@ -2,7 +2,7 @@
 """Assert every committed KAT (Known-Answer-Test) vector file discloses where it came from.
 
 Driven by scripts/ci-guard-kat-provenance.sh (see that file for the interpreter-probe rationale
-and the card this guard responds to). Reads kats-manifest.toml at the repo root. Five checks;
+and the KAT-provenance audit this guard responds to). Reads kats-manifest.toml at the repo root. Five checks;
 each fails CLOSED (an unparseable or missing input is an error, not a pass):
 
   CHECK 1  discovery is non-vacuous: every registered [scan].roots directory exists and yields at
@@ -16,7 +16,7 @@ each fails CLOSED (an unparseable or missing input is an error, not a pass):
            "upstream" extract -- visible in code review instead of invisible.
   CHECK 4  naming: an entry whose `origin` is not "upstream" may not sit at a path or carry a
            filename containing "official", "nist", or "rfc" (case-insensitive, word-bounded).
-           This is the rule the card exists to enforce: lib-q-hqc's `kats/official/` held nine
+           This is the rule the audit exists to enforce: lib-q-hqc's `kats/official/` held nine
            KAT tests whose every response value was written by the code under test.
   CHECK 5  provenance statement ADJACENT TO THE FILE, cross-checked against the manifest. A reader
            who opens the raw vector file (or the directory it sits in) must be able to tell what it
@@ -48,7 +48,7 @@ each fails CLOSED (an unparseable or missing input is an error, not a pass):
 
            `origin = "upstream"` entries must also carry `upstream_url` and `upstream_sha256`.
 
-           EXEMPTION (added 2026-08-06, card t_71d4f79a second pass; NARROWED 2026-08-07): an
+           EXEMPTION (added 2026-08-06, KAT-provenance audit second pass; NARROWED 2026-08-07): an
            `origin = "upstream"` entry whose manifest `sha256` equals its own `upstream_sha256` is
            exempt from the (a) header-comment requirement. Vector files vendored byte-for-byte from
            a designers'/NIST's own distribution get their evidentiary value FROM being byte-
@@ -108,7 +108,7 @@ WHAT THIS GUARD DOES NOT COVER
     line above understates it: an excluded path is dropped from discovery BEFORE every other
     check, so one `exclude` entry hides a fabricated vector file at a `kats/official/`-shaped path
     completely -- CHECK 2, 3, 4 and 5 never see it, and the guard prints OK. That is the exact
-    defect card t_71d4f79a exists to prevent, reachable in one line. Nothing in this script can
+    defect this guard exists to prevent, reachable in one line. Nothing in this script can
     distinguish that from the legitimate `requirements.txt` case, so the only control is human:
     treat ANY addition to `exclude` as a claim needing the same scrutiny as a fabricated `origin`,
     and check the excluded path against the printed list in the CI log.
@@ -159,7 +159,7 @@ def _strip_toml_comment(raw: str) -> str:
     `generator = "... dilithium-py PR #1 @ cc1fd2ad ..."` mid-string and then reports the result
     as an unterminated string, i.e. the guard hard-fails on a perfectly legal manifest. Only on
     interpreters without stdlib `tomllib` (< 3.11), which is exactly where nobody would look.
-    Observed failing on this manifest before the fix; see the lane notes on card t_71d4f79a.
+    Observed failing on this manifest before the fix; recorded during the KAT-provenance audit.
     """
     out: list[str] = []
     in_string = False
@@ -461,7 +461,7 @@ def check_naming(by_path: dict[str, dict]) -> None:
                 f"{rel}: origin={origin!r} but the path/filename contains a banned word "
                 "('official'/'nist'/'rfc'). A self-generated or third-party vector file may not "
                 "be named or placed as if it were the genuine upstream reference -- this is the "
-                "exact defect card t_71d4f79a found in lib-q-hqc's former kats/official/.",
+                "exact defect the KAT-provenance audit found in lib-q-hqc's former kats/official/.",
             )
     notes.append(f"CHECK 4: {checked} non-upstream entr(y/ies) checked against the naming ban")
 
@@ -698,7 +698,7 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
             # "self-generated" / "third-party", not "upstream", so control never enters this `if
             # origin == "upstream":` block at all and falls straight through to the ordinary
             # header check below, which still demands the matching token in the file's own
-            # comment. See the sandbox test in the lane's verification notes (card t_71d4f79a)
+            # comment. See the sandbox test in the lane's verification notes
             # that plants exactly this abuse attempt and confirms it still fails.
             #
             # SECOND GUARD (added in review, 2026-08-06): `origin` itself is a self-declared
@@ -713,7 +713,7 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
             # that BEFORE this guard, an entry claiming `origin = "upstream"` at a path containing
             # "official"/"nist"/"rfc" could reach this exemption and skip BOTH the naming ban and
             # the header requirement with nothing but two copy-pasted hex strings and a fabricated
-            # `upstream_url`, landing exactly the failure mode card t_71d4f79a exists to prevent
+            # `upstream_url`, landing exactly the failure mode this guard exists to prevent
             # (self-generated content at a `kats/official/`-shaped path, presented as
             # authoritative) -- reproduced and confirmed exploitable in review before this fix
             # (see the lane's progress notes for the exact reproduction). Refusing the exemption

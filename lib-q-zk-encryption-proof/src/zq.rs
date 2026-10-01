@@ -425,7 +425,7 @@ const FOLD_CARRY_BITS: usize = 18;
 /// paired against a **public** per-coefficient multiplier vector `ψ`, accumulated one coefficient per
 /// row. The final row's `r` is the fold result.
 ///
-/// ## Why a dot product and not a Horner evaluation (card `t_a73aaed2`)
+/// ## Why a dot product and not a Horner evaluation
 /// This AIR used to compute `Σ_i c_i·ζ^i` for a scalar Fiat–Shamir point `ζ`. That shape forced the
 /// R3 relations to carry a **quotient** witnessing the reduction mod `X^N+1` (evaluation-at-`ζ` is a
 /// ring homomorphism on `Z_q[X]/(X^N+1)` only when `ζ^N = −1`), and that quotient was a free
@@ -861,8 +861,8 @@ pub fn fold_result_send_lookups_at(
 // "TRANSITIVELY through the (e,g)-pinning and the R3b fold", which was false, and the μ-bits were a
 // genuinely free operand. Because `⟨encode(μ), κ⟩ = ⌊q/2⌋·Σ_i μ_i·κ_i` is linear with PUBLIC
 // coefficients and `κ` is known before the prover picks μ, a subset-sum over the 256 free bits let an
-// ARBITRARY malformed `v` verify — the same defect class as the free quotient fold (card
-// `t_a73aaed2`). Booleanity constrains each bit; it does not constrain their inner product with a
+// ARBITRARY malformed `v` verify — the same defect class as the free quotient fold.
+// Booleanity constrains each bit; it does not constrain their inner product with a
 // public vector. If you ever remove the MU_BIT Receive, that break comes straight back.
 
 /// `⌊q/2⌋ = 2^47 − 2^13 = 140737488347136`, the tkem `encode_msg` constant (message bit → coefficient
@@ -939,7 +939,7 @@ impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for EncodeMuFoldAir {
 }
 
 /// The **Receive** binding this fold's per-row μ-bit to the sponge's preimage μ, over
-/// [`MU_BIT_BUS`] (card `t_a73aaed2`, GAP 2). Row `i` (coefficient index `HW_IDX = i`) Receives
+/// [`MU_BIT_BUS`] (GAP 2). Row `i` (coefficient index `HW_IDX = i`) Receives
 /// `(i, μ_i)`; [`crate::mu_bits::mu_bits_lookups`] Sends all 256. Every row Receives — the fold's
 /// height is exactly `MSG_BITS`, so the counts match with no gate.
 ///
@@ -1374,7 +1374,7 @@ mod tests {
     use crate::test_macros::assert_air_rejects;
 
     // -----------------------------------------------------------------------------------------
-    // Preprocessed-trace plumbing for `DotFoldAir`/`EncodeMuFoldAir` (card `t_a73aaed2`).
+    // Preprocessed-trace plumbing for `DotFoldAir`/`EncodeMuFoldAir`.
     //
     // `StarkProver`/`StarkVerifier` (`lib_q_zkp::stark`) always pass `None` for preprocessed data:
     // `StarkProver::prove` forwards to `lib_q_stark::prove`, which is

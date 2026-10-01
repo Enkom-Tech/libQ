@@ -7,14 +7,14 @@
 # by the code under test (`write_official_rsp_file`, fed from NIST's `.req` seed chain via
 # `nist_kem_kat.rs`) -- so the module doc's "byte-exact vs authoritative `.rsp` vectors" was
 # byte-exact against itself. Nine KAT tests, CI-gated, permanently green, proved only that the
-# crate agreed with a prior run of the same crate (card t_71d4f79a). The same failure shape is
+# crate agreed with a prior run of the same crate. The same failure shape is
 # live elsewhere in this tree: `reference/classic-mceliece`'s own `test_katkem.rs::katkem()`
 # dispatches on `env::args().len()`, and its no-args arm literally contains
 # `// assert!(false); comment out temporary` -- a plain `cargo test` passes it doing nothing.
 #
 # This guard does not decide whether any given vector file's origin claim is TRUE -- it cannot,
 # it has no external ground truth to check against. What it makes impossible is the specific gap
-# card t_71d4f79a found: a self-generated (or otherwise non-upstream) vector file sitting at a
+# the KAT-provenance audit found: a self-generated (or otherwise non-upstream) vector file sitting at a
 # path or under a name that says "official"/"nist"/"rfc", with no machine-checked record anywhere
 # of what the file actually is. Every committed KAT file now needs a manifest entry AND a header
 # comment that agree with each other, and the two are cross-checked by hash so neither can drift

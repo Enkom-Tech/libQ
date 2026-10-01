@@ -5,7 +5,7 @@ assumption-free closure of the malformed-ciphertext insider probe (the last open
 `THRESHOLD_SECURITY.md`). Nothing here changes the frozen v1 wire; the proof system is an
 *additive*, optional gate on the partial-decapsulation path.
 
-> ## ⚠ SUPERSEDED IN PART — the R3 relation design described below was UNSOUND (card `t_a73aaed2`)
+> ## ⚠ SUPERSEDED IN PART — the R3 relation design described below was UNSOUND
 >
 > **Everything this document says about the evaluation-at-`ζ` relation, the quotient folds
 > (`H_k`/`H_b`, `r3a_quotient_poly`/`r3b_quotient_poly`), `HornerFoldAir`, `derive_zetas`,
@@ -776,7 +776,7 @@ green default run does **not** exercise it. Anyone citing it must run it.
 ### §4's mechanism is not the one that was built
 
 §4.1–§4.3 specify a polynomial-divisibility fold with prover-witnessed quotients `H_k`/`H'`. That
-construction is **unsound and was abandoned** (card `t_a73aaed2`). Evaluating a `Z_q[X]/(X^N+1)`
+construction is **unsound and was abandoned**. Evaluating a `Z_q[X]/(X^N+1)`
 identity at a scalar Fiat–Shamir point `ζ` is a ring homomorphism only when `ζ^N = −1`; for generic
 `ζ` the reduction needs a quotient `H` that is *free* — prover-chosen and committed after `ζ` is
 fixed — so the prover can always solve `H(ζ) := D(ζ)/(ζ^N+1)` and the check proves nothing. It was

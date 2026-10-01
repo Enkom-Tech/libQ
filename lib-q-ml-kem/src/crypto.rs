@@ -36,13 +36,15 @@ pub fn G(inputs: &[impl AsRef<[u8]>]) -> (B32, B32) {
     for x in inputs {
         Digest::update(&mut h, x);
     }
-    let out = h.finalize();
+    let mut out = h.finalize();
 
     let mut a = B32::default();
     let mut b = B32::default();
 
     a.copy_from_slice(&out[..32]);
     b.copy_from_slice(&out[32..]);
+    // Both halves can be secret (sigma in key generation, K and r in encapsulation).
+    zeroize::Zeroize::zeroize(out.as_mut_slice());
     (a, b)
 }
 

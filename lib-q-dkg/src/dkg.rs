@@ -207,7 +207,7 @@ pub fn dkg_round1_commit<R: CryptoRng + Rng>(
     round1_commit_impl(profile, n, t, party, rng, false)
 }
 
-/// Round 1 of a same-committee **proactive refresh** (ENK-142): sample a degree-`t-1` polynomial
+/// Round 1 of a same-committee **proactive refresh**: sample a degree-`t-1` polynomial
 /// exactly like [`dkg_round1_commit`], except the constant term is pinned to `(a_0, ρ_0) = (0, 0)`
 /// instead of a fresh secret. This is a **verifiable zero-sharing** (Herzberg et al., "Proactive
 /// Secret Sharing Or: How to Cope With Perpetual Leakage", 1995): every recipient can publicly
@@ -450,7 +450,7 @@ pub fn dkg_finalize_share(qualified: &[ShareEvaluation]) -> Result<SigningShare,
     })
 }
 
-/// Apply a qualified proactive-refresh delta to an existing signing share (ENK-142):
+/// Apply a qualified proactive-refresh delta to an existing signing share:
 /// `new = old + delta`. `delta` MUST be [`dkg_finalize_share`]'s combination of sub-shares from
 /// dealers that all passed [`dkg_check_zero_dealer`] — the caller is responsible for that check
 /// (this function has no public state to verify it against). Because every contributing dealer's
@@ -526,7 +526,7 @@ pub fn dkg_assemble_vk_set(
     })
 }
 
-/// Apply a qualified proactive-refresh delta to an existing verification-key set (ENK-142):
+/// Apply a qualified proactive-refresh delta to an existing verification-key set:
 /// `new = old (+) delta`, the BDLOP homomorphic sum. `delta` MUST be [`dkg_assemble_vk_set`]'s
 /// assembly of a round whose every input dealer passed [`dkg_check_zero_dealer`] — checked here
 /// too (not merely assumed): `delta.group_key` is required to already decode to

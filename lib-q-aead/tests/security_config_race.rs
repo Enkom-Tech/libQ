@@ -1,5 +1,5 @@
 //! T4 — `set_security_config` must never discard the caller's config to an initialisation
-//! race (card `t_8f408920`, defect D1 second half).
+//! race (defect D1 second half).
 //!
 //! The pre-fix setter was:
 //!

@@ -211,7 +211,7 @@ fi
 # excluded for lib-q-keccak/advanced_simd.rs and lib-q-ml-dsa/src/simd/avx2.rs.
 #
 # It only started mattering when `simd` joined lib-q-rocca-s's default features (so consumers get
-# the constant-time AES backend instead of the secret-indexed S-box table -- card t_3d6e8d50).
+# the constant-time AES backend instead of the secret-indexed S-box table -- the Rocca-S AES S-box fix).
 # Before that the module was not built at all; after, those 88 dead-on-x86 lines dragged the crate
 # from 98.21% to 78.43% and broke its floor. Excluding them measures what the runner can actually
 # run. aarch64 CI, if it is ever added, will drop this branch and measure NEON properly.

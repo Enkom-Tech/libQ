@@ -22,9 +22,9 @@ build recipe that reproduces them from upstream C source, and the exact scope.
 Status, in one line each:
 
 * HQC-128 keygen + encaps + decaps: **byte-exact with upstream**.
-* HQC-192/256 keygen: **byte-exact with upstream** (fixed 2026-08-09, card t_71d4f79a — `OMEGA`/
+* HQC-192/256 keygen: **byte-exact with upstream** (fixed 2026-08-09, the KAT-provenance audit — `OMEGA`/
   `OMEGA_R` were 103/115/134 vs upstream 100/114/131; corrected).
-* HQC-192/256 encaps + decaps: **byte-exact with upstream** (fixed 2026-08-10, card t_d2ee7042 —
+* HQC-192/256 encaps + decaps: **byte-exact with upstream** (fixed 2026-08-10, the HQC per-level `m` fix —
   `m` and `sigma` were hardwired to 16 bytes instead of `PARAM_SECURITY_BYTES` = 16/24/32, which
   both broke conformance and capped the HQC-192/256 shared secret at 128 bits of entropy; the
   reference `m` could not previously even be supplied to the API).
@@ -45,7 +45,7 @@ bugs, "fixed" them, regenerated the pins to match, and pushed a wire-breaking ch
 published crate. The implementation had been byte-exact all along. The local checkout was a
 **later revision than the pinned v5.0.0 target**: its dumps have identical file sizes and
 different contents from `reference-intermediates/`. Reverted at `910c644` / `57a39cb` / `614bdfd`;
-see card `t_62273504` (closed PREMISE-WRONG).
+see the HQC reference-dump investigation (closed PREMISE-WRONG).
 
 The authoritative vectors are the ones vendored **in this directory**, with sha256 digests
 recorded in the repo-root `kats-manifest.toml` and enforced by

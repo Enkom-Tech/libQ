@@ -71,7 +71,7 @@ ROOT = Path(__file__).resolve().parent.parent
 #   lib-q-hpke       -- `cargo publish -p lib-q-hpke --dry-run`      exit 0 (2026-08-13)
 #   lib-q-stark      -- `cargo publish -p lib-q-stark --dry-run`     exit 0 (2026-08-13)
 #
-# lib-q-hpke and lib-q-stark were the two crates card t_103554a6 recorded as UNVERIFIED against this
+# lib-q-hpke and lib-q-stark were the two crates the cdylib default-link audit recorded as UNVERIFIED against this
 # failure class: at the time their dry-runs died earlier, on dependencies not yet published at
 # 0.0.11, so the panic-runtime question could not be reached. Both were cleared once 0.0.11 was live.
 KNOWN_LINKABLE = {

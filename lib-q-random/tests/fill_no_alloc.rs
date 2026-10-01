@@ -2,7 +2,7 @@
 //! destination, never through an intermediate heap buffer sized like the
 //! request.
 //!
-//! Card t_b0acaea1: `fill` used to allocate a temporary `Vec<u8>`, fill it
+//! The allocation-free `fill` fix: `fill` used to allocate a temporary `Vec<u8>`, fill it
 //! with CSPRNG output, copy it into `dest`, then drop it unscrubbed — every
 //! caller generating key material via `fill` stranded a copy of that
 //! material in freed heap memory. The fix removes the intermediate entirely

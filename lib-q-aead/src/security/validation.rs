@@ -365,7 +365,7 @@ use std::sync::{
 /// concurrent first reader, and poisoned guards are recovered with `PoisonError::into_inner`
 /// so no path can silently drop a write or substitute a value for the stored one. The
 /// `no_std` branch gets the same contract for free: `spin` locks cannot poison. Matches
-/// `GLOBAL_SECURITY_CONFIG` in `security::mod`; see card `t_8f408920` for why the previous
+/// `GLOBAL_SECURITY_CONFIG` in `security::mod`; see the global-security-config fix for why the previous
 /// shape was replaced.
 #[cfg(feature = "std")]
 static GLOBAL_VALIDATOR: LazyLock<RwLock<InputValidator>> =
@@ -626,7 +626,7 @@ mod tests {
 
     /// A poisoned lock must not turn `set_input_validator` into a silent no-op, nor make
     /// `get_input_validator` invent a validator. Encodes the invariant on `GLOBAL_VALIDATOR`;
-    /// same defect class as card `t_8f408920`.
+    /// same defect class as the global-security-config fix.
     ///
     /// This one is the load-bearing case of the three: every AEAD module reaches the global
     /// validator through `validate_key`/`validate_nonce`/... on the encrypt and decrypt paths,

@@ -169,7 +169,7 @@ fn test_verify_batch_rejects_invalid_second_proof() {
 /// `MerkleInclusionAir mismatch @ commit0` in `StarkVerifierAir::generate_trace`, because the
 /// inner proof's Merkle tree was compressed with a padded rate-2 sponge while the AIR
 /// constrains a single bare Poseidon permutation. See `lib_q_zkp::air::air_poseidon_mmcs`.
-/// Card t_4333e4ea. Do not re-`#[ignore]` these without a new, verified reason.
+/// The Poseidon-MMCS aggregation fix. Do not re-`#[ignore]` these without a new, verified reason.
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_single_proof_verifies() {
@@ -198,7 +198,7 @@ fn test_aggregate_single_proof_verifies() {
 /// and it is `#[ignore]`d, so CI exercises that path nowhere.
 ///
 /// The old reason said "many minutes"; that is no longer true. MEASURED 2026-08-07 after the
-/// `air_poseidon_mmcs` fix (card t_4333e4ea):
+/// `air_poseidon_mmcs` fix:
 /// `cargo test -p lib-q-zkp --profile release-ci --features "zkp,recursive-proofs-experimental,std"
 ///  --test aggregation_tests test_aggregate_two_poseidon_proofs_verifies -- --ignored --test-threads=1`
 /// -> `test result: ok. 1 passed; 0 failed; ... finished in 54.20s`, exit 0.
@@ -265,7 +265,7 @@ fn test_aggregate_rejects_invalid_second_proof() {
 /// Three inner Poseidon proofs: Merkle binding over serialized commitments, `aggregate_single`,
 /// and aggregated outer proof verification (same coverage as the former `test_aggregate_three_proofs_all_pass`).
 /// Also a regression test for the `MerkleInclusionAir mismatch @ commit0` defect
-/// (card t_4333e4ea) — see `test_aggregate_single_proof_verifies`.
+/// — see `test_aggregate_single_proof_verifies`.
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_merkle_root_covers_all_proofs() {
@@ -353,7 +353,7 @@ fn test_aggregate_merkle_root_covers_all_proofs() {
 /// run check_constraints on it, then run full prove + verify.
 ///
 /// Was `#[ignore]`d as "MerkleInclusionAir hash mismatch in recursive verifier — under
-/// investigation"; that defect is fixed (card t_4333e4ea, `lib_q_zkp::air::air_poseidon_mmcs`).
+/// investigation"; that defect is fixed (`lib_q_zkp::air::air_poseidon_mmcs`).
 #[test]
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_recursive_verifier_trace_satisfies_constraints_then_prove_verify() {

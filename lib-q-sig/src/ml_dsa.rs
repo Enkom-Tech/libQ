@@ -165,6 +165,16 @@ pub enum MlDsaVariant {
     MlDsa87,
 }
 
+// Export the factory as well as the instance methods: without this, wasm-bindgen
+// emits a private constructor and JavaScript cannot obtain an ML-DSA verifier.
+#[cfg_attr(feature = "wasm", wasm_bindgen)]
+impl MlDsa {
+    /// Create ML-DSA-65 instance (Level 3 security)
+    pub fn ml_dsa_65() -> Self {
+        Self::new(MlDsaVariant::MlDsa65)
+    }
+}
+
 impl MlDsa {
     /// Create a new ML-DSA instance with the specified variant
     pub fn new(variant: MlDsaVariant) -> Self {
@@ -174,11 +184,6 @@ impl MlDsa {
     /// Create ML-DSA-44 instance (Level 1 security)
     pub fn ml_dsa_44() -> Self {
         Self::new(MlDsaVariant::MlDsa44)
-    }
-
-    /// Create ML-DSA-65 instance (Level 3 security)
-    pub fn ml_dsa_65() -> Self {
-        Self::new(MlDsaVariant::MlDsa65)
     }
 
     /// Create ML-DSA-87 instance (Level 5 security)
@@ -211,10 +216,12 @@ impl MlDsa {
         &self,
         randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
     ) -> Result<SigKeypair> {
+        // Move the seed into a buffer that is cleared on drop, and borrow it from there.
+        let seed = lib_q_ml_dsa::Zeroizing::new(randomness);
         // Generate keypair using the appropriate ML-DSA variant
         let keypair = match self.variant {
             MlDsaVariant::MlDsa44 => {
-                let mut kp = ml_dsa_44::portable::generate_key_pair(randomness);
+                let mut kp = ml_dsa_44::portable::generate_key_pair_from_seed(&seed);
                 let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
@@ -223,7 +230,7 @@ impl MlDsa {
                 pair
             }
             MlDsaVariant::MlDsa65 => {
-                let mut kp = ml_dsa_65::portable::generate_key_pair(randomness);
+                let mut kp = ml_dsa_65::portable::generate_key_pair_from_seed(&seed);
                 let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
@@ -232,7 +239,7 @@ impl MlDsa {
                 pair
             }
             MlDsaVariant::MlDsa87 => {
-                let mut kp = ml_dsa_87::portable::generate_key_pair(randomness);
+                let mut kp = ml_dsa_87::portable::generate_key_pair_from_seed(&seed);
                 let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
@@ -956,8 +963,8 @@ impl MlDsa {
     /// Sign a message under a FIPS-204 signing context in a WASM (JavaScript) environment
     ///
     /// The signature produced here verifies **only** under the same `context` bytes — use
-    /// [`Self::verify_with_context_wasm`]. This is the binding GIP-style domain-separated
-    /// signatures (e.g. `wapp.sh/entitlement-v0`) need; [`Self::sign_wasm`] remains the
+    /// [`Self::verify_with_context_wasm`]. This is the binding real-world domain-separated
+    /// signatures (e.g. `example.org/entitlement-v0`) need; [`Self::sign_wasm`] remains the
     /// empty-context path.
     ///
     /// # Arguments

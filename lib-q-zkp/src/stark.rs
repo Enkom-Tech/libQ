@@ -104,7 +104,7 @@ pub type MembershipConfig = StarkConfig<
 // NOT `lib_q_stark_merkle::PoseidonMmcs`: that MMCS compresses nodes with a padded rate-2
 // sponge (two permutations), which `MerkleInclusionAir` does not and cannot constrain — see
 // `crate::air::air_poseidon_mmcs`. Recursive verification of a proof committed with it always
-// fails with `MerkleInclusionAir mismatch @ commit0` (card t_4333e4ea).
+// fails with `MerkleInclusionAir mismatch @ commit0`.
 #[cfg(feature = "recursive-proofs-experimental")]
 use crate::air::air_poseidon_mmcs::AirPoseidonMmcs as PoseidonMmcsType;
 #[cfg(feature = "recursive-proofs-experimental")]
@@ -171,7 +171,7 @@ type QuotientRounds<C: StarkGenericConfig> =
 
 /// Maximum degree bits (2^30), field-independent, to prevent memory-exhaustion attacks.
 ///
-/// Mirrors `lib-q-stark/src/verifier.rs::MAX_DEGREE_BITS` (card t_00ab900a): on its own this bound
+/// Mirrors `lib-q-stark/src/verifier.rs::MAX_DEGREE_BITS`: on its own this bound
 /// is NOT sufficient to prevent panics, since every concrete field used in this workspace has a
 /// two-adicity well below 30 (e.g. `Complex<Mersenne31>`'s is 32, but combined with a nonzero
 /// `log_num_quotient_chunks` or `is_zk` offset the sum can still exceed it). See
@@ -186,8 +186,8 @@ const MAX_DEGREE_BITS: usize = 30;
 /// via `TwoAdicMultiplicativeCoset::new(..).unwrap()` once the requested log-size exceeds
 /// `F::TWO_ADICITY`) can fail.
 ///
-/// This is the same check as `lib-q-stark/src/verifier.rs::degree_fits_two_adicity` (card
-/// t_00ab900a fixed the primary verifier's unauthenticated pre-verification DoS there); this is a
+/// This is the same check as `lib-q-stark/src/verifier.rs::degree_fits_two_adicity`
+/// (where the STARK verifier pre-verification DoS fix closed an unauthenticated DoS); this is a
 /// second, independent copy for `StarkVerifier::derive_challenges` /
 /// `StarkVerifier::derive_query_positions`, which build the same domains from the same untrusted
 /// `proof.degree_bits` but are not exported from `lib_q_stark` for reuse here.
@@ -384,7 +384,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
         }
 
         // Validate `degree_bits` before it is used in any shift/subtraction/domain construction:
-        // see `degree_fits_two_adicity` (card t_00ab900a's fix, mirrored here since
+        // see `degree_fits_two_adicity` (the STARK verifier pre-verification DoS fix's fix, mirrored here since
         // `derive_challenges` carries its own copy of the same domain-construction sequence).
         if degree_bits > MAX_DEGREE_BITS {
             return Err(VerificationError::InvalidProofShape);
@@ -570,7 +570,7 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
         }
 
         // Validate `degree_bits` before it is used in any shift/subtraction/domain construction:
-        // see `degree_fits_two_adicity` (card t_00ab900a's fix, mirrored here since
+        // see `degree_fits_two_adicity` (the STARK verifier pre-verification DoS fix's fix, mirrored here since
         // `derive_query_positions` carries its own copy of the same domain-construction sequence).
         if degree_bits > MAX_DEGREE_BITS {
             return Err(VerificationError::InvalidProofShape);
@@ -1354,7 +1354,7 @@ mod tests {
     }
 
     /// `StarkVerifier::derive_challenges` carried its own unguarded copy of the domain-construction
-    /// sequence fixed for the primary verifier in `lib-q-stark/src/verifier.rs` (card t_00ab900a /
+    /// sequence fixed for the primary verifier in `lib-q-stark/src/verifier.rs` (the pre-verification DoS fix,
     /// `degree_fits_two_adicity`): it builds `trace_domain`/`init_trace_domain` via
     /// `pcs.natural_domain_for_degree` from an attacker-tamperable `proof.degree_bits` BEFORE any
     /// bound check. `DefaultConfig`'s field is `Complex<Mersenne31>` (`TWO_ADICITY = 32`), so a

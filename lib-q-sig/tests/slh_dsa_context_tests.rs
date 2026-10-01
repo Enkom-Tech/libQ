@@ -17,7 +17,7 @@ const ALG: Algorithm = Algorithm::SlhDsaShake256128fRobust;
 const KEY_RANDOMNESS: [u8; 48] = [0x11u8; 48];
 const SIGN_RANDOMNESS: [u8; 32] = [0x22u8; 32];
 const MESSAGE: &[u8] = b"slh-dsa context KAT message";
-const CONTEXT: &[u8] = b"wapp.sh/entitlement-v0";
+const CONTEXT: &[u8] = b"example.org/entitlement-v0";
 
 fn keypair(slh_dsa: &SlhDsa) -> lib_q_core::SigKeypair {
     slh_dsa
@@ -92,7 +92,7 @@ fn wrong_context_is_rejected() {
                 ALG,
                 kp.public_key(),
                 MESSAGE,
-                b"wapp.sh/index-entry-v0",
+                b"example.org/index-entry-v0",
                 &signature
             )
             .expect("verify must reach a verdict"),

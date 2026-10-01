@@ -4,6 +4,21 @@ use crate::pre_hash::DomainSeparationContext;
 use crate::types::*;
 pub(crate) mod instantiations;
 
+/// Overwrite secret ring elements (s1, s2, t0 and their NTT forms) with zero.
+///
+/// Kept out of line and followed by `black_box` so the stores are not removed as dead writes to
+/// locals that are about to go out of scope.
+#[cfg(feature = "zeroize")]
+#[inline(never)]
+pub(crate) fn clear_ring_elements<SIMDUnit: crate::simd::traits::Operations>(
+    elems: &mut [crate::polynomial::PolynomialRingElement<SIMDUnit>],
+) {
+    for elem in elems.iter_mut() {
+        *elem = crate::polynomial::PolynomialRingElement::<SIMDUnit>::zero();
+    }
+    core::hint::black_box(elems);
+}
+
 #[cfg(not(eurydice))]
 pub(crate) mod multiplexing;
 
@@ -84,16 +99,13 @@ pub(crate) mod ml_dsa_44 {
         Shake256Xof: shake256::Xof,
         Shake256X4: shake256::XofX4,
     >(
-        randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+        randomness: &[u8; KEY_GENERATION_RANDOMNESS_SIZE],
         signing_key: &mut [u8],
         verification_key: &mut [u8],
     ) {
         // Check key sizes
         debug_assert!(signing_key.len() == SIGNING_KEY_SIZE);
         debug_assert!(verification_key.len() == VERIFICATION_KEY_SIZE);
-
-        #[cfg(feature = "zeroize")]
-        let mut randomness = randomness;
 
         // 128 = SEED_FOR_A_SIZE + SEED_FOR_ERROR_VECTORS_SIZE + SEED_FOR_SIGNING_SIZE
         #[cfg(feature = "zeroize")]
@@ -102,7 +114,7 @@ pub(crate) mod ml_dsa_44 {
         let mut seed_expanded = [0u8; 128];
         {
             let mut shake = Shake256Xof::init();
-            shake.absorb(&randomness);
+            shake.absorb(randomness);
             shake.absorb_final(&[ROWS_IN_A as u8, COLUMNS_IN_A as u8]);
             shake.squeeze(&mut seed_expanded[..]);
         }
@@ -132,6 +144,8 @@ pub(crate) mod ml_dsa_44 {
                 &s1_s2,
                 &mut t0,
             );
+            #[cfg(feature = "zeroize")]
+            clear_ring_elements(&mut s1_ntt);
         }
 
         let mut t1 = [PolynomialRingElement::<SIMDUnit>::zero(); ROWS_IN_A];
@@ -153,10 +167,12 @@ pub(crate) mod ml_dsa_44 {
             &t0,
             signing_key,
         );
+        // `seed_expanded` (rho, rho', K) is `Zeroizing`; the caller owns `randomness`. Clear the
+        // secret vectors s1, s2 and t0 before they leave scope.
         #[cfg(feature = "zeroize")]
         {
-            use zeroize::Zeroize;
-            randomness.zeroize();
+            clear_ring_elements(&mut s1_s2);
+            clear_ring_elements(&mut t0);
         }
     }
 
@@ -598,10 +614,15 @@ pub(crate) mod ml_dsa_44 {
             Err(e) => return Err(e),
         };
 
+        // FIPS 204 Algorithm 8 (ML-DSA.Verify_internal): reject when ||z||_inf >= gamma1 - beta.
+        // `vector_infinity_norm_exceeds` returns true iff some |coefficient| >= bound. The bound
+        // must be gamma1 - beta, not 2 * gamma1 - beta: a decoded z always lies in
+        // [-gamma1 + 1, gamma1], so the larger bound can never be reached and the check would
+        // be dead code.
         // We use if-else branches because early returns will not go through hax.
         if vector_infinity_norm_exceeds::<SIMDUnit>(
             &deserialized_signer_response,
-            (2 << GAMMA1_EXPONENT) - BETA,
+            (1 << GAMMA1_EXPONENT) - BETA,
         ) {
             return Err(VerificationError::SignerResponseExceedsBoundError);
         }
@@ -943,16 +964,13 @@ pub(crate) mod ml_dsa_65 {
         Shake256Xof: shake256::Xof,
         Shake256X4: shake256::XofX4,
     >(
-        randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+        randomness: &[u8; KEY_GENERATION_RANDOMNESS_SIZE],
         signing_key: &mut [u8],
         verification_key: &mut [u8],
     ) {
         // Check key sizes
         debug_assert!(signing_key.len() == SIGNING_KEY_SIZE);
         debug_assert!(verification_key.len() == VERIFICATION_KEY_SIZE);
-
-        #[cfg(feature = "zeroize")]
-        let mut randomness = randomness;
 
         // 128 = SEED_FOR_A_SIZE + SEED_FOR_ERROR_VECTORS_SIZE + SEED_FOR_SIGNING_SIZE
         #[cfg(feature = "zeroize")]
@@ -961,7 +979,7 @@ pub(crate) mod ml_dsa_65 {
         let mut seed_expanded = [0u8; 128];
         {
             let mut shake = Shake256Xof::init();
-            shake.absorb(&randomness);
+            shake.absorb(randomness);
             shake.absorb_final(&[ROWS_IN_A as u8, COLUMNS_IN_A as u8]);
             shake.squeeze(&mut seed_expanded[..]);
         }
@@ -991,6 +1009,8 @@ pub(crate) mod ml_dsa_65 {
                 &s1_s2,
                 &mut t0,
             );
+            #[cfg(feature = "zeroize")]
+            clear_ring_elements(&mut s1_ntt);
         }
 
         let mut t1 = [PolynomialRingElement::<SIMDUnit>::zero(); ROWS_IN_A];
@@ -1012,10 +1032,12 @@ pub(crate) mod ml_dsa_65 {
             &t0,
             signing_key,
         );
+        // `seed_expanded` (rho, rho', K) is `Zeroizing`; the caller owns `randomness`. Clear the
+        // secret vectors s1, s2 and t0 before they leave scope.
         #[cfg(feature = "zeroize")]
         {
-            use zeroize::Zeroize;
-            randomness.zeroize();
+            clear_ring_elements(&mut s1_s2);
+            clear_ring_elements(&mut t0);
         }
     }
 
@@ -1457,10 +1479,15 @@ pub(crate) mod ml_dsa_65 {
             Err(e) => return Err(e),
         };
 
+        // FIPS 204 Algorithm 8 (ML-DSA.Verify_internal): reject when ||z||_inf >= gamma1 - beta.
+        // `vector_infinity_norm_exceeds` returns true iff some |coefficient| >= bound. The bound
+        // must be gamma1 - beta, not 2 * gamma1 - beta: a decoded z always lies in
+        // [-gamma1 + 1, gamma1], so the larger bound can never be reached and the check would
+        // be dead code.
         // We use if-else branches because early returns will not go through hax.
         if vector_infinity_norm_exceeds::<SIMDUnit>(
             &deserialized_signer_response,
-            (2 << GAMMA1_EXPONENT) - BETA,
+            (1 << GAMMA1_EXPONENT) - BETA,
         ) {
             return Err(VerificationError::SignerResponseExceedsBoundError);
         }
@@ -1847,16 +1874,13 @@ pub(crate) mod ml_dsa_87 {
         Shake256Xof: shake256::Xof,
         Shake256X4: shake256::XofX4,
     >(
-        randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+        randomness: &[u8; KEY_GENERATION_RANDOMNESS_SIZE],
         signing_key: &mut [u8],
         verification_key: &mut [u8],
     ) {
         // Check key sizes
         debug_assert!(signing_key.len() == SIGNING_KEY_SIZE);
         debug_assert!(verification_key.len() == VERIFICATION_KEY_SIZE);
-
-        #[cfg(feature = "zeroize")]
-        let mut randomness = randomness;
 
         // 128 = SEED_FOR_A_SIZE + SEED_FOR_ERROR_VECTORS_SIZE + SEED_FOR_SIGNING_SIZE
         #[cfg(feature = "zeroize")]
@@ -1865,7 +1889,7 @@ pub(crate) mod ml_dsa_87 {
         let mut seed_expanded = [0u8; 128];
         {
             let mut shake = Shake256Xof::init();
-            shake.absorb(&randomness);
+            shake.absorb(randomness);
             shake.absorb_final(&[ROWS_IN_A as u8, COLUMNS_IN_A as u8]);
             shake.squeeze(&mut seed_expanded[..]);
         }
@@ -1895,6 +1919,8 @@ pub(crate) mod ml_dsa_87 {
                 &s1_s2,
                 &mut t0,
             );
+            #[cfg(feature = "zeroize")]
+            clear_ring_elements(&mut s1_ntt);
         }
 
         let mut t1 = [PolynomialRingElement::<SIMDUnit>::zero(); ROWS_IN_A];
@@ -1916,10 +1942,12 @@ pub(crate) mod ml_dsa_87 {
             &t0,
             signing_key,
         );
+        // `seed_expanded` (rho, rho', K) is `Zeroizing`; the caller owns `randomness`. Clear the
+        // secret vectors s1, s2 and t0 before they leave scope.
         #[cfg(feature = "zeroize")]
         {
-            use zeroize::Zeroize;
-            randomness.zeroize();
+            clear_ring_elements(&mut s1_s2);
+            clear_ring_elements(&mut t0);
         }
     }
 
@@ -2361,10 +2389,15 @@ pub(crate) mod ml_dsa_87 {
             Err(e) => return Err(e),
         };
 
+        // FIPS 204 Algorithm 8 (ML-DSA.Verify_internal): reject when ||z||_inf >= gamma1 - beta.
+        // `vector_infinity_norm_exceeds` returns true iff some |coefficient| >= bound. The bound
+        // must be gamma1 - beta, not 2 * gamma1 - beta: a decoded z always lies in
+        // [-gamma1 + 1, gamma1], so the larger bound can never be reached and the check would
+        // be dead code.
         // We use if-else branches because early returns will not go through hax.
         if vector_infinity_norm_exceeds::<SIMDUnit>(
             &deserialized_signer_response,
-            (2 << GAMMA1_EXPONENT) - BETA,
+            (1 << GAMMA1_EXPONENT) - BETA,
         ) {
             return Err(VerificationError::SignerResponseExceedsBoundError);
         }

@@ -129,7 +129,7 @@ use std::sync::{
 ///
 /// Both functions below are therefore total: neither has a branch that returns without having
 /// read (respectively written) the one global cell, and neither can panic on the poison path.
-/// This was not always so — see `lib-q-aead/CHANGELOG.md` and card `t_8f408920`.
+/// This was not always so — see `lib-q-aead/CHANGELOG.md` and the global-security-config fix.
 #[cfg(feature = "std")]
 static GLOBAL_SECURITY_CONFIG: LazyLock<RwLock<SecurityConfig>> =
     LazyLock::new(|| RwLock::new(SecurityConfig::default()));

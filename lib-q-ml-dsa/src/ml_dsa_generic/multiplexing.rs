@@ -1,7 +1,7 @@
 use super::*;
 
 // `generate_key_pair`, `sign` and `verify` below are now wired: as of 2026-08-10,
-// `ml_dsa_44.rs`/`ml_dsa_65.rs`/`ml_dsa_87.rs`'s public `generate_key_pair`/`sign`/`verify` call
+// `ml_dsa_44.rs`/`ml_dsa_65.rs`/`ml_dsa_87.rs`'s public `generate_key_pair_from_seed`/`sign`/`verify` call
 // through this module (same as `sign_internal`/`verify_internal` already did), so the
 // avx2/neon runtime dispatch is genuinely reachable for them.
 // `sign_pre_hashed_shake128`/`verify_pre_hashed_shake128` are still NOT called from the public
@@ -47,7 +47,7 @@ macro_rules! parameter_set {
             };
 
             pub(crate) fn generate_key_pair(
-                randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+                randomness: &[u8; KEY_GENERATION_RANDOMNESS_SIZE],
                 signing_key: &mut [u8; SIGNING_KEY_SIZE],
                 verification_key: &mut [u8; VERIFICATION_KEY_SIZE],
             ) {

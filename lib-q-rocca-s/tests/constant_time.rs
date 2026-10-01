@@ -37,8 +37,8 @@ fn bad_tag_never_yields_plaintext() {
 
 /// Structural (non-timing) proof that the constant-time hardware AES backend is
 /// actually *wired in* by default on architectures that have one — finding F4 /
-/// card t_3d6e8d50. This does NOT measure wall-clock timing (that is unmeasurable in
-/// a unit test and explicitly out of scope per card t_043571b4); it checks the
+/// the Rocca-S AES S-box fix. This does NOT measure wall-clock timing (that is unmeasurable in
+/// a unit test and explicitly out of scope per the constant-time test-scope decision); it checks the
 /// compile-time feature selection, which is exactly what the wiring bug broke:
 /// `simd` was not in `default` and `lib-q-aead`'s `rocca-s` feature never enabled it,
 /// so every consumer silently got the non-constant-time scalar S-box table

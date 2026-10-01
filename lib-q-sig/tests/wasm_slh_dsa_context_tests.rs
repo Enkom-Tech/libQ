@@ -13,8 +13,8 @@ use lib_q_sig::slh_dsa::SlhDsa;
 use wasm_bindgen_test::*;
 
 const ALG: &str = "SlhDsaShake256128fRobust";
-const ENTITLEMENT_CTX: &[u8] = b"wapp.sh/entitlement-v0";
-const INDEX_ENTRY_CTX: &[u8] = b"wapp.sh/index-entry-v0";
+const ENTITLEMENT_CTX: &[u8] = b"example.org/entitlement-v0";
+const INDEX_ENTRY_CTX: &[u8] = b"example.org/index-entry-v0";
 
 fn u8a(bytes: &[u8]) -> Uint8Array {
     Uint8Array::from(bytes)

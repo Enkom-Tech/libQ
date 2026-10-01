@@ -411,7 +411,7 @@ FIXTURE_DIR = pathlib.Path(__file__).resolve().parent / "fixtures" / "nonexisten
 def self_test() -> int:
     """Re-prove that this guard can fail, against the committed adversarial fixture.
 
-    Landing a guard green proves nothing -- the card contract's register rule is explicit that "a
+    Landing a guard green proves nothing -- the project's evidence rule is explicit that "a
     check you have not seen fail is not evidence". Verifying that once by hand at authoring time
     is weaker than it looks: the next refactor can silently kill detection and the guard goes
     green forever, which is precisely the failure mode this family of guards exists to prevent.

@@ -7,7 +7,7 @@
 //!
 //! It used to. [`NonceManager`] carried a "collision detection and secure tracking" contract
 //! backed by a replay tracker that was unsound in both build configurations, in opposite
-//! directions (board card `t_9cd430c2`):
+//! directions:
 //!
 //! * **`std`**: a `HashSet<Vec<u8>>` that, past 10 000 entries, evicted `used_nonces.iter()
 //!   .take(1000)`. `HashSet::iter()` yields in unspecified order, so that removed 1000 *arbitrary*
@@ -192,7 +192,7 @@ impl NonceManager {
 
             // No collision check: the bytes above are 8 * nonce_size bits of OS/hardware entropy
             // (128 bits at the default size), so a repeat is negligible. The check that used to
-            // live here consulted the replay tracker removed in `t_9cd430c2` — and on the no_std
+            // live here consulted the replay tracker removed in the nonce replay-tracker removal — and on the no_std
             // arm, where that tracker saturated to "everything is used", it would have recursed
             // until the stack ran out.
 
@@ -525,7 +525,7 @@ mod tests {
     /// `mark_nonce_used(&n).is_ok()` on a fresh manager — it never re-queried after marking, so it
     /// passed identically against a tracker that remembered nothing. It was the only test the
     /// tracking API had, and it could not have failed for either of the two defects in
-    /// `t_9cd430c2`.
+    /// the nonce replay-tracker removal.
     #[test]
     fn validate_nonce_is_stateless_and_does_not_consume_the_nonce() {
         let manager = NonceManager::new();
@@ -576,7 +576,7 @@ mod tests {
     /// diagnostic counter. Its whole size is `NonceConfig` (two `usize`-ish fields) plus one
     /// `AtomicU64`; a reintroduced tracking container (a `HashSet`, a `RwLock`, a bitmap) cannot
     /// fit in that. This is the test the crate lacked — the tracker's own tests could not fail for
-    /// either defect in `t_9cd430c2`, because none of them re-queried after marking.
+    /// either defect in the nonce replay-tracker removal, because none of them re-queried after marking.
     #[test]
     fn nonce_manager_carries_no_tracking_state() {
         use core::mem::size_of;

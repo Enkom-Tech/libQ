@@ -1,0 +1,4 @@
+# Ceiling for `internal-refs: allow-address <reason>` exemptions (scripts/ci_guard_internal_refs.py).
+# The guard prints every exempted line on every run and fails when their number exceeds this value.
+# May only go up in a reviewed change that says which line needs it and why.
+0

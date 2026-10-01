@@ -24,7 +24,7 @@
 //! covered separately in `tests/rfc9180_key_schedule_structure_tests.rs`, which cites RFC section
 //! numbers and marks self-generated values as such.
 //!
-//! See card `t_71d4f79a` (self-generated vectors must never be presented as external/NIST ones)
+//! See the KAT-provenance audit (self-generated vectors must never be presented as external/NIST ones)
 //! for the standing rule this rename exists to satisfy.
 
 #![cfg(feature = "std")]

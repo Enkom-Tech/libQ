@@ -1,6 +1,6 @@
 # Radar triage: ePrint 2025/2099 — Lattice-based Designated-Verifier zkSNARK from Standard Assumptions
 
-Board card `ENK-472` (project `iacr-radar`). Paper: *A Lattice-based Designated Verifier
+Triage record from the `iacr-radar` eprint feed. Paper: *A Lattice-based Designated Verifier
 zkSNARK from Standard Assumptions*, Ahmadi, Eghlidos, Abdolmaleki, Nguyen, IACR ePrint
 2025/2099 (<https://eprint.iacr.org/2025/2099>). Radar relevance tag: "zero-knowledge
 credentials" (high, conf 0.95).
@@ -55,7 +55,7 @@ in the family is broken (LOE, [DAFS24]) or non-standard (LTM).
 ## 2. Where libQ actually sits (VERIFIED — read out of the tree)
 
 The relevant home is `lib-q-lattice-zkp` (module-lattice / BLNS-style anonymous credentials) and
-the anon-cred wire work in `lib-q-zkp/docs/anon-cred-wire-fork-recommendation.md` (card `ENK-266`).
+the anon-cred wire work in `lib-q-zkp/docs/anon-cred-wire-fork-recommendation.md`.
 
 - **Transparent, publicly verifiable.** `lib-q-lattice-zkp` uses **uniform** Ajtai commitments and
   public-coin Fiat–Shamir Σ-protocols (`sigma/opening.rs`, `sigma/linear.rs` — `L·wit = t`,
@@ -67,7 +67,7 @@ the anon-cred wire work in `lib-q-zkp/docs/anon-cred-wire-fork-recommendation.md
 - **Wire budgets are tiny.** `README`/`DESIGN.md`: PVTN membership ≤ **4096 B**, presentation /
   token spend ≤ **125 KiB**; measured KATs 2558 B / 3977 B / 4009 B. Targets include WASM and
   `no_std`.
-- **The anon-cred direction is already chosen.** `ENK-266`'s recommendation is
+- **The anon-cred direction is already chosen.** the anon-cred wire-format decision's recommendation is
   **LNP22/ABDLOP for presentation (~29 KB) + LaBRADOR-class for membership (~7.56 KB)**; the
   transparent FRI/STARK arm (~1 MB) stays only as the merged Arm B membership proof. The doc
   already tracks N.K. Nguyen's line (FMN24 / GreyHound / LaBRADOR / LUNA).
@@ -106,7 +106,7 @@ technique to import.
 ## 4. Recommendation (INFERRED)
 
 **Track, do not action.** Close the radar item as *evaluated — not adopted*. It does **not**
-displace the `ENK-266` recommendation (LNP22/ABDLOP + LaBRADOR): DV + 1.3 GB trusted-setup CRS is
+displace the anon-cred wire-format decision recommendation (LNP22/ABDLOP + LaBRADOR): DV + 1.3 GB trusted-setup CRS is
 the wrong trust and size model for a publicly-verifiable, budget-constrained presentation wire, and
 it is an unaudited PoC.
 
@@ -124,7 +124,7 @@ independent proof review and a QROM-vs-ROM soundness reassessment.
   SNARK|LPCP` grep over `lib-q-lattice-zkp` returning empty.
 - **INFERRED (judgement):** §3 fit assessment, §4 recommendation, and the consequence claims
   (1.3 GB CRS incompatible with WASM/embedded; DV model vs public verifiability; does not displace
-  ENK-266).
+  the anon-cred wire-format decision).
 - **NOT done / out of scope:** I did **not** build or benchmark the external C PoC — the 20.75 KB /
   1.3 GB / timing figures are quoted from the paper, not independently reproduced. No security
   estimation (APS15 / lattice-estimator) was re-run. No libQ code changed, so no tests were run.

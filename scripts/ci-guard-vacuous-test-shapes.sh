@@ -10,10 +10,10 @@
 # That is necessary but not sufficient on its own -- every one of the incidents below shipped
 # green for months because nothing forced the *next* call site to be wrapped:
 #
-#   * t_9f13e8e5 -- lib-q-hpke's constant-time / RFC-9180 / security-validation / mode-test CI
+#   * The vacuous lib-q-hpke CI steps -- lib-q-hpke's constant-time / RFC-9180 / security-validation / mode-test CI
 #     steps compiled six `#![cfg(feature = "std")]`-gated test files to empty binaries because
 #     the CI matrix omitted `std`; each reported "0 passed" and exit 0.
-#   * t_9d1766f3 / test-fn-dsa's old "Memory safety validation" step filtered on `-- memory_safety`,
+#   * The FN-DSA constant-time gate fix / test-fn-dsa's old "Memory safety validation" step filtered on `-- memory_safety`,
 #     which matched none of the crate's real test names -- 0 of 7 tests ran.
 #   * test-k12/action.yml carried FOUR dead name filters (`test_k12_implementations` and
 #     `test_create_hash_by_name` exist nowhere in this repository; `test_length_encode` exists in

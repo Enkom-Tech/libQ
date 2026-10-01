@@ -15,7 +15,7 @@
 # THIS IS NOT HYPOTHETICAL. It already produced a wrong published-sounding number: the "ML-DSA is
 # ~7x slower" result was this trap (the real figure is ~1.7x on signing). Confirmed 2026-08-09 via
 # captured rustc invocations (`cargo test -p <crate> -v --no-run`, grepped for
-# `--crate-name lib_q_ml_kem`/`lib_q_ml_dsa` and `feature="hardened"`) -- see card t_42086971.
+# `--crate-name lib_q_ml_kem`/`lib_q_ml_dsa` and `feature="hardened"`) -- see the lib-q-sca-test default-features fix.
 #
 # Every consumer of `lib-q-sca-test`'s `dudect` module (the only thing any of these tests actually
 # use) needs none of sca-test's optional features (`mlkem`, `mldsa`, `privacy`, `hqc-hardened`) --

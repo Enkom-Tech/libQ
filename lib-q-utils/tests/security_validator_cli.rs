@@ -139,7 +139,7 @@ fn validate_all_succeeds_now_that_the_hpke_finding_is_fixed() {
     // `HpkePublicKey`/`HpkePrivateKey::from_bytes` were infallible constructors over an
     // unchecked `Vec<u8>`. Those types were dead API (zero consumers outside their own unit
     // test workspace-wide; every real entry point takes `lib_q_core::KemPublicKey`, which is
-    // validated at each call site) and have been deleted (card t_f3ea6b2a). This test now
+    // validated at each call site) and have been deleted. This test now
     // asserts validate-all reports a clean pass so this gate cannot silently regress back to
     // an unearned "All security checks passed!" if the finding class returns.
     let out = bin().args(["validate-all"]).output().expect("spawn");
@@ -155,7 +155,7 @@ fn validate_all_succeeds_now_that_the_hpke_finding_is_fixed() {
 //
 // The tests above only ever observe a clean tree. None of them prove the checks can trip at
 // all — a validator that always exits 0 would pass every test above too (this is exactly the
-// t_4d2dc427 defect: "8/8 stub checks" that could never fail). These tests plant a real,
+// security-validator stub-check defect: "8/8 stub checks" that could never fail). These tests plant a real,
 // self-contained violation in a throwaway directory (independent of the ambient state of any
 // other crate in this workspace) and assert the compiled binary itself reports it.
 
@@ -202,7 +202,7 @@ fn validate_classical_passes_once_the_planted_dependency_is_removed() {
         String::from_utf8_lossy(&out.stderr)
     );
     // A green report produced under `[source-dir]` must never be mistakable for a workspace
-    // certification: the whole t_4d2dc427 defect was a tool printing "All security checks
+    // certification: the whole security-validator stub-check defect was a tool printing "All security checks
     // passed!" without having read the thing it claimed to certify.
     assert!(
         stdout.contains("does NOT certify the libQ workspace"),

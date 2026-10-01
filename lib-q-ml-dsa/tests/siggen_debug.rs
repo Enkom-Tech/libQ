@@ -5,7 +5,10 @@
 
 #![cfg(all(feature = "random", feature = "acvp"))]
 
-use lib_q_ml_dsa::*;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    *,
+};
 
 /// Test deterministic signing with fixed randomness
 #[test]
@@ -15,7 +18,7 @@ fn test_signing_with_fixed_randomness() {
     let message = b"test message for deterministic signing";
 
     // Generate keys with deterministic seed
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Sign with fixed randomness
     let rnd = [0x42; 32]; // Fixed randomness
@@ -48,7 +51,7 @@ fn test_message_representative_derivation() {
     // This test would need access to the internal derive_message_representative function
     // For now, we'll test that signing produces consistent results
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Sign the same message multiple times with same randomness
     let rnd = [0x42; 32];
@@ -67,7 +70,7 @@ fn test_message_representative_derivation() {
 fn test_rejection_sampling_consistency() {
     // Test that rejection sampling produces consistent results
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Sign with same randomness multiple times
     let rnd = [0x42; 32];
@@ -87,7 +90,7 @@ fn test_rejection_sampling_consistency() {
 #[test]
 fn test_signature_encoding_consistency() {
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let message = b"test message for signature encoding";
     let rnd = [0x42; 32];
 
@@ -117,7 +120,7 @@ fn test_cross_parameter_set_consistency() {
     let rnd = [0x42; 32];
 
     // Test ML-DSA-44
-    let keys44 = ml_dsa_44::generate_key_pair(seed);
+    let keys44 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let sig44 = ml_dsa_44::sign_internal(&keys44.signing_key, message, rnd).unwrap();
     let verify44 = ml_dsa_44::verify_internal(&keys44.verification_key, message, &sig44);
     assert!(verify44.is_ok(), "ML-DSA-44 signature must verify");
@@ -125,7 +128,7 @@ fn test_cross_parameter_set_consistency() {
     // Test ML-DSA-65 if available
     #[cfg(feature = "mldsa65")]
     {
-        let keys65 = ml_dsa_65::generate_key_pair(seed);
+        let keys65 = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig65 = ml_dsa_65::sign_internal(&keys65.signing_key, message, rnd).unwrap();
         let verify65 = ml_dsa_65::verify_internal(&keys65.verification_key, message, &sig65);
         assert!(verify65.is_ok(), "ML-DSA-65 signature must verify");
@@ -134,7 +137,7 @@ fn test_cross_parameter_set_consistency() {
     // Test ML-DSA-87 if available
     #[cfg(feature = "mldsa87")]
     {
-        let keys87 = ml_dsa_87::generate_key_pair(seed);
+        let keys87 = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig87 = ml_dsa_87::sign_internal(&keys87.signing_key, message, rnd).unwrap();
         let verify87 = ml_dsa_87::verify_internal(&keys87.verification_key, message, &sig87);
         assert!(verify87.is_ok(), "ML-DSA-87 signature must verify");
@@ -146,7 +149,7 @@ fn test_cross_parameter_set_consistency() {
 fn test_signature_generation_edge_cases() {
     // Test with empty message
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let rnd = [0x42; 32];
 
     let empty_message = b"";
@@ -167,7 +170,7 @@ fn test_signature_generation_edge_cases() {
 #[test]
 fn test_signature_generation_different_randomness() {
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let message = b"test message for different randomness";
 
     // Sign with different randomness values

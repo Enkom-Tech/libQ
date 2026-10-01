@@ -49,7 +49,7 @@ fn qprf_label_length_prefix_does_not_wrap() {
         lib_q_mac::qprf::qprf_eval(&k, &[], &cat3, 32).unwrap(),
     );
 
-    // The 257-vs-1 case the original card missed: two different non-empty labels also collided.
+    // The 257-vs-1 case the original report missed: two different non-empty labels also collided.
     let label257 = [7u8; 257];
     let label1 = [7u8; 1];
     assert_eq!(

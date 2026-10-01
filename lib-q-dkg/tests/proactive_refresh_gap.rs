@@ -1,17 +1,17 @@
-//! ENK-142 verification: the dealerless DKG has a same-committee, identity-preserving
+//! The proactive-refresh work verification: the dealerless DKG has a same-committee, identity-preserving
 //! proactive-refresh lifecycle operation ([`dkg_run_honest_refresh`], `dkg.rs`), closing the gap
 //! where a custody set compromised *slowly* -- below threshold in any single epoch, but
 //! accumulating across epochs -- could eventually reconstruct the group secret from shares that
 //! all remained valid forever.
 //!
-//! `rg` across `gip` and `libQ` for `dkg_refresh|proactive.?refresh|refresh.?share` (2026-08-30)
+//! A search of this repository and its downstream consumers for `dkg_refresh|proactive.?refresh|refresh.?share` (2026-08-30)
 //! found no such operation anywhere. The only resharing primitive that existed,
 //! [`lib_q_dkg::dkg_reshare`], is a **change-of-committee key rotation**, not a same-committee
 //! refresh: `reshare_group_key.rs` (M6a) proves, with an executed RED test, that it re-randomizes
 //! the group's public identity (the commitment `T`, byte-for-byte the
 //! `lib-q-threshold-kem-lattice` public key -- see `public_key_from_dkg`'s `t0 = B0*r`) even
 //! though it preserves the secret. Reusing `dkg_reshare` for same-committee refresh would still
-//! rotate the identity every epoch, failing ENK-142's own "FCK/identity must survive refresh" and
+//! rotate the identity every epoch, failing the proactive-refresh work's own "FCK/identity must survive refresh" and
 //! "threshold-KEM decap continues to work post-refresh" acceptance criteria.
 //!
 //! The fix landed here is [`dkg_run_honest_refresh`] (and its building blocks
@@ -98,7 +98,7 @@ fn run_ceremony_and_collect_values() -> Vec<(u8, Rq)> {
 }
 
 /// GREEN -- pins today's real, vulnerable behaviour of a committee that never runs a refresh (the
-/// ENK-142 premise, executed rather than assumed): a `t-1`-share capture in "epoch N" plus a
+/// the proactive-refresh work premise, executed rather than assumed): a `t-1`-share capture in "epoch N" plus a
 /// DISJOINT `t-1`-share capture in a later "epoch N+1" reconstructs the group secret, because
 /// nothing about any share changed between the two captures -- they are points on the very same
 /// never-refreshed polynomial. Cross-checked against two different `t`-subsets of the pooled union
@@ -140,7 +140,7 @@ fn cross_epoch_share_union_reconstructs_without_refresh() {
         centered_coeffs(&via_subset_a),
         centered_coeffs(&ground_truth),
         "epoch-N union epoch-(N+1) reconstructs the TRUE group secret on an un-refreshed \
-         committee -- this IS the ENK-142 gap, observed rather than assumed"
+         committee -- this IS the proactive-refresh gap, observed rather than assumed"
     );
     assert_eq!(
         centered_coeffs(&via_subset_b),
@@ -150,7 +150,7 @@ fn cross_epoch_share_union_reconstructs_without_refresh() {
     );
 }
 
-/// Positive control named explicitly in ENK-142's acceptance: "an honest quorum within one epoch
+/// Positive control named explicitly in the proactive-refresh work's acceptance: "an honest quorum within one epoch
 /// still can [reconstruct]". Pinned so the refresh test below has an explicit, executed contrast
 /// rather than an implicit assumption that Shamir/Feldman reconstruction works at all.
 #[test]
@@ -165,7 +165,7 @@ fn honest_quorum_within_one_epoch_reconstructs() {
     );
 }
 
-/// THE TARGET (ENK-142's actual acceptance criterion) -- GREEN: a same-committee,
+/// THE TARGET (the proactive-refresh work's actual acceptance criterion) -- GREEN: a same-committee,
 /// identity-preserving proactive refresh ([`dkg_run_honest_refresh`]) runs on the LIVE committee
 /// between the two capture windows (no committee change, no custody outage -- it is just another
 /// DKG-shaped round over the existing mesh). Epoch-N shares are therefore points on a DIFFERENT

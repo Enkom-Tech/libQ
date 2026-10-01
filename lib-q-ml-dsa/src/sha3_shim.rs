@@ -555,7 +555,7 @@ pub mod neon {
             /// Uses portable implementation wrapped for x2 interface.
             ///
             /// There is deliberately no `KeccakStateX2::new()` / generic `init()` that defaults to
-            /// one variant: card t_26d3b638 was exactly that defect -- a defaultable constructor
+            /// one variant: the aarch64 NEON defect sweep was exactly that defect -- a defaultable constructor
             /// unconditionally built `Shake128`-variant inner states, so the `Shake256x4` keygen path
             /// (`hash_functions.rs::neon::init_absorb_x4`, driving
             /// `sample.rs::sample_four_error_ring_elements` for ML-DSA s1/s2 sampling) absorbed into a

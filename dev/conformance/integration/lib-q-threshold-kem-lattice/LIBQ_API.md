@@ -13,8 +13,7 @@ consumer-protocol references. It is the KEM analogue of
   **explicit-rejection Fujisaki–Okamoto transform (FO⊥)**: encryption of the fresh 256-bit message
   `μ` is fully derandomized from `XOF(pk, μ)` with integer-only sampling, decapsulation re-encrypts
   the decoded message and rejects any mismatch, and the shared secret is `K = KDF(pk, μ, ct)`.
-- **Why this and not ML-KEM Shamir:** the withdrawn `lib-q-threshold-kem` (deleted in 0.0.10, board
-  card t_8ca3fd06) GF(256)-Shamir-shared an encoded ML-KEM decapsulation key — a **non-linear**
+- **Why this and not ML-KEM Shamir:** the withdrawn `lib-q-threshold-kem` (deleted in 0.0.10) GF(256)-Shamir-shared an encoded ML-KEM decapsulation key — a **non-linear**
   encoding that no linear VSS (and hence no dealerless DKG) can produce; that non-linearity is why
   its `partial_decap` could only return the raw share instead of a real partial decapsulation,
   disclosing the full key to any `t` colluding parties. Dual-Regev decryption is the **linear** map

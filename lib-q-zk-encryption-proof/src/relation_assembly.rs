@@ -30,7 +30,7 @@
 //! prover-supplied. The witness contributes only the coefficient columns `e`, `f`, `g` and `μ`, each
 //! pinned by the byte-provenance layer's COEFF buses. **There is no quotient and no free fold.**
 //!
-//! ## What this replaced, and why (card `t_a73aaed2`)
+//! ## What this replaced, and why
 //! The superseded design lifted each ring identity to `Z_q[X]`, wrote `D(X) = H(X)·(X^N+1)`, and
 //! evaluated at a scalar Fiat-Shamir point `ζ`. Evaluation-at-`ζ` is a ring homomorphism on
 //! `Z_q[X]/(X^N+1)` only when `ζ^N = −1`, so the reduction had to be witnessed by the quotient `H` —
@@ -61,7 +61,7 @@ use lib_q_sha3::{
 
 use crate::zq::Q;
 
-/// Domain separator for the `κ` random-linear-functional challenge vectors (card `t_a73aaed2`).
+/// Domain separator for the `κ` random-linear-functional challenge vectors.
 pub const DOM_KAPPA: &[u8] = b"lib-q-zk-encryption-proof/r3-kappa/v1";
 
 /// Domain separator for the `ρ` relation-batching scalars. **Must** differ from [`DOM_KAPPA`]: the
@@ -132,7 +132,7 @@ fn statement_bytes(pk_digest: &[u8; 32], ct_bytes: &[u8]) -> Vec<u8> {
 /// The **negacyclic correlation** `ψ_b = Σ_a u_a · s(a,b) · κ_{(a+b) mod n}`, with the negacyclic sign
 /// `s(a,b) = +1` when `a+b < n` and `−1` otherwise.
 ///
-/// This is the whole of the soundness fix for card `t_a73aaed2`, so it is worth stating why.
+/// This is the whole of the soundness fix for the R3-relation soundness fix, so it is worth stating why.
 /// Evaluating a `Z_q[X]/(X^N+1)` identity at a point `ζ` is a ring homomorphism **only** when
 /// `ζ^N = −1`; for a generic `ζ` the reduction has to be witnessed by a quotient polynomial `H`, and
 /// `H` is a free prover-chosen trace committed *after* `ζ` is fixed by the statement — so the prover

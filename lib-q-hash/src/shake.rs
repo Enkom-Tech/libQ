@@ -150,7 +150,7 @@ impl_shake!(Shake256, Shake256Reader, U136, "SHAKE256");
 // `digest::CollisionResistance` is documented as "Collision resistance in BYTES ... applies to
 // an output size of at least `2 * CollisionResistance` bytes" (digest 0.11.3, src/lib.rs:230).
 // These previously carried U168 and U136 — the SHAKE sponge *rates*, copied from the
-// `impl_shake!` lines above — which overstated both by roughly 10x. See card `t_c6851177`.
+// `impl_shake!` lines above — which overstated both by roughly 10x. See the SHAKE security-claim correction.
 //
 // FIPS 202 Table 4 caps SHAKE128 collision resistance at 128 bits and SHAKE256 at 256 bits, so
 // the byte counts are 16 and 32. Every other `CollisionResistance` impl in this workspace and

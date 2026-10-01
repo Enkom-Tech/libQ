@@ -129,7 +129,7 @@ fn main() -> Result<()> {
 
 - `aead` - Authenticated encryption (default)
 - `aead-short` — **Saturnin-Short** (spec section 2.3): single `Saturnin^6` block over `pad(nonce ‖ plaintext)`; fixed 32-byte ciphertext, no associated data, plaintext strictly under 128 bits. This is not CTR-Cascade (`aead`). Supports the update note's **shorter-nonce tweak** via `SaturninShortAead::with_nonce_len` (a shorter nonce frees room for longer plaintext: max plaintext = `31 - nonce_len` bytes).
-- `qcb` — **Saturnin-QCB** (default): one-pass, parallelizable TBC-based AEAD from the update note. Exposes `SaturninQcb` and the reusable tweakable block cipher `SaturninTbc`. See the caveat above.
+- `qcb` — **Saturnin-QCB** (**opt-in since `fe64036`**; not a default feature): one-pass, parallelizable TBC-based AEAD from the update note. Exposes `SaturninQcb` and the reusable tweakable block cipher `SaturninTbc`. See the caveat above. **Not silicon-approved** — the related-key assumption it needs is unconfirmed (`docs/HARDWARE.md` §6).
 - `block-cipher` - Block cipher operations
 - `hash` - Hash function
 - `stream` - Stream cipher
@@ -255,7 +255,7 @@ Typical throughput on modern hardware:
 - Block cipher: ~150-300 MB/s
 - Stream cipher: ~250-450 MB/s
 
-### `SaturninQcb`'s CTX overhead (card `t_16ddf21c`)
+### `SaturninQcb`'s CTX overhead
 
 The CTX committing transform (see the Key commitment section below) adds a fixed number of
 Saturnin permutation calls per message — asymptotically free, but a real cost on small messages,
@@ -285,7 +285,7 @@ The AD-sweep growth is structural, not a measurement artefact: CTX hashes the as
 **second** time (once in QCB's own AD pass, once again inside the CTX tag), so it is the one part
 of this transform's cost that is not O(1) in the associated-data length.
 
-Do **not** reach for the "cheap CMT-1-only variant" that earlier notes on card `t_16ddf21c`
+Do **not** reach for the "cheap CMT-1-only variant" that earlier notes on the Saturnin key-commitment fix
 suggested this motivates. The obvious construction — one extra tweakable-Davies–Meyer Saturnin
 call for short AD — is refuted twice over: Saturnin's TBC is `Saturnin16^d_{K ⊕ T}`, so one call
 absorbs at most 512 bits while the hash input needs 80 bytes before any AD; and the `K ⊕ T`
@@ -433,7 +433,7 @@ Sources: `lib-q-saturnin/src/commit.rs`, `lib-q-saturnin/src/aead_ctx.rs`,
 `lib-q-saturnin/tests/key_commitment.rs`, `lib-q-saturnin/tests/qcb_ctx_spec.rs`,
 `lib-q-saturnin/tests/aead_kat_pin.rs`, `lib-q-saturnin/tests/cascade_ctx_spec.rs`,
 `lib-q-saturnin/src/aead_short.rs` (`key_commitment_tests`), `lib-q-aead/tests/key_commitment.rs`.
-Card `t_16ddf21c`.
+The Saturnin key-commitment fix.
 
 ### Nonce extension (XChaCha-style) — evaluated and deliberately not pursued
 

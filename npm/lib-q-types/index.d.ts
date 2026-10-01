@@ -130,5 +130,5 @@ export interface BlindPcsOpenResult {
 }
 
 // `@lib-q/fhe` and `@lib-q/threshold-kem` type shapes were removed here when both crates were
-// withdrawn and deleted from the workspace in 0.0.10 (board cards t_2a349708, t_8ca3fd06). See
+// withdrawn and deleted from the workspace in 0.0.10. See
 // CHANGELOG.md and docs/npm-coverage.md#removed-crates.

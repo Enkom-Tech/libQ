@@ -5,8 +5,8 @@
 // during cross-compilation (it reflects the build script's own HOST compile), so the
 // env vars are the only correct way to ask "what is this build actually targeting".
 
-//! Build-time signal for the constant-time AES-backend wiring (finding F4 / card
-//! t_3d6e8d50): the scalar AES round in `src/round.rs` is a table-based S-box and is
+//! Build-time signal for the constant-time AES-backend wiring (finding F4 /
+//! the Rocca-S AES S-box fix): the scalar AES round in `src/round.rs` is a table-based S-box and is
 //! NOT constant-time; the `simd-aesni`/`simd-neon` backends are, but both require
 //! `std` (they use `is_x86_feature_detected!` / `std::arch::is_aarch64_feature_detected!`).
 //!
@@ -59,7 +59,7 @@ fn main() {
              `default` feature set includes `simd`; a consumer depending on it with \
              `default-features = false` and not re-adding `simd` will run the scalar, \
              table-based AES S-box, which is NOT constant-time (see src/round.rs, finding F4 / \
-             card t_3d6e8d50)."
+             the Rocca-S AES S-box fix)."
         );
     }
 }

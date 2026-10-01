@@ -3,7 +3,7 @@
 //!
 //! These tests prove the CODE SHAPE — that a mismatch anywhere in the 32-byte commitment,
 //! including the last byte, is rejected — NOT the timing itself. Timing is not observable from a
-//! unit test, and this repo explicitly rejects wall-clock timing tests (card t_043571b4). The
+//! unit test, and this repo explicitly rejects wall-clock timing tests. The
 //! property that actually breaks under a short-circuiting comparator is "rejects at every byte
 //! position"; that is what is pinned here, using the same methodology as lib-q-mac et al.
 //! (commit f756fbc) and lib-q-blind-token's `unblind()` pin in this same tranche.

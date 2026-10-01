@@ -6,7 +6,7 @@
 # match the file's current content; an entry whose `origin` is not "upstream" may not sit at a
 # path or carry a filename containing "official", "nist", or "rfc" (case-insensitive); and the
 # file's own leading `#`-comment header must say what the manifest says. That combination is the
-# fix for card t_71d4f79a: lib-q-hqc shipped a KAT tree at `kats/official/` whose every response
+# fix for the KAT-provenance audit: lib-q-hqc shipped a KAT tree at `kats/official/` whose every response
 # value was written by the code under test, and nothing before this manifest could tell a reader
 # that from the file, the tree name, or a CI check.
 #
@@ -19,7 +19,7 @@
 #                        template) but not independently re-verified against a pinned upstream
 #                        URL/hash this session. Requires `source`.
 #
-# Rollout scope, updated 2026-08-06 (card t_71d4f79a, lane e-kat-provenance, second pass): the
+# Rollout scope, updated 2026-08-06 (KAT-provenance audit, second pass): the
 # original rollout covered lib-q-hqc only. This pass investigated the two other KAT-shaped trees
 # named in that original comment and registers both:
 #
@@ -44,13 +44,13 @@
 # in ci_guard_kat_provenance.py encodes an explicit, narrow exemption for exactly this case --
 # read that check's comment for why it cannot be claimed by a non-upstream entry.
 #
-# HOW A FILE THAT CANNOT CARRY A HEADER GETS REGISTERED (new 2026-08-07, card t_71d4f79a).
+# HOW A FILE THAT CANNOT CARRY A HEADER GETS REGISTERED (new 2026-08-07).
 # CHECK 5's header rule is satisfiable only by formats where a leading `#` line is a comment. JSON
 # has no comment syntax and binary containers have none either, so before this pass a SELF-GENERATED
 # non-text KAT file could not be registered AT ALL -- the guard could never pass for it. That was a
 # structural gap, not a judgement call, and it was why ~31 KAT-shaped files in this repo sat outside
 # the guard. It is now closed by a SIDECAR rather than by widening the upstream exemption (widening
-# it is what a reviewer previously caught as exploitable on this card): a file whose format cannot
+# it is what a reviewer previously caught as exploitable in this audit): a file whose format cannot
 # carry a `#` header must instead be named, with its origin and a real description, in a
 # PROVENANCE.md in its own directory or an ancestor up to its scan root -- machine-checked in both
 # directions, so an unlisted file fails and a stale line fails. The upstream byte-identity exemption
@@ -64,7 +64,7 @@
 # it exists to catch, just moved one level up.
 
 [scan]
-# 2026-08-09 (card t_71d4f79a / t_f0d676d1, "unregistered majority" pass): a repo-wide sweep found
+# 2026-08-09 ("unregistered majority" pass): a repo-wide sweep found
 # 96 tracked files matching the [scan] extensions, of which only 29 were registered -- the
 # unregistered majority included the best corpora in the repo (ML-KEM ACVP, SLH-DSA ACVP, ML-DSA
 # Wycheproof). This pass investigated and registered ALL of them. New roots added (parent dirs
@@ -80,14 +80,14 @@
 # See scratchpad/audit-triage/fix-kat-registration.md for the full per-corpus investigation notes.
 #
 #
-# 2026-08-09 (card t_09d6f186): `lib-q-aead/tests/vectors` added for the new Saturnin-SIV mode.
+# 2026-08-09: `lib-q-aead/tests/vectors` added for the new Saturnin-SIV mode.
 # Saturnin-SIV is ASSEMBLED IN THIS REPOSITORY (Saturnin-CTR + KMAC256 in the Rogaway-Shrimpton
 # SIV arrangement), so there is no upstream reference implementation and no external vector set
 # that could exist for it. Its vectors are therefore `origin = "self-generated"` -- a regression
 # pin on this crate's own output and NOT conformance evidence -- and both the file's own header
 # and the generating test say exactly that.
 #
-# 2026-08-09 (card t_71d4f79a, FN-DSA half): `lib-q-fn-dsa/fn-dsa/tests/kats` added. The crate had
+# 2026-08-09 (FN-DSA half): `lib-q-fn-dsa/fn-dsa/tests/kats` added. The crate had
 # 90+90 inline KAT digests in `fn-dsa/src/lib.rs` whose comment attributed their divergence from
 # upstream `fn-dsa` 0.3.0 to "compiler optimization differences" -- i.e. self-generated values with
 # a benign-sounding label, on a fully seed-deterministic construction where no such excuse exists.
@@ -123,7 +123,7 @@ exclude = ["lib-q-ml-dsa/tests/kats/requirements.txt"]
 # lib-q-threshold-kem-lattice 4, lib-q-ml-dsa/tests/test_vectors 1, lib-q-ml-dsa/tests/wycheproof 6)
 # are NOT yet registered and adding their roots here before establishing each file's origin would
 # just convert an unknown into a wall of CHECK 2 failures. The lib-q-ml-dsa/tests/kats 12 that this
-# line used to count are now all registered below. See card t_71d4f79a; in particular, do NOT
+# line used to count are now all registered below. See the KAT-provenance audit; in particular, do NOT
 # register the .blb files on a filename match with RustCrypto -- 9 of them share a name with
 # github.com/RustCrypto/hashes and NONE matches its bytes, and that is unexplained.
 # A file is in scope if its extension (case-insensitive, without the dot) is one of these...
@@ -145,7 +145,7 @@ exclude = ["lib-q-ml-dsa/tests/kats/requirements.txt"]
 # each needing its own provenance pass before being swept in.
 extensions = ["rsp", "req", "kat", "txt", "json", "blb"]
 # ...or its filename (case-insensitive) ends with one of these suffixes.
-# "intermediates_values" added 2026-08-09 (card t_71d4f79a, HQC half). Upstream HQC ships its
+# "intermediates_values" added 2026-08-09 (HQC half). Upstream HQC ships its
 # reference intermediate-value dumps with NO file extension at all, so no `extensions` entry could
 # ever reach them and they would sit outside the guard entirely -- and a [[kat]] entry alone does
 # not help, because CHECK 2 rejects any manifest entry for a file discovery did not find (it reads
@@ -165,7 +165,7 @@ filename_suffixes = ["_kat.txt", "intermediates_values"]
 # The driver was validated BEFORE the fixtures were trusted: its digests reproduce upstream's own
 # published `KAT: [[&str; 10]; 9]` constant array 90/90 in BOTH feature configurations. So these
 # are upstream's published answers at byte granularity -- categorically not this repository's
-# output relabelled (which is the exact defect this card exists to fix).
+# output relabelled (which is the exact defect this audit exists to fix).
 # Consumed byte-for-byte by lib-q-fn-dsa/fn-dsa/tests/upstream_oracle_kat.rs.
 
 [[kat]]
@@ -186,7 +186,7 @@ origin = "self-generated"
 sha256 = "e6fb4dc01ea8c82cb20da71958711c558776c07ca2ca007277eec70ab9cc9678"
 
 # --- lib-q-hqc/kats/reference-intermediates/ -- genuine upstream HQC reference vectors ---------
-# 2026-08-09 (card t_71d4f79a, HQC half). These three files are the FIRST external conformance
+# 2026-08-09 (HQC half). These three files are the FIRST external conformance
 # evidence lib-q-hqc has ever had; everything previously under `lib-q-hqc/kats` is a self-generated
 # regression pin. They are verbatim copies of upstream's own `kats/ref/hqc-N/intermediates_values`,
 # and were REPRODUCED from a local source build of that exact revision before being trusted (see
@@ -206,7 +206,7 @@ sha256 = "e6fb4dc01ea8c82cb20da71958711c558776c07ca2ca007277eec70ab9cc9678"
 # This registration also records the finding these vectors produced: at HQC-128 lib-q-hqc is
 # byte-exact against them (public key, ciphertext, shared secret). HQC-192/256 keygen was RED
 # because `Hqc3Params::OMEGA`/`Hqc5Params::OMEGA` were 103/134 against upstream `PARAM_OMEGA`
-# 100/131 (and `Hqc3Params::OMEGA_R` was 115 vs upstream 114) -- FIXED 2026-08-09 (card t_71d4f79a):
+# 100/131 (and `Hqc3Params::OMEGA_R` was 115 vs upstream 114) -- FIXED 2026-08-09:
 # lib-q-hqc is now byte-exact against these oracles at all three security levels. See
 # lib-q-hqc/tests/reference_intermediates_kat.rs (all 8 tests green, none `#[ignore]`d).
 
@@ -253,10 +253,10 @@ sha256 = "4828bba307d9e11630639be995b31c5c85ae9644cdab9881a51175c029953c58"
 path = "lib-q-hqc/kats/regression-pins/hqc-3/PQCkemKAT_4602_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-# Regenerated 2026-08-09 (card t_71d4f79a): the prior file was self-generated under the wrong
+# Regenerated 2026-08-09: the prior file was self-generated under the wrong
 # Hqc3Params::OMEGA/OMEGA_R (103/115); now regenerated under the corrected HQC v5.0.0 values
 # (100/114). This is still this crate's own output, not an external oracle.
-# Regenerated again 2026-08-10 (card t_d2ee7042): `m` and `sigma` are now PARAM_SECURITY_BYTES =
+# Regenerated again 2026-08-10: `m` and `sigma` are now PARAM_SECURITY_BYTES =
 # 24 at this level instead of a hardwired 16, so `sk`, `ct` and `ss` all change. HQC-128's pin is
 # byte-identical across the same change, which is the evidence that it was a no-op at level 1.
 sha256 = "cd57550880f35171ae55c9998c976b9c063646d08ebdd7ff673099b7acc4c9b1"
@@ -271,10 +271,10 @@ sha256 = "4828bba307d9e11630639be995b31c5c85ae9644cdab9881a51175c029953c58"
 path = "lib-q-hqc/kats/regression-pins/hqc-5/PQCkemKAT_7333_regression_pin.rsp"
 origin = "self-generated"
 generator = "lib-q-hqc tests/nist_kem_kat.rs::write_regression_pin_rsp_file (test regenerate_regression_pin_rsp_files, --ignored, maintainer-only)"
-# Regenerated 2026-08-09 (card t_71d4f79a): the prior file was self-generated under the wrong
+# Regenerated 2026-08-09: the prior file was self-generated under the wrong
 # Hqc5Params::OMEGA (134); now regenerated under the corrected HQC v5.0.0 value (131). This is
 # still this crate's own output, not an external oracle.
-# Regenerated again 2026-08-10 (card t_d2ee7042): `m` and `sigma` are now PARAM_SECURITY_BYTES =
+# Regenerated again 2026-08-10: `m` and `sigma` are now PARAM_SECURITY_BYTES =
 # 32 at this level instead of a hardwired 16, so `sk`, `ct` and `ss` all change.
 sha256 = "9b5ea6dfe0a28ff77f9be6ec8fd72c843df6d7b724a5280dc33a2014246fc651"
 
@@ -322,7 +322,7 @@ sha256 = "c5d45e76325766f330070434cc24fb6ca7bab151df9707f2327247806acc7e52"
 # --- lib-q-mayo/tests/kats/ -- MAYO team's own reference-implementation KAT file --------------
 # Verified 2026-08-06 by fetching the live upstream file from github.com/PQCMayo/MAYO-C and
 # hashing it directly; also byte-identical to the repo's own gitignored reference/MAYO/MAYO-C-main
-# copy (reference/MAYO/SOURCES.md: vendored 2026-07-15, card t_02643c8d). No CRLF in either copy.
+# copy (reference/MAYO/SOURCES.md: vendored 2026-07-15). No CRLF in either copy.
 
 [[kat]]
 path = "lib-q-mayo/tests/kats/PQCsignKAT_24_MAYO_2.rsp"
@@ -502,7 +502,7 @@ upstream_sha256 = "5300d607dd885dddc6b0c52e7746ca458199c34cf81fdce8b711f5b0162e7
 sha256 = "5300d607dd885dddc6b0c52e7746ca458199c34cf81fdce8b711f5b0162e7942"
 
 # --- lib-q-cb-kem/data/kat/cbkem348864.rsp -- Classic McEliece designers' own reference C ------
-# Registered 2026-08-09 (card t_71d4f79a, "Classic McEliece half"). This is NOT a downloaded
+# Registered 2026-08-09 ("Classic McEliece half"). This is NOT a downloaded
 # pre-existing file (no such file exists: NIST/the classic.mceliece.org submission package ships
 # only the PQCgenKAT_kem-equivalent GENERATOR source, `Reference_Implementation/kem/<variant>/
 # nist/kat_kem.c` + `nist/rng.c`, not precomputed `.rsp` answer files, for any of its 10
@@ -533,7 +533,7 @@ source = "Generated 2026-08-09 by building and running the Classic McEliece desi
 sha256 = "7fd5c689171d7c2ca753dbd6a90488fcc97df45b0d756b2b77f17c843a72f1e9"
 
 # --- lib-q-sha3/tests/data/turboshake/ -- RFC 9861 TurboSHAKE128/256 vectors, via RustCrypto ----
-# Registered 2026-08-09 (card t_71d4f79a / t_f0d676d1). TurboSHAKE128/256 had NO known-answer
+# Registered 2026-08-09. TurboSHAKE128/256 had NO known-answer
 # vectors at all -- only property tests, with a comment arguing that was "more robust than
 # hardcoded test vectors", the wrong call for a standardized primitive since a property test cannot
 # detect divergence from the standard. RFC 9861 ("KangarooTwelve and TurboSHAKE") was fetched
@@ -584,7 +584,7 @@ upstream_sha256 = "358249455ae45d148f6e9af3d3afa64974360366bffb6b64aa24280ca4933
 sha256 = "358249455ae45d148f6e9af3d3afa64974360366bffb6b64aa24280ca49337e5"
 
 # --- lib-q-ml-kem/tests/*.json -- genuine NIST ACVP vectors -----------------------------------
-# Registered 2026-08-09 (card t_71d4f79a / t_f0d676d1). Verified by LIVE DOWNLOAD against
+# Registered 2026-08-09. Verified by LIVE DOWNLOAD against
 # github.com/usnistgov/ACVP-Server at tag v1.1.0.36 (same tag as the ml-dsa ACVP entries above) --
 # byte-for-byte identical. Sidecar: lib-q-ml-kem/tests/PROVENANCE.md.
 
@@ -961,7 +961,7 @@ upstream_url = "https://raw.githubusercontent.com/RustCrypto/hashes/sha3-v0.12.0
 upstream_sha256 = "81066e66b59e94d912648ab10c67c9d617bf978b1af3379435c33dec5dd1ff68"
 sha256 = "81066e66b59e94d912648ab10c67c9d617bf978b1af3379435c33dec5dd1ff68"
 
-# --- lib-q-aead/tests/vectors -- Saturnin-SIV regression pin (card t_09d6f186) ----------------
+# --- lib-q-aead/tests/vectors -- Saturnin-SIV regression pin ----------------
 # Self-generated by the code under test; see the file's own header for the full statement.
 
 [[kat]]
@@ -970,7 +970,7 @@ origin = "self-generated"
 generator = "lib-q-aead/tests/saturnin_siv_kat.rs::regenerate_vectors -- cargo test -p lib-q-aead --features saturnin-siv --test saturnin_siv_kat -- --ignored --nocapture regenerate_vectors"
 sha256 = "add33d6de382ec49d5e607dc8218992b9ed1e7988d09e257d2817eef79ca11c3"
 
-# --- lib-q-maul/tests/vectors -- Maul double-KEM wire-format pin (card t_5bc0f630) -----------
+# --- lib-q-maul/tests/vectors -- Maul double-KEM wire-format pin -----------
 # Self-generated by the code under test. ePrint 2025/1755 publishes no test vectors and there is
 # no reference implementation of Maul to compare against -- the authors' published artefact
 # (https://github.com/tlegavre/dake_estimator) is a parameter/size estimator, not an

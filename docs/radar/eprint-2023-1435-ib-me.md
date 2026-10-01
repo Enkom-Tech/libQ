@@ -1,7 +1,7 @@
 # IB-ME with enhanced CCA privacy (ePrint 2023/1435) — radar disposition
 
 Status: **radar / out of scope — not adopted.** This note dispositions IACR ePrint
-2023/1435 for the `iacr-radar` import (board card `ENK-459`). It is a triage record, not a
+2023/1435 for the `iacr-radar` import. It is a triage record, not a
 finding against any shipped primitive: the paper describes constructions that `lib-q` does
 **not** implement and, for its concrete scheme, cannot implement without contradicting the
 workspace threat model.
@@ -29,9 +29,9 @@ independent reasons:
    can break classical public-key schemes (RSA, ECC, and similar)"* — so adopting it would
    regress, not extend, the library's stated guarantee.
 
-Either reason alone is dispositive. Recorded here so the card is closed on a documented
-rationale rather than silently dropped, matching how the other `iacr-radar` cards
-(`ENK-457`, `ENK-458`, `ENK-541`, `ENK-542`) were folded into the tree.
+Either reason alone is dispositive. Recorded here so the triage is closed on a documented
+rationale rather than silently dropped, matching how the other `iacr-radar`
+triages were folded into the tree.
 
 ## What the paper actually contains (from the abstract)
 
@@ -89,8 +89,8 @@ is proposed here.
   only lattice/STARK math and unrelated hits, no elliptic-curve pairing code.
 - [`docs/security.md`](../security.md) threat model states quantum adversaries break classical
   public-key schemes (item 1 / "Adversary Capabilities").
-- The paper's title, authors, category, and abstract are quoted from the `ENK-459` card
-  (which reproduces the ePrint 2023/1435 abstract verbatim).
+- The paper's title, authors, category, and abstract are quoted from the radar import,
+  which reproduces the ePrint 2023/1435 abstract verbatim.
 
 **Inferred (reasoned, not machine-checked):**
 
@@ -102,5 +102,5 @@ is proposed here.
 
 **Could not verify (environment):** the microVM has no outbound network (git proxy only), so
 the full PDF of 2023/1435 was not fetched; all paper-specific claims above rest on the
-abstract as reproduced on the card. Nothing in this note depends on details beyond the
+abstract as reproduced in the radar import. Nothing in this note depends on details beyond the
 abstract.

@@ -153,7 +153,7 @@ without `e`, the encryptor's secret. `lib-q-mve` proves ML-KEM single-`K` multi-
 — a **different statement** over a **different field** — and does not certify knowledge of `μ` here.)*
 
 *External validation:* eprint 2025/1665 (Brzuska–Klooß–Woo) documents the identical class of gap for
-TPKE in general (their footnote 11, §4). See §9.
+TPKE in general (their footnote 11, with details in §4). See §9.
 
 ---
 
@@ -242,14 +242,14 @@ A's "argued not proven" claim into a cited construction. See §9.
 
 ---
 
-## 9. Related literature (external validation — ENK-1321)
+## 9. Related literature (external validation)
 
 Brzuska, Klooß, and Woo, "Threshold Public-Key Encryption: Definitions, Relations, and CPA-to-CCA
-Transforms" (Cryptology ePrint Archive, Report 2025/1665, https://eprint.iacr.org/2025/1665;
-CRYPTO'25/TCC'25), independently documents, for TPKE in general, the same class of gap this document
+Transforms" ([Cryptology ePrint Archive, Report 2025/1665](https://eprint.iacr.org/2025/1665)),
+independently documents, for TPKE in general, the same class of gap this document
 derives concretely for dual-Regev in §4.2–§4.3.
 
-- **Matches §4.2.** Their footnote 11 (§4, immediately before Definition 7): *"The gap in [FP01,
+- **Matches §4.2.** Their footnote 11 (§1.2, referring to §4): *"The gap in [FP01,
   Theorem 1] is, at a high level, that the Naor–Yung transform requires perfect correctness, but the
   natural analogue is not enough for TPKE when partial decryption queries are admitted."* This is the
   general-TPKE statement of the failure mode §4.2 derives concretely here: a ciphertext
@@ -262,32 +262,35 @@ derives concretely for dual-Regev in §4.2–§4.3.
   7) is sound — this crate's dual-Regev TPKE has not been shown semi-malicious-CPA-secure, so Theorem
   7's route does not apply here without further work, consistent with §4.2's finding.
 
-- **Candidate closure for §4.3 / closure A (§5, §7).** Their second transform (Theorem 10, their
-  Section 5) instead attaches a **non-interactive proof of randomness (NIPoR)** (their Definitions 8–9,
-  Sections 5.1–5.2): a proof that a public value `y = f(m; r)` was produced by evaluating a function `f`
-  on secret `m` under fresh, honestly-sampled `r`. Instantiated with `f := Enc(pk, ·; ·)`, a NIPoR is
-  exactly a proof of *knowledge of the plaintext under honest, pseudorandom encryption* — the §4.3
-  minimal-sufficient statement this document derives independently for dual-Regev (knowledge of `μ`
-  such that `(e,f,g) = XOF(pk‖μ)` and `p = B0ᵀe+f`). Their Theorem 10 shows plain CPA-security of the
-  base TPKE suffices for this route (SIM-CPA/IND-CPA ⇒ SIM-CCA/IND-CCA in the ROM) — it does **not**
-  require the semi-malicious strengthening Theorem 7 needs.
+- **Candidate closure for §4.3 / closure A (§5, §7).** Their Section 5 introduces a
+  **non-interactive proof of randomness (NIPoR)** (Definitions 8–9): a proof that a public value
+  `y = f(m; r)` was produced from a secret input under honestly sampled randomness, formalized
+  through a programmable random oracle. Freshness is in that formal sense; §5.1 explicitly allows
+  a malicious prover to select among polynomially many random strings. This is stronger than
+  merely proving knowledge of some coins satisfying an encryption relation.
 
-  libQ's `lib-q-zk-encryption-proof`'s `encryption_proof::assemble_full_provenance_prover/_verifier`
-  (closure A, §5 row A) — the SHAKE-in-STARK PoK of `μ` — is structurally a NIPoR applied to the
-  dual-Regev encryption function `Enc(pk, μ; XOF(pk‖μ))`, in the sense of their Definition 8 (a proof
-  that a public value was produced from a secret input under fresh pseudorandom coins). §7 currently
-  records closure A as "argued not proven." [CLW25] (Cini–Lai–Woo, ASIACRYPT 2025 — cited in this same
-  eprint) already uses this paper's NIPoR result to upgrade a *lattice-based* TPKE from CPA to CCA, so
-  the technique is not merely abstract. eprint 2025/1665's Theorem 9 (NIPoR construction) + Theorem 10
-  (CPA-to-CCA transform) is therefore a concrete, citable formal target for turning closure A into a
-  proven construction: mapping libQ's SHAKE-in-STARK circuit onto their NIPoR syntax
-  (Setup/Prove/Verify with a straightline-extractable commitment + SIMEXT NIZK, their Fig. 10) and
-  checking it against their (weak) simulation-extractability definition (their Definition 9) would let
-  closure A cite Theorem 10 instead of resting on an ad hoc "argued not proven" claim.
+  Closure A — `lib-q-zk-encryption-proof`'s
+  `encryption_proof::assemble_full_provenance_prover/_verifier`, the SHAKE-in-STARK PoK of `μ` —
+  has the same structural aim: bind the dual-Regev ciphertext to the encryptor's pseudorandom
+  computation rather than just bounded errors. This motivates a **candidate NIPoR interpretation**,
+  not an established instantiation of Definition 8 or its security properties.
+
+  Theorem 10 (§5.3, Fig. 11) gives the candidate formal target: it upgrades the paper's
+  SIM-CPA/IND-CPA notions to SIM-CCA/IND-CCA in the ROM, without Theorem 7's semi-malicious
+  strengthening. Its hypotheses include a hiding, straightline-extractable binding commitment
+  and a **SIMEXT NIPoR with a stateless tag-only extractor**; weak SIMEXT alone is not the stated
+  hypothesis. Theorem 9 (§5.2, Fig. 10) supplies a candidate NIPoR construction from commitments
+  and NIZKs with the specified extraction properties.
+
+  For human-cryptographer sign-off, map the SHAKE-derived coins, ciphertext relation, and proof
+  gate to that syntax and establish those security properties, as well as the underlying TPKE's
+  CPA security in the paper's model (including partial-decryption queries and revealed randomness
+  for non-challenge encryptions). Only after establishing the hypotheses and the correspondence
+  to the transform could Theorem 10 support §7's currently "argued not proven" claim.
 
 - **Status of this note.** This is external validation and a candidate proof route, **not** a proof:
   nobody has yet checked that libQ's specific SHAKE-in-STARK circuit satisfies their NIPoR syntax or
-  their (weak) SIMEXT security definition. It is a concrete input for the pending human-cryptographer
+  the SIMEXT and extraction requirements of Theorem 10. It is a concrete input for the pending human-cryptographer
   sign-off on §7's conditional threshold IND-CCA statement (§8 item 4), not a resolution of it. No
   crate, parameter, wire format, or public API is touched by this note.
 

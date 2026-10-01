@@ -254,11 +254,12 @@ mod privacy_smoke {
 
 #[cfg(all(test, feature = "mldsa"))]
 mod mldsa_smoke {
+    use lib_q_ml_dsa::Zeroizing;
     use lib_q_ml_dsa::ml_dsa_44::portable;
 
     #[test]
     fn sign_verify_smoke() {
-        let kp = portable::generate_key_pair([0xA5u8; 32]);
+        let kp = portable::generate_key_pair_from_seed(&Zeroizing::new([0xA5u8; 32]));
         let msg = b"sca-test smoke";
         let sig = portable::sign(&kp.signing_key, msg, b"", [0x3Cu8; 32]).expect("sign");
         portable::verify(&kp.verification_key, msg, b"", &sig).expect("verify");

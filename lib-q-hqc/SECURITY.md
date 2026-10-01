@@ -26,13 +26,13 @@ and mirrored in `params`:
 | HQC-192 | 56 | 640 | 100 | 16 | 4514 | 8978 |
 | HQC-256 | 90 | 640 | 131 | 29 | 7237 | 14421 |
 
-The `OMEGA` column above was fixed 2026-08-09 (card `t_71d4f79a`) from 103/134 (HQC-192/256) to the
+The `OMEGA` column above was fixed 2026-08-09 from 103/134 (HQC-192/256) to the
 v5.0.0 reference's 100/131 (`Hqc3Params::OMEGA_R` was also fixed from 115 to the reference's 114);
 those wrong values gave the secret support `(x, y)` the wrong Hamming weight, verified against the
 upstream `intermediates_values` oracle in `kats/reference-intermediates/`. This is a breaking
 wire-format change for HQC-192/256 keys, ciphertexts, and shared secrets — see `CHANGELOG.md`.
 
-The HQC-192/256 public key sizes above were fixed from 4522/7245 (card `t_1558e72f`): those were
+The HQC-192/256 public key sizes above were fixed from 4522/7245: those were
 the HQC round-3 (2020 submission) values, which used a 40-byte `seed_ek` (40 + 4482 = 4522,
 40 + 7205 = 7245); the v5.0.0 spec's 32-byte `seed_ek` gives 32 + 4482 = 4514 and 32 + 7205 = 7237.
 HQC-128 was already migrated (2249 → 2241); HQC-192/256 were not, and the extra 8 bytes were inert
@@ -56,6 +56,43 @@ generalized concatenated code plus reliability-based errors-and-erasures decodin
 targets the NIST spec above instead. Rationale, verified figures, and the side-channel
 caveat the 2026/656 authors raise for the threshold-based scheme are in
 [docs/code-decoder-optimizations.md](docs/code-decoder-optimizations.md).
+
+## Classical security margin (Information-Set Decoding literature)
+
+HQC's IND-CCA2 security reduces to the hardness of syndrome decoding for random
+quasi-cyclic codes in the sublinear-weight regime. The best known classical attacks are
+Information-Set Decoding (ISD) variants (Prange, Stern, and refinements). This crate does
+not implement or track ISD attack costs itself; this section records the current best
+published estimate against the parameter sets above so an integrator can see where the
+posture stands.
+
+- **[eprint 2026/1498](https://eprint.iacr.org/2026/1498)** — Carrier, Hatey, Luzzi,
+  Tillich, "Multilevel Amortized Gaussian Elimination in Information-Set Decoding:
+  Applications to HQC and PCG" (2026). Introduces MAGE-Stern, a multilevel
+  amortized-Gaussian-elimination variant of Stern's ISD algorithm that reuses partial
+  pivots across search iterations. Under a consistent logic-gate cost model, MAGE-Stern
+  improves the best previously known ISD attack against HQC by approximately 3 bits in
+  time complexity while reducing memory complexity by about 12 bits. The paper estimates
+  the **standardized HQC Category I parameter set (`Hqc1Params`, `SECURITY_LEVEL = 128`)
+  at approximately 140 bits classical security, about 3 bits below its NIST security
+  target** — i.e. a margin erosion, not a break. The paper's own abstract gives no
+  comparably quantified single figure for HQC-192/256 (`Hqc3Params`, `Hqc5Params`); this
+  crate has not independently re-derived one and treats the ~140-bit estimate as applying
+  only to the Category I set named above.
+- **Register of the claim:** this is a **logic-gate cost-model complexity estimate**, not
+  a demonstrated break. No key recovery has been shown feasible against HQC-128 at its
+  published parameters, and this crate is not aware of any implemented attack. The
+  estimate narrows — it does not eliminate — the margin between HQC-128 and its intended
+  NIST Category I floor.
+- **This crate defers to upstream HQC's own parameter selection** and makes no
+  independent bit-security claim for any parameter set beyond the table above; this
+  section only records the datapoint from the cited paper so a downstream integrator
+  making a Category I risk decision can find it. Whether upstream HQC's own security
+  estimates already account for this attack is a standards-tracking question this crate
+  defers to upstream and does not settle here.
+
+Verdict: MARGIN-EROSION
+
 
 ## What is verified in this repository
 
@@ -135,7 +172,7 @@ The paper finds dummy-operation hiding scales only linearly with the number of d
 masking-only or dummy-op-only fix would not be sufficient if this crate ever hardens this
 path; both masking *and* hiding (shuffling) would be required.
 
-Distinct from sibling iacr-radar card ENK-508 (ePrint 2026/1491), which targets load/store
+Distinct from ePrint 2026/1491, which targets load/store
 leakage of `vect_generate_random_support1`/`2`'s *output* support words — a different
 observable (memory access pattern) than this paper's target (the sampler's data-dependent
 *control flow*, observed via power). Both papers attack the same two functions from
@@ -157,9 +194,9 @@ libQ's `no_std`/WASM support means an embedded or co-located-adversary deploymen
 plausible, and no power-domain check of this sampler has ever been run — this is not a
 deployment libQ has formally excluded from its threat model. Follow-up hardening (masked
 and/or shuffled rewrite of `vect_generate_random_support1`, gated behind the `hardened`
-feature, output byte-identical to today's KATs) is tracked separately as board card
-`ENK-1320` so it does not block this documentation
-change; this card is not reopened for it.
+feature, output byte-identical to today's KATs) is tracked separately as
+a follow-up so it does not block this documentation
+change.
 
 ### Formal verification
 
@@ -182,7 +219,7 @@ Table 2 names the attacked C functions precisely: `schoolbook_mul` (called from
 `vect_write_support_to_vector` (storing the freshly-sampled support in dense form) and
 `vect_add`.
 
-**Correction to an earlier assessment on this issue's board card (2026-08-31):** that
+**Correction to an earlier assessment of this issue (2026-08-31):** that
 comment concluded libQ's exposure was "narrowed to the transient `support[]` array in
 the sampler, not a sparse-form multiply" because `PolynomialOps::sparse_dense_mul` is
 off the KEM path (`simd/avx2/mod.rs:53-59`). That conflates two different things:
@@ -277,7 +314,7 @@ versions.
 
 libQ ships, and CI-verifies, a build of the paper's exact attacked function shape for
 the paper's exact target microcontroller family, with no masking or alternate
-representation of `y`/`x` to remove the sparsity. Follow-up card ENK-1322 tracks the
+representation of `y`/`x` to remove the sparsity. A follow-up tracks the
 remediation options the paper itself proposes (per-call additive masking of the sparse
 vector, or storing it in a transform domain) and, if masking is adopted, re-running
 this disassembly check to confirm the spill no longer carries secret-zero information.

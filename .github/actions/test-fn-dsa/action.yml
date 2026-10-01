@@ -173,7 +173,7 @@ runs:
         cd "${{ github.workspace }}"
         # tests/constant_time.rs's two timing tests are #[cfg_attr(debug_assertions, ignore)] --
         # without --profile release-ci both are ignored, this step reports 0 passed, and the
-        # guard fails loudly rather than reporting a silent pass (t_9d1766f3 profile-drop
+        # guard fails loudly rather than reporting a silent pass (the FN-DSA constant-time gate fix profile-drop
         # tripwire). See that file's module doc for exactly what this does and does not measure:
         # mean wall-clock timing over n=1000 samples/class on message and key axes -- not
         # cycle-accurate, single-trace, or microarchitectural evidence.

@@ -3,7 +3,7 @@
 //! `pilot-insecure-prf-transcript` feature, which is what gates the `dualring_prf` module.
 //!
 //! Does NOT measure wall-clock timing -- that is unmeasurable in a unit test and out of scope
-//! per card t_043571b4 (a prior "constant-time" test compared two algorithms' speeds and was
+//! per the constant-time test-scope decision (a prior "constant-time" test compared two algorithms' speeds and was
 //! rejected). What these tests pin is the code shape: `dualring_prf_sign_u256` must reject a
 //! caller-supplied `leg_key`/`gold_key` that mismatches the ring member's public encoding at
 //! ANY bit position -- including the single low bit and the single high bit -- rather than a

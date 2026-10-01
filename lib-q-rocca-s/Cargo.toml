@@ -20,7 +20,7 @@ zeroize = { workspace = true, default-features = false, features = ["alloc", "de
 [features]
 # `simd` is in `default` so that a plain `std` build gets the constant-time hardware
 # AES backend instead of the table-based scalar S-box (see `src/round.rs` module doc
-# and finding F4 / card t_3d6e8d50). The `simd-*` features are runtime-dispatched
+# and finding F4 / the Rocca-S AES S-box fix). The `simd-*` features are runtime-dispatched
 # (`runtime::has_aes()`), so enabling them on a CPU without AES-NI/ARMv8-AES is a
 # harmless no-op that falls back to the scalar path — there is no correctness or
 # portability cost to having them on by default.

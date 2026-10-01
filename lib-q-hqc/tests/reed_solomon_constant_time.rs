@@ -12,7 +12,7 @@
 //! secret-dependent timing leak: a valid codeword decodes measurably faster than one that needs
 //! correction.
 //!
-//! Card t_2d79cd69 recorded a BEFORE measurement for `Hqc1Params`:
+//! The Reed-Solomon decode timing fix recorded a BEFORE measurement for `Hqc1Params`:
 //!   n=20000 welch_t=-173.47 median_zero_syndrome=1.200us median_with_errors=2.200us
 //!
 //! This harness generalizes that probe to all three parameter sets (`Hqc1Params`, `Hqc3Params`,
@@ -45,7 +45,7 @@ const ITERS: usize = 8000;
 /// against; the value is chosen well above the observed no-leak noise floor (~1-4 across 5
 /// repeated release runs of this same harness) and far below the confirmed-leak signal
 /// (|t| in the tens to hundreds at these sample sizes), so it flakes on noise but still catches
-/// a real branch-timing leak of the kind fixed by this card.
+/// a real branch-timing leak of the kind fixed by this change.
 const T_THRESHOLD: f64 = 15.0;
 
 fn median(xs: &mut [f64]) -> f64 {

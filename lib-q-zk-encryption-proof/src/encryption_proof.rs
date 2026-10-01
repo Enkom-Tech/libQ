@@ -1,4 +1,4 @@
-//! Production entry-point assembly for the **byte-provenance** encryption proof (task #26): the
+//! Production entry-point assembly for the **byte-provenance** encryption proof: the
 //! composition that binds the ciphertext's witness `e` to the deterministic FO expansion
 //! `e = XOF(DOM_FO_SEED ‖ pk_digest ‖ μ)` AND proves `e` ternary, then feeds those *bound* `e_r`
 //! folds into the R3b relation `v = Σ_r t0_r·e_r + g + encode(μ)`. This is the layer that makes the
@@ -68,7 +68,7 @@
 //!   commitment by restarting the MMCS RNG at a fixed seed; a deployment wanting genuinely random
 //!   witness blinding needs preprocessed committed under a separate NON-hiding sub-commitment instead
 //!   (`ψ` is public, so it needs no blinding). This remains a cryptographer sign-off item.
-//! * **Zero-knowledge (task #32):** the assembly runs unchanged under a hiding-FRI config
+//! * **Zero-knowledge:** the assembly runs unchanged under a hiding-FRI config
 //!   (`is_zk() == 1`), which blinds every committed matrix and randomizes the quotient. `κ`, `ρ` and
 //!   `ψ` are public functions of the statement and leak nothing about `μ`. Demonstrated (for
 //!   completeness, not soundness) by `tests::e_provenance_zero_knowledge_round_trip`.
@@ -174,7 +174,7 @@ use crate::zq::{
 /// The **public** shape parameters of a byte-provenance proof: the sizes the prover chose (sponge
 /// height / squeeze coverage / consumed-byte count) that the verifier must rebuild the AIRs and
 /// lookups against. These are NOT secret — they are a function of `e`'s XOF rejection-sampling byte
-/// consumption (a mild `μ`-dependent leak addressed by the hiding-FRI ZK path, task #32, not a
+/// consumption (a mild `μ`-dependent leak addressed by the hiding-FRI ZK path, not a
 /// soundness issue: the joins enforce that the sponge covers every consumed byte regardless of the
 /// declared sizes). Communicated alongside the proof; the verifier feeds them to
 /// [`assemble_e_provenance_verifier`].
@@ -524,7 +524,7 @@ fn e_provenance_lookups(
 ) -> Vec<Vec<Lookup<ConfigVal>>> {
     let mut lookups: Vec<Vec<Lookup<ConfigVal>>> = Vec::new();
     let mut sponge_lk = sponge_limb_send_lookups();
-    sponge_lk.extend(sponge_mu_limb_send_lookups()); // μ binding (card t_a73aaed2, GAP 2)
+    sponge_lk.extend(sponge_mu_limb_send_lookups()); // μ binding (GAP 2)
     lookups.push(sponge_lk);
     lookups.push(Vec::from([
         squeeze_byte_send_lookup(),
@@ -949,8 +949,8 @@ fn r3a_f_public_values(
 //
 // This is the property the SUPERSEDED evaluation-at-ζ design did NOT have. There, each challenge
 // carried its own free quotient fold, so the m equations were m independent one-unknown solves and m
-// bought nothing — confirmed by exploit at m = 1 AND m = 3 at production FRI parameters (card
-// `t_a73aaed2`). If you are tempted to reintroduce a per-challenge witness column that the buses do
+// bought nothing — confirmed by exploit at m = 1 AND m = 3 at production FRI parameters.
+// If you are tempted to reintroduce a per-challenge witness column that the buses do
 // not pin, that is the bug.
 //
 // Sampler coefficient Sends are repeated `m×` (distinct aux columns), so the `m` per-challenge fold
@@ -1008,7 +1008,7 @@ pub struct FullProofShape {
 /// half); the verifier recomputes both identically from `(t0, ct)`, so neither is prover-supplied.
 /// `κ` and `ρ` are drawn under SEPARATE domain tags — the soundness bound treats them as independent.
 ///
-/// // WIRE CHANGE (card `t_a73aaed2`): this replaces `statement_zetas`, which produced scalar
+/// // WIRE CHANGE: this replaces `statement_zetas`, which produced scalar
 /// // evaluation points for the unsound quotient-witnessed relation. Proofs produced by earlier code
 /// // do NOT verify under this code and vice versa. No KAT in this repo pins the old transcript; the
 /// // crate is RED/unsigned and pre-1.0 with zero consumers.
@@ -1380,7 +1380,7 @@ fn full_lookups(
 ) -> Vec<Vec<Lookup<ConfigVal>>> {
     let mut lookups: Vec<Vec<Lookup<ConfigVal>>> = Vec::new();
     let mut sponge_lk = sponge_limb_send_lookups();
-    sponge_lk.extend(sponge_mu_limb_send_lookups()); // μ binding (card t_a73aaed2, GAP 2)
+    sponge_lk.extend(sponge_mu_limb_send_lookups()); // μ binding (GAP 2)
     lookups.push(sponge_lk);
     lookups.push(Vec::from([
         squeeze_byte_send_lookup(),
@@ -1702,7 +1702,7 @@ mod tests {
         .is_ok()
     }
 
-    // ── Hiding-FRI (zero-knowledge) config (task #32): blinds the witness so the proof reveals nothing
+    // ── Hiding-FRI (zero-knowledge) config: blinds the witness so the proof reveals nothing
     //    about μ beyond the statement. Mirrors `compose::tests::test_batch_config_zk`. ──
     type ZkValMmcs = lib_q_stark_merkle::MerkleTreeHidingMmcs<
         <ConfigVal as lib_q_stark_field::Field>::Packing,
@@ -1748,7 +1748,7 @@ mod tests {
         StarkConfig::new(pcs, ComplexFieldChallenger::new(base))
     }
 
-    /// **Zero-knowledge round-trip (task #32).** The `e`-provenance proof proven + verified under the
+    /// **Zero-knowledge round-trip.** The `e`-provenance proof proven + verified under the
     /// **hiding-FRI** config (`is_zk() == 1`): the prover blinds every committed matrix and randomizes
     /// the quotient, so the proof is zero-knowledge (μ is not revealed) while remaining sound. This
     /// exercises the ZK code path the deployment gate uses; `#[ignore]` for wall-clock.
@@ -1807,7 +1807,7 @@ mod tests {
         );
     }
 
-    /// **Round-trip through the real library API (task #26).** A genuine ciphertext's `e`
+    /// **Round-trip through the real library API.** A genuine ciphertext's `e`
     /// byte-provenance ⇒ R3b proof, assembled via [`assemble_e_provenance_prover`], proven, and verified
     /// via the verifier side rebuilt from public inputs by [`assemble_e_provenance_verifier`] — the
     /// composition lifted out of `#[cfg(test)]` into callable API, at test FRI params.
@@ -2111,7 +2111,7 @@ mod tests {
         );
     }
 
-    /// **Gate wired to the sound closure (task #33 closure for the `e`-probe class).** The partial-decap
+    /// **Gate wired to the sound closure (the partial-decap gate's closure for the `e`-probe class).** The partial-decap
     /// gate ([`crate::gate::gated_partial_decap_masked`]) is driven by a `proof_verifies` closure that
     /// runs the COMPOSED byte-provenance `verify_batch` (not the vacuous relation-only path). A proof
     /// built for `ct` verifies for `ct` (gate forwards); a proof verified against a DIFFERENT ciphertext
@@ -2205,7 +2205,7 @@ mod tests {
             .collect()
     }
 
-    /// Regression for card `t_fe2722bf`, carried into the κ-fold design (card `t_a73aaed2`): every
+    /// Regression for the statement-binding fix, carried into the κ-fold design: every
     /// tier must challenge on the statement `(pk_digest ‖ ct)`, not on `ct` alone.
     ///
     /// The old form of this test compared the folds' ζ public values. Folds no longer carry public
@@ -2258,7 +2258,7 @@ mod tests {
     }
 
     // ══════════════════════════════════════════════════════════════════════════════════════════
-    // Card t_a73aaed2 regressions — the confirmed soundness break must stay closed.
+    // the R3-relation soundness fix regressions — the confirmed soundness break must stay closed.
     //
     // The break: the R3 relations were checked by evaluating a polynomial identity at a scalar
     // Fiat–Shamir point ζ, with the reduction mod X^N+1 witnessed by a QUOTIENT fold. That fold's
@@ -2334,7 +2334,7 @@ mod tests {
                 assert!(
                     bound,
                     "{label}: fold instance {i} touches none of {required:?} — its coefficient \
-                     column is FREE, which is exactly the t_a73aaed2 defect"
+                     column is FREE, which is exactly the defect the R3-relation soundness fix closed"
                 );
                 dot_folds_checked += 1;
             }
@@ -2393,7 +2393,7 @@ mod tests {
         assert!(
             matches!(build(&bad), Err(EncProofError::TraceGeneration(_))),
             "a malformed ciphertext must leave the relation unsatisfiable — there is no free term \
-             left to solve for (card t_a73aaed2)"
+             left to solve for"
         );
     }
 
@@ -2445,11 +2445,11 @@ mod tests {
         bad.p[KAPPA - 1].coeffs[3] = (bad.p[KAPPA - 1].coeffs[3] + 1) % lib_q_dkg::lattice::ring::Q;
         assert!(
             matches!(build(&bad), Err(EncProofError::TraceGeneration(_))),
-            "a tampered p_k must leave the ρ-batched R3a relation unsatisfiable (card t_a73aaed2)"
+            "a tampered p_k must leave the ρ-batched R3a relation unsatisfiable"
         );
     }
 
-    /// **GAP 2 regression — the μ binding (card `t_a73aaed2`).** Before the μ bridge landed, the
+    /// **GAP 2 regression — the μ binding.** Before the μ bridge landed, the
     /// encode fold's 256 μ-bits were a free witness column: nothing tied them to the sponge preimage's
     /// μ. That was not merely a message-binding gap. `⟨encode(μ), κ⟩ = ⌊q/2⌋·Σ_i μ_i·κ_i` is linear
     /// with PUBLIC coefficients and `κ` is a public function of the statement, so a prover could
@@ -2606,7 +2606,7 @@ mod tests {
         mu2[0] ^= 1;
         assert!(
             !run(mu2),
-            "SOUNDNESS REGRESSION (card t_a73aaed2 GAP 2): a ciphertext encoding μ₂ while its \
+            "SOUNDNESS REGRESSION (R3-relation soundness, GAP 2): a ciphertext encoding μ₂ while its \
              witness came from XOF(pk‖μ₁) VERIFIED — the μ bridge is not binding"
         );
     }
@@ -2744,7 +2744,7 @@ mod tests {
         .unwrap_or(false); // a debug `check_constraints` panic is a rejection
         assert!(
             !accepted,
-            "SOUNDNESS REGRESSION (card t_a73aaed2): a malformed ciphertext with one forged \
+            "SOUNDNESS REGRESSION: a malformed ciphertext with one forged \
              relation term VERIFIED"
         );
     }

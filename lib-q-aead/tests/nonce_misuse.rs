@@ -1,4 +1,4 @@
-//! Nonce-misuse degradation probes for the registry AEADs (card t_1531578e, option (c)).
+//! Nonce-misuse degradation probes for the registry AEADs (option (c)).
 //!
 //! # The question this file answers
 //!
@@ -17,7 +17,7 @@
 //!   whole plaintext, so distinct plaintexts give unrelated ciphertexts even under a repeated
 //!   nonce. The only residual leak is *equality* of plaintexts.
 //!
-//! The card recorded the duplex behaviour as an assumption ("sponge constructions sometimes do,
+//! The work item recorded the duplex behaviour as an assumption ("sponge constructions sometimes do,
 //! but this must be tested rather than assumed"). These tests measure it instead.
 //!
 //! # The result that is easy to get wrong

@@ -5,7 +5,7 @@
 //! # Status (read before trusting the design doc's §4/§7 text verbatim)
 //!
 //! The design doc's §4.1–§4.3 fold (a polynomial-divisibility check with prover-witnessed quotients
-//! `H_k`/`H'`, "Correction 2026-07-10, during R3 build") was **superseded** (card `t_a73aaed2`) — see
+//! `H_k`/`H'`, "Correction 2026-07-10, during R3 build") was **superseded** — see
 //! [`crate::relation_assembly`]'s module doc for the full story. In one line: evaluating a
 //! `Z_q[X]/(X^N+1)` identity at a scalar Fiat–Shamir point `ζ` is a ring homomorphism only when
 //! `ζ^N = −1`; for a generic `ζ` the reduction needs a quotient `H` that is *free* (prover-chosen,

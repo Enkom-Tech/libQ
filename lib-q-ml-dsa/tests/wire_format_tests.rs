@@ -2,13 +2,16 @@
 
 use std::fs;
 
-use lib_q_ml_dsa::*;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    *,
+};
 
 #[test]
 fn test_verification_key_serialization_stable() {
     // Keys must serialize identically across modes
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     let vk_bytes = keys.verification_key.as_slice();
 
@@ -28,7 +31,7 @@ fn test_signature_format_stable() {
     let context = b"";
     let randomness = [0x43; 32];
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();
 
     let sig_bytes = sig.as_slice();
@@ -49,7 +52,7 @@ fn test_cross_mode_signature_verification() {
     let context = b"test";
     let randomness = [0x43; 32];
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();
 
     // Verification must work regardless of mode features
@@ -66,7 +69,7 @@ fn test_cross_mode_signature_verification() {
 fn test_serialized_key_exchange() {
     // Simulate key exchange: compliance mode generates keys, production mode uses them
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Serialize verification key (public key exchange)
     let vk_serialized = keys.verification_key.as_slice().to_vec();
@@ -94,7 +97,7 @@ fn generate_interop_test_vectors() {
         let mut seed = [0u8; 32];
         seed[0] = i;
 
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
         let message = format!("test message {}", i).into_bytes();
         let context = b"interop";
@@ -138,7 +141,9 @@ fn test_against_saved_interop_vectors() {
         let expected_sig = hex::decode(vector["signature"].as_str().unwrap()).unwrap();
 
         // Verify key generation produces same result
-        let keys = ml_dsa_44::generate_key_pair(seed.as_slice().try_into().unwrap());
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(
+            seed.as_slice().try_into().unwrap(),
+        ));
         assert_eq!(
             keys.verification_key.as_slice(),
             expected_vk.as_slice(),

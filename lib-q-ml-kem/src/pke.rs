@@ -62,19 +62,24 @@ where
     pub fn generate(d: &B32) -> (Self, EncryptionKey<P>) {
         // Generate random seeds
         let k = P::K::U8;
-        let (rho, sigma) = G(&[&d[..], &[k]]);
+        let (rho, mut sigma) = G(&[&d[..], &[k]]);
 
         // Sample pseudo-random matrix and vectors
         let A_hat: NttMatrix<P::K> = NttMatrix::sample_uniform(&rho, false);
-        let s: PolynomialVector<P::K> = PolynomialVector::sample_cbd::<P::Eta1>(&sigma, 0);
-        let e: PolynomialVector<P::K> = PolynomialVector::sample_cbd::<P::Eta1>(&sigma, P::K::U8);
+        let mut s: PolynomialVector<P::K> = PolynomialVector::sample_cbd::<P::Eta1>(&sigma, 0);
+        let mut e: PolynomialVector<P::K> =
+            PolynomialVector::sample_cbd::<P::Eta1>(&sigma, P::K::U8);
+        sigma.zeroize();
 
         // NTT the vectors
         let s_hat = s.ntt();
-        let e_hat = e.ntt();
+        let mut e_hat = e.ntt();
+        s.zeroize();
+        e.zeroize();
 
         // Compute the public value
         let t_hat = &(&A_hat * &s_hat) + &e_hat;
+        e_hat.zeroize();
 
         // Assemble the keys
         let dk = DecryptionKey { s_hat };

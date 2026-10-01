@@ -25,7 +25,7 @@ macro_rules! parameter_set {
             #[allow(unsafe_code)]
             #[allow(dead_code)]
             pub fn generate_key_pair(
-                randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+                randomness: &[u8; KEY_GENERATION_RANDOMNESS_SIZE],
                 signing_key: &mut [u8],
                 verification_key: &mut [u8],
             ) {
@@ -33,7 +33,7 @@ macro_rules! parameter_set {
                 #[allow(unsafe_code)]
                 #[cfg_attr(not(hax), target_feature(enable = "avx2"))]
                 unsafe fn _inner(
-                    randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+                    randomness: &[u8; KEY_GENERATION_RANDOMNESS_SIZE],
                     signing_key: &mut [u8],
                     verification_key: &mut [u8],
                 ) {

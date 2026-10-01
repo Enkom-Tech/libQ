@@ -5,6 +5,7 @@ use lib_q_ml_dsa::constants::{
     SIGNING_RANDOMNESS_SIZE,
 };
 use lib_q_ml_dsa::{
+    Zeroizing,
     ml_dsa_44,
     ml_dsa_65,
     ml_dsa_87,
@@ -35,7 +36,7 @@ mod p44 {
 
     #[test]
     fn roundtrip_and_prehash() {
-        let kp = ml_dsa_44::generate_key_pair(seed(1));
+        let kp = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed(1)));
         let msg = b"m";
         let sig = ml_dsa_44::sign(&kp.signing_key, msg, b"", sign_seed(9)).expect("s");
         assert!(ml_dsa_44::verify(&kp.verification_key, msg, b"", &sig).is_ok());
@@ -51,7 +52,7 @@ mod p44 {
     #[test]
     #[ignore = "WIP: sign_seed(11) triggers RejectionSamplingError for seed(1) keypair — need retry loop or valid fixed seeds"]
     fn acvp_internal_roundtrip_44() {
-        let kp = ml_dsa_44::generate_key_pair(seed(1));
+        let kp = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed(1)));
         let msg_ds = [0u8; 33];
         let sig_i = ml_dsa_44::sign_internal(&kp.signing_key, &msg_ds, sign_seed(11)).expect("si");
         assert!(ml_dsa_44::verify_internal(&kp.verification_key, &msg_ds, &sig_i).is_ok());
@@ -59,7 +60,7 @@ mod p44 {
 
     #[test]
     fn portable_submodule_prehash_matches_root() {
-        let kp = ml_dsa_44::generate_key_pair(seed(21));
+        let kp = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed(21)));
         let msg = b"ph44";
         let ctx = b"ctxp";
         let r = sign_seed(55);
@@ -74,14 +75,14 @@ mod p44 {
 
     #[test]
     fn portable_submodule_routes_through_same_stack() {
-        let kp = ml_dsa_44::portable::generate_key_pair(seed(5));
+        let kp = ml_dsa_44::portable::generate_key_pair_from_seed(&Zeroizing::new(seed(5)));
         let sig = ml_dsa_44::portable::sign(&kp.signing_key, b"x", b"", sign_seed(12)).expect("ps");
         ml_dsa_44::portable::verify(&kp.verification_key, b"x", b"", &sig).expect("pv");
     }
 
     #[test]
     fn portable_sign_mut_roundtrip() {
-        let kp = ml_dsa_44::generate_key_pair(seed(6));
+        let kp = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed(6)));
         let mut sig_buf = *MLDSA44Signature::zero().as_ref();
         ml_dsa_44::portable::sign_mut(
             kp.signing_key.as_ref(),
@@ -99,15 +100,15 @@ mod p44 {
     fn keygen_mut_matches_generate_key_pair() {
         let mut sk = *MLDSA44SigningKey::zero().as_ref();
         let mut vk = *MLDSA44VerificationKey::zero().as_ref();
-        ml_dsa_44::portable::generate_key_pair_mut(seed(7), &mut sk, &mut vk);
-        let kp2 = ml_dsa_44::generate_key_pair(seed(7));
+        ml_dsa_44::portable::generate_key_pair_mut(&Zeroizing::new(seed(7)), &mut sk, &mut vk);
+        let kp2 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed(7)));
         assert_eq!(sk, *kp2.signing_key.as_ref());
         assert_eq!(vk, *kp2.verification_key.as_ref());
     }
 
     #[test]
     fn verify_rejects_tampered_signature() {
-        let kp = ml_dsa_44::generate_key_pair(seed(18));
+        let kp = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed(18)));
         let mut sig = ml_dsa_44::sign(&kp.signing_key, b"t44", b"", sign_seed(14)).expect("s");
         sig.as_ref_mut()[0] ^= 0xFF;
         assert!(ml_dsa_44::verify(&kp.verification_key, b"t44", b"", &sig).is_err());
@@ -125,7 +126,7 @@ mod p65 {
 
     #[test]
     fn roundtrip_prehash() {
-        let kp = ml_dsa_65::generate_key_pair(seed(2));
+        let kp = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed(2)));
         let msg = b"m65";
         let sig = ml_dsa_65::sign(&kp.signing_key, msg, b"", sign_seed(20)).expect("s");
         ml_dsa_65::verify(&kp.verification_key, msg, b"", &sig).expect("v");
@@ -140,7 +141,7 @@ mod p65 {
     #[test]
     #[ignore = "WIP: sign_seed(22) triggers RejectionSamplingError for seed(2) keypair — need retry loop or valid fixed seeds"]
     fn acvp_internal_roundtrip_65() {
-        let kp = ml_dsa_65::generate_key_pair(seed(2));
+        let kp = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed(2)));
         let msg_ds = [1u8; 33];
         let sig_i = ml_dsa_65::sign_internal(&kp.signing_key, &msg_ds, sign_seed(22)).expect("si");
         ml_dsa_65::verify_internal(&kp.verification_key, &msg_ds, &sig_i).expect("vi");
@@ -148,7 +149,7 @@ mod p65 {
 
     #[test]
     fn portable_submodule_prehash_matches_root() {
-        let kp = ml_dsa_65::generate_key_pair(seed(22));
+        let kp = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed(22)));
         let msg = b"ph65";
         let ctx = b"c65";
         let r = sign_seed(56);
@@ -163,7 +164,7 @@ mod p65 {
 
     #[test]
     fn portable_sign_mut_roundtrip() {
-        let kp = ml_dsa_65::portable::generate_key_pair(seed(8));
+        let kp = ml_dsa_65::portable::generate_key_pair_from_seed(&Zeroizing::new(seed(8)));
         let mut buf = *MLDSA65Signature::zero().as_ref();
         ml_dsa_65::portable::sign_mut(
             kp.signing_key.as_ref(),
@@ -181,8 +182,8 @@ mod p65 {
     fn keygen_mut_matches() {
         let mut sk = *MLDSA65SigningKey::zero().as_ref();
         let mut vk = *MLDSA65VerificationKey::zero().as_ref();
-        ml_dsa_65::portable::generate_key_pair_mut(seed(41), &mut sk, &mut vk);
-        let kp2 = ml_dsa_65::generate_key_pair(seed(41));
+        ml_dsa_65::portable::generate_key_pair_mut(&Zeroizing::new(seed(41)), &mut sk, &mut vk);
+        let kp2 = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed(41)));
         assert_eq!(sk, *kp2.signing_key.as_ref());
         assert_eq!(vk, *kp2.verification_key.as_ref());
     }
@@ -199,7 +200,7 @@ mod p87 {
 
     #[test]
     fn roundtrip_prehash() {
-        let kp = ml_dsa_87::generate_key_pair(seed(3));
+        let kp = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed(3)));
         let msg = b"m87";
         let sig = ml_dsa_87::sign(&kp.signing_key, msg, b"", sign_seed(30)).expect("s");
         ml_dsa_87::verify(&kp.verification_key, msg, b"", &sig).expect("v");
@@ -213,7 +214,7 @@ mod p87 {
     #[test]
     #[ignore = "WIP: sign_seed(32) triggers RejectionSamplingError for seed(3) keypair — need retry loop or valid fixed seeds"]
     fn acvp_internal_roundtrip_87() {
-        let kp = ml_dsa_87::generate_key_pair(seed(3));
+        let kp = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed(3)));
         let msg_ds = [2u8; 33];
         let sig_i = ml_dsa_87::sign_internal(&kp.signing_key, &msg_ds, sign_seed(32)).expect("si");
         ml_dsa_87::verify_internal(&kp.verification_key, &msg_ds, &sig_i).expect("vi");
@@ -221,7 +222,7 @@ mod p87 {
 
     #[test]
     fn portable_submodule_prehash_matches_root() {
-        let kp = ml_dsa_87::generate_key_pair(seed(23));
+        let kp = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed(23)));
         let msg = b"ph87";
         let ctx = b"c87";
         let r = sign_seed(57);
@@ -236,7 +237,7 @@ mod p87 {
 
     #[test]
     fn tampered_signature_rejected() {
-        let kp = ml_dsa_87::generate_key_pair(seed(4));
+        let kp = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed(4)));
         let mut sig = ml_dsa_87::sign(&kp.signing_key, b"t", b"", sign_seed(33)).expect("s");
         sig.as_ref_mut()[5] ^= 1;
         assert!(ml_dsa_87::verify(&kp.verification_key, b"t", b"", &sig).is_err());
@@ -244,7 +245,7 @@ mod p87 {
 
     #[test]
     fn portable_sign_mut_roundtrip() {
-        let kp = ml_dsa_87::portable::generate_key_pair(seed(19));
+        let kp = ml_dsa_87::portable::generate_key_pair_from_seed(&Zeroizing::new(seed(19)));
         let mut buf = *MLDSA87Signature::zero().as_ref();
         ml_dsa_87::portable::sign_mut(&kp.signing_key, b"sm87", b"", sign_seed(34), &mut buf)
             .expect("sm");
@@ -256,8 +257,8 @@ mod p87 {
     fn keygen_mut_matches_generate_key_pair() {
         let mut sk = *MLDSA87SigningKey::zero().as_ref();
         let mut vk = *MLDSA87VerificationKey::zero().as_ref();
-        ml_dsa_87::portable::generate_key_pair_mut(seed(8), &mut sk, &mut vk);
-        let kp2 = ml_dsa_87::generate_key_pair(seed(8));
+        ml_dsa_87::portable::generate_key_pair_mut(&Zeroizing::new(seed(8)), &mut sk, &mut vk);
+        let kp2 = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed(8)));
         assert_eq!(sk, *kp2.signing_key.as_ref());
         assert_eq!(vk, *kp2.verification_key.as_ref());
     }
