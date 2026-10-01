@@ -1,7 +1,7 @@
 # Research radar triage log
 
 Durable conclusions for cryptography papers routed to libQ from the IACR eprint
-radar (Hive `iacr-radar` board). One entry per card. The card records that a
+radar (`iacr-radar`). One entry per triaged paper. The triage records that a
 paper was assessed and by whom; **this file is the durable record of the verdict**,
 per the repo convention of keeping the durable conclusion in the tree, not only
 on the tracking issue.
@@ -12,7 +12,7 @@ cited location before being written in.
 
 ---
 
-## ENK-469 — k-Anonymous Group Signatures (eprint 2025/2007)
+## k-Anonymous Group Signatures (eprint 2025/2007)
 
 - **Paper:** Shalini Banerjee, Andrey Bozhko, Andy Rupp, *"k-Anonymous Group Signatures"*, IACR eprint 2025/2007
   (<https://eprint.iacr.org/2025/2007>).
@@ -87,7 +87,7 @@ substantial new protocol work, not covered by this paper.
 
 ### Recommendation
 
-- Correct the card's tags: drop "post-quantum" and "selective disclosure".
+- Correct the triage tags: drop "post-quantum" and "selective disclosure".
 - Keep at **medium/low**; no code action now.
 - If a stateless, linear-tracing, k-anonymous group signature is ever wanted for a
   moderation/reputation use case, open a Phase 7 research spike to PQ-instantiate

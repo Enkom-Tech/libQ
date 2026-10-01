@@ -1,4 +1,4 @@
-//! μ limb→bit bridge (card `t_a73aaed2`, GAP 2) — the join that makes `encode(μ)` mean the *same* μ
+//! μ limb→bit bridge (GAP 2) — the join that makes `encode(μ)` mean the *same* μ
 //! the FO expansion used.
 //!
 //! ## Why this exists
@@ -13,7 +13,7 @@
 //! statement, a prover could compute `κ` first and then solve the modular subset-sum
 //! `Σ_i κ_i·μ_i ≡ T·⌊q/2⌋^{-1} (mod q)` over 256 free bits — meet-in-the-middle over `q ≈ 2^48`, so
 //! roughly `2^24` work — and hit whatever value made an **arbitrary malformed `v`** verify. That is
-//! structurally the same defect as the free quotient fold this card removed: a prover-chosen operand
+//! structurally the same defect as the free quotient fold the R3-relation soundness fix removed: a prover-chosen operand
 //! entering the checked relation after the challenge is known. Boolean-constrained is not bound.
 //!
 //! ## The bridge

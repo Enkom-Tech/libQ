@@ -101,7 +101,7 @@ pub mod _internals {
     /// Whether the constant-time hardware AES backend is *wired in at compile time*
     /// (`simd-aesni` or `simd-neon` enabled) for this build — independent of whether
     /// the current CPU actually has AES support. Used by cross-crate structural tests
-    /// (finding F4 / card t_3d6e8d50) that must not depend on the test runner's CPU.
+    /// (finding F4 / the Rocca-S AES S-box fix) that must not depend on the test runner's CPU.
     pub const fn simd_feature_wired() -> bool {
         cfg!(any(feature = "simd-aesni", feature = "simd-neon"))
     }

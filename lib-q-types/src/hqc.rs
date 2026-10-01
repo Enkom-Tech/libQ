@@ -64,7 +64,7 @@ pub const fn kem_secret_key_serialized_len(ek_pke_len: usize, sigma_len: usize) 
 /// against `src/common/hqc-{1,3,5}/api.h` and the write order in
 /// `reference/hqc/src/common/kem.c:63-67` (`crypto_kem_keypair`).
 ///
-/// BREAKING CHANGE (card `t_e3ac1c87`): this previously returned
+/// BREAKING CHANGE: this previously returned
 /// `PKE_DK_SEED_BYTES + sigma_len + public_key_len` — a DIFFERENT field order
 /// (`dk_pke ‖ sigma ‖ ek_pke`) that also omitted `seed_kem` entirely, giving 2289 / 4570 / 7301.
 /// Both faults are fixed here, so the value grows by 32 at every level and the byte order changes.
@@ -72,7 +72,7 @@ pub const fn kem_secret_key_serialized_len(ek_pke_len: usize, sigma_len: usize) 
 /// re-serialized field-by-field, since this is a reordering, not an append.
 ///
 /// Two stale numbers previously documented here are corrected for the record: the deltas were
-/// written as `-32/-40/-48` against upstream. That measurement predates card `t_1558e72f`, which
+/// written as `-32/-40/-48` against upstream. That measurement predates the HQC public-key-size fix, which
 /// fixed the HQC-192/256 public keys from the round-3 40-byte-`seed_ek` sizes (4522/7245) to the
 /// v5.0.0 32-byte ones (4514/7237). With the corrected public keys the shortfall is uniformly
 /// `-32` — exactly the omitted `seed_kem` — at every level, which is why restoring that one field
@@ -97,7 +97,7 @@ pub const HQC128_NIST_SECRET_KEY_BYTES: usize =
 
 // --- HQC-192 (parameter set 3) ---
 
-// NOTE (fix for card t_1558e72f): this was previously the literal `4522`, which is the HQC
+// NOTE (fix for the HQC public-key-size fix): this was previously the literal `4522`, which is the HQC
 // round-3 (2020 submission) size — that submission used a 40-byte `seed_ek` (40 + 4482 = 4522).
 // HQC-192 was never migrated to the v5.0.0 (2025-08-22) 32-byte-seed format (HQC-128 was);
 // deriving it from `kem_public_key_bytes` makes that drift structurally impossible to repeat.
@@ -115,7 +115,7 @@ pub const HQC192_NIST_SECRET_KEY_BYTES: usize =
 
 // --- HQC-256 (parameter set 5) ---
 
-// NOTE (fix for card t_1558e72f): same round-3-vs-v5.0.0 seed-size drift as HQC-192, see above.
+// NOTE (fix for the HQC public-key-size fix): same round-3-vs-v5.0.0 seed-size drift as HQC-192, see above.
 // BREAKING CHANGE: 7245 -> 7237, with the same ciphertext/shared-secret and truncation-migration
 // consequences as HQC-192 (`pk_new = pk_old[..7237]`).
 pub const HQC256_PUBLIC_KEY_BYTES: usize = kem_public_key_bytes(57637); // 7237
@@ -139,7 +139,7 @@ mod tests {
     /// Pin the NIST secret-key wire lengths to upstream's literal `CRYPTO_SECRETKEYBYTES`
     /// (`reference/hqc/src/common/hqc-{1,3,5}/api.h`), NOT to a re-derivation of
     /// `kem_nist_secret_key_bytes`'s own formula — comparing a value to its own definition is a
-    /// check that cannot fail. These literals are the whole point of card `t_e3ac1c87`: before the
+    /// check that cannot fail. These literals are the whole point of the HQC secret-key layout cutover: before the
     /// cutover the constant returned 2289 / 4570 / 7301, short by exactly the 32-byte `seed_kem`
     /// at every level, and in a different field order.
     #[test]
@@ -171,7 +171,7 @@ mod tests {
 
     #[test]
     fn public_key_bytes_match_spec_literals() {
-        // Card t_1558e72f: pin the literal HQC v5.0.0 (2025-08-22) values independently of
+        // the HQC public-key-size fix: pin the literal HQC v5.0.0 (2025-08-22) values independently of
         // `kem_public_key_bytes`'s own formula (comparing a value to its own definition is a
         // gate that cannot fail — see `lib-q-hqc::params` for the independent check
         // against `VEC_N_SIZE_BYTES`, which is not derived from this constant either).

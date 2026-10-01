@@ -11,7 +11,10 @@ use lib_q_ml_dsa::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,
     SIGNING_RANDOMNESS_SIZE,
 };
-use lib_q_ml_dsa::ml_dsa_65;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    ml_dsa_65,
+};
 use lib_q_sig::ml_dsa::MlDsa;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -81,7 +84,8 @@ fn test_low_level_api() -> Result<(), Box<dyn std::error::Error>> {
     let signing_randomness = [0u8; SIGNING_RANDOMNESS_SIZE];
 
     // Generate keypair with external randomness
-    let keypair = ml_dsa_65::portable::generate_key_pair(keypair_randomness);
+    let keypair =
+        ml_dsa_65::portable::generate_key_pair_from_seed(&Zeroizing::new(keypair_randomness));
     println!("   ✅ Keypair generated with external randomness");
     println!(
         "   📊 Public key size: {} bytes",
@@ -140,7 +144,9 @@ fn test_ml_dsa_65_variant() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Testing ML-DSA-65...");
 
     // Generate keypair
-    let keypair = ml_dsa_65::portable::generate_key_pair([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
+    let keypair = ml_dsa_65::portable::generate_key_pair_from_seed(&Zeroizing::new(
+        [0u8; KEY_GENERATION_RANDOMNESS_SIZE],
+    ));
 
     // Sign message
     let message = b"Test message";

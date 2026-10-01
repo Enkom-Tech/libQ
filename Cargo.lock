@@ -1711,6 +1711,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "lib-q-sss"
+version = "0.0.11"
+dependencies = [
+ "lib-q-sca-test",
+ "rand 0.10.2",
+ "rand_core 0.10.1",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "lib-q-stark"
 version = "0.0.11"
 dependencies = [

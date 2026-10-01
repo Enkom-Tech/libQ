@@ -44,7 +44,7 @@ jobs:
         with:
           # Pinned deliberately. `cargo-tarpaulin` (unpinned) resolves to @latest, so an upstream
           # release can break this job with no change on our side -- which is exactly how the
-          # nightly coverage job broke (card t_93dc6b27). coverage.yml already pins 0.37.0; these
+          # nightly coverage job broke. coverage.yml already pins 0.37.0; these
           # two jobs were the last unpinned installs in the repo. Bump both together.
           tool: cargo-tarpaulin@0.37.0
 
@@ -74,7 +74,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3 (GHES-compatible pin; v4+ needs an artifact backend this Forgejo lacks)
         with:
           name: security-critical-coverage-lib-q-sig
           path: coverage-sc/
@@ -110,7 +110,7 @@ jobs:
         with:
           # Pinned deliberately. `cargo-tarpaulin` (unpinned) resolves to @latest, so an upstream
           # release can break this job with no change on our side -- which is exactly how the
-          # nightly coverage job broke (card t_93dc6b27). coverage.yml already pins 0.37.0; these
+          # nightly coverage job broke. coverage.yml already pins 0.37.0; these
           # two jobs were the last unpinned installs in the repo. Bump both together.
           tool: cargo-tarpaulin@0.37.0
 
@@ -146,7 +146,7 @@ jobs:
 
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3 (GHES-compatible pin; v4+ needs an artifact backend this Forgejo lacks)
         with:
           name: security-critical-coverage-lib-q-threshold-kem-lattice
           path: coverage-sc/

@@ -11,7 +11,7 @@
 #     plaintext.
 # Both are still present on two branches (spike/anon-cred-oom-red, wip/pvtn-v1-construction7),
 # which cannot simply be deleted -- wip/pvtn-v1-construction7 carries research work that is not on
-# main. See card t_59609fc3.
+# main. See the withdrawn-crate branch cleanup.
 #
 # THIS IS NOT HYPOTHETICAL. On 2026-08-08 an agent hit GIP's stale path dependencies on these two
 # crates -- GIP's sdk/Cargo.toml still declared them, and because cargo resolves every path dep at

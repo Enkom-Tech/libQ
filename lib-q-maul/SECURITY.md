@@ -3,7 +3,7 @@
 **No human cryptographer has reviewed this instantiation. Do not use it for anything.**
 
 `publish = false` in `Cargo.toml`: this crate builds and tests in-tree and does **not** reach
-crates.io. That is the mechanical expression of the gate on card `t_5bc0f630`, which requires a
+crates.io. That is the mechanical expression of the gate on the double-KEM review gate, which requires a
 human cryptographer sign-off *before* the crate is wired into any consumer, and which exists
 because this repository has just spent a workstream retracting two pre-standard primitives that
 did not survive scrutiny (`lib-q-threshold-sig`, unsound; `lib-q-double-kem`, deviated from its
@@ -91,7 +91,7 @@ sign-off; an NTT rewrite before review would replace reviewable code with unrevi
 
 ## Where this does and does not fit
 
-Two findings recorded on card `t_5bc0f630` that any consumer must read before wiring this in:
+Two findings recorded on the double-KEM review gate that any consumer must read before wiring this in:
 
 * **A double-KEM is an AKE shape, not an onion-hop shape.** `Decaps` needs `sk_L` **and** `sk_R`
   together. If two consecutive relay hops' keys were "Maul'd" together, neither hop could

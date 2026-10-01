@@ -1,5 +1,4 @@
-//! Independent transcription gate for the CTX commitment layer on `SaturninQcb` (card
-//! `t_16ddf21c`).
+//! Independent transcription gate for the CTX commitment layer on `SaturninQcb`.
 //!
 //! Oracle: John Chan and Phillip Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022
 //! (IACR ePrint 2022/1260), Fig. 2 / Theorem 2 — `T' = H(K, N, A, T)`, instantiated here with
@@ -19,7 +18,7 @@
 //! Every property test below (`label_is_load_bearing`, `ad_is_bound_by_the_commitment`,
 //! `nonce_is_bound`, `key_is_bound`) was confirmed to FAIL first by temporarily deleting the
 //! corresponding field from the local `ctx_input` construction and observing the two tags
-//! collide; see the red-then-green evidence in the PR / card `t_16ddf21c`.
+//! collide; see the red-then-green evidence in the PR / the Saturnin key-commitment fix.
 
 #![cfg(all(feature = "alloc", feature = "qcb"))]
 

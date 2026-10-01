@@ -4,14 +4,50 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ## Unreleased
 
+### Changed — BREAKING (API)
+
+- **`lib-q-ml-dsa`: the by-value seed key-generation functions are removed.** The seed is a
+  `[u8; 32]`, which is `Copy`, so passing it by value left the caller's copy of the key-generation
+  secret on the stack no matter what the callee did with its own. Key generation now only takes the
+  seed by reference from a `Zeroizing` buffer, which clears it on drop.
+  - Removed `ml_dsa_{44,65,87}::generate_key_pair([u8; 32])` and
+    `ml_dsa_{44,65,87}::{portable,avx2,neon}::generate_key_pair([u8; 32])`.
+  - `ml_dsa_{44,65,87}::generate_key_pair_from_seed(&Zeroizing<[u8; 32]>)` is the replacement and
+    is now available in every feature configuration, not only with `zeroize`. The same function is
+    added to the `portable`, `avx2` and `neon` modules.
+  - `ml_dsa_{44,65,87}::{portable,avx2,neon}::generate_key_pair_mut` now takes the seed as
+    `&Zeroizing<[u8; 32]>` instead of `[u8; 32]`.
+  - `zeroize` is now a required dependency of `lib-q-ml-dsa`, and `lib_q_ml_dsa::Zeroizing` is
+    always re-exported. The `zeroize` feature is kept: it still turns on clearing signing keys on
+    drop and scrubbing key-generation intermediates.
+
+  Migration: replace `generate_key_pair(seed)` with
+  `generate_key_pair_from_seed(&Zeroizing::new(seed))`, or better, fill the seed directly into a
+  `Zeroizing<[u8; 32]>` so no unprotected copy exists. Key pairs are byte-identical for the same
+  seed (NIST KATs, ACVP and the interop vectors are unchanged). In-repo callers (`lib-q-sig`,
+  `lib-q-sca-test`, examples, benches and tests) are migrated. `lib-q-sig`'s
+  `MlDsa::generate_keypair_with_randomness` keeps its signature and now moves the seed into a
+  `Zeroizing` buffer before key generation.
+
+### Added
+
+- **`@lib-q/jose` Node adapter:** RFC 9964 ML-DSA-65 compact JWS
+  verification with empty context, AKP import and RFC 7638 thumbprints, OIDC ID
+  token claims and HTTPS JWKS rotation handling, and TypeScript declarations.
+  Exports the existing `MlDsa.ml_dsa_65()` WASM factory, absent from published
+  `@lib-q/sig@0.0.11`. Uses distinct companion `0.0.11-jose.0` tarballs pending
+  release. Rust WASM build and `npm test` verified locally against the local
+  companion build (see `npm/lib-q-jose/README.md` for the exact reproduction
+  commands); no npm publication or downstream rollout claimed.
+
 ### Documentation
 
 - **Radar disposition for IACR ePrint 2026/1444 (compressed post-quantum silent OT from
-  isogenies, card `ENK-481`).** Documentation only; no code, wire-format, dependency, or test
+  isogenies).** Documentation only; no code, wire-format, dependency, or test
   change. The `iacr-radar` classifier flagged it "medium relevance — Post-Quantum OT", which is
-  accurate: unlike `ENK-459` this construction is genuinely post-quantum (isogeny group action
-  with a QROM proof), so it is **not** rejected on threat-model grounds. It is dispositioned
-  **out of scope / not adopted (tracked)** because `lib-q` ships no oblivious-transfer / PCF /
+  accurate: unlike ePrint 2023/1435 below, this construction is genuinely post-quantum (isogeny
+  group action with a QROM proof), so it is **not** rejected on threat-model grounds. It is
+  dispositioned **out of scope / not adopted** because `lib-q` ships no oblivious-transfer / PCF /
   secure-computation layer for it to feed, no isogeny / group-action arithmetic to build it on,
   and its security rests on a newly-introduced, non-standardized assumption (the *parallelization
   problem with auxiliary inputs*). Recorded the rationale, the paper's claimed results, and a
@@ -20,8 +56,8 @@ All notable changes to this workspace are documented here. Versions follow the s
   and cross-linked it from [`lib-q-prf/DESIGN.md`](lib-q-prf/DESIGN.md) (the nearest in-tree
   neighbor — a plain, non-oblivious PRF).
 
-- **Radar disposition for IACR ePrint 2023/1435 (identity-based matchmaking encryption,
-  card `ENK-459`).** Documentation only; no code, wire-format, dependency, or test change.
+- **Radar disposition for IACR ePrint 2023/1435 (identity-based matchmaking
+  encryption).** Documentation only; no code, wire-format, dependency, or test change.
   The `iacr-radar` classifier flagged the paper "high relevance (identity-based
   encryption)", but it is out of scope: `lib-q` ships no IBE/IB-ME or pairing arithmetic, and
   the paper's concrete scheme rests on the Bilinear Diffie–Hellman assumption (pairing/DL,
@@ -31,7 +67,7 @@ All notable changes to this workspace are documented here. Versions follow the s
   [`docs/security.md`](docs/security.md) pointing at it.
 
 - **Radar disposition for IACR ePrint 2026/1003 (blockchain access control with hidden
-  attributes and policies, card `ENK-477`).** Documentation only; no code, wire-format,
+  attributes and policies).** Documentation only; no code, wire-format,
   dependency, or test change. The `iacr-radar` classifier flagged the paper "medium relevance
   (zero-knowledge & credentials)". It is topically on-radar (hidden attributes + hidden policy
   + a publicly verifiable inner-product satisfaction proof is the `lib-q-lattice-zkp` anon-cred
@@ -46,6 +82,31 @@ All notable changes to this workspace are documented here. Versions follow the s
   [`lib-q-lattice-zkp/docs/radar-2026-1003-hidden-attr-access-control.md`](lib-q-lattice-zkp/docs/radar-2026-1003-hidden-attr-access-control.md).
 
 ### Security
+
+- **`lib-q-ml-dsa`: verification now enforces the FIPS 204 signer-response bound.** FIPS 204
+  Algorithm 8 rejects a signature when `||z||_inf >= gamma1 - beta`. `verify_internal` for all
+  three parameter sets compared against `2 * gamma1 - beta` instead. A decoded `z` always lies in
+  `[-gamma1 + 1, gamma1]`, so that check could never fire and signatures with `z` coefficients in
+  `[gamma1 - beta, gamma1]` reached the commitment-hash comparison instead of being rejected on
+  the norm. The bound is now `gamma1 - beta` on every backend (portable, AVX2, NEON share the
+  generic verifier), including the pre-hashed HashML-DSA entry points. The same defect is
+  described as V8 in Kobeissi, "Verification Theatre" (IACR ePrint 2026/192), and was inherited
+  from upstream libcrux. Valid signatures are unaffected: honest signing already rejects any
+  `z` outside the bound, and all KATs are unchanged. New test:
+  `lib-q-ml-dsa/tests/verify_signer_response_bound.rs`.
+- **`lib-q-ml-dsa` / `lib-q-ml-kem`: clear more secret material after key generation.** No change
+  to any key, signature or ciphertext (all KATs unchanged).
+  - `lib-q-ml-dsa` (`zeroize` feature): `MLDSASigningKey` now implements `Zeroize` and
+    `ZeroizeOnDrop` and clears its bytes when dropped. Key generation borrows the seed through
+    the whole internal call chain instead of copying it at each layer, writes the signing key in
+    place instead of through a temporary array, and clears s1, s2, t0 and the NTT form of s1
+    before returning.
+  - `lib-q-ml-dsa`: new `ml_dsa_{44,65,87}::generate_key_pair_from_seed(&Zeroizing<[u8; 32]>)`
+    and a `Zeroizing` re-export. It replaces the by-value `generate_key_pair`, which is removed
+    (see "Changed — BREAKING (API)" above).
+  - `lib-q-ml-kem`: K-PKE key generation clears sigma, s, e and the NTT form of e. `G` clears its
+    64-byte hash output, and the RNG path of key generation clears `d` and `z`. The CBD sampler
+    clears each PRF output block. `Polynomial` and `PolynomialVector` implement `Zeroize`.
 
 - **`lib-q-cb-kem`: documented a published physical power/EM key-recovery side-channel on the
   Berlekamp–Massey decoder (IACR ePrint 2025/2043).** Documentation only — no code, wire-format, or

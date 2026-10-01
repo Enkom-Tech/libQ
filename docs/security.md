@@ -192,7 +192,7 @@ The following classical algorithms are explicitly forbidden in lib-Q:
   assumption): rest on the discrete-log/pairing hardness that Shor's algorithm breaks — same
   class as ECC/ECDH above. lib-Q implements none and adds none.
 - Radar dispositions that land in this class are recorded under [docs/radar/](radar/); see
-  [ePrint 2023/1435 IB-ME](radar/eprint-2023-1435-ib-me.md) (card `ENK-459`) for a worked
+  [ePrint 2023/1435 IB-ME](radar/eprint-2023-1435-ib-me.md) for a worked
   example of why a pairing-based IB-ME scheme is out of scope for a post-quantum workspace.
 
 > **On the "Grover halves it" convention used throughout this section.** Naive halving is the

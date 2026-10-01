@@ -32,7 +32,10 @@ zeroize = { workspace = true, default-features = false, features = ["alloc", "de
 # The mode is kept, not deprecated: its rate-1 structure (one TBC call per block, and
 # tweaks that carry the block index so blocks are independent) is the reason it is a
 # candidate for the Saturnin hardware programme, where CTR-Cascade's serial MAC chain
-# caps throughput regardless of area.
+# caps throughput regardless of area. NOTE: QCB is NOT silicon-approved
+# as of 2026-09-14 — the related-key assumption it needs over the tweak family it induces
+# is unconfirmed by the designers, so the hardware target is CTR-Cascade. See
+# docs/HARDWARE.md §6 before treating this mode as buildable in RTL.
 default = ["std", "aead", "block-cipher", "hash", "stream", "alloc"]
 std = ["alloc", "lib-q-core/std"]
 alloc = ["lib-q-core/alloc"]

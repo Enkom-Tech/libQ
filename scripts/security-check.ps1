@@ -72,7 +72,7 @@ if (-not $bashPath) {
 
 # Hand bash a forward-slash path. A Windows path reaches it as a single argument in which
 # each backslash is an escape character, so `C:\...\scripts\security-check.sh` arrives as
-# `C:UsersXtreme-W...scriptssecurity-check.sh` and the run dies with exit 127. Git for
+# `C:Users<user>...scriptssecurity-check.sh` and the run dies with exit 127. Git for
 # Windows' bash accepts the `C:/...` form directly.
 $shellCheckPosix = $shellCheck -replace '\\', '/'
 

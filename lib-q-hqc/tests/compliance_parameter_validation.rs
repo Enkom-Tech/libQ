@@ -238,7 +238,7 @@ fn test_key_size_calculations() {
 
     // Public key: `seed_ek` ‖ `s`, `|s| = ceil(N/8) = VEC_N_SIZE_BYTES`, for all three sets.
     //
-    // Card t_1558e72f: HQC-3/HQC-5 previously carried 8 bytes of extra, always-zero padding here
+    // The HQC public-key-size fix: HQC-3/HQC-5 previously carried 8 bytes of extra, always-zero padding here
     // (a round-3/2020-submission `seed_ek` size of 40 bytes leaking into the 2025 v5.0.0 32-byte
     // format: 40 + 4482 = 4522, 40 + 7205 = 7245) — this test used to assert `+ 8` and treat that
     // padding as correct. It has been fixed at the source (`lib-q-types::hqc`); the `+ 8` here

@@ -1,3 +1,5 @@
+use zeroize::Zeroizing;
+
 pub use crate::constants::ml_dsa_87::{
     MLDSA87KeyPair,
     MLDSA87Signature,
@@ -18,12 +20,18 @@ macro_rules! instantiate {
         pub mod $modp {
             use super::*;
 
-            /// Generate an ML-DSA-87 Key Pair
-            pub fn generate_key_pair(
-                randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+            /// Generate an ML-DSA-87 Key Pair from a seed held in a zeroizing buffer
+            ///
+            /// The seed is borrowed, so no copy of it is made on the way into key generation,
+            /// and the caller's buffer is cleared when it is dropped.
+            pub fn generate_key_pair_from_seed(
+                seed: &Zeroizing<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
             ) -> MLDSA87KeyPair {
-                let mut signing_key = [0u8; ml_dsa_87::SIGNING_KEY_SIZE];
-                let mut verification_key = [0u8; ml_dsa_87::VERIFICATION_KEY_SIZE];
+                // Write the signing key in place: a temporary array would leave a copy behind.
+                let mut key_pair = MLDSA87KeyPair {
+                    signing_key: MLDSASigningKey::zero(),
+                    verification_key: MLDSAVerificationKey::zero(),
+                };
                 crate::ml_dsa_generic::ml_dsa_87::generate_key_pair::<
                     crate::simd::portable::PortableSIMDUnit,
                     crate::samplex4::portable::PortableSampler,
@@ -31,17 +39,20 @@ macro_rules! instantiate {
                     crate::hash_functions::portable::Shake256,
                     crate::hash_functions::portable::Shake256Xof,
                     crate::hash_functions::portable::Shake256X4,
-                >(randomness, &mut signing_key, &mut verification_key);
-
-                MLDSA87KeyPair {
-                    signing_key: MLDSASigningKey::new(signing_key),
-                    verification_key: MLDSAVerificationKey::new(verification_key),
-                }
+                >(
+                    seed,
+                    &mut key_pair.signing_key.value,
+                    &mut key_pair.verification_key.value,
+                );
+                key_pair
             }
 
-            /// Generate an ML-DSA-87 Key Pair
+            /// Generate an ML-DSA-87 Key Pair into caller-provided buffers
+            ///
+            /// The seed is borrowed from a zeroizing buffer, as in
+            /// [`generate_key_pair_from_seed`].
             pub fn generate_key_pair_mut(
-                randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+                seed: &Zeroizing<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
                 signing_key: &mut [u8; ml_dsa_87::SIGNING_KEY_SIZE],
                 verification_key: &mut [u8; ml_dsa_87::VERIFICATION_KEY_SIZE],
             ) {
@@ -52,7 +63,7 @@ macro_rules! instantiate {
                     crate::hash_functions::portable::Shake256,
                     crate::hash_functions::portable::Shake256Xof,
                     crate::hash_functions::portable::Shake256X4,
-                >(randomness, signing_key, verification_key);
+                >(seed, signing_key, verification_key);
             }
 
             /// Generate an ML-DSA-87 Signature
@@ -245,24 +256,26 @@ instantiate! {neon, "Neon Optimised ML-DSA 87"}
 
 /// Generate an ML-DSA 87 Key Pair
 ///
-/// Generate an ML-DSA key pair. The input is a byte array of size
-/// [`KEY_GENERATION_RANDOMNESS_SIZE`].
+/// Generate an ML-DSA key pair from a seed of [`KEY_GENERATION_RANDOMNESS_SIZE`] bytes held in a
+/// [`Zeroizing`] buffer. The seed is borrowed, so no copy of it is made on the way into key
+/// generation, and the caller's buffer is cleared when it is dropped.
 ///
 /// This function returns an [`MLDSA87KeyPair`].
 #[cfg(not(eurydice))]
-pub fn generate_key_pair(randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE]) -> MLDSA87KeyPair {
-    let mut signing_key = [0u8; ml_dsa_87::SIGNING_KEY_SIZE];
-    let mut verification_key = [0u8; ml_dsa_87::VERIFICATION_KEY_SIZE];
+pub fn generate_key_pair_from_seed(
+    seed: &Zeroizing<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
+) -> MLDSA87KeyPair {
+    // Write the signing key in place: a temporary array would leave a copy behind.
+    let mut key_pair = MLDSA87KeyPair {
+        signing_key: MLDSASigningKey::zero(),
+        verification_key: MLDSAVerificationKey::zero(),
+    };
     crate::ml_dsa_generic::multiplexing::ml_dsa_87::generate_key_pair(
-        randomness,
-        &mut signing_key,
-        &mut verification_key,
+        seed,
+        &mut key_pair.signing_key.value,
+        &mut key_pair.verification_key.value,
     );
-
-    MLDSA87KeyPair {
-        signing_key: MLDSASigningKey::new(signing_key),
-        verification_key: MLDSAVerificationKey::new(verification_key),
-    }
+    key_pair
 }
 
 /// Sign with ML-DSA 87

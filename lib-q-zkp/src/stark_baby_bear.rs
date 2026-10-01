@@ -632,12 +632,12 @@ mod tests {
         assert_eq!(lnp22_abdlop_presentation_size_model(8), 29_093);
     }
 
-    /// Parameterised anon-cred wire size spike (card `ENK-266`). This is decision-support
+    /// Parameterised anon-cred wire size spike. This is decision-support
     /// apparatus, not a security measurement — nothing here is a soundness or security claim.
     /// Run: `cargo test -p lib-q-zkp --release --lib
     /// stark_baby_bear::tests::anon_cred_wire_size_spike -- --ignored --nocapture`.
     ///
-    /// The card is blocked on ONE missing human input pair: libQ's own anon-cred
+    /// The work is blocked on ONE missing human input pair: libQ's own anon-cred
     /// `attribute_count` and `predicate_set`. That blocks the *answer*, not the *apparatus* —
     /// this harness runs the same computation over a plausible spread today, and will run
     /// unchanged over the real numbers the moment they are supplied (edit `ATTRIBUTE_COUNTS`
@@ -663,9 +663,7 @@ mod tests {
 
         use crate::air::unlinkable_membership_baby_bear::MEMBERSHIP_ROW_WIDTH;
 
-        println!(
-            "=== anon-cred wire size spike (card ENK-266) — decision support, not a security claim ==="
-        );
+        println!("=== anon-cred wire size spike — decision support, not a security claim ===");
         println!();
         println!(
             "FRI_ARM,depth,trace_width,total_cells,prove_ms_median,proof_bytes,attribute_count_dependence,register"

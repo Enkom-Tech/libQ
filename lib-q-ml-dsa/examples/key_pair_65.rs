@@ -1,4 +1,6 @@
 #[cfg(feature = "random")]
+use lib_q_ml_dsa::Zeroizing;
+#[cfg(feature = "random")]
 use lib_q_ml_dsa::ml_dsa_65;
 #[cfg(feature = "random")]
 use lib_q_random::LibQRng;
@@ -18,7 +20,7 @@ fn main() {
     let key_generation_seed = random_array();
 
     for _i in 0..10 {
-        let keypair = ml_dsa_65::generate_key_pair(key_generation_seed);
+        let keypair = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(key_generation_seed));
         println!(
             "Generated keypair {}: verification key len = {}, signing key len = {}",
             _i,

@@ -14,7 +14,7 @@ not to be selected in normal operation.
   negotiable fallback.
 
 This document plus the reserved `Algorithm::FaestReserved` identifier are the **entire
-deliverable** of the evaluation card. Nothing in lib-Q's signing path is affected.
+deliverable** of the evaluation. Nothing in lib-Q's signing path is affected.
 
 ## 2. Assumption basis
 
@@ -107,7 +107,7 @@ Only the **reserved identifier and a disabled registry row** exist:
   anywhere in lib-Q (notably none in `lib-q-sig`). The reserved id is inert.
 
 This document and the reserved id together constitute the **complete deliverable** for the
-evaluation card. No default behavior, signing path, or wire format changes.
+evaluation. No default behavior, signing path, or wire format changes.
 
 ## 7. References
 

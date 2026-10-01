@@ -38,11 +38,13 @@ Parts of the portable and AVX2 field/NTT and related paths are amenable to forma
 Enable the parameter sets you need and depend on `lib-q-ml-dsa` from the workspace or crates.io (version aligned with the workspace `version` in the root `Cargo.toml`).
 
 ```rust
-use lib_q_ml_dsa::ml_dsa_65::{generate_key_pair, sign, verify};
+use lib_q_ml_dsa::ml_dsa_65::{generate_key_pair_from_seed, sign, verify};
+use lib_q_ml_dsa::Zeroizing;
 
 // Supply cryptographically strong randomness (see FIPS 204 and project RNG guidance).
-let seed = [0u8; lib_q_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE];
-let key_pair = generate_key_pair(seed);
+// The seed lives in a `Zeroizing` buffer, which is cleared when it goes out of scope.
+let seed = Zeroizing::new([0u8; lib_q_ml_dsa::KEY_GENERATION_RANDOMNESS_SIZE]);
+let key_pair = generate_key_pair_from_seed(&seed);
 
 let msg = b"message";
 let context = b"";

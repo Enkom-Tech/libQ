@@ -768,7 +768,7 @@ fn neon_bs32_kernel_matches_designers_c_for_non_hash_domains() -> Result<()> {
 /// "Saturnin" `algorithm-tests` matrix entry runs on `ubuntu-latest`, which GitHub-hosted runners
 /// have provided AVX2 on since long before this crate existed (SUSPECTED, not directly observed
 /// from this lane — this lane did not run anything on that runner; what IS OBSERVED is
-/// `has_avx2()` returning true on this development host, and the card's stated baseline of this
+/// `has_avx2()` returning true on this development host, and the work item's stated baseline of this
 /// test passing in CI, "130 passed with simd-avx2", which is only possible if AVX2 was in fact
 /// present there too). Either way the var is unset everywhere today, so this stays a hard failure
 /// by default and nothing about existing CI needs to change for this test to keep doing its job;

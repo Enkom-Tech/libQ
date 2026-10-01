@@ -1,4 +1,6 @@
 #[cfg(feature = "random")]
+use lib_q_ml_dsa::Zeroizing;
+#[cfg(feature = "random")]
 use lib_q_ml_dsa::ml_dsa_44::*;
 #[cfg(feature = "random")]
 use lib_q_random::LibQRng;
@@ -19,7 +21,7 @@ fn main() {
     let signing_randomness = random_array();
     let message = random_array::<1023>();
 
-    let keypair = generate_key_pair(key_generation_seed);
+    let keypair = generate_key_pair_from_seed(&Zeroizing::new(key_generation_seed));
 
     for _i in 0..100_000 {
         let _ = core::hint::black_box(sign(

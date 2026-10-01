@@ -10,7 +10,7 @@ package (reference C, specification, and their generated KAT files). Everything 
 Provenance for the verified claims: a C harness built from the designers' `ref/saturnin.c`
 regenerates all three submitted LWC KAT files byte-for-byte, and was used as an oracle over a
 960-vector grid (rounds × domain × key/block). The relevant defects and their evidence are on
-board card `t_ae63f1ec`.
+the Saturnin hardware-throughput review.
 
 ---
 
@@ -188,6 +188,22 @@ Concretely, the checks that would have caught all four:
 
 ## 6. Not verified — do not freeze these
 
+- **Saturnin-QCB is NOT silicon-approved. The hardware target is CTR-Cascade.** An open tracking item
+  put two questions to the QCB designers before QCB is committed to a mask set: whether Saturnin16
+  is related-key secure over the tweak family QCB induces, and what the tweak encoding is. **Both
+  are unanswered**, and the first is the load-bearing one. QCB XORs the tweak into the key, so
+  every distinct `(IV, block index)` pair is a related-key query, up to the paper's `2^95` blocks.
+  The QCB paper raises this itself — "this construction motivates further inquiry of related-key
+  attacks, as it needs Saturnin16 to be related-key secure" — while the Saturnin submission claims
+  related-key security only "against related-key attacks involving a small number of keys", and
+  nothing published says whether `2^95` is inside that scope. Against it: the designers' own
+  Note-RK-1 already recovers keys at 10 super-rounds for ~`2^236`, and QCB's `R = 10` modes run
+  Saturnin16 at *exactly* 10 super-rounds — so the related-key margin behind QCB is **6
+  super-rounds of 16** (10 attacked). Related-key security over this family is **an open
+  assumption, not a supported one**, and it
+  must not be frozen into silicon. **CTR-Cascade does not need it** (it holds the master key fixed
+  across a message and chains the authentication pass instead), so that is the mode to build. Full
+  obligation text: `src/commit.rs`, obligation `RK-1`.
 - **The AVX2 and NEON kernels in `src/simd/`** have never been compared against the reference
   oracle. Their constant code was read; their round functions were not. NEON has never been built
   or executed at all. Do not treat them as a second opinion on the round function.
@@ -200,15 +216,31 @@ Concretely, the checks that would have caught all four:
   must never be zeroed"), and the crate now uses the full five domain separators Algorithm 1 calls
   for (9–13; see §1). The absence of a QCB KAT is still an open gap, independent of those two
   fixes.
-- **QCB tweak layout is libQ-specific, not paper-conformant — OPEN, undecided.** `qcb.rs` builds
-  the tweak as a 128-bit nonce, 64 zero bits, then a 64-bit big-endian block counter. The QCB
-  paper's Saturnin instantiation budgets IVs of at most 160 bits and up to 2^95 blocks, which places
-  the block counter at a different byte offset. The two layouts produce different ciphertexts for
-  identical inputs, so a paper-faithful third-party implementation of QCB-over-Saturnin will **not**
-  interoperate with this crate's `SaturninQcb`. Neither layout is a security choice — 2^64 blocks
-  per nonce is 512 EiB, far beyond any realistic message size either way — so this is a pure
-  interop/roadmap question with no default answer here. It has not been decided, and nothing in
-  this document should be read as deciding it.
+- **The QCB tweak encoding is our reading of an under-specified rule, not a confirmed spec fact —
+  OPEN, and NOT silicon-approved.** `qcb.rs` builds the 256-bit tweak as a 128-bit nonce, then the
+  `10*` pad byte `0x80`, then 7 zero bytes, then a 64-bit big-endian block counter — i.e.
+  `N ‖ 0x80 ‖ 0·7 ‖ be64(i)` (`src/qcb.rs`, `fn tweak`). That is the 161-bit padded-IV field plus
+  95-bit index under which the QCB paper's "IVs of at most 160 bits" and "up to 2^95 blocks" are
+  both exactly tight, and it is the reading the Saturnin submission's general `10*` rule supports
+  (both quoted in `src/qcb.rs`, *Note on the IV/index split inside the 256-bit tweak*). It is
+  pinned by `qcb::tests::tweak_carries_the_pad_bit_at_byte_16` and independently re-derived in
+  `tests/qcb_spec.rs`, which shares no code with it.
+  **This is still a reading.** Algorithm 1 line 1 says only "pad the initialization vector if
+  necessary" — no direction, no field widths, no endianness (`endian` occurs zero times in the
+  paper) — and the round-2 package ships no QCB KAT. The alternative natural completion zero-pads
+  the IV to 160 bits with a 96-bit index; it differs from ours in **exactly byte 16, on every TBC
+  call of every message**. **The designers have not confirmed ours (tracked internally);** one sentence
+  or one KAT from them could overturn it. It was switched to `0x80` at commit `1044297` precisely
+  because the Saturnin hardware was still at trace design, where the change is free and after
+  layout it is not.
+  The earlier form of this bullet described the pre-`1044297` layout (a 128-bit nonce, 64 zero
+  bits, then the counter) and concluded that a paper-faithful implementation would "**not**
+  interoperate". **That description is obsolete and the interop conclusion is no longer the point.**
+  Under either reading the counter sits in the low 64 bits for every index below 2^64, so the two
+  differ in byte 16 alone; and this crate emits the CTX tag `T'` rather than Algorithm 1's raw `T`
+  (`src/commit.rs`), so it is wire-incompatible with paper-QCB by construction regardless of the
+  byte. Byte 16 is a constant under both readings and the tweak is XORed into the key, so the two
+  differ by a fixed key offset — a bijection on the related-key family, not a security change.
 - **Cryptographic strength of the RC-transposed permutation** at `(16,7)`/`(16,8)`: unknown. It was
   established only that it is not the standard. Relevant only if something reached it through the
   public API before the fix.
@@ -719,8 +751,8 @@ returned an error without doing any work. **UNVERIFIED**, but do not quote the r
 - **There is no published hardware implementation of QCB, over Saturnin or over anything else.**
   Every third-party number in this section is CTR-Cascade or Saturnin-Hash. QCB's tweak
   injection, its five domain separators, and its inverse datapath (§4) have never been
-  synthesised by anyone. This compounds the QCB gaps already recorded in §6 — no KAT, and a
-  tweak layout that is this crate's rather than the paper's.
+  synthesised by anyone. This compounds the QCB gaps already recorded in §6 — no KAT, no
+  designer-confirmed tweak encoding, and no silicon approval.
 - **2021/049 has no Saturnin data.** Aagaard and Zidaric's "ASIC Benchmarking of Round 2
   Candidates in the NIST Lightweight Cryptography Standardization Process" is the obvious second
   ASIC source and it does not contain the string "Saturnin" anywhere in its 49 pages; the cipher
@@ -751,8 +783,9 @@ returned an error without doing any work. **UNVERIFIED**, but do not quote the r
   detection/redundancy — they do not supply one. Full scope and caveats, including that both papers
   model Saturnin with half its S-box layers: `SECURITY.md` (*Fault injection*).
 - **No third party has measured the configuration this crate actually ships.** The ASIC and FPGA
-  numbers are for the specification's CTR-Cascade. This crate's QCB tweak layout differs from the
-  QCB paper (§6), and no published measurement covers Saturnin-Short in hardware at all.
+  numbers are for the specification's CTR-Cascade. This crate's QCB tweak encoding is unconfirmed
+  by the designers — it is our reading of Algorithm 1's padding rule (§6) — and no published
+  measurement covers Saturnin-Short in hardware at all.
 - **The FPGA area and power figures exclude the two-pass buffer** (§8.3). They are not a
   complete AEAD core.
 - **The masked-versus-energy conflict in §8.1 is unresolved.** The unmasked energy optimum is a

@@ -11,7 +11,7 @@ description = "RED / NOT-FOR-PRODUCTION: Maul, the compact lattice double-KEM (2
 keywords = ["cryptography", "post-quantum", "lattice", "kem"]
 categories = ["cryptography"]
 # NOT PUBLISHED. Maul is a pre-standard primitive and this is libQ's SECOND attempt at a
-# double-KEM (the first, `lib-q-double-kem`, was withdrawn as misimplemented). Card t_5bc0f630
+# double-KEM (the first, `lib-q-double-kem`, was withdrawn as misimplemented). The double-KEM review gate
 # gates publication on a human cryptographer's sign-off of the instantiation. Until that exists
 # this crate builds and tests in-tree but does not reach crates.io. See SECURITY.md.
 publish = false

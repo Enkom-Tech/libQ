@@ -42,7 +42,7 @@
 //! tweak when processing the AD. Otherwise, there is a quantum forgery attack based on Deutsch's
 //! algorithm."
 //!
-//! # CTX layer (card `t_16ddf21c`)
+//! # CTX layer
 //!
 //! `SaturninQcb::encrypt` no longer emits Algorithm 1's raw tag `T` as the last 32 bytes: it
 //! emits `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, the CTX committing transform (Chan-Rogaway,
@@ -259,7 +259,7 @@ fn matches_algorithm_1_of_the_qcb_paper() {
 /// the AD alone, so the tag difference produced by swapping `A -> A'` is identical under every
 /// nonce.
 ///
-/// **Since the CTX transform (`t_16ddf21c`) now wraps the tag in a hash of `(K, N, A, T)`, this
+/// **Since the CTX transform now wraps the tag in a hash of `(K, N, A, T)`, this
 /// property is exhaustively checked at the raw-tag level by `matches_algorithm_1_of_the_qcb_paper`
 /// above** (which compares full ciphertexts, tag included, against an independent reference that
 /// always embeds the IV — a base-layer regression here would desync the CTX input and fail that
@@ -301,7 +301,7 @@ fn ad_contribution_to_the_tag_depends_on_the_nonce() {
 /// the same constant classically with two queries at `N1`; the transfer step — the part D1 breaks
 /// — uses a fresh nonce `N2` and is what this test asserts must fail.
 ///
-/// **Post-CTX caveat (`t_16ddf21c`):** the tag transmitted today is `T' = H(K,N,A,T)`, not the
+/// **Post-CTX caveat:** the tag transmitted today is `T' = H(K,N,A,T)`, not the
 /// raw XOR-composable `T` this attack targets, so this specific forgery is now *additionally*
 /// blocked by CTX itself — a delta computed on `T'` values is not the algebraic quantity the
 /// attack needs, independent of whether the base D1 fix still holds underneath. This test still

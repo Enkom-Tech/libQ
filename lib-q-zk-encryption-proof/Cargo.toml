@@ -27,7 +27,7 @@ lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11" }
 lib-q-dkg = { path = "../lib-q-dkg", version = "0.0.11" }
 lib-q-threshold-kem-lattice = { path = "../lib-q-threshold-kem-lattice", version = "0.0.11" }
 zeroize = { workspace = true }
-# The malformed-ciphertext partial-decap gate (task #33) forwards an RNG to `partial_decap_masked`.
+# The malformed-ciphertext partial-decap gate forwards an RNG to `partial_decap_masked`.
 rand_core = { workspace = true }
 
 [dev-dependencies]

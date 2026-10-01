@@ -1,0 +1,83 @@
+name: Cross-Platform Builds (macOS)
+
+# The two macOS legs of ci.yml's `cross-platform` matrix, for the self-hosted Forgejo macOS runner
+# (Apple Silicon, labels macos-latest / macos-arm64). That runner is ephemeral: every job gets a fresh
+# VM cloned from a read-only golden image and discarded afterwards, so no state, credential or build
+# output carries between jobs or repositories. ci.yml's `cross-platform` job stays
+# GitHub-only because its Windows leg has no runner on the forge: a leg no runner accepts is never
+# dispatched, sits `waiting`, and holds the whole run pending.
+#
+# Triggers match that job's own gate: push to main/develop, the weekly schedule and
+# workflow_dispatch. Not on pull requests, same as on GitHub. Gating is done by trigger, not by a
+# job-level `if:`, because Forgejo evaluates a job-level `if:` on the runner after dispatch, so a
+# skipped job would still queue for the single macOS slot.
+
+on:
+  push:
+    branches: [ main, develop ]
+  workflow_dispatch:
+  schedule:
+    - cron: "0 5 * * 0"
+
+# The runner has one slot shared by every repository, so a newer push supersedes a queued run
+# instead of adding to the queue.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  CARGO_INCREMENTAL: "0"
+
+permissions:
+  contents: read
+
+jobs:
+  cross-platform-macos:
+    name: Cross-Platform Builds (${{ matrix.name }})
+    # On GitHub these legs already run inside ci.yml's `cross-platform` matrix.
+    if: github.server_url != 'https://github.com'
+    runs-on: macos-arm64
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            name: "macOS ARM64"
+          - target: x86_64-apple-darwin
+            name: "macOS x86_64"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          # Match rust-toolchain.toml (directory override), same as ci.yml's cross-platform job.
+          toolchain: nightly
+          components: rustfmt, clippy, rust-src
+
+      - name: Add target
+        run: rustup target add ${{ matrix.target }}
+
+      # Dependency sources only, keyed by repository: never `target/`, so no build output is ever
+      # restored from another run or repository. The macOS runner is ephemeral (one fresh VM per job)
+      # and its cache server is off, so on the forge this is a restore miss by design.
+      - name: Cache dependency sources
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ github.repository }}-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ github.repository }}-${{ runner.os }}-${{ matrix.target }}-
+
+      - name: Build for target
+        env:
+          RUSTFLAGS: "-C target-cpu=generic -C opt-level=3 -C overflow-checks=on"
+        run: |
+          echo "Building for ${{ matrix.name }} (${{ matrix.target }})"
+          cargo build --target ${{ matrix.target }} --features "all-algorithms" --release

@@ -1,4 +1,4 @@
-//! Nonce-reuse universal forgery against Saturnin-QCB (card `t_883438eb`).
+//! Nonce-reuse universal forgery against Saturnin-QCB.
 //!
 //! # The claim under test
 //!

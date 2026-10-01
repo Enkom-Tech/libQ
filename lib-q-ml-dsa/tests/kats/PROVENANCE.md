@@ -28,8 +28,8 @@ them. Anyone re-verifying should re-fetch the URLs in `kats-manifest.toml`, not 
 strongest external evidence this crate has, and it is what `tests/acvp.rs` runs.
 
 **`dilithium-py-kats-*.json` are not NIST vectors, and they are not generated here either.** They
-were named `nistkats*.json` until 2026-08-07, which asserted NIST provenance they never had (card
-t_71d4f79a); renaming them is why the files moved. What they actually are, established 2026-08-07
+were named `nistkats*.json` until 2026-08-07, which asserted NIST provenance they never had
+; renaming them is why the files moved. What they actually are, established 2026-08-07
 by live download rather than by trusting this repo's own gitignored `reference/` copy:
 
 - All six are **byte-for-byte identical to `github.com/cryspen/libcrux` at commit
@@ -70,7 +70,7 @@ without inflation in either direction, because both directions are tempting here
    (`debug_assert_eq!(output.len(), 256)`). Whether FIPS 204 §5.4 wants 256 bytes or 256 bits is a
    question these files are structurally unable to answer.
 
-None of this is the `lib-q-hqc` pattern that card t_71d4f79a is about — vectors written by the code
+None of this is the `lib-q-hqc` pattern that the KAT-provenance audit is about — vectors written by the code
 under test itself — and it should not be filed as such. But "independent implementation", which is
 what `tests/kats/README.md` implied before this pass, overstates it.
 

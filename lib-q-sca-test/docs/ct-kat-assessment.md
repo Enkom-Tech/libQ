@@ -1,6 +1,6 @@
 # CT-KAT coverage assessment (ePrint 2026/1418)
 
-Radar card: **ENK-489** (Hive `iacr-radar`, idempotency `iacr-eprint-2026-1418`).
+Triage record from the `iacr-radar` eprint feed (`iacr-eprint-2026-1418`).
 Assessed against libQ `main` at commit `47080f6` (2026-09-08).
 
 ## What the paper is
@@ -140,16 +140,16 @@ answers the question CT-KAT screens for (which is why it is not
 INFORMATIONAL). The follow-up work — an SLH-DSA target in
 `run_timing_battery`, feature-gated like the existing three, wired into the
 `ci.yml` self-cert smoke the same way `hqc-hardened`/`lattice-zkp-hardened`
-are — is tracked separately as **ENK-1364** and is out of scope for this
+are — is tracked separately as **the SLH-DSA timing-target follow-up** and is out of scope for this
 assessment (documentation only; no `lib-q-sca-test` source was touched by
 this change).
 
 Verdict: GAP
 
-**Update (ENK-1364):** Gap closed — `lib-q-sca-test/src/self_cert.rs::run_timing_battery`
+**Update:** Gap closed — `lib-q-sca-test/src/self_cert.rs::run_timing_battery`
 now carries an `lib-q-slh-dsa:sign` target behind a new `slhdsa` feature, wired into the
 `ci.yml` self-cert smoke the same way `hqc-hardened`/`lattice-zkp-hardened` are; see
-Enkom-Tech/libQ PR #44 (branch `agent/ENK-1364`).
+Enkom-Tech/libQ PR #44.
 
 ## Not checked
 
@@ -158,7 +158,7 @@ Enkom-Tech/libQ PR #44 (branch `agent/ENK-1364`).
   ML-KEM/ML-DSA targets use, or needs a different construction (e.g. a
   fixed-vs-random *randomizer* axis instead of a fixed-vs-random *key* axis,
   the way the paper's own ML-DSA/SLH-DSA dudect harnesses hold the message
-  fixed rather than the key) — left to ENK-1364.~~ Resolved by ENK-1364: the
+  fixed rather than the key) — left to a follow-up.~~ Resolved by the SLH-DSA timing-target follow-up: the
   new `slhdsa_sign_tvla_timings` target holds the signing key **and** the
   message fixed in both classes and varies only the FIPS 205 `addrnd`
   randomizer axis, matching the paper's own SLH-DSA dudect construction

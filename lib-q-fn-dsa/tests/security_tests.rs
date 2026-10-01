@@ -92,7 +92,7 @@ fn test_small_degree_optimization_correctness() -> TestResult {
 /// detect a timing side channel -- it can only catch a livelock-class regression (e.g. an
 /// accidental infinite/near-infinite loop on one input class) gross enough to blow past 500ms on
 /// a debug build. It was previously named `test_constant_time_properties`, which claimed
-/// evidence this test cannot provide; renamed for card t_9d1766f3.
+/// evidence this test cannot provide; renamed for the FN-DSA constant-time gate fix.
 ///
 /// A real statistical timing check (paired-input Welch t-test, release build, n=1000 per class)
 /// lives in `tests/constant_time.rs` -- see that file's module doc for what it actually measures

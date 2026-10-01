@@ -1,4 +1,4 @@
-//! Card t_eacf23b1: does the (now-fixed) ring-sig transcript collision (card t_f0d676d1 / F25,
+//! The ring-signature transcript forgery check: does the (now-fixed) ring-sig transcript collision (the 2026-08 test-hygiene audit / F25,
 //! see `fs_context_collision.rs`) yield an actual cross-protocol FORGERY, or does it stop at the
 //! transcript level?
 //!
@@ -20,7 +20,7 @@
 //! `git checkout 275bf59~1 -- <files>`, restored afterwards; `git status --short` was clean for
 //! both files once restored), the pre-fix crafted pair `ctx_fed(ring, msg_a) ==
 //! ctx_dual(ring, msg_b)` was reproduced and printed as byte-identical 133-byte arrays (see the
-//! card's progress log for the verbatim printed bytes). Feeding that SAME `ctx` value through
+//! investigation notes for the verbatim printed bytes). Feeding that SAME `ctx` value through
 //! `manual_opening_statement_ctx` (federation) vs. raw (dual-ring) and then through the
 //! `fs_sparse_challenge` hash-input formula produced a 2299-byte federation input and a 165-byte
 //! dual-ring input — different by exactly 2134 bytes, which is precisely
@@ -87,7 +87,8 @@ fn commit_with_first_coeff(key: &AjtaiCommitmentKey, v: i32) -> lib_q_lattice_zk
 /// constant was `pub(crate)` and unreachable; it is in fact `pub`, inside `pub mod sigma` ->
 /// `pub mod opening`, so the copy was both unnecessary and a liability. A duplicated constant
 /// silently stops matching when upstream changes it -- the hand-maintained-drift class that has
-/// already produced two shipped defects here (t_1558e72f, and the FN-DSA-1024 size at 0737349).
+/// already produced two shipped defects here (the HQC public-key sizes, and the FN-DSA-1024 size
+/// at 0737349).
 /// Referencing the real one keeps this test's length arithmetic CORRECT if the domain separator
 /// ever changes. Verified honestly: changing the upstream constant does NOT make this test fail,
 /// and it should not -- the claim here is about the LENGTH difference between the two hash
@@ -126,7 +127,7 @@ fn hash_input(ctx: &[u8], first_message: &[Poly]) -> Vec<u8> {
     out
 }
 
-/// THE DECISIVE TEST for card t_eacf23b1: given a byte-identical `ctx` shared by both opening
+/// THE DECISIVE TEST for the ring-signature transcript forgery check: given a byte-identical `ctx` shared by both opening
 /// protocols (which is exactly what the pre-fix ring-sig collision produced — see module docs),
 /// are the two protocols' actual Fiat-Shamir hash inputs also identical, for the SAME
 /// attacker-chosen first message `w`? OBSERVED: no — see the length-mismatch assertion below.

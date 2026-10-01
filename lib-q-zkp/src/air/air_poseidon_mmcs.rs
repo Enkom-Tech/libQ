@@ -161,8 +161,8 @@ mod tests {
 
     /// Negative control for the test above: the *previous* compressor
     /// (a padded sponge, see [`old_sponge_node`]) does NOT satisfy it. This is
-    /// the defect that made `MerkleInclusionAir mismatch @ commit0` unavoidable (card
-    /// t_4333e4ea); if this ever starts matching, the assertion above has become vacuous.
+    /// the defect that made `MerkleInclusionAir mismatch @ commit0` unavoidable;
+    /// if this ever starts matching, the assertion above has become vacuous.
     #[test]
     fn previous_sponge_compressor_does_not_match_the_air() {
         let l = fe(11, 22);

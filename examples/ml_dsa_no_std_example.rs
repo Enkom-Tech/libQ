@@ -8,7 +8,10 @@ use lib_q_ml_dsa::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,
     SIGNING_RANDOMNESS_SIZE,
 };
-use lib_q_ml_dsa::ml_dsa_65;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    ml_dsa_65,
+};
 
 // In a real no_std environment, you would get randomness from:
 // - Hardware random number generator
@@ -29,7 +32,8 @@ fn get_signing_randomness() -> [u8; SIGNING_RANDOMNESS_SIZE] {
 fn main() {
     // Step 1: Generate keypair with external randomness
     let keypair_randomness = get_randomness();
-    let keypair = ml_dsa_65::portable::generate_key_pair(keypair_randomness);
+    let keypair =
+        ml_dsa_65::portable::generate_key_pair_from_seed(&Zeroizing::new(keypair_randomness));
 
     println!("✅ Keypair generated successfully");
     println!(

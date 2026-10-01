@@ -1,4 +1,4 @@
-# ENK-52 — verification record for the three RED boundaries
+# Verification record for the three RED boundaries
 
 Independent re-run of the current tree, not carried from a commit message. Recorded because the
 board channel was unavailable this run (see final note). This file is a **verification log**, not a
@@ -13,7 +13,7 @@ owns the residual. It authors no cryptographic reduction and asserts no sign-off
 
 **Closed in code; RED label is a human sign-off, not an agent decision.**
 
-The card's stated criterion (prove `p = B0ᵀe + f` with *bounded* `(e,f)`) is the superseded,
+The work item's stated criterion (prove `p = B0ᵀe + f` with *bounded* `(e,f)`) is the superseded,
 *insufficient* one — the `δ·unit_k` spike has `‖f‖∞ = 1`, inside any norm ball
 (`THRESHOLD_SECURITY.md` §4.2). The sufficient statement (§4.3) is PoK of `μ` with
 `(e,f,g)=XOF(pk‖μ)` **and** `p=B0ᵀe+f`; it is built in `lib-q-zk-encryption-proof`
@@ -72,11 +72,11 @@ does not verify a partial. A sound cheater-ID proof must show `value_i` opens co
 published commitments; the masked path's `value_i = λ_i·⟨rand(i),p⟩ + m_i + flood_i` carries the
 pairwise zero-share `m_i`, which is exactly what a naive Feldman opening cannot see. Building that ZK
 argument (candidate machinery: lib-q-dkg BDLOP FS proofs, lib-q-lattice-zkp) is the remaining work;
-a speculative implementation would be worse than none (card rule 9) and is not landed.
+a speculative implementation would be worse than none and is not landed.
 
 ## Boundary (3) — formal threshold IND-CCA reduction
 
-**Stays RED by the card's own statement — human cryptographer sign-off.**
+**Stays RED by its own acceptance statement — human cryptographer sign-off.**
 
 `THRESHOLD_SECURITY.md` §7 states the conditional claim (threshold IND-CCA in the ROM at §2/§3
 hardness, *conditional on closure A, or B+C*) and marks the bare-model theorem "not claimed". The
@@ -89,7 +89,7 @@ The implementable/verifiable work across all three boundaries has already landed
 `21f9cab`→`3bb92b5` for (1)/closures, `9786780` for closure B, `0575c11` for (2)'s public inputs);
 this run independently re-ran the load-bearing positive and negative tests and they pass at `HEAD`.
 The three residual RED labels are human-cryptographer sign-off items, not defects and not code gaps,
-so no additional sound code change was warranted this run. The card is NOT closable by an agent:
+so no additional sound code change was warranted this run. The work item cannot be closed by an agent:
 each remaining boundary asserts something a human must still check.
 
 ## Addendum — second independent re-run, 2026-08-28 (separate agent, HEAD unchanged at `5eea44c`)
@@ -147,13 +147,4 @@ behind an explicit caller opt-in rather than being tkem's default API behavior (
 not a bug — documented above and in `gate.rs` itself), residual is FS/QROM sign-off; (2) public
 inputs published and tested, the cheater-ID ZK proof over pairwise-masked `value_i` is genuinely
 unbuilt research-grade work — implementing a speculative version here would be worse than leaving it
-RED (card rule 9); (3) explicitly out of agent scope by the card's own text.
-
-**Board channel note:** `hive` was present on `PATH` but had **no company or agent identity
-configured anywhere in this VM** (`~/.config/hive/config.json` absent, `HIVE_COMPANY_ID` /
-`HIVE_AGENT_ID` unset, no value recoverable from the launch script's env, `hive show`/`list`/`kb`/
-`identity` all refused with "no agent id configured"). This is a different failure mode than the
-documented SHIM-vs-BINARY split (`hive close --help` exits 0, so the binary is present) — it is a
-staging gap, not a CLI-variant issue. No board comment, no KB entry, and no close could be filed
-this run; this addendum is the only record. Reported as an image bug in the terminal response of
-this run (not in-repo — this file does not carry ops findings).
+RED; (3) explicitly out of scope for this review.

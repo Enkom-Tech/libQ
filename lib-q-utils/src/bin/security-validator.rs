@@ -3,7 +3,7 @@
 //! This binary provides command-line tools for security validation
 //! that can be used in CI/CD workflows. Each subcommand now runs exactly the
 //! checks its name promises (previously every subcommand ran all eight checks
-//! identically — see t_4d2dc427).
+//! identically — see the security-validator stub-check defect).
 
 // Provide a no_std fallback main for environments without std support
 #[cfg(not(feature = "std"))]
@@ -88,7 +88,7 @@ fn run_command(command: &str, source_override: Option<&str>) -> i32 {
         Some(dir) => {
             // Without this line a clean synthetic directory yields a report that is textually
             // identical to a real workspace certification — "🎉 All security checks passed!" —
-            // which is precisely the false-green failure mode t_4d2dc427 was filed about. Say
+            // which is precisely the false-green failure mode the security-validator stub-check defect was filed about. Say
             // out loud that nothing about libQ was read.
             println!(
                 "⚠️  [source-dir] override in effect: scanning ONLY `{}`. This report does NOT \
@@ -191,7 +191,7 @@ mod tests {
         // accepted an unchecked, variable-length `Vec<u8>`. Those types were dead API — zero
         // consumers outside their own unit test workspace-wide; every real entry point takes
         // `lib_q_core::KemPublicKey`, which is validated at each call site — and have been
-        // deleted (card t_f3ea6b2a). This assertion is flipped to `== 0` in the same change,
+        // deleted. This assertion is flipped to `== 0` in the same change,
         // per the instruction this comment used to carry.
         assert_eq!(run_command("validate-all", None), 0);
     }

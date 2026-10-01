@@ -95,7 +95,7 @@ pub enum EncProofAir {
     DotFold(DotFoldAir),
     /// `encode(μ)(ζ)` fold with boolean-μ binding (design §4.4, R3b).
     EncodeMuFold(EncodeMuFoldAir),
-    /// μ limb→bit bridge tying the encode fold's μ to the sponge preimage's (card `t_a73aaed2`).
+    /// μ limb→bit bridge tying the encode fold's μ to the sponge preimage's.
     MuBits(MuBitsAir),
     /// Non-native `Z_q` linear-relation check `Σ_j a_j·w_j + c ≡ 0` (design §4.1, R3).
     RelationCheck(RelationCheckAir),
@@ -230,7 +230,7 @@ mod tests {
         StarkConfig::new(pcs, challenger)
     }
 
-    // ── Hiding-FRI (zero-knowledge) batch config (design §7, task #32) ────────────────────────────
+    // ── Hiding-FRI (zero-knowledge) batch config (design §7) ──────────────────────────────────────
     // A `HidingFriPcs` PCS (whose `ZK` const is `true`, so `config.is_zk() == 1`): the prover appends
     // random codewords to every committed matrix and the quotient is randomized, so the opened values
     // reveal nothing about the witness beyond the statement — the proof becomes zero-knowledge (μ is
@@ -1464,7 +1464,7 @@ mod tests {
         .expect("the full SHAKE⇒sample⇒fold⇒relation slice must verify (all four buses balanced)");
     }
 
-    /// **Zero-knowledge (hiding-FRI) round trip (task #32).** The join-3 fold→relation binding proven
+    /// **Zero-knowledge (hiding-FRI) round trip.** The join-3 fold→relation binding proven
     /// under the [`test_batch_config_zk`] **hiding** config (`is_zk() == 1`): the batch prover blinds
     /// every committed matrix with random codewords and randomizes the quotient, so the proof reveals
     /// nothing about the witness (the coefficients / `E` / μ) beyond the public statement, yet still
@@ -1539,7 +1539,7 @@ mod tests {
     }
 
     // `compose_r3b_real_relation_prove_batch` (R3b on a REAL ciphertext via fold+relation only, no
-    // byte provenance) was REMOVED (card `t_a73aaed2`): its entire subject was the evaluation-at-`ζ`
+    // byte provenance) was REMOVED: its entire subject was the evaluation-at-`ζ`
     // relation witnessed by a prover-chosen quotient `H_b` — `relation_assembly::{derive_zetas,
     // r3b_public_coeffs, r3b_quotient_poly}` — exactly the vacuous construction this fix deletes
     // (see `relation_assembly::corr_negacyclic`'s doc comment). There is no `κ`-based analogue to
@@ -1548,7 +1548,7 @@ mod tests {
     // `assemble_e_provenance_prover`/`_verifier` and their test suite already cover on a REAL
     // ciphertext, at both test and PRODUCTION FRI params.
 
-    /// **Multi-fold-from-one-sampler + fan-out (the last full-assembly wiring, task #26).** ONE ternary
+    /// **Multi-fold-from-one-sampler + fan-out (the last full-assembly wiring).** ONE ternary
     /// sampler emits `2n` coefficients; TWO folds Receive their halves (join 2 with per-ring-element
     /// bases `0` and `n`), and EACH fold fans its result out to TWO relations (join 3, distinct
     /// fold-E bases + `col_base`), which both Receive `[E_0, E_1]`. This is exactly how the full proof
@@ -1676,7 +1676,7 @@ mod tests {
         );
     }
 
-    /// **Capstone: the WHOLE composition in one `prove_batch` (task #26).** Every layer and every join
+    /// **Capstone: the WHOLE composition in one `prove_batch`.** Every layer and every join
     /// at once: sponge (Sends limbs) ⇒ squeeze-byte (Receives limbs, Sends bytes) ⇒ ternary sampler
     /// (Receives bytes [join 1], Sends `2n` coeff lifts [join 2]) ⇒ TWO folds (Receive their coeff
     /// halves [join 2], each fans its `E` out to TWO relations [join 3]) ⇒ two relations (Receive
@@ -1842,7 +1842,7 @@ mod tests {
     }
 
     // `compose_r3b_e_provenance_real_ciphertext` (byte-provenance e => R3b on a REAL ciphertext
-    // at N=1024, fed through a hand-rolled quotient) was REMOVED (card `t_a73aaed2`) for the same
+    // at N=1024, fed through a hand-rolled quotient) was REMOVED for the same
     // reason as `compose_r3b_real_relation_prove_batch` above: it used the deleted
     // `relation_assembly::{derive_zetas, r3b_public_coeffs, r3b_quotient_poly}` quotient-witnessed
     // construction. Its exact purpose - e byte-bound to the genuine SHAKE output, folded and

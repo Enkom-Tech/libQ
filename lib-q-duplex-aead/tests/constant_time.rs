@@ -1,7 +1,7 @@
 //! Structural (non-timing) pin on the AEAD tag comparison in `crypto.rs::decrypt` (`ct_eq`).
 //!
 //! Does NOT measure wall-clock timing -- that is unmeasurable in a unit test and out of scope
-//! per card t_043571b4 (a prior "constant-time" test compared two algorithms' speeds and was
+//! per the constant-time test-scope decision (a prior "constant-time" test compared two algorithms' speeds and was
 //! rejected). What these tests pin is the code shape: decryption must reject a tampered
 //! ciphertext regardless of WHERE the corrupted byte sits (body or tag), and a truncated
 //! ciphertext must be rejected outright rather than compared prefix-wise. A short-circuiting

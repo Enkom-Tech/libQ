@@ -3,8 +3,8 @@
 //! # Why this file exists
 //!
 //! libQ shipped a double-KEM (`lib-q-double-kem`) and then withdrew and deleted it. The paper it
-//! cited (ePrint 2025/1755) was sound; the implementation was not. Its defect, from card
-//! t_2a1456b0: `ct_b` was computed and then DISCARDED at both ends and never transmitted, and
+//! cited (ePrint 2025/1755) was sound; the implementation was not. Its defect, from
+//! the discarded-`ct_b` defect: `ct_b` was computed and then DISCARDED at both ends and never transmitted, and
 //! `ss_b` was instead recomputed by hashing wire bytes together with the **public** `ek_b`. The
 //! second leg therefore contributed no secrecy whatsoever: the construction delivered plain
 //! ML-KEM-768 security at 1260 wire bytes, against 1088 for a single ML-KEM-768 ciphertext.
@@ -516,7 +516,7 @@ fn an_unrelated_right_key_pair_cannot_decapsulate() {
 
 #[test]
 fn the_wire_actually_carries_the_second_leg() {
-    // Criterion 2 of card t_5bc0f630: c_R (masked) must be TRANSMITTED, not computed and thrown
+    // Criterion 2 of the double-KEM review gate: c_R (masked) must be TRANSMITTED, not computed and thrown
     // away as in the withdrawn crate. Show its bytes are present, are the documented size, and
     // genuinely vary with m_R.
     let f = fixture();
@@ -542,7 +542,7 @@ fn the_wire_actually_carries_the_second_leg() {
 
 #[test]
 fn size_claim_is_measured_against_both_baselines() {
-    // Card criterion 5: report against BOTH 2x ML-KEM-768 and 1x ML-KEM-768, so the comparison
+    // Review-gate criterion 5: report against BOTH 2x ML-KEM-768 and 1x ML-KEM-768, so the comparison
     // cannot be read misleadingly the way the withdrawn crate's README was.
     let f = fixture();
     let (ct, _) = encapsulate_with_messages(&f.pp, &f.pk_l, &f.pk_r, &[1u8; 32], &[2u8; 32]);

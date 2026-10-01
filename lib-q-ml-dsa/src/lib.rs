@@ -41,6 +41,9 @@ pub mod types;
 pub use pre_hash::DomainSeparationContext;
 // Public interface
 pub use types::*;
+/// Re-exported so callers can hold a key-generation seed in a buffer that is cleared on drop
+/// (see `generate_key_pair_from_seed` in each parameter-set module).
+pub use zeroize::Zeroizing;
 
 pub use crate::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,
@@ -212,4 +215,128 @@ mod constants_line_coverage {
             lib_q_types::mldsa::MLDSA87_SIGNATURE_BYTES
         );
     }
+}
+
+#[cfg(all(test, feature = "zeroize"))]
+mod zeroize_tests {
+    use zeroize::{
+        Zeroize,
+        ZeroizeOnDrop,
+    };
+
+    use crate::MLDSASigningKey;
+
+    fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+
+    // Compile-time check: the build fails if a signing key type loses ZeroizeOnDrop.
+    const _: fn() = || {
+        assert_zeroize_on_drop::<MLDSASigningKey<32>>();
+        #[cfg(feature = "mldsa44")]
+        assert_zeroize_on_drop::<crate::ml_dsa_44::MLDSA44SigningKey>();
+        #[cfg(feature = "mldsa65")]
+        assert_zeroize_on_drop::<crate::ml_dsa_65::MLDSA65SigningKey>();
+        #[cfg(feature = "mldsa87")]
+        assert_zeroize_on_drop::<crate::ml_dsa_87::MLDSA87SigningKey>();
+    };
+
+    #[test]
+    fn signing_key_zeroize_clears_bytes() {
+        let mut sk = MLDSASigningKey::<64>::new([0xA5; 64]);
+        sk.zeroize();
+        assert_eq!(sk.as_slice(), &[0u8; 64][..]);
+    }
+
+    // Drop the key in place and read the storage it occupied: the `Drop` impl must have cleared it.
+    #[test]
+    #[allow(unsafe_code)]
+    fn signing_key_drop_clears_bytes() {
+        let mut slot = core::mem::ManuallyDrop::new(MLDSASigningKey::<64>::new([0x5A; 64]));
+        let bytes: *const [u8; 64] = &slot.value;
+        // SAFETY: `slot` is dropped exactly once and never used again. `bytes` points into the
+        // `ManuallyDrop` storage, which stays allocated until the end of this function, and a
+        // `[u8; 64]` has no invalid bit patterns.
+        let after = unsafe {
+            core::mem::ManuallyDrop::drop(&mut slot);
+            core::ptr::read_volatile(bytes)
+        };
+        assert_eq!(after, [0u8; 64]);
+    }
+}
+
+#[cfg(test)]
+mod keygen_entry_point_tests {
+    use crate::{
+        KEY_GENERATION_RANDOMNESS_SIZE,
+        Zeroizing,
+    };
+
+    const SEEDS: [[u8; KEY_GENERATION_RANDOMNESS_SIZE]; 3] = [
+        [0u8; KEY_GENERATION_RANDOMNESS_SIZE],
+        [0xFF; KEY_GENERATION_RANDOMNESS_SIZE],
+        [
+            0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+            24, 25, 26, 27, 28, 29, 30, 31,
+        ],
+    ];
+
+    // The multiplexed, portable and caller-buffer entry points all go through the same generic
+    // key generation, so they must agree byte for byte. NIST KATs pin the actual output.
+    macro_rules! keygen_entry_points_agree {
+        ($name:ident, $feature:literal, $module:ident, $key_pair:ident) => {
+            #[cfg(feature = $feature)]
+            #[test]
+            fn $name() {
+                use crate::$module::$key_pair;
+                for seed in SEEDS {
+                    let seed = Zeroizing::new(seed);
+                    let multiplexed = crate::$module::generate_key_pair_from_seed(&seed);
+                    let portable = crate::$module::portable::generate_key_pair_from_seed(&seed);
+                    assert_eq!(
+                        multiplexed.signing_key.as_slice(),
+                        portable.signing_key.as_slice()
+                    );
+                    assert_eq!(
+                        multiplexed.verification_key.as_slice(),
+                        portable.verification_key.as_slice()
+                    );
+                    let mut into_buffers = $key_pair {
+                        signing_key: crate::MLDSASigningKey::zero(),
+                        verification_key: crate::MLDSAVerificationKey::zero(),
+                    };
+                    crate::$module::portable::generate_key_pair_mut(
+                        &seed,
+                        &mut into_buffers.signing_key.value,
+                        &mut into_buffers.verification_key.value,
+                    );
+                    assert_eq!(
+                        into_buffers.signing_key.as_slice(),
+                        multiplexed.signing_key.as_slice()
+                    );
+                    assert_eq!(
+                        into_buffers.verification_key.as_slice(),
+                        multiplexed.verification_key.as_slice()
+                    );
+                }
+            }
+        };
+    }
+
+    keygen_entry_points_agree!(
+        keygen_entry_points_agree_44,
+        "mldsa44",
+        ml_dsa_44,
+        MLDSA44KeyPair
+    );
+    keygen_entry_points_agree!(
+        keygen_entry_points_agree_65,
+        "mldsa65",
+        ml_dsa_65,
+        MLDSA65KeyPair
+    );
+    keygen_entry_points_agree!(
+        keygen_entry_points_agree_87,
+        "mldsa87",
+        ml_dsa_87,
+        MLDSA87KeyPair
+    );
 }

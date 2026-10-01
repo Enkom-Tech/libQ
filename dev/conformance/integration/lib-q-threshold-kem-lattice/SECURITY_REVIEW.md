@@ -4,7 +4,7 @@
 **Reviewers:** in-house adversarial review (no external cryptographer available). Five independent
 expert lenses (KEM correctness/FO-CCA, threshold security, concrete lattice parameters, ZK/STARK
 soundness, implementation hygiene), with the load-bearing finding re-verified against source by hand.
-> ## ⚠ SUPERSEDED IN PART — the R3 relation design described below was UNSOUND (card `t_a73aaed2`)
+> ## ⚠ SUPERSEDED IN PART — the R3 relation design described below was UNSOUND
 >
 > **Everything this document says about the evaluation-at-`ζ` relation, the quotient folds
 > (`H_k`/`H_b`, `r3a_quotient_poly`/`r3b_quotient_poly`), `HornerFoldAir`, `derive_zetas`,
@@ -90,7 +90,7 @@ Knowledge-soundness is empty: an extractor recovers *a* μ, but unrelated to any
 The XOF-binding ("byte-provenance") layer — sponge + both samplers + joins 1 & 2 — exists **only as
 `#[cfg(test)]` vertical slices in `compose.rs`**, at toy FRI parameters (2 queries, 1 PoW bit,
 explicitly "not production-sound"), covering a single ternary element and never chaining the bounded
-sampler for `f, g`. Production integration is an open task (`compose.rs` task #26). **No
+sampler for `f, g`. Production integration (the full-assembly wiring in `compose.rs`) is still open. **No
 production-callable proof binds the witness to the ciphertext's actual FO expansion.**
 
 The crate's `lib.rs` RED marker is honest. The problem is that `gate.rs`'s module docs (lines ~1–27)

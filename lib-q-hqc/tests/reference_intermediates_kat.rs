@@ -29,7 +29,7 @@
 //! Previously there was a second gap: encaps/decaps was compared for HQC-128 only, because this
 //! crate hardwired `m` and `sigma` to 16 bytes while upstream sizes both at `PARAM_SECURITY_BYTES`
 //! = 16/24/32, so the HQC-192/256 reference values could not even be supplied to the API. That is
-//! fixed (card `t_d2ee7042`) and all three levels are now compared through the full chain.
+//! fixed and all three levels are now compared through the full chain.
 //!
 //! See `kats/README.md`.
 
@@ -154,7 +154,7 @@ fn check_keygen<P: HqcParams>(variant: &str) {
     );
 
     // `sigma` is `PARAM_SECURITY_BYTES` = `P::K` wide at every level, and comparable at every
-    // level since the fix for card `t_d2ee7042`.
+    // level since the fix for the HQC per-level `m` fix.
     let sigma_actual =
         &sk_bytes[P::PUBLIC_KEY_BYTES + SEED_BYTES..P::PUBLIC_KEY_BYTES + SEED_BYTES + P::K];
     assert_eq!(
@@ -265,13 +265,13 @@ fn hqc_128_encaps_decaps_matches_reference_intermediates() {
 }
 
 /// Full KEM conformance for HQC-192 (`PARAM_SECURITY_BYTES` = 24). Previously impossible to run:
-/// the API could not accept a 24-byte `m`. Card `t_d2ee7042`.
+/// the API could not accept a 24-byte `m`. The HQC per-level `m` fix.
 #[test]
 fn hqc_192_encaps_decaps_matches_reference_intermediates() {
     check_encaps_decaps::<Hqc3Params>("hqc-3");
 }
 
-/// Full KEM conformance for HQC-256 (`PARAM_SECURITY_BYTES` = 32). Card `t_d2ee7042`.
+/// Full KEM conformance for HQC-256 (`PARAM_SECURITY_BYTES` = 32). The HQC per-level `m` fix.
 #[test]
 fn hqc_256_encaps_decaps_matches_reference_intermediates() {
     check_encaps_decaps::<Hqc5Params>("hqc-5");

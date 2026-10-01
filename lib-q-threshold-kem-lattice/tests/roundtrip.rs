@@ -345,7 +345,7 @@ fn dealerless_dkg_key_encaps_and_decaps() {
 
 #[test]
 fn dealerless_dkg_key_decaps_after_proactive_refresh() {
-    // ENK-142 acceptance criterion: "threshold-KEM decap continues to work post-refresh". A
+    // Proactive-refresh acceptance criterion: "threshold-KEM decap continues to work post-refresh". A
     // same-committee proactive refresh (`dkg_run_honest_refresh`) must leave the group's public
     // identity (`t0 = B0*r`, this crate's public key) unchanged and produce shares that still
     // decapsulate correctly -- with no key reconstruction and no committee change.

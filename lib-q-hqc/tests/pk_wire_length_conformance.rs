@@ -1,4 +1,4 @@
-//! Card t_1558e72f: HQC public keys must be `seed_ek (32 bytes) || s (CEIL(N/8) bytes)` per the
+//! The HQC public-key-size fix: HQC public keys must be `seed_ek (32 bytes) || s (CEIL(N/8) bytes)` per the
 //! HQC v5.0.0 (2025-08-22) specification (`PROVENANCE.md`'s cited reference). This test derives
 //! the expected length from `VEC_N_SIZE_BYTES` directly rather than comparing a constant to its
 //! own definition (see `params.rs`'s prior tautological asserts for that failure mode),

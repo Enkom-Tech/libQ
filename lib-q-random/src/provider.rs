@@ -67,7 +67,7 @@ pub struct LibQRng {
 ///
 /// # Why it is sealed, and why it is not `Copy + Default`
 ///
-/// `fill`'s bound was `T: Copy + Default` until card `t_1594295d`. That is a
+/// `fill`'s bound was `T: Copy + Default` until the `fill` bound fix. That is a
 /// weaker and different property: `bool` is `Copy + Default` and only
 /// `0x00`/`0x01` are valid bit patterns; `char` is `Copy + Default` and must be
 /// a Unicode scalar value. Random bytes satisfy neither. The bound read as
@@ -596,7 +596,7 @@ impl LibQRng {
     /// valid) and `char` (must be a Unicode scalar value) both satisfy
     /// `Copy + Default`, and writing random bytes over one produces an
     /// invalid value — undefined behaviour before anything even reads it.
-    /// See card `t_1594295d`.
+    /// See the `fill` bound fix.
     ///
     /// # Guarantee: no unzeroized intermediate buffer
     ///

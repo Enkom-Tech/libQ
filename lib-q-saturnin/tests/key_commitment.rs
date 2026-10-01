@@ -5,7 +5,7 @@
 //! (only the ciphertext string is shared), which is exactly the multi-recipient / envelope
 //! setting where each recipient's blob carries its own header.
 //!
-//! # History (card `t_16ddf21c`) — the break, and the fix
+//! # History — the break, and the fix
 //!
 //! **Saturnin-QCB was not key-committing.** The attack had two parts:
 //!
@@ -32,7 +32,7 @@
 //! ‖ T ‖ A)` instead of `T` — the **CTX** transform (Chan-Rogaway, ESORICS 2022; see
 //! `crate::commit`). `T'` does not XOR-decompose, so the closed-form solve below no longer steers
 //! it: [`qcb_ctx_defeats_the_closed_form_ad_solve`] asserts exactly that, and would go red again
-//! if the transform were removed (see the red-then-green evidence quoted on card `t_16ddf21c`).
+//! if the transform were removed (see the red-then-green evidence quoted on the Saturnin key-commitment fix).
 //! Every step of the original attack (the padding search, the closed-form algebra) is retained
 //! verbatim below — only the verdict changed, from "side 2 decrypts" to "side 2 must not decrypt".
 //!
@@ -264,14 +264,14 @@ fn qcb_decrypt_oracle_discriminates() {
     );
 }
 
-/// **The CMT-1 break of card `t_16ddf21c`, retained verbatim, now expected to FAIL.**
+/// **The CMT-1 break of the Saturnin key-commitment fix, retained verbatim, now expected to FAIL.**
 ///
 /// Every step still runs: the 1/256 padding search still finds a dual-padding body, and the
 /// closed-form solve still produces the `ad2` that satisfied the pre-CTX tag equation
 /// `tag = TBC_13(cs) XOR ad_auth`. What changed is that the transmitted tag is now
 /// `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)`, which does not XOR-decompose, so `ad2` no longer
 /// steers it. This test would go red again if the CTX transform were removed — see the
-/// red-then-green evidence quoted on card `t_16ddf21c`.
+/// red-then-green evidence quoted on the Saturnin key-commitment fix.
 ///
 /// Three assertions, in order, all required or the test is vacuous:
 /// 1. the search still works (the harness itself did not silently break);

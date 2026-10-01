@@ -3,5 +3,5 @@
 # the blob and CI hold LF, so a plain `sha256sum` would contradict the manifest on one platform and
 # agree on the other. `-text` disables all conversion. Same reasoning, and same fix, as the
 # `lib-q-saturnin/tests/fixtures/** -text` line in the repo-root .gitattributes -- kept local to
-# this directory only because the card that added these files scoped edits to this crate.
+# this directory only because the change that added these files scoped edits to this crate.
 * -text

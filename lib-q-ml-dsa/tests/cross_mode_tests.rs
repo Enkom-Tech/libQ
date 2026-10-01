@@ -3,7 +3,10 @@
 //! This module provides tests to ensure compatibility between different
 //! ML-DSA modes (FIPS mode, hardened mode, and default mode).
 
-use lib_q_ml_dsa::*;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    *,
+};
 
 /// Test that both modes produce compatible outputs
 /// This test compiles without mode features to test both
@@ -14,7 +17,7 @@ fn test_mode_output_compatibility() {
     let seed = [0x42; 32];
     let message = b"cross-mode compatibility";
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let context = b"test context";
     let randomness = [0x42; 32];
     let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();
@@ -35,7 +38,7 @@ fn test_mode_feature_compatibility() {
     let message = b"feature compatibility test";
 
     // Test that all parameter sets work regardless of mode
-    let keys44 = ml_dsa_44::generate_key_pair(seed);
+    let keys44 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let context = b"test context";
     let randomness = [0x42; 32];
     let sig44 = ml_dsa_44::sign(&keys44.signing_key, message, context, randomness).unwrap();
@@ -44,7 +47,7 @@ fn test_mode_feature_compatibility() {
 
     #[cfg(feature = "mldsa65")]
     {
-        let keys65 = ml_dsa_65::generate_key_pair(seed);
+        let keys65 = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let context = b"test context";
         let randomness = [0x42; 32];
         let sig65 = ml_dsa_65::sign(&keys65.signing_key, message, context, randomness).unwrap();
@@ -54,7 +57,7 @@ fn test_mode_feature_compatibility() {
 
     #[cfg(feature = "mldsa87")]
     {
-        let keys87 = ml_dsa_87::generate_key_pair(seed);
+        let keys87 = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let context = b"test context";
         let randomness = [0x42; 32];
         let sig87 = ml_dsa_87::sign(&keys87.signing_key, message, context, randomness).unwrap();
@@ -73,7 +76,7 @@ fn test_simd_portable_equivalence_across_modes() {
 
     // Test that portable and SIMD implementations produce compatible results
     // regardless of mode
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let context = b"test context";
     let randomness = [0x42; 32];
     let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();
@@ -126,7 +129,7 @@ fn test_mode_transition_compatibility() {
     let message = b"mode transition test";
 
     // Generate keys (mode-independent)
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Sign message (mode-independent)
     let context = b"test context";
@@ -149,7 +152,7 @@ fn test_mode_specific_security_guarantees() {
     let seed = [0x42; 32];
     let message = b"security guarantees test";
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let context = b"test context";
     let randomness = [0x42; 32];
     let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();
@@ -179,7 +182,7 @@ fn test_mode_performance_characteristics() {
     // Test that all modes complete operations in reasonable time
     let start = std::time::Instant::now();
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let context = b"test context";
     let randomness = [0x42; 32];
     let sig = ml_dsa_44::sign(&keys.signing_key, message, context, randomness).unwrap();

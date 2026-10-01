@@ -1073,7 +1073,7 @@ mod neon_mask_shake_equiv {
 
 #[cfg(all(test, feature = "simd128", target_arch = "aarch64"))]
 mod neon_shake256_incremental_keygen_repro {
-    //! Card t_26d3b638: `sample_four_error_ring_elements` (ML-DSA **keygen** s1/s2 error-vector
+    //! the aarch64 NEON defect sweep: `sample_four_error_ring_elements` (ML-DSA **keygen** s1/s2 error-vector
     //! sampling, `sample.rs`) drives the NEON incremental path via `XofX4::init_absorb_x4` +
     //! `squeeze_first_block_x4` -- NOT the one-shot `shake256_x4` exercised by
     //! `neon_mask_shake_equiv` above. `init_absorb_x4` builds its inner `KeccakStateX2` via

@@ -1,7 +1,7 @@
 //! Structural (non-timing) pin on `QcwMac::verify`'s constant-time tag comparison.
 //!
 //! These tests do NOT measure wall-clock timing -- that is unmeasurable in a unit test
-//! and out of scope per card t_043571b4 (a prior "constant-time" test that compared two
+//! and out of scope per the constant-time test-scope decision (a prior "constant-time" test that compared two
 //! algorithms' speeds was rejected). What they pin is the *code shape*: `verify` must reject
 //! a mismatch regardless of WHERE the mismatched byte sits, and must do so via a comparison
 //! that scans the whole tag rather than returning early on the first differing byte. A

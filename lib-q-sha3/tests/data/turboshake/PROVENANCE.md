@@ -6,7 +6,7 @@ These four `.blb` files are **byte-for-byte copies** of RustCrypto's `turboshake
 [`blobby`](https://crates.io/crates/blobby) 0.4 container format that crate's own test harness
 reads.
 
-## Why this directory exists (card t_71d4f79a / t_f0d676d1)
+## Why this directory exists
 
 Before this pass, `lib-q-sha3/tests/data/turboshake{128,256}_{6,7}.blb` existed on disk but were
 each **exactly one byte shorter** than RustCrypto's real files, so `blobby` could not decode them —

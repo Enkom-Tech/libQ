@@ -1,6 +1,6 @@
 # Radar triage: ePrint 2026/1003 — Blockchain Access Control with Hidden Attributes and Policies
 
-Board card `ENK-477` (project `iacr-radar`). Paper: *A Blockchain-Based Access Control
+Triage record from the `iacr-radar` eprint feed. Paper: *A Blockchain-Based Access Control
 Scheme with Hidden Attributes and Policies Using Commitments and Zero-Knowledge Proofs*,
 Yuanshao Liang, Hui Li, Wenhui Hu, Wu Zhou, Baocheng Yan, Kedan Li, Naixing Wu, Kaili Shao,
 IACR ePrint 2026/1003 (<https://eprint.iacr.org/2026/1003>). Radar relevance tag:
@@ -104,7 +104,7 @@ implement candidate**, for three independent reasons:
    A quantum adversary breaks all of them with Shor, which contradicts libQ's stated post-
    quantum threat model. Adopting it would *regress* the library's core guarantee, and its
    dependencies (`curve25519-dalek`, `ed25519-dalek`, `bulletproofs`) are hard-blocked by the
-   `security_check_classical_crypto.py` CI gate. This alone closes the card.
+   `security_check_classical_crypto.py` CI gate. This alone closes the triage.
 2. **Nothing to interoperate with, and libQ is already ahead on its own axis.** libQ ships no
    Pedersen/Ristretto commitments, no Schnorr/Ed25519 signatures in-tree, and no Bulletproof
    IPA — there is no shipped primitive for this paper to attack, extend, or interoperate with.

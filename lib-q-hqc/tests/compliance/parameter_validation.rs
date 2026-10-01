@@ -10,7 +10,7 @@ use lib_q_types::hqc;
 
 #[test]
 fn hqc_params_match_lib_q_types_wire_sizes() {
-    // NOTE (card t_1558e72f sweep): `Hqc*Params::PUBLIC_KEY_BYTES` is *defined* as
+    // NOTE (the HQC public-key-size fix sweep): `Hqc*Params::PUBLIC_KEY_BYTES` is *defined* as
     // `hqc::HQC*_PUBLIC_KEY_BYTES` (see `params.rs`), so comparing them here is a
     // constant checked only against its own source -- it cannot fail regardless of the value.
     // Replaced with an independently-derived check (32-byte seed + `VEC_N_SIZE_BYTES`), matching

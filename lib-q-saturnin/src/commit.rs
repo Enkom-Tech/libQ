@@ -89,7 +89,7 @@
 //! 2](https://eprint.iacr.org/2022/1260)) instantiated with a primitive that only carries a
 //! designer *claim*, not a proof, of collision resistance, and it has not had a human
 //! cryptographer's sign-off. **Five** obligations are open (see `lib-q-saturnin/README.md` and
-//! `CHANGELOG.md`, card `t_16ddf21c`) — three named at the 2026-08-06 review, plus **L-1** and
+//! `CHANGELOG.md`) — three named at the 2026-08-06 review, plus **L-1** and
 //! **RK-1**, added on 2026-08-07 when the primary sources were read. That review **narrowed S-2**
 //! and **widened Q-1**; nothing was closed:
 //!

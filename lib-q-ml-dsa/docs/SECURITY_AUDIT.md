@@ -27,7 +27,7 @@
 
 ## Fault Injection
 
-**Not covered by the checklist above, and until this card (`ENK-498`, 2026-09-05) nothing in this
+**Not covered by the checklist above, and until this review (2026-09-05) nothing in this
 crate's docs named fault injection as a threat at all.** The Side-Channel Resistance checklist
 above only asks about timing/branching; there is no "Fault Injection" heading anywhere under
 `lib-q-ml-dsa/docs/` or in `MODES.md` before this entry.
@@ -43,7 +43,7 @@ blunt the deterministic-mode attacks:
   signature to recover a secret intermediate. Demonstrated on real hardware (clock glitches on an
   ARM Cortex-M4); 512–1024 faulty signatures suffice for Dilithium2 (≈ ML-DSA-44).
 - Ouyang, Wang, Liu, Wu, Wang, Fan, *"Improving Skipping Fault Correction Attacks on Randomized
-  Dilithium via MILP"*, ePrint 2026/1448 (card `ENK-498`): proves Krahmer et al.'s full-rank
+  Dilithium via MILP"*, ePrint 2026/1448: proves Krahmer et al.'s full-rank
   collection strategy is unnecessary, derives a minimum fault count `M_min` from an MILP model, and
   needs **fewer faults** than Krahmer et al. at every NIST level. Plain-setting reductions: 25.9%
   (L2/ML-DSA-44), 16.2% (L3/ML-DSA-65), 25.6% (L5/ML-DSA-87). **Shuffling-setting** reductions:

@@ -562,7 +562,7 @@ impl<P: HqcParams> HqcKemSecretKey<P> {
     /// wider field exists only for NIST KAT-generator compatibility; the truncation applies to the
     /// serialized form, never to the value used to derive key material.
     ///
-    /// **This encoding changed in the `t_e3ac1c87` cutover.** It previously emitted
+    /// **This encoding changed in the HQC secret-key layout cutover.** It previously emitted
     /// `dk_pke ‖ sigma ‖ ek_pke` with no `seed_kem` — a different field order that was also 32
     /// bytes short at every level. Keys persisted under the old encoding cannot be re-parsed by
     /// [`Self::from_nist_bytes`]; because the change reorders fields rather than appending to
@@ -888,7 +888,7 @@ mod tests {
     /// The LENGTH assertion is the load-bearing one and is independent evidence: 2321 is upstream's
     /// `CRYPTO_SECRETKEYBYTES` for HQC-128, read from `reference/hqc/src/common/hqc-1/api.h`, not a
     /// value re-derived from this crate. The DIGEST is a tripwire only — it was computed from this
-    /// crate at the `t_e3ac1c87` cutover, so it catches future drift but is not itself proof of
+    /// crate at the HQC secret-key layout cutover, so it catches future drift but is not itself proof of
     /// upstream agreement. Byte-exact conformance against real upstream-produced keys is a separate,
     /// still-open question (`kats/README.md`); this crate's `.rsp` pins are self-generated.
     #[test]

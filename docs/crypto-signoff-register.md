@@ -2,12 +2,13 @@
 
 > **RED — every entry below awaits human cryptographer sign-off.** No item here carries a "secure"
 > claim. Constructions are built and self-reviewed (estimators run, adversarial self-review, KATs) but
-> **none is proven or signed.** This register is the single index of what a two-human cryptographic
+> **none is proven**; two entries now carry a **scoped** operator signature (Gate D partial, Gate E
+> conditional, 2026-09-24 — read their sign-off sections for exactly what is and is not covered). This register is the single index of what a two-human cryptographic
 > review must discharge before any of these can be called secure, wire-frozen, or wired downstream.
 > Self-review has repeatedly caught real defects in these constructions; that does not substitute for
 > sign-off.
 
-**Five** independent sign-off gates are open. Each has its own detail docs; this file states the
+**Five** independent sign-off gates. Gates A–C are open; Gate D is signed for the conditional binding argument only; Gate E is signed conditionally on assumption SAT-JQPRF. Each has its own detail docs; this file states the
 **blocking claim**, the **status**, and the **concrete open item** per gate, with load-bearing numbers.
 
 | # | Gate | Crate(s) | Detail docs | State |
@@ -15,8 +16,8 @@
 | A | Anon-cred one-out-of-many membership | `lib-q-lattice-zkp` | `lib-q-lattice-zkp/docs/anon-cred-oom-signoff-brief.md` (+ 7 companions) | design + test-only oracles |
 | B | Membership AIR soundness/ZK (Arm A + Arm B) | `lib-q-zkp` | `lib-q-zkp/docs/membership-adr113-freeze-gate-review.md`, `…-arm-b-obligation-packet.md`, `…-arm-{a,b}-soundness-params.md` | built + wire-frozen v0 |
 | C | Threshold-KEM CCA closure + its ZK encryption proof | `lib-q-threshold-kem-lattice`, `lib-q-zk-encryption-proof` | `lib-q-threshold-kem-lattice/SECURITY-STATUS.md` (shipped summary), those crates' `README.md` / `src/lib.rs`, `dev/conformance/…` design docs | KEM shipped (KAT v1); proof partial |
-| D | Saturnin CTX committing transform (H-1, S-2, Q-1, L-1, RK-1) | `lib-q-saturnin` | `lib-q-saturnin/src/commit.rs`, `src/aead_ctx.rs`, `src/qcb.rs`, `SECURITY.md` | **shipped and reachable** — opt-in `SaturninAeadCtx` / `SaturninQcb` |
-| E | CTR-Cascade's own IND-qCCA claim (Q-2) | `lib-q-saturnin` | `lib-q-saturnin/src/aead.rs` §"Open obligation Q-2", `README.md`; card `ENK-223` | **shipped, frozen wire, reached by every product** |
+| D | Saturnin CTX committing transform (H-1, S-2, Q-1, L-1, RK-1) | `lib-q-saturnin` | `lib-q-saturnin/src/commit.rs`, `src/aead_ctx.rs`, `src/qcb.rs`, `SECURITY.md` | **shipped and reachable** — opt-in `SaturninAeadCtx` / `SaturninQcb`. **Binding signed 2026-09-24 (conditional); H-1, Q-1, L-1, RK-1 open** |
+| E | CTR-Cascade's own IND-qCCA claim (Q-2) | `lib-q-saturnin` | `lib-q-saturnin/src/aead.rs` §"Open obligation Q-2", `README.md`; obligation Q-2 | **shipped, frozen wire, reached by every product**. **Signed 2026-09-24, conditional on SAT-JQPRF (no bit level)** |
 
 > **Gate E was promoted out of a footnote on 2026-08-11, and the promotion is the point.** Q-2 was
 > recorded only as one clause inside Gate D's S-2 bullet ("A third, **Q-2**, lands on the base
@@ -53,8 +54,8 @@ consolidates:
     cells at `‖c̄‖₁ = 78` are reported BROKEN rather than infinite, which is correct: a bound
     `≥ (q−1)/2` is trivially satisfiable, i.e. no security, not unbounded security.
   - (2) small-secret **decision-LWR** for the nullifier at sample ceiling `κ_nf·N·#realms`.
-    **RUN, FAILS AT THE CANDIDATE PARAMETERS, fix identified and estimator-verified.** See card
-    `t_c972f73f`. At `κ_nf·d_κ = 1` (secret dimension `n = 256`) security collapses once more than
+    **RUN, FAILS AT THE CANDIDATE PARAMETERS, fix identified and estimator-verified.** See
+    the ADPS16-vs-MATZOV estimate. At `κ_nf·d_κ = 1` (secret dimension `n = 256`) security collapses once more than
     one realm exists: ADPS16 82.3 bits at `α=4096` and 95.5 at `α=8192`, against 278–539 bits at
     `#realms = 1`. The sample count saturates by `#realms ≈ 4`, so the plateau is the operative
     number and adding realms past that costs the attacker nothing further. Since the nullifier
@@ -137,7 +138,7 @@ security and the ZK simulators are **argued or implemented-but-unwritten**, not 
 - ((iii) capacity-9 collision ≈139, (iv) 9-cell digest ≈278: GREEN arithmetic, conditional on (i)/(ii);
   confirm (iv)'s wide-squeeze read is indifferentiability-acceptable.)
 
-**2026-09-09 addendum — strong-model (host-claude) review, ENK-1438/ENK-31. Evidence, not a
+**2026-09-09 addendum — strong-model AI review of the STARK zero-knowledge obligations. Evidence, not a
 sign-off** (this repo's own CONTRIBUTING.md: "The AI passes are evidence, never a second
 signature."). Read the AIR/prover/verifier source directly against the commit GIP is pinned to
 (`c96add671fc70802ac0917af8025eb0cf262fbc7`) and ran the real test suites (not simulated):
@@ -145,7 +146,7 @@ signature."). Read the AIR/prover/verifier source directly against the commit GI
 passed), `cargo test -p lib-q-zkp membership` (56 passed across `lib.rs`/`air_integration.rs`/
 `ip_soundness_tests.rs`/`security_parameter_tests.rs`), `cargo test -p gip-identity
 group_membership` (41 passed, incl. the byte-locked M0 conformance vectors).
-- **L1/L2 (ENK-31's originally-cited ZK-hiding leaks): confirmed FIXED in code, not just
+- **L1/L2 (the STARK zero-knowledge review's originally-cited ZK-hiding leaks): confirmed FIXED in code, not just
   claimed.** `DeterministicRng` (xorshift64) has zero production call sites left in `lib-q-zkp`;
   every hiding-PCS/MMCS path uses `Kt128Rng` (KT128 XOF, 256-bit seed). `prove_unlinkable_
   membership_zk_auto` draws both seeds from `lib_q_random::fill_entropy` and fails closed
@@ -154,12 +155,12 @@ group_membership` (41 passed, incl. the byte-locked M0 conformance vectors).
   transitively via `lib-q-stark-fri`/`lib-q-stark-merkle` (`cargo tree -e features
   -i lib-q-random` against a standalone probe crate outside both workspaces), so this is not a
   footgun that only works by accident of GIP's own workspace pin.
-- **ENK-31's original O4 text is stale.** It reads "no blinding/randomized trace" — that was true
-  when ENK-31 was imported (2026-08-14) but is no longer true: a hiding prover exists, is wired
+- **The STARK zero-knowledge review's original O4 text is stale.** It reads "no blinding/randomized trace" — that was true
+  when the STARK zero-knowledge review was imported (2026-08-14) but is no longer true: a hiding prover exists, is wired
   through `Kt128Rng`, and its distinctness/no-raw-witness-leak properties are exercised by green
   tests (`test_zk_proofs_have_distinct_trace_commitments`, `test_statistical_zk_no_repeated_
   commitments_many_proofs` over 24 samples, `test_zk_proof_bytes_do_not_contain_raw_witness_
-  value`). The residual O4 obligation is narrower than ENK-31 states: the mechanism is built: only
+  value`). The residual O4 obligation is narrower than the STARK zero-knowledge review states: the mechanism is built: only
   the **formal simulator write-up** remains open, matching this file's own "(vi) mechanism
   implemented + roundtrip-tested, no formal simulator" line above.
 - **O1 Arm B, O2, O3: independently re-derived from the actual code (not restated from this
@@ -174,7 +175,7 @@ group_membership` (41 passed, incl. the byte-locked M0 conformance vectors).
   operator may record the strong-model pass above as reviewed evidence for L1/L2 and for the
   Arm-B round-count/capacity/domain arithmetic, but the sign-off itself still waits on the human
   cryptographer for O1 (Arm A) and O4 (the simulator), as this file already says. Full write-up
-  posted as a board comment on ENK-1438 and ENK-31 (Hive/GIP board).
+  was recorded with the review.
 
 ---
 
@@ -230,7 +231,7 @@ direction-not-magnitude argument) and that the deployed closure is sound.
 zero-knowledge — forcing the ciphertext noise pseudorandom so the C1 probe cannot be aimed. Explicitly
 **RED/unsigned, not production-ready.**
 
-**Status — 2026-08-08, card `t_a73aaed2`: the R3 relation this gate reviewed was VACUOUS, and has
+**Status — 2026-08-08, the R3-relation soundness fix: the R3 relation this gate reviewed was VACUOUS, and has
 been replaced.** Everything the previous version of this entry said about fold soundness (the
 Schwartz–Zippel `(2N−2)/q ≈ 2⁻³⁷` per point, `m=4 ⇒ ≤2⁻¹⁴⁸`, the shared FS `ζ`, the `µ↔sponge
 transitive binding`) described a construction that proved nothing. It is retained below only as the
@@ -389,13 +390,13 @@ undecryptable; `tests/aead_kat_pin.rs` freezes its wire format. **Nothing here i
    QCB's tweak interface (our tweak forces one nibble slot of every key word to zero, and every
    nibble of the trail's four active values is nonzero), but **≥65,025 admissible alternative tuples
    are reachable**, and a constrained optimum only 6.7 bits worse than the published one would still
-   work. That computation has not been done. See card `t_5d1460b7`.
+   work. That computation has not been done. See the Saturnin-QCB tweak-padding decision.
 
 **Mitigations already taken, so a reviewer knows the blast radius.** `qcb` was removed from the
 crate's default features (`c1d27a6`) — it is nonce-catastrophic and has zero consumers. The tweak's
 byte 16 was corrected to the `10*` pad bit (`c43689d`) while the hardware was still at trace design.
 
-### Astra double-check — ENK-1434 (Gate D)
+### Independent AI double-check (Gate D)
 
 **Scope and disposition.** Public source review at libQ
 `27aa2fdebf3da224ac8372c923ac6c499755c370`, covering H-1, S-2 and Q-1 for
@@ -515,6 +516,29 @@ signed quantitative H-1 assumption; L-1/RK-1 are not discharged. The
 conditional CMT-1/3/4 binding argument is supported, including for padded
 QCB, but the cited tidiness premise is false and must not support sign-off.
 
+### Operator sign-off 2026-09-24 — PARTIAL (binding only)
+
+**Signed, by the operator as cryptographer of record** (one-human bar, see "What signed off
+requires"): the **conditional CMT-1/3/4 binding argument** for both CTX instantiations
+(`SaturninAeadCtx` and `SaturninQcb`), exactly as stated in point 2 of the double-check above. Two
+successful openings of the same `core || T'` under distinct `(K,N,A)` yield a Saturnin-Hash
+collision, so commitment reduces to Saturnin-Hash collision resistance. The signature covers the
+**direct CMTD argument**, which does not rely on tidiness. It is **conditional** on Saturnin-Hash
+collision resistance and asserts no numeric security level.
+
+**Explicitly NOT signed; these stay RED:**
+- **H-1:** no quantitative collision-resistance bound is signed. The designers' `2^112` classical
+  and `~2^75` quantum figures remain designer claims.
+- **Q-1:** Q2 (superposition-query) AE preservation under CTX, for both wrappers.
+- **L-1:** multi-user and multi-verification-query security.
+- **RK-1:** QCB's related-key exposure.
+- **The QCB tidiness premise:** it is false as implemented (`qcb.rs:589–597`; the counterexample
+  above). It must not be cited, and the claim at `commit.rs:163` must be corrected separately.
+
+**What this permits:** documentation may say that the CTX wrappers are *committing (CMT-4),
+conditional on Saturnin-Hash collision resistance*. It does **not** permit stating a bit-security
+level for commitment, or claiming CTX preserves quantum AE security.
+
 ---
 
 ## Gate E — CTR-Cascade's own IND-qCCA claim (`lib-q-saturnin`, obligation Q-2)
@@ -556,7 +580,7 @@ description, an npm blurb, or another crate's README — separated from the cave
 there. That guard was observed failing against a deliberate fixture before being trusted. It is a
 containment control, **not** a resolution.
 
-### Astra double-check — ENK-1434 (Gate E / Q-2)
+### Independent AI double-check (Gate E / Q-2)
 
 **Scope.** Reviewed the frozen `SaturninAead` at
 `27aa2fdebf3da224ac8372c923ac6c499755c370`, not its CTX replacement tag.
@@ -668,6 +692,35 @@ establish IND-qCCA[LoR] for CTR-Cascade as frozen. Keep Q-2 RED until the
 operator explicitly accepts the stronger joint variable-length qPRF
 assumption above or receives the missing reductions and bound accounting.
 
+### Operator sign-off 2026-09-24 — CONDITIONAL on a stated assumption
+
+**Signed, by the operator as cryptographer of record** (one-human bar): Q-2 is accepted
+**conditionally**. The operator explicitly adopts the following as a named assumption, not as a
+proven result:
+
+> **Assumption SAT-JQPRF (joint variable-length qPRF).** For the frozen `SaturninAead`
+> (CTR-Cascade), the full-tag function `F_K(N,A,C)` over every admitted AD/ciphertext length and
+> boundary is a quantum-secure PRF **jointly with same-key CTR**. Replacing it with an independent
+> random tuple function remains indistinguishable even with the CTR functionality exposed, in the
+> 2025/387 model (quantum learning queries, classical LoR challenges, classical fresh nonces).
+
+Under SAT-JQPRF, together with nonce-respecting CTR IND-qCPA[LoR], Lang–Leuther–Lucks 2025/387
+Theorem 3, Theorem 4 and Corollary 1 give **IND-qCCA[LoR]** for CTR-Cascade as frozen. The wire is
+unchanged.
+
+**Scope and limits of this signature:**
+- **It is an assumption, not a proof.** Any restatement of the IND-qCCA claim in this repo must
+  carry "under assumption SAT-JQPRF". `scripts/ci-guard-standards-claims.sh` continues to confine
+  the claim to `lib-q-saturnin/`.
+- **No concrete bit level is signed.** The bound accounting (query/length limits, primitive
+  advantage, composition loss) is still missing; see "No concrete-bit ratification" above.
+- **Nonce discipline is a caller obligation:** fresh classical nonces at encryption. There is no
+  security for nonce reuse or nonce superposition.
+- **Classical AE security** is unaffected, as before.
+- **Discharge path:** a domain-aware joint reduction plus a variable-length MAC proof would replace
+  the assumption with a theorem. Machine-checked support is being pursued separately; it is not a
+  precondition of this signature.
+
 ---
 
 ## Cross-cutting, added 2026-08-15 — the fault adversary (F-1, F-2) and the R = 10 scope (RK-2)
@@ -702,7 +755,7 @@ nothing.
   related-key oracle. A scoping question, not a break. RK-1 (QCB's Saturnin16 assumption) is
   untouched.
 
-### ML-DSA (`lib-q-ml-dsa`), added 2026-09-05, card `ENK-498` — the fault adversary, MLDSA-F-1
+### ML-DSA (`lib-q-ml-dsa`), added 2026-09-05, the ML-DSA fault-attack review — the fault adversary, MLDSA-F-1
 
 **Also not a sixth gate.** Same reason as the Saturnin block above: until this date, nothing in
 `lib-q-ml-dsa`'s docs named fault injection as a threat at all (checked: no "fault" hit anywhere

@@ -1,4 +1,4 @@
-//! ENK-240 regression test: `verify` must REJECT a hint block whose row counter overflows the
+//! Regression test: `verify` must REJECT a hint block whose row counter overflows the
 //! hint buffer, not panic.
 //!
 //! FIPS 204 Algorithm 21 (HintBitUnpack) rejects when `y[omega + i] < Index` OR
@@ -84,7 +84,7 @@ fn verify_rejects_hint_overflow_instead_of_panicking_44() {
     let sig = MLDSA44Signature::new(sig_bytes);
 
     assert!(
-        ml_dsa_44::verify(&vk, b"ENK-240 crafted hint overflow", b"", &sig).is_err(),
+        ml_dsa_44::verify(&vk, b"crafted hint overflow", b"", &sig).is_err(),
         "verify() must reject an overflowing hint row counter through the public entry point, \
          not panic"
     );
@@ -108,7 +108,7 @@ fn verify_rejects_hint_overflow_instead_of_panicking_65() {
     let sig = MLDSA65Signature::new(sig_bytes);
 
     assert!(
-        ml_dsa_65::verify(&vk, b"ENK-240 crafted hint overflow", b"", &sig).is_err(),
+        ml_dsa_65::verify(&vk, b"crafted hint overflow", b"", &sig).is_err(),
         "verify() must reject an overflowing hint row counter through the public entry point, \
          not panic"
     );
@@ -131,7 +131,7 @@ fn verify_rejects_hint_overflow_instead_of_panicking_87() {
     let sig = MLDSA87Signature::new(sig_bytes);
 
     assert!(
-        ml_dsa_87::verify(&vk, b"ENK-240 crafted hint overflow", b"", &sig).is_err(),
+        ml_dsa_87::verify(&vk, b"crafted hint overflow", b"", &sig).is_err(),
         "verify() must reject an overflowing hint row counter through the public entry point, \
          not panic"
     );

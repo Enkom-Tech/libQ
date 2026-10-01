@@ -1,0 +1,15 @@
+{
+  "name": "@lib-q/jose",
+  "version": "0.0.11-jose.0",
+  "description": "Node ML-DSA-65 compact JWS and OpenID Connect ID token verification",
+  "type": "module",
+  "license": "Apache-2.0",
+  "repository": { "type": "git", "url": "https://github.com/Enkom-Tech/libQ.git", "directory": "npm/lib-q-jose" },
+  "engines": { "node": ">=20" },
+  "main": "./index.js",
+  "types": "./index.d.ts",
+  "exports": { ".": { "types": "./index.d.ts", "node": "./index.js" }, "./package.json": "./package.json" },
+  "files": ["index.js", "index.d.ts", "README.md", "LICENSE"],
+  "scripts": { "test": "node --test test/*.test.js" },
+  "dependencies": { "@lib-q/sig": "0.0.11-jose.0" }
+}

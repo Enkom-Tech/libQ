@@ -235,9 +235,12 @@ where
     }
 
     pub(crate) fn generate<R: CryptoRng + Rng + ?Sized>(rng: &mut R) -> Self {
-        let d: B32 = rand(rng);
-        let z: B32 = rand(rng);
-        Self::generate_deterministic(&d, &z)
+        let mut d: B32 = rand(rng);
+        let mut z: B32 = rand(rng);
+        let dk = Self::generate_deterministic(&d, &z);
+        d.zeroize();
+        z.zeroize();
+        dk
     }
 
     /// Generate a fresh decapsulation key, also returning the 64-byte [`Seed`] (`d ‖ z`) that

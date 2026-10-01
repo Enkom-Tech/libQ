@@ -3,7 +3,7 @@
 //! This module's doc used to read "Merkle trees built with this MMCS use Poseidon128 compression
 //! at each level, so siblings are compatible with MerkleInclusionAir (which constrains
 //! Poseidon(left || right) == parent in-circuit)". **That was false**, and it is how a live defect
-//! (card `t_4333e4ea`) came to be written: `Poseidon128::hash_single` on two elements fills the
+//! came to be written: `Poseidon128::hash_single` on two elements fills the
 //! rate and permutes *twice*, while `MerkleInclusionAir` constrains a *single* permutation. A
 //! recursive verifier could not reproduce any root from any valid path.
 //!

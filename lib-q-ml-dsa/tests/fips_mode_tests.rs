@@ -5,7 +5,10 @@
 
 #![cfg(feature = "fips-mode")]
 
-use lib_q_ml_dsa::*;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    *,
+};
 
 /// Test FIPS mode determinism - same inputs must produce identical outputs
 #[test]
@@ -16,8 +19,8 @@ fn test_fips_mode_determinism() {
     let message = b"FIPS compliance test";
     let rnd = [0x42; 32];
 
-    let keys1 = ml_dsa_44::generate_key_pair(seed);
-    let keys2 = ml_dsa_44::generate_key_pair(seed);
+    let keys1 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
+    let keys2 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     assert_eq!(
         keys1.verification_key.as_slice(),
@@ -50,7 +53,7 @@ fn test_fips_mode_acvp_compliance() {
     let test_vectors = load_acvp_vectors("ml_dsa_44");
 
     for (i, vector) in test_vectors.iter().enumerate() {
-        let keys = ml_dsa_44::generate_key_pair(vector.seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(vector.seed));
         assert_eq!(
             keys.verification_key.as_slice(),
             vector.expected_vk,
@@ -81,7 +84,7 @@ fn test_fips_mode_parameter_sets() {
     let rnd = [0x42; 32];
 
     // Test ML-DSA-44
-    let keys44 = ml_dsa_44::generate_key_pair(seed);
+    let keys44 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let sig44 = ml_dsa_44::sign_internal(&keys44.signing_key, message, rnd).unwrap();
     let verify44 = ml_dsa_44::verify_internal(&keys44.verification_key, message, &sig44);
     assert!(verify44.is_ok(), "ML-DSA-44 must work in FIPS mode");
@@ -89,7 +92,7 @@ fn test_fips_mode_parameter_sets() {
     // Test ML-DSA-65 if available
     #[cfg(feature = "mldsa65")]
     {
-        let keys65 = ml_dsa_65::generate_key_pair(seed);
+        let keys65 = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig65 = ml_dsa_65::sign_internal(&keys65.signing_key, message, rnd).unwrap();
         let verify65 = ml_dsa_65::verify_internal(&keys65.verification_key, message, &sig65);
         assert!(verify65.is_ok(), "ML-DSA-65 must work in FIPS mode");
@@ -98,7 +101,7 @@ fn test_fips_mode_parameter_sets() {
     // Test ML-DSA-87 if available
     #[cfg(feature = "mldsa87")]
     {
-        let keys87 = ml_dsa_87::generate_key_pair(seed);
+        let keys87 = ml_dsa_87::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig87 = ml_dsa_87::sign_internal(&keys87.signing_key, message, rnd).unwrap();
         let verify87 = ml_dsa_87::verify_internal(&keys87.verification_key, message, &sig87);
         assert!(verify87.is_ok(), "ML-DSA-87 must work in FIPS mode");
@@ -118,7 +121,7 @@ fn test_fips_mode_rejection_sampling() {
     let mut rnd = [0u8; 32];
     rnd[0] = 0xFF; // High value to test bounds
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // This should either succeed or fail with proper rejection
     match ml_dsa_44::sign_internal(&keys.signing_key, message, rnd) {
@@ -144,7 +147,7 @@ fn test_fips_mode_message_representative() {
     let message = b"message representative test";
     let rnd = [0x42; 32];
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let sig = ml_dsa_44::sign_internal(&keys.signing_key, message, rnd).unwrap();
 
     // Verify signature
@@ -174,7 +177,7 @@ fn test_fips_mode_signature_bijectivity() {
     let message = b"bijectivity test";
     let rnd = [0x42; 32];
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let sig = ml_dsa_44::sign_internal(&keys.signing_key, message, rnd).unwrap();
 
     // Signature should be valid

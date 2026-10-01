@@ -655,8 +655,8 @@ SRC_EXCLUDE_ALLOWLIST = {
     # aarch64 runner would measure NEON for real rather than silently skipping it.
     #
     # This became load-bearing when `simd` joined lib-q-rocca-s's default features so consumers
-    # actually get the constant-time AES backend instead of a secret-indexed S-box table
-    # (t_3d6e8d50). Those 88 dead-on-x86 lines took the crate 98.21% -> 78.43% and broke its floor.
+    # actually get the constant-time AES backend instead of a secret-indexed S-box table.
+    # Those 88 dead-on-x86 lines took the crate 98.21% -> 78.43% and broke its floor.
     # The tests did not get worse; the denominator gained code this runner cannot reach.
     "lib-q-rocca-s/src/simd/neon.rs",
     # Built only under `feature = "simd256"`; the default gate builds the portable backend.

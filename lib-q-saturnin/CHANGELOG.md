@@ -6,6 +6,35 @@ crate in more detail than the root file carries.
 
 ## Unreleased
 
+### CORRECTION — QCB hardware status and two stale statements (2026-09-14)
+
+Documentation only; no code, no wire format, no test changed. This entry records two questions
+to the QCB designers before QCB is committed to silicon: whether Saturnin16 is related-key secure
+over the tweak family QCB induces, and what the tweak encoding is. Both are unanswered. Correcting
+the prose that had drifted from what the crate actually does:
+
+1. **`docs/HARDWARE.md` §6 described the pre-`1044297` tweak layout.** It said `qcb.rs` builds "a
+   128-bit nonce, 64 zero bits, then a 64-bit big-endian block counter" and concluded that a
+   paper-faithful implementation "will **not** interoperate". The crate has built
+   `N ‖ 0x80 ‖ 0·7 ‖ be64(i)` since 2026-08-06, which is the layout `SECURITY.md` and `src/qcb.rs`
+   have documented ever since. The bullet now states the implemented encoding, records that it is
+   our reading of an under-specified rule and **not** designer-confirmed, and drops the obsolete
+   interop framing — under either reading the counter occupies the low 64 bits for every index
+   below `2^64`, the two differ in byte 16 alone, and this crate emits the CTX tag `T'` rather than
+   Algorithm 1's `T`, so it is wire-incompatible with paper-QCB by construction regardless. Same
+   correction applied to the two cross-references to it (§8.6 and the closing "not known" list).
+
+2. **`HARDWARE.md` §6 recorded no silicon decision at all.** Added the acceptance record: **QCB is
+   not silicon-approved, and the hardware target is CTR-Cascade**, because Q1 is unanswered and the
+   assumption it rests on is related-key security over a family of up to `2^95` keys against a
+   submission claim scoped to "a small number of keys" (obligation `RK-1`). With it: `README.md`
+   now says so at the `qcb` feature, and `Cargo.toml`'s feature comment carries the same note.
+
+3. **`README.md:132` called `qcb` a default feature.** False since `fe64036` ("make QCB opt-in",
+   2026-08-06); the line now says opt-in and gives the commit.
+
+Earlier entries in this file are not retro-edited; this entry supersedes them where they conflict.
+
 ### CORRECTION — citation and claim-quotation defects found by reading the primary sources (2026-08-15)
 
 Documentation only; no code, no wire format, no test changed. Found by reading papers that had been
@@ -297,7 +326,7 @@ will ship as a breaking change in the next release that includes it.
   the second QCB wire break in the same unreleased 0.0.10 cycle, so it costs nothing that has not
   already been spent).
 
-  This closes card `t_16ddf21c`'s demonstrated CMT-1 break: `tests/key_commitment.rs` retains the
+  This closes the Saturnin key-commitment fix's demonstrated CMT-1 break: `tests/key_commitment.rs` retains the
   full attack (a `~2^8`-try padding search plus a closed-form solve for the second side's
   associated data) verbatim as a regression test, which now asserts the attack **fails** — the
   previously-successful `qcb_is_not_key_committing_ad_is_solvable_in_closed_form` test is replaced
@@ -334,7 +363,7 @@ will ship as a breaking change in the next release that includes it.
   tests, each with a built-in falsification control.
 
   `SaturninAead` (CTR-Cascade) was **not** given a committing transform by this change — it remains
-  non-committing (open follow-up, see card `t_16ddf21c`). `SaturninShortAead` was evaluated and is
+  non-committing (open follow-up, see the Saturnin key-commitment fix). `SaturninShortAead` was evaluated and is
   **not committing and will not be made committing**: it is not tag-based (no CTX-shaped transform
   applies), and any transform that adds bytes is strictly size-dominated by `SaturninQcb` at the
   same ciphertext length with more function (see `src/aead_short.rs`'s `key_commitment_tests`

@@ -55,7 +55,7 @@ registry. The lib-Q **circuit input is 2 `GF(p²)` elements = 16 bytes**, NOT 32
 the consumer's 32-byte K12 `ctx` into the circuit's `[2 × GF(p²)]` input is **the consumer's to fix**
 and MUST be deterministic and identical on prover and verifier.
 
-**Effective ctx separation = ~124 bits (corrected; card t_bab219ba).** Each `GF(p²)` element is a
+**Effective ctx separation = ~124 bits (corrected).** Each `GF(p²)` element is a
 **pair** `(real, imag)` of canonical `Mersenne31` limbs (`< 2³¹−1`, ~31 bits *each*), so one
 element ≈ 62 bits and the 2-element / 4-limb `ctx` domain is `(2³¹−1)⁴ ≈ 2¹²⁴`. The AIR ingests
 `ctx` at **full width** — `field_from_canonical_le` fills both limbs; the nullifier sponge absorbs

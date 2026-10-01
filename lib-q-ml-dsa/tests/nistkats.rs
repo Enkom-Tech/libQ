@@ -1,6 +1,6 @@
 //! Cross-implementation KATs for ML-DSA against `dilithium-py`.
 //!
-//! PROVENANCE -- read this before trusting these vectors (card t_71d4f79a, 2026-08-07). The data
+//! PROVENANCE -- read this before trusting these vectors (recorded 2026-08-07). The data
 //! files loaded here are NOT NIST vectors and never were, and they are not generated here either:
 //! all six are byte-for-byte identical to `github.com/cryspen/libcrux` at commit `5c3fc214`, under
 //! `libcrux-ml-dsa/tests/kats/`, as is the `tests/kats/dilithium.py` that produced them. They were
@@ -19,7 +19,8 @@
 //!
 //! This test target keeps its `nistkats` file name for now ONLY because renaming it would break
 //! `lib-q-ml-dsa/scripts/security_audit.sh` (which CI runs on push) and three `--test nistkats`
-//! call sites; see card t_71d4f79a for the proposed follow-up.
+//! call sites. Renaming it, and updating those callers in the same change, is a possible
+//! follow-up.
 
 use std::fs::File;
 use std::io::BufReader;
@@ -63,7 +64,7 @@ macro_rules! impl_nist_known_answer_tests {
                 serde_json::from_reader(reader).expect("Could not deserialize KAT file.");
 
             for kat in nist_kats {
-                let key_pair = $key_gen(kat.key_generation_seed);
+                let key_pair = $key_gen(&lib_q_ml_dsa::Zeroizing::new(kat.key_generation_seed));
 
                 let verification_key_hash =
                     lib_q_sha3::sha3_256(key_pair.verification_key.as_ref());
@@ -107,7 +108,7 @@ macro_rules! impl_nist_known_answer_tests {
                 serde_json::from_reader(reader).expect("Could not deserialize KAT file.");
 
             for kat in nist_kats {
-                let key_pair = $key_gen(kat.key_generation_seed);
+                let key_pair = $key_gen(&lib_q_ml_dsa::Zeroizing::new(kat.key_generation_seed));
 
                 let verification_key_hash =
                     lib_q_sha3::sha3_256(key_pair.verification_key.as_ref());
@@ -148,7 +149,7 @@ impl_nist_known_answer_tests!(
     nist_known_answer_tests_44,
     nist_known_answer_tests_pre_hashed_44,
     44,
-    lib_q_ml_dsa::ml_dsa_44::generate_key_pair,
+    lib_q_ml_dsa::ml_dsa_44::generate_key_pair_from_seed,
     lib_q_ml_dsa::ml_dsa_44::sign,
     lib_q_ml_dsa::ml_dsa_44::verify,
     lib_q_ml_dsa::ml_dsa_44::sign_pre_hashed_shake128,
@@ -160,7 +161,7 @@ impl_nist_known_answer_tests!(
     nist_known_answer_tests_44_portable,
     nist_known_answer_tests_pre_hashed_44_portable,
     44,
-    lib_q_ml_dsa::ml_dsa_44::portable::generate_key_pair,
+    lib_q_ml_dsa::ml_dsa_44::portable::generate_key_pair_from_seed,
     lib_q_ml_dsa::ml_dsa_44::portable::sign,
     lib_q_ml_dsa::ml_dsa_44::portable::verify,
     lib_q_ml_dsa::ml_dsa_44::sign_pre_hashed_shake128,
@@ -172,7 +173,7 @@ impl_nist_known_answer_tests!(
     nist_known_answer_tests_44_simd128,
     nist_known_answer_tests_pre_hashed_44_simd128,
     44,
-    lib_q_ml_dsa::ml_dsa_44::neon::generate_key_pair,
+    lib_q_ml_dsa::ml_dsa_44::neon::generate_key_pair_from_seed,
     lib_q_ml_dsa::ml_dsa_44::neon::sign,
     lib_q_ml_dsa::ml_dsa_44::neon::verify,
     lib_q_ml_dsa::ml_dsa_44::sign_pre_hashed_shake128,
@@ -184,7 +185,7 @@ impl_nist_known_answer_tests!(
     nist_known_answer_tests_44_simd256,
     nist_known_answer_tests_pre_hashed_44_simd256,
     44,
-    lib_q_ml_dsa::ml_dsa_44::avx2::generate_key_pair,
+    lib_q_ml_dsa::ml_dsa_44::avx2::generate_key_pair_from_seed,
     lib_q_ml_dsa::ml_dsa_44::avx2::sign,
     lib_q_ml_dsa::ml_dsa_44::avx2::verify,
     lib_q_ml_dsa::ml_dsa_44::sign_pre_hashed_shake128,
@@ -197,7 +198,7 @@ impl_nist_known_answer_tests!(
     nist_known_answer_tests_65,
     nist_known_answer_tests_pre_hashed_65,
     65,
-    lib_q_ml_dsa::ml_dsa_65::generate_key_pair,
+    lib_q_ml_dsa::ml_dsa_65::generate_key_pair_from_seed,
     lib_q_ml_dsa::ml_dsa_65::sign,
     lib_q_ml_dsa::ml_dsa_65::verify,
     lib_q_ml_dsa::ml_dsa_65::sign_pre_hashed_shake128,
@@ -210,7 +211,7 @@ impl_nist_known_answer_tests!(
     nist_known_answer_tests_87,
     nist_known_answer_tests_pre_hashed_87,
     87,
-    lib_q_ml_dsa::ml_dsa_87::generate_key_pair,
+    lib_q_ml_dsa::ml_dsa_87::generate_key_pair_from_seed,
     lib_q_ml_dsa::ml_dsa_87::sign,
     lib_q_ml_dsa::ml_dsa_87::verify,
     lib_q_ml_dsa::ml_dsa_87::sign_pre_hashed_shake128,

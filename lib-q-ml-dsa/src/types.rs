@@ -42,6 +42,25 @@ impl_struct!(MLDSASigningKey, "An ML-DSA signature key.");
 impl_struct!(MLDSAVerificationKey, "An ML-DSA verification key.");
 impl_struct!(MLDSASignature, "An ML-DSA signature.");
 
+// The signing key is secret, so with the `zeroize` feature its bytes are cleared when it is
+// dropped. Verification keys and signatures are public and are left alone.
+#[cfg(feature = "zeroize")]
+impl<const SIZE: usize> zeroize::Zeroize for MLDSASigningKey<SIZE> {
+    fn zeroize(&mut self) {
+        self.value.zeroize();
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<const SIZE: usize> Drop for MLDSASigningKey<SIZE> {
+    fn drop(&mut self) {
+        zeroize::Zeroize::zeroize(self);
+    }
+}
+
+#[cfg(feature = "zeroize")]
+impl<const SIZE: usize> zeroize::ZeroizeOnDrop for MLDSASigningKey<SIZE> {}
+
 macro_rules! impl_non_hax_types {
     ($name:ident) => {
         impl<const SIZE: usize> $name<SIZE> {
@@ -89,7 +108,7 @@ pub enum SigningError {
     /// `hardened` only: the OS entropy source needed to refresh the secret-key masking shares was
     /// unavailable, so signing was refused. There is deliberately no fallback to a key-derived
     /// static mask — a mask that is identical on every signature provides no first-order
-    /// side-channel protection (card `t_c801e460`).
+    /// side-channel protection.
     #[cfg(feature = "hardened")]
     MaskEntropyUnavailable,
 }

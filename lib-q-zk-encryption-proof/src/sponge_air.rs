@@ -306,7 +306,7 @@ impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for ShakeSpongeAir {
 /// balance iff the squeeze-byte table's reconstructed limbs equal the sponge's true squeezed output
 /// at each byte position.
 /// The 16 **Send** lookups exporting the sponge preimage's `μ` rate limbs on
-/// [`MU_LIMB_BUS`] — the binding that closes card `t_a73aaed2`'s GAP 2.
+/// [`MU_LIMB_BUS`] — the binding that closes the R3-relation soundness fix's GAP 2.
 ///
 /// `μ` occupies preimage rate limbs `MU_LIMB_LO..MU_LIMB_LO+MU_LIMBS`, and those columns hold the FO
 /// seed on **row 0 only** (later permutations carry squeeze chaining, so their preimage is the

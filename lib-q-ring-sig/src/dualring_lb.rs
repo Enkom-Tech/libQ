@@ -101,7 +101,7 @@ impl From<DualRingLbSignature> for DualRingOpeningProof {
 
 /// Fiat–Shamir context: federation context plus per-index domain-separated digests.
 ///
-/// **Framing note (card t_f0d676d1 / finding F25).** Earlier this function built its context by
+/// **Framing note (the 2026-08 test-hygiene audit / finding F25).** Earlier this function built its context by
 /// appending bytes directly after [`federation_signing_context`]'s raw output, which made this
 /// context a byte-prefix-extension of the base one: an attacker could choose a longer message for
 /// the base context that swallows this function's (fully public, attacker-computable) suffix,

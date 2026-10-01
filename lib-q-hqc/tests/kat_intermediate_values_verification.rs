@@ -6,7 +6,7 @@ use rand_core::Rng;
 // `test_kat_intermediate_values_count_0` (an `#[ignore]`d comparison of computed `seed_ek`/`s`
 // against a hardcoded "expected_pk" byte string) was deleted here rather than repaired.
 //
-// Investigation (lane `e-kat-provenance`, card t_71d4f79a) found the hardcoded expectation was
+// Investigation during the KAT-provenance audit found the hardcoded expectation was
 // NOT reference data for this parameter set at all: it was 2225 bytes long while
 // `Hqc1Params::PUBLIC_KEY_BYTES` is 2241 (and the committed regression-pin `.rsp` `pk` for the
 // same seed measures 2241 bytes). Of the 2193 `s`-bytes actually compared, 2185 differed --
@@ -20,7 +20,7 @@ use rand_core::Rng;
 // the official HQC v5.0.0 reference's real intermediate-value dump) was deliberately NOT added
 // in its place: that `reference/` tree is untracked (`.gitignore:236 /reference`) and present on
 // this machine only, so a test reading it would either be silently skipped or hard-fail in CI
-// depending on how it's written -- exactly the kind of gate-that-cannot-be-trusted this card
+// depending on how it's written -- exactly the kind of gate-that-cannot-be-trusted this audit
 // exists to remove. Wiring a real comparison requires first committing an extracted, hashed
 // upstream vector set (tracked follow-up work), not another local-only comparison.
 #[test]

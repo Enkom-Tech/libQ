@@ -12,7 +12,7 @@
 # THIS IS NOT HYPOTHETICAL. The `Test Coverage (nightly)` job broke on 2026-08-06 with
 # `parser failure: Nom(Satisfy)` on unchanged source. Three eliminations (stable passed; an
 # unchanged Aug-5 commit re-run now failed; tarpaulin logged the same 0.37.0 both sides) put the
-# only moving variable in the toolchain -- see card t_93dc6b27. The nightly toolchain is the half we
+# only moving variable in the toolchain -- see the coverage-nightly pin. The nightly toolchain is the half we
 # cannot pin away forever, but the tool half we can, and two jobs in
 # security-critical-coverage.yml were still installing tarpaulin unpinned at that time.
 #

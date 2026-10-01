@@ -39,6 +39,7 @@
 //! behaviour, and it does not replace instrumented dudect or TVLA with cycle counters. Treat this
 //! as a regression tripwire only.
 
+use lib_q_ml_dsa::Zeroizing;
 use lib_q_ml_dsa::constants::{
     KEY_GENERATION_RANDOMNESS_SIZE,
     SIGNING_RANDOMNESS_SIZE,
@@ -46,7 +47,7 @@ use lib_q_ml_dsa::constants::{
 use lib_q_ml_dsa::ml_dsa_44::{
     MLDSA44Signature,
     MLDSA44VerificationKey,
-    generate_key_pair,
+    generate_key_pair_from_seed,
     sign,
     verify,
 };
@@ -88,7 +89,7 @@ fn collect_verify_timing_samples(
 
 #[test]
 fn hardened_dudect_smoke_verify() {
-    let kp = generate_key_pair([0x42u8; KEY_GENERATION_RANDOMNESS_SIZE]);
+    let kp = generate_key_pair_from_seed(&Zeroizing::new([0x42u8; KEY_GENERATION_RANDOMNESS_SIZE]));
     let message = b"libq-hardened-ml-dsa-smoke";
     let sig = sign(
         &kp.signing_key,

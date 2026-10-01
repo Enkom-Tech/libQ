@@ -10,7 +10,7 @@ against the repository-root `kats-manifest.toml`); read it before citing either 
   identical to `github.com/cryspen/libcrux` at commit `5c3fc214`, under
   `libcrux-ml-dsa/tests/kats/`, as is `dilithium.py` in this directory. `./generate_kats.py`
   reproduces them but is not where the bytes came from. They were named `nistkats*.json` until
-  2026-08-07, which claimed a provenance they never had (card t_71d4f79a). Exercised by
+  2026-08-07, which claimed a provenance they never had. Exercised by
   `tests/nistkats.rs`.
 
 `dilithium.py` descends from <https://github.com/GiacomoPope/dilithium-py/pull/1> — genuinely

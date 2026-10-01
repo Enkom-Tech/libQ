@@ -1,6 +1,6 @@
 //! EVIDENCE 2 — the concrete parameter choice, and where its post-quantum number comes from.
 //!
-//! The operator's bar (card t_5bc0f630, 2026-08-09) is: "verify the concrete parameter choice
+//! The operator's bar (2026-08-09) is: "verify the concrete parameter choice
 //! gives >= 128-bit POST-QUANTUM security, not classical, and record the estimator basis". Not
 //! "it is PQ because lattices are PQ".
 //!

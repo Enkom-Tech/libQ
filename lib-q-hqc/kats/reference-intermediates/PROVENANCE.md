@@ -74,10 +74,10 @@ Consumed by `tests/reference_intermediates_kat.rs`.
 
 * **Byte-exact and passing (all three security levels):** HQC-128/192/256 keygen (`seed_dk`,
   `sigma`, public key) **and** encaps/decaps (`c_kem`, `K`). Encaps/decaps at HQC-192/256, and
-  `sigma` above HQC-128, became comparable only on 2026-08-10 (card `t_d2ee7042`) — before that
+  `sigma` above HQC-128, became comparable only on 2026-08-10 — before that
   this crate hardwired `m` and `sigma` to 16 bytes rather than `PARAM_SECURITY_BYTES`, so the
   reference's 24/32-byte `m` could not be supplied to the API at all.
-* **FIXED 2026-08-09 (card t_71d4f79a):** HQC-192 and HQC-256 keygen were previously RED because
+* **FIXED 2026-08-09:** HQC-192 and HQC-256 keygen were previously RED because
   `Hqc3Params::OMEGA` was 103 vs upstream `PARAM_OMEGA` 100, and `Hqc5Params::OMEGA` was 134 vs
   upstream 131 (`OMEGA_R` was 115 vs 114 at HQC-192). A full parameter diff against upstream
   `src/ref/hqc-{1,3,5}/parameters.h` + `src/common/hqc-{1,3,5}/api.h` at this same commit found no

@@ -287,7 +287,7 @@ use std::sync::{
 /// concurrent first reader, and poisoned guards are recovered with `PoisonError::into_inner`
 /// so no path can silently drop a write or substitute a value for the stored one. The
 /// `no_std` branch gets the same contract for free: `spin` locks cannot poison. Matches
-/// `GLOBAL_SECURITY_CONFIG` in `security::mod`; see card `t_8f408920` for why the previous
+/// `GLOBAL_SECURITY_CONFIG` in `security::mod`; see the global-security-config fix for why the previous
 /// shape was replaced.
 #[cfg(feature = "std")]
 static GLOBAL_TIMING_PROTECTION: LazyLock<RwLock<TimingProtection>> =
@@ -453,7 +453,7 @@ mod tests {
 
     /// A poisoned lock must not turn `set_timing_protection` into a silent no-op, nor make
     /// `get_timing_protection` invent a value. Encodes the invariant on
-    /// `GLOBAL_TIMING_PROTECTION`; same defect class as card `t_8f408920`.
+    /// `GLOBAL_TIMING_PROTECTION`; same defect class as the global-security-config fix.
     ///
     /// Poisoning is std-only: the `no_std` branch uses `spin::Mutex`, which has no poison
     /// state, so there is nothing to test there.

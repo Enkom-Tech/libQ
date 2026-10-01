@@ -2,14 +2,14 @@
 //! (`bool::from(calc.ct_eq(tag))`).
 //!
 //! Does NOT measure wall-clock timing -- that is unmeasurable in a unit test and out of scope
-//! per card t_043571b4 (a prior "constant-time" test compared two algorithms' speeds and was
+//! per the constant-time test-scope decision (a prior "constant-time" test compared two algorithms' speeds and was
 //! rejected). What these tests pin is the code shape: verification must reject a forged tag
 //! regardless of WHERE the tag diverges from the correct one -- including at the LAST byte,
 //! which a short-circuiting or prefix-only comparison (the class of regression fixed at
 //! ed104c2 for seven `PartialEq` impls elsewhere in this repo) would still accept. Romulus is
-//! named explicitly in card t_f0d676d1 as a crate with a confirmed HIGH-severity finding and
+//! named explicitly in the 2026-08 test-hygiene audit as a crate with a confirmed HIGH-severity finding and
 //! no constant-time test at all -- this closes the latter for its tag-verify path (the S-box
-//! table-lookup finding itself is tracked separately under t_7f110663).
+//! table-lookup finding itself is tracked separately under the SKINNY table-lookup finding).
 
 use aead::array::Array;
 use aead::{

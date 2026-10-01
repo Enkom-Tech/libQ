@@ -15,7 +15,7 @@ pub enum EncProofError {
     /// Trace generation failed before the STARK prover was invoked.
     TraceGeneration(&'static str),
     /// The malformed-ciphertext gate refused: the encryption proof for the ciphertext did not verify,
-    /// so partial decapsulation was denied before the share was touched (task #33).
+    /// so partial decapsulation was denied before the share was touched.
     ProofRejected,
     /// The gated partial decapsulation itself failed (a `lib-q-threshold-kem-lattice` error, after the
     /// proof verified).

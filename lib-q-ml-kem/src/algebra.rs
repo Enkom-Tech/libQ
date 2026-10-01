@@ -226,9 +226,25 @@ impl Polynomial {
     }
 }
 
+impl Zeroize for Polynomial {
+    fn zeroize(&mut self) {
+        for fe in &mut self.0 {
+            fe.zeroize();
+        }
+    }
+}
+
 /// A vector of polynomials of length `k`
 #[derive(Clone, Default, Debug, PartialEq)]
 pub struct PolynomialVector<K: ArraySize>(pub Array<Polynomial, K>);
+
+impl<K: ArraySize> Zeroize for PolynomialVector<K> {
+    fn zeroize(&mut self) {
+        for poly in &mut self.0 {
+            poly.zeroize();
+        }
+    }
+}
 
 impl<K: ArraySize> Add<PolynomialVector<K>> for PolynomialVector<K> {
     type Output = PolynomialVector<K>;
@@ -251,8 +267,11 @@ impl<K: ArraySize> PolynomialVector<K> {
     {
         Self(Array::from_fn(|i| {
             let N = start_n + Truncate::truncate(i);
-            let prf_output = PRF::<Eta>(sigma, N);
-            Polynomial::sample_cbd::<Eta>(&prf_output)
+            let mut prf_output = PRF::<Eta>(sigma, N);
+            let poly = Polynomial::sample_cbd::<Eta>(&prf_output);
+            // The PRF output determines the secret coefficients.
+            prf_output.zeroize();
+            poly
         }))
     }
 }
@@ -771,6 +790,15 @@ mod test {
 
     use super::*;
     use crate::util::Flatten;
+
+    #[test]
+    fn polynomial_vector_zeroize_clears_coefficients() {
+        let mut v: PolynomialVector<U3> =
+            PolynomialVector::sample_cbd::<U2>(&B32::from([7u8; 32]), 0);
+        assert!(v.0.iter().any(|p| p.0.iter().any(|fe| fe.0 != 0)));
+        v.zeroize();
+        assert_eq!(v, PolynomialVector::<U3>::default());
+    }
 
     // Multiplication in R_q, modulo X^256 + 1
     impl Mul<&Polynomial> for &Polynomial {

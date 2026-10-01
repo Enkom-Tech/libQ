@@ -21,7 +21,7 @@ use crate::ring::federation_digest;
 ///
 /// The message is length-prefixed (a little-endian `u64` count immediately before the bytes) so
 /// this context is self-delimiting even when a caller appends further fields after it — see
-/// card t_f0d676d1 / finding F25, which found that an *unprefixed* trailing message let
+/// the 2026-08 test-hygiene audit / finding F25, which found that an *unprefixed* trailing message let
 /// [`crate::dualring_lb::dualring_lb_signing_context`] (which used to be built by appending bytes
 /// directly after this function's output) be made byte-identical to a *different*
 /// `(ring, message)` framing by choosing a message that swallows the appended suffix. The length

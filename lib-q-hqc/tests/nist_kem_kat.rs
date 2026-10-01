@@ -20,7 +20,7 @@
 //! spare bytes, so at HQC-192/256 the bytes beyond the first 16 are drawn from
 //! `SHAKE256(seed48 ‖ 0x02)`. That is **this harness's own convention**, not upstream's — these
 //! are self-generated regression pins, and the convention is chosen so the HQC-128 pins stay
-//! byte-identical to the ones committed before `m` became per-level (card `t_d2ee7042`), which is
+//! byte-identical to the ones committed before `m` became per-level, which is
 //! itself the evidence that the change was a no-op at level 1.
 
 #![cfg(all(feature = "alloc", feature = "hqc", feature = "random"))]

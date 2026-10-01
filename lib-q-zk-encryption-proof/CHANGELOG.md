@@ -23,4 +23,4 @@ current code.
 
 Both crates are RED (not production-approved) and unreleased at 0.0.11 — this window was used to
 close the wire-version gap rather than deferring it. See
-`lib-q-threshold-kem-lattice/CHANGELOG.md` for the full wire-format change and card `t_79295151`.
+`lib-q-threshold-kem-lattice/CHANGELOG.md` for the full wire-format change and the threshold-KEM wire-version change.

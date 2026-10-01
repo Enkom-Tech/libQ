@@ -9,6 +9,12 @@ on:
     # Run security checks daily
     - cron: '0 2 * * *'
 
+# Cancel superseded runs on pull-request branches only: a new push obsoletes the previous
+# run. Pushes to main/develop and scheduled runs are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
   pull-requests: write
@@ -322,7 +328,7 @@ jobs:
           fi
       
       - name: Upload security report
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3 (GHES-compatible pin; v4+ needs an artifact backend this Forgejo lacks)
         with:
           name: security-report
           path: security-report.md

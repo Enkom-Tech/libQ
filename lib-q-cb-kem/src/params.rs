@@ -19,7 +19,7 @@
 //! second part wrong is what makes the difference invisible in a single-variant build and only
 //! shows up under `--all-features`.
 //!
-//! This was not always true. Before 2026-08-10 (card `t_580dc5fd`) only this file cascaded; the
+//! This was not always true. Before 2026-08-10 only this file cascaded; the
 //! rest of the crate gated on the bare feature. Under `--all-features` that meant `params.rs`
 //! resolved to `348864` while, for example, `gf::gf_mul_inplace` executed *all four* variants'
 //! reduction steps in sequence — silently wrong field arithmetic, and 14 failing tests that read

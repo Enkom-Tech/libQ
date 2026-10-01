@@ -5,7 +5,10 @@
 
 #![cfg(feature = "hardened")]
 
-use lib_q_ml_dsa::*;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    *,
+};
 
 /// Domain separation context for all sign/verify calls in this test module.
 const CONTEXT: &[u8] = b"hardened_mode_test";
@@ -15,7 +18,7 @@ const CONTEXT: &[u8] = b"hardened_mode_test";
 fn test_hardened_mode_rng_integration() {
     // Verify RNG abstraction is used
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Should work with RNG wrapper
     assert!(
@@ -25,7 +28,7 @@ fn test_hardened_mode_rng_integration() {
 
     // Test that different seeds produce different keys
     let seed2 = [0x43; 32];
-    let keys2 = ml_dsa_44::generate_key_pair(seed2);
+    let keys2 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed2));
 
     assert_ne!(
         keys.verification_key.as_slice(),
@@ -44,7 +47,7 @@ fn test_hardened_mode_zeroization() {
         // Verify sensitive data is zeroized
         // This requires instrumentation to check memory is cleared
         let seed = [0x42; 32];
-        let _keys = ml_dsa_44::generate_key_pair(seed);
+        let _keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
         // After drop, sensitive material should be zeroized
         // Note: This is a basic test - more rigorous testing would require
@@ -65,7 +68,7 @@ fn test_hardened_mode_constant_time() {
     {
         // Basic check - more rigorous timing analysis needed externally
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let message = b"constant time test";
         let rnd = [0x42u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
 
@@ -89,7 +92,7 @@ fn test_hardened_mode_constant_time() {
 #[test]
 fn test_hardened_mode_entropy_quality() {
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Test that keys have sufficient entropy
     let vk_bytes = keys.verification_key.as_slice();
@@ -129,7 +132,7 @@ fn test_hardened_mode_entropy_quality() {
 fn test_hardened_mode_side_channel_resistance() {
     // Test that operations don't leak information through timing
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let _message = b"side channel test";
     let rnd = [0x42u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
 
@@ -159,7 +162,7 @@ fn test_hardened_mode_memory_safety() {
 
     // Test multiple operations to ensure no memory leaks or corruption
     for i in 0..10 {
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let sig = ml_dsa_44::sign(&keys.signing_key, message, CONTEXT, rnd).unwrap();
         let verify = ml_dsa_44::verify(&keys.verification_key, message, CONTEXT, &sig);
         assert!(verify.is_ok(), "Operation {} must succeed", i);
@@ -175,7 +178,7 @@ fn test_hardened_mode_api_security() {
     let message = b"API security test";
     let rnd = [0x42u8; lib_q_ml_dsa::SIGNING_RANDOMNESS_SIZE];
 
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let sig = ml_dsa_44::sign(&keys.signing_key, message, CONTEXT, rnd).unwrap();
 
     // Test that verification rejects invalid signatures
@@ -204,7 +207,7 @@ fn test_hardened_mode_api_security() {
 #[test]
 fn test_hardened_mode_key_separation() {
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
     // Verification and signing keys should be different
     assert_ne!(

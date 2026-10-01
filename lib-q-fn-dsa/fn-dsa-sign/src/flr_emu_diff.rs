@@ -494,7 +494,7 @@ fn flr_emu_matches_native_expm_p63() {
 /// accurate* approximation — the segmented-Remez scheme of ePrint 2026/1610, say — necessarily
 /// disagrees with this one almost everywhere. "Faster and more accurate" and "bit-compatible with
 /// the shipped KATs" are mutually exclusive here; adopting such a change means consciously
-/// re-pinning the oracle vectors, which is a decision, not a refactor. See card `t_3986efb2`.
+/// re-pinning the oracle vectors, which is a decision, not a refactor. See the FN-DSA float-emulation review.
 ///
 /// These pins exist so that fact is discovered by a failing test on the first attempt, rather
 /// than downstream in the signature KATs where the cause is much harder to see. They are the

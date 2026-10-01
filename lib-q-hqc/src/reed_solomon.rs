@@ -252,7 +252,7 @@ impl<P: HqcParams> ReedSolomon<P> {
         // `reference/hqc/src/ref/reed_solomon.c:353-385` (`reed_solomon_decode`). The previous
         // "all syndromes zero -> return early" fast path and the "found_errors == deg_sigma ->
         // else skip correction" gate have both been removed: they were the dominant timing
-        // leaks (t_2d79cd69), and the reference has no such guards — a beyond-capacity error
+        // leaks, and the reference has no such guards — a beyond-capacity error
         // pattern simply produces a wrong correction here, which the FO transform's
         // re-encryption check rejects at a higher layer via implicit rejection.
 
@@ -818,7 +818,7 @@ mod tests {
     /// `N1 = 56`) and HQC-5 (`DELTA = 29`, `N1 = 90`) — the two parameter sets that were not
     /// individually named in `test_reed_solomon_decode_beyond_capacity_does_not_panic_hqc1`, and
     /// for HQC-5 specifically the set whose undersized `ALPHA_IJ_POW` table forces a different
-    /// `compute_syndromes_u16` code path (see module-level trap note in the calling card).
+    /// `compute_syndromes_u16` code path (see the module-level trap note).
     #[test]
     fn test_reed_solomon_decode_beyond_capacity_does_not_panic_hqc3_hqc5() {
         {

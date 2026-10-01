@@ -28,6 +28,22 @@ KEM façade over ML-KEM (and optional features in custom builds). See generated 
 
 ML-DSA / SLH-DSA WASM paths enabled in CD (`wasm`, `ml-dsa`). See `lib_q_sig.d.ts` under `pkg-sig/web` or `pkg-sig/nodejs`.
 
+`MlDsa.ml_dsa_65()` is exported from current source, followed by
+`verify_with_context_wasm(publicKey, message, context, signature)`. Published
+`@lib-q/sig@0.0.11` has the instance methods but **no JavaScript factory**; it
+cannot be used to construct this verifier. The Node JOSE adapter below requires
+the patched companion build, not that published artifact.
+
+## `@lib-q/jose` (Node prerelease)
+
+`npm/lib-q-jose` wraps ML-DSA-65 for RFC 9964 compact JWS and OIDC ID tokens:
+`importAkpJwk`, `verifyCompactJws`, and `verifyIdToken`. No classical fallback.
+The package and its companion sig build use `0.0.11-jose.0` tarballs pending
+coordinated release; neither is claimed to be published. See the
+[package README](../npm/lib-q-jose/README.md) for exact build/install commands,
+verification status, and Hive/aerax-app integration. This prerelease is an
+exception to the stable workspace-version examples below.
+
 ## `@lib-q/fn-dsa`
 
 FN-DSA keygen, sign, verify (build features: `wasm`, `std`, `rand`). See `lib_q_fn_dsa.d.ts`.

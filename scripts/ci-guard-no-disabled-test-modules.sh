@@ -27,7 +27,7 @@
 # `cfg(any())` / `cfg (any ())` etc. A match in a file NOT on the KNOWN_DEBT allowlist below is a
 # hard failure. This is DEBT ACCEPTANCE, not approval: the allowlist exists so the nine files
 # already in this state do not retroactively block CI the day this guard lands, but it may only
-# SHRINK -- adding a new file to it requires a card, the same discipline
+# SHRINK -- adding a new file to it requires a tracked follow-up, the same discipline
 # ci-guard-no-disabled-test-modules's sibling guards use for their own escape hatches.
 #
 # WHAT THIS GUARD DOES NOT COVER
@@ -51,9 +51,9 @@ set -euo pipefail
 ROOT="${1:-$(git rev-parse --show-toplevel)}"
 cd "$ROOT"
 
-# KNOWN-DEBT allowlist (may only shrink; growing it requires a card).
+# KNOWN-DEBT allowlist (may only shrink; growing it requires a tracked follow-up).
 #
-# NOW EMPTY. All nine original entries were re-enabled on 2026-08-08 (card t_6ea7cb21): the four
+# NOW EMPTY. All nine original entries were re-enabled on 2026-08-08: the four
 # `lib-q-stark-matrix` files, two `lib-q-stark-dft`, two `lib-q-stark-mds` and one
 # `lib-q-stark-interpolation`. The two crates that ran 0 tests in total now run 6 each, and the
 # four crates went from 47 executed tests to 127. Every re-enabled module was checked to actually

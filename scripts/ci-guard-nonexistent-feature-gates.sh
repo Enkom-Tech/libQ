@@ -61,7 +61,7 @@
 #
 # THIS GUARD HAS BEEN SEEN TO FAIL
 # ---------------------------------
-# Landing it green would prove nothing (see the card contract's register rule: "a check you have
+# Landing it green would prove nothing (see the project's evidence rule: "a check you have
 # not seen fail is not evidence"). `--self-test` runs before every real scan and replays an
 # adversarial fixture of planted gates across all three verdict classes plus controls that must
 # not trip; scripts/fixtures/nonexistent-feature-gates/README.md tabulates which guard mutation

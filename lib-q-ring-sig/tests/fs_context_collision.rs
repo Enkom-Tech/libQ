@@ -1,4 +1,4 @@
-//! F25 (card t_f0d676d1): the transcript-collision hypothesis for the ring-sig Fiat-Shamir
+//! F25: the transcript-collision hypothesis for the ring-sig Fiat-Shamir
 //! contexts.
 //!
 //! `lens-api-soundness.md` F25 hypothesized that `federation_signing_context` and
@@ -14,7 +14,7 @@
 //! `msg_a = msg_b || suffix(ring, msg_b)` so that
 //! `federation_signing_context(ring, msg_a) == dualring_lb_signing_context(ring, msg_b)`
 //! **as byte strings**, for two genuinely different `(ring, msg_a)` / `(ring, msg_b)` framings.
-//! This was CONFIRMED at the byte level (see git history of this file / the card for the
+//! This was CONFIRMED at the byte level (see git history of this file for the
 //! before-fix demonstration) — it is a real cross-protocol transcript collision in the context
 //! *construction*, not merely a hypothesis.
 //!
@@ -37,7 +37,7 @@
 //! with no such wrapping. So even a byte-identical `ctx` string fed to both does not by itself
 //! give byte-identical Fiat–Shamir challenges end-to-end; a full cross-protocol forgery was not
 //! attempted here (would require also colliding through `opening_statement_ctx`, which lives in
-//! `lib-q-lattice-zkp`, outside this crate's edit scope for card t_f0d676d1).
+//! `lib-q-lattice-zkp`, outside this crate's edit scope for the 2026-08 test-hygiene audit).
 
 use lib_q_lattice_zkp::{
     AjtaiCommitmentKey,

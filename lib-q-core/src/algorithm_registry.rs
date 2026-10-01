@@ -1055,7 +1055,7 @@ mod tests {
         assert!(!kem_algorithms.is_empty());
     }
 
-    /// Regression test for card t_e3457ac8: `security_level` must track each
+    /// Regression test for the registry security-level fix: `security_level` must track each
     /// algorithm's own NIST PQC security category, not an ad-hoc ordinal that
     /// happens to coincide with it for most entries. Every value below is
     /// sourced from the algorithm's own specification:
@@ -1065,7 +1065,7 @@ mod tests {
     ///   excluded: FIPS 204 claims Category 2 for it but permits a documented
     ///   fallback to Category 1 with a weaker RBG, so the correct registered
     ///   value is genuinely ambiguous without knowing which RBG posture this
-    ///   crate assumes (see card t_e3457ac8 follow-up notes).
+    ///   crate assumes (see the registry security-level fix follow-up notes).
     /// - FN-DSA-512/1024 (Falcon): Categories 1/5
     /// - SLH-DSA SHA256/SHAKE256 -128f/-192f/-256f: FIPS 205 Table (Categories
     ///   1/3/5; confirmed via reference/fips205/NIST.FIPS.205.pdf sections

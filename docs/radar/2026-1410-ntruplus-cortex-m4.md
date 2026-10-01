@@ -1,6 +1,6 @@
 # Radar triage — ePrint 2026/1410: "A Memory-Efficient and Assembly-Optimized Implementation of NTRU+"
 
-- **Card:** ENK-479 (Hive `iacr-radar`, Akira id `t_14fe0106`)
+- **Source:** IACR eprint radar (`iacr-radar`)
 - **Paper:** <https://eprint.iacr.org/2026/1410>
 - **Authors:** SuBeen Cho, Jiwon Bang, Minjoo Sim, Hwajeong Seo
 - **Keywords (from ePrint):** Memory Optimization, KpqC, NTRU+, Lattice-based KEM, Assembly Optimization, Cortex-M4
@@ -77,7 +77,7 @@ libQ's *own* KEMs (ML-KEM in particular), not to NTRU+.
 - **Do not** implement NTRU+ on the strength of this paper. It is not on the KpqC-vs-NIST path libQ
   has taken (NIST ML-KEM / HQC / Classic McEliece), and adding a KpqC-only KEM is a product decision
   independent of an implementation-optimization paper.
-- **Close the radar card as triaged / no-action**, retaining this note as the reference.
+- **Close the radar triage as no-action**, retaining this note as the reference.
 - **If** an embedded KEM track is later opened, revisit for the memory-liveness methodology only,
   applied to libQ's existing lattice KEM code.
 

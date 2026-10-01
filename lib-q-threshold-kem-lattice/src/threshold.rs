@@ -19,9 +19,17 @@
 //!    decapsulation stays **exact** ([`crate::kem::FLOOD_BOUND`]).
 //! 2. **FO⊥ at [`crate::combine`]**: a malformed ciphertext never yields a key. Residual boundary:
 //!    the coalition still *observes* the flooded partial on a malformed `p` before the combine-time
-//!    rejection — an adversarially amplified `p` can overpower flooding, so deployments MUST bound
-//!    per-key decapsulations and/or require ciphertext well-formedness proofs at a higher layer.
-//!    See `LIBQ_API.md` §7.
+//!    rejection — an adversarially amplified `p` can overpower flooding
+//!    (`THRESHOLD_SECURITY.md` §4: the *bounded-norm* well-formedness proof once suggested here is
+//!    **not** sufficient — §4.2 — the closing statement is a ZK proof of *knowledge of `μ`*, §4.3).
+//!    None of `partial_decap_masked`, `partial_decap_masked_budgeted`, or
+//!    `partial_decap_authenticated_budgeted` in this module apply that proof (closure A);
+//!    they only enforce closures B (an authenticated ciphertext, see [`partial_decap_authenticated_budgeted`])
+//!    and C (a hard per-key budget, see [`DecapBudget`]). A deployment that needs the
+//!    assumption-free closure MUST call `lib_q_zk_encryption_proof::gate::gated_partial_decap_masked*`
+//!    instead, which composes the proof gate with B/C from the separate `lib-q-zk-encryption-proof`
+//!    crate (`tkem` cannot depend on it without a cycle — see that crate's `gate` module docs).
+//!    See `THRESHOLD_SECURITY.md` §5/§6.
 
 extern crate alloc;
 
@@ -202,6 +210,16 @@ impl ZeroShareSeeds {
 /// sub-threshold subsets before touching the share; every share-linear intermediate (the decoded
 /// share, `⟨rand(i), p⟩`, the pre-mask weighted value, the mask, and the flooding polynomial) is
 /// zeroized before returning — only the fully masked broadcast value survives.
+///
+/// # Security
+///
+/// "Structurally malformed" here means [`Ciphertext::is_well_formed`] (field lengths only) — it is
+/// **not** the closure-A proof of knowledge of `μ` (`THRESHOLD_SECURITY.md` §4.3) and does **not**
+/// stop the §4 malformed-ciphertext probe (e.g. a spike `p = δ·unit_k`, which is well-formed by this
+/// check). This function alone provides no defense against that probe; callers need closure B
+/// (an authenticated ciphertext — see [`partial_decap_authenticated_budgeted`]), closure C (a hard
+/// budget — see [`partial_decap_masked_budgeted`]), or, for the assumption-free closure,
+/// `lib_q_zk_encryption_proof::gate::gated_partial_decap_masked`.
 pub fn partial_decap_masked<R: CryptoRng + Rng>(
     share: &SecretShare,
     subset: &[u8],
@@ -237,6 +255,11 @@ pub fn partial_decap_masked<R: CryptoRng + Rng>(
 /// charged for a successfully emitted partial — a structurally invalid ciphertext or bad subset
 /// returns its own error without consuming a slot. This is the recommended distributed entry point;
 /// the un-budgeted [`partial_decap_masked`] is retained for callers that track the budget elsewhere.
+///
+/// # Security
+///
+/// Enforces closure C (`THRESHOLD_SECURITY.md` §5/§6) only — see [`partial_decap_masked`]'s
+/// `# Security` note for what this does **not** cover (closure A, the malformed-ciphertext probe).
 pub fn partial_decap_masked_budgeted<R: CryptoRng + Rng>(
     share: &SecretShare,
     subset: &[u8],
@@ -273,6 +296,12 @@ pub fn partial_decap_masked_budgeted<R: CryptoRng + Rng>(
 /// [`ThresholdKemError::AuthenticationFailed`] if the tag does not verify (checked with
 /// [`subtle::ConstantTimeEq`], no early exit on the attacker-supplied tag). Otherwise, the same
 /// errors as [`partial_decap_masked_budgeted`].
+///
+/// # Security
+///
+/// Composes closures B and C; still does **not** apply closure A (see [`partial_decap_masked`]'s
+/// `# Security` note) — the malformed-ciphertext probe is closed here only insofar as B (an
+/// authenticated ciphertext) prevents an unauthorized party from submitting one.
 #[allow(clippy::too_many_arguments)]
 pub fn partial_decap_authenticated_budgeted<R: CryptoRng + Rng>(
     share: &SecretShare,

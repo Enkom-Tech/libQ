@@ -41,4 +41,4 @@ close the gap rather than deferring to a real `v1` → `v2` migration later. Bot
 downstream consumer `lib-q-zk-encryption-proof` (which folds `ct.to_bytes()` into Fiat-Shamir
 transcripts) moved together in the same change; see that crate's CHANGELOG.
 
-See card `t_79295151`.
+See the threshold-KEM wire-version change.

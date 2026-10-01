@@ -203,7 +203,7 @@ impl<P: HqcParams> HqcPke<P> {
 
         // NIST / reference `ek_kem` wire format: seed_ek (32) ‖ serialized s.
         // Derived from `VEC_N_SIZE_BYTES` (not `PUBLIC_KEY_BYTES - 32`) so a future drift in the
-        // published constant cannot silently zero-pad the tail again (card t_1558e72f).
+        // published constant cannot silently zero-pad the tail again.
         let s_len = P::VEC_N_SIZE_BYTES;
         let mut public_key_data: Vec<u8> = vec![0u8; P::PUBLIC_KEY_BYTES];
         public_key_data[..32].copy_from_slice(&seed_ek);

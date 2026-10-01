@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Guard: a `#[test]` fn with no failure mechanism (assert/panic/unwrap/expect/`?`/should_panic)
 # reports "ok" no matter what it computes. See scripts/ci_guard_no_assert_tests.py for the full
-# rationale (card t_f0d676d1) and the incident that motivated it: all three #[test] fns in
+# rationale and the incident that motivated it: all three #[test] fns in
 # lib-q-hqc/tests/kat_with_aes_drbg_test.rs could not fail, and one was a KEM round-trip that
 # printed a cross mark on mismatch instead of asserting -- fixed at 766cb0c.
 #

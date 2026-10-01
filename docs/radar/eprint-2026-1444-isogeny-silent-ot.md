@@ -1,7 +1,7 @@
 # Compressed Post-Quantum Silent OT from Isogenies (ePrint 2026/1444) — radar disposition
 
 Status: **radar / out of scope — not adopted (tracked).** This note dispositions IACR
-ePrint 2026/1444 for the `iacr-radar` import (board card `ENK-481`). It is a triage record,
+ePrint 2026/1444 for the `iacr-radar` import. It is a triage record,
 not a finding against any shipped primitive: the paper builds a primitive family (silent
 oblivious transfer via pseudorandom correlation functions) that `lib-q` does **not**
 implement and, today, has no surface to plug into.
@@ -16,7 +16,7 @@ implement and, today, has no surface to plug into.
 
 ## Disposition: post-quantum, but no in-tree surface and a non-standardized assumption
 
-Unlike `ENK-459` (which was a *quantum-security* false positive), this paper's
+Unlike the ePrint 2023/1435 triage (which was a *quantum-security* false positive), this paper's
 classification is **correct**: the construction is genuinely post-quantum — it is built on
 an isogeny **group action** and comes with a **QROM** security proof. So it is **not**
 rejected on threat-model grounds. It is dispositioned out of scope for three independent,
@@ -52,9 +52,8 @@ structural reasons:
 Reasons (1) and (2) alone are dispositive today: even setting the assumption aside, the
 construction is a green-field addition (new backend + new protocol layer), not an
 improvement, attack, or interop target for anything `lib-q` currently ships. Recorded here so
-the card closes on a documented rationale rather than being silently dropped, matching how the
-other `iacr-radar` cards (`ENK-457`, `ENK-458`, `ENK-459`, `ENK-469`, `ENK-472`, `ENK-541`)
-were folded into the tree.
+the triage ends on a documented rationale rather than being silently dropped, matching how the
+other `iacr-radar` triages were folded into the tree.
 
 ## What the paper actually contains (from the abstract)
 

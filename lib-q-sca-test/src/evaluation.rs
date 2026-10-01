@@ -23,6 +23,8 @@ pub fn screen_fixed_vs_random(fixed: &[f64], random: &[f64]) -> Option<bool> {
 }
 
 #[cfg(feature = "mldsa")]
+use lib_q_ml_dsa::Zeroizing;
+#[cfg(feature = "mldsa")]
 use lib_q_ml_dsa::ml_dsa_44::portable;
 #[cfg(feature = "mlkem")]
 use lib_q_ml_kem::{
@@ -91,7 +93,7 @@ fn varying_rnd(i: usize) -> [u8; 32] {
 ///
 /// Holding `rnd` fixed in both classes (as this harness previously did) makes the measurement
 /// structurally blind to any behaviour that depends on `rnd` varying — including whether the
-/// `hardened` masking shares are refreshed per signature (card `t_c801e460`). See
+/// `hardened` masking shares are refreshed per signature. See
 /// [`mldsa_sign_rnd_tvla_timings`] for the class pair that isolates `rnd` alone.
 #[cfg(feature = "mldsa")]
 pub fn mldsa_sign_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
@@ -99,9 +101,9 @@ pub fn mldsa_sign_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
     let ctx = b"";
     let fixed_rnd = [0x42u8; 32];
 
-    let fixed_kp = portable::generate_key_pair([0x11u8; 32]);
+    let fixed_kp = portable::generate_key_pair_from_seed(&Zeroizing::new([0x11u8; 32]));
     let random_kps: Vec<_> = (0..samples)
-        .map(|i| portable::generate_key_pair([i as u8; 32]))
+        .map(|i| portable::generate_key_pair_from_seed(&Zeroizing::new([i as u8; 32])))
         .collect();
 
     let fixed = crate::sample_wall_times(
@@ -139,7 +141,7 @@ pub fn mldsa_sign_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
 pub fn mldsa_sign_rnd_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
     let msg = b"lib-q-sca-tvla-rnd";
     let ctx = b"";
-    let kp = portable::generate_key_pair([0x11u8; 32]);
+    let kp = portable::generate_key_pair_from_seed(&Zeroizing::new([0x11u8; 32]));
     // FIPS 204 deterministic signing.
     let deterministic_rnd = [0u8; 32];
 

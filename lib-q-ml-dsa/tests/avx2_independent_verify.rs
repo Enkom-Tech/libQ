@@ -1,4 +1,4 @@
-//! Diagnostic for t_f88bc433: is the AVX2 ("simd256") ML-DSA-44 sigGen output from the ACVP
+//! Diagnostic for the ML-DSA AVX2 reduce defect: is the AVX2 ("simd256") ML-DSA-44 sigGen output from the ACVP
 //! vector a VALID-BUT-DIFFERENT signature, or a WRONG one?
 //!
 //! Independent check: derive the public key from the ACVP `sk` using the fips204 crate (a

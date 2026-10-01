@@ -3,7 +3,7 @@
 //! Every other test here commits and verifies **in the same process**, so it stays green across
 //! any change to the hash, the domain label, or the absorb order. That is exactly how `df33c57`
 //! changed every commitment byte (SHA-256 -> SHA3-256) without moving the `-v1` label and without
-//! a single test going red. See board card `ENK-244`.
+//! a single test going red. See the blind-PCS commitment pin.
 //!
 //! # These values are not this crate's own output
 //!

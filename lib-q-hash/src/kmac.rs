@@ -771,7 +771,7 @@ mod tests {
 
     /// Structural (non-timing) pin on `Kmac128::verify`'s `ct_eq`-based comparison
     /// (`kmac.rs`, `verify`). Does NOT measure wall-clock timing -- that is unmeasurable
-    /// in a unit test and out of scope per card t_043571b4. What this pins is the code
+    /// in a unit test and out of scope per the constant-time test-scope decision. What this pins is the code
     /// shape: `verify` must reject a mismatch regardless of which byte differs, exhaustively
     /// over every position in a short tag, which a comparison that scans only a prefix (the
     /// class of bug this test is designed to catch) would fail partway through.

@@ -180,7 +180,7 @@ runs:
               # non-"lib-q-core" cases are already caught by the `elif` above -- there is no value
               # of `$pkg` that reaches this branch. It previously read
               # `cargo build -p $pkg --no-default-features || echo "Package $pkg failed with no
-              # default features - expected"`, which is card t_1d516263's exact swallow pattern:
+              # default features - expected"`, which is the swallowed-exit-code defect's exact swallow pattern:
               # if the grep filter or the branches above it ever drift out of sync (e.g. a 4th
               # package added to the filter without a matching if/elif arm), this silently
               # relabeled a real, novel no_std build break as "expected" instead of failing the

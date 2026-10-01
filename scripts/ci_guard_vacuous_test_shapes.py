@@ -3,7 +3,8 @@ r"""Implementation for scripts/ci-guard-vacuous-test-shapes.sh.
 
 Scans `run:` shell blocks in every .github/**/*.yml file for the three call-site shapes proven in
 this repository to make a `cargo test`/`cargo bench`/... step report green without doing what its
-name claims (card t_9f13e8e5, t_9d1766f3, and the systemic zero-tests item):
+name claims (the vacuous lib-q-hpke CI steps, the FN-DSA constant-time gate, and the systemic
+zero-tests item):
 
   R1  `cargo test|nextest ... | <anything>` -- a pipe after the invocation destroys the
       `test result: ...` summary line the runtime vacuity guard (ci-guard-no-vacuous-tests.sh)
@@ -19,7 +20,7 @@ name claims (card t_9f13e8e5, t_9d1766f3, and the systemic zero-tests item):
       catches a NEW unguarded call site at review time; the runtime guard catches a call site
       that is guarded but whose filter has gone dead).
   R3  `|| true` / `|| echo ...` directly after a `cargo test|bench|build|check|run` invocation --
-      masks that command's own exit code (the t_1d516263 class).
+      masks that command's own exit code (the swallowed-exit-code defect class).
 
 An inline `# vacuity-ok: <reason>` comment on the same physical line exempts that line from every
 rule (mirrors the runtime guard's `--allow "reason"`; shows up in `git blame`, no separate

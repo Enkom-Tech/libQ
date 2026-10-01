@@ -3,7 +3,7 @@
 //! 128-bit block, 384-bit tweakey, 40 rounds. Layout matches the reference C
 //! implementation (`state[row][col]` with `state[i>>2][i&3]` ↔ linear index `i`).
 //!
-//! # Constant-time note (finding F5, card t_7f110663) — FIXED
+//! # Constant-time note (finding F5) — FIXED
 //!
 //! [`sub_cell8`] used to apply the SKINNY-8 S-box via a 256-entry lookup table
 //! (`SBOX_8`) indexed by cipher state bytes, which are a function of the Romulus key
@@ -95,7 +95,7 @@ const RC: [u8; 40] = [
 /// Constant-time: branch-free bit-sliced evaluation of the S-box's Algebraic Normal
 /// Form over all 16 cells in parallel — no table indexed by secret data, no
 /// secret-dependent branch. See the module-level "Constant-time note" (finding F5 /
-/// card t_7f110663).
+/// the SKINNY table-lookup finding).
 fn sub_cell8(state: &mut [[u8; 4]; 4]) {
     let planes = cells_to_bitplanes(state);
     let planes = sbox8_bitsliced(planes);
@@ -392,7 +392,7 @@ fn mix_column(state: &mut [[u8; 4]; 4]) {
 mod tests {
     use super::*;
 
-    /// Primary evidence for finding F5 (card t_7f110663) being fixed: the bitsliced,
+    /// Primary evidence for finding F5 being fixed: the bitsliced,
     /// branch-free [`sbox8_bitsliced`] must agree with the reference `SBOX_8` table on
     /// **every one of the 256 possible byte values**, exercised through the actual
     /// runtime path (`sub_cell8` operating on all 16 state cells at once, not a

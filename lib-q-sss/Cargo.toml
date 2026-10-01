@@ -1,0 +1,48 @@
+[package]
+name = "lib-q-sss"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+homepage.workspace = true
+repository.workspace = true
+readme = "README.md"
+description = "Constant-time Shamir secret sharing over GF(2^8) — k-of-n threshold split of a 32-byte symmetric secret"
+keywords = ["cryptography", "secret-sharing", "shamir", "no-std", "wasm"]
+categories = ["cryptography", "no-std", "wasm"]
+# Held for human crypto review before its first crates.io release (new primitive, RED zone). A
+# maintainer flips this to publishable and slots it into cd.yml's publish tiers once that review
+# lands; until then it is a workspace member that builds and tests in CI but ships no immutable
+# crates.io release.
+publish = false
+
+[dependencies]
+zeroize = { workspace = true, default-features = false, features = ["derive"] }
+rand_core = { workspace = true }
+thiserror = { workspace = true }
+# Only pulled in under `sca-test`, for the dudect-style constant-time smoke test.
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.11", default-features = false, optional = true }
+
+[dev-dependencies]
+rand = { workspace = true, features = ["std", "thread_rng"] }
+
+[features]
+default = ["alloc", "std"]
+# `alloc` gates the primitive itself (`split`/`reconstruct` and their GF(2^8) arithmetic), which
+# needs a heap. `Share`/`ShamirError` compile with neither `alloc` nor `std`.
+alloc = []
+std = ["alloc"]
+# Convenience alias for embedded targets. `#![no_std]` follows `not(feature = "std")` (see
+# src/lib.rs), so `--no-default-features` alone is already a no_std build; this just also pulls
+# `alloc` so the primitive is available.
+no_std = ["alloc"]
+# Enables the dudect-style constant-time smoke test for gf_mul (host timing probe; needs std).
+sca-test = ["dep:lib-q-sca-test", "std"]
+
+[lib]
+name = "lib_q_sss"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("alloc", "std", "no_std", "sca-test"))',
+] }

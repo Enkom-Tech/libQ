@@ -31,7 +31,7 @@
 //! AVX2: exercised whenever the runner has it (GitHub's ubuntu runners do); the `no_avx2` CI job
 //! does not run this harness -- accepted, not covered by this wave.
 //!
-//! Card t_9d1766f3: the previous "constant-time" CI gate was a single sign per class compared
+//! The FN-DSA constant-time gate fix: the previous "constant-time" CI gate was a single sign per class compared
 //! against a 500ms wall-clock bound (still present, relabeled, in
 //! `tests/security_tests.rs::test_signing_latency_smoke` -- a livelock tripwire, not a
 //! statistical check). This file is the real statistical replacement; see also

@@ -7,10 +7,10 @@ import json
 import hashlib
 
 
-# NAMING (changed 2026-08-07, card t_71d4f79a). These files used to be written as
+# NAMING (changed 2026-08-07). These files used to be written as
 # `nistkats-<k><l>.json` / `nistkats_pre_hashed-<k><l>.json`. They are NOT NIST vectors and never
 # were: every value is produced by `dilithium.py` in this directory. A filename asserting otherwise
-# is the exact "the name claims conformance the file does not have" pattern that card is about, so
+# is the exact "the name claims conformance the file does not have" pattern the KAT-provenance audit is about, so
 # they are now named for what actually generates them.
 #
 # NOTE FOR ANYONE RE-RUNNING THIS. The committed vectors did not come from a run of this script.

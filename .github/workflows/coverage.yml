@@ -26,6 +26,12 @@ on:
   schedule:
     - cron: '0 0 * * 0'  # Run at midnight on Sundays
 
+# Cancel superseded runs on pull-request branches only: a new push obsoletes the previous
+# run. Pushes to main/develop and scheduled runs are never cancelled.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   CARGO_TERM_COLOR: always
   CARGO_INCREMENTAL: "0"
@@ -39,6 +45,9 @@ permissions:
 jobs:
   coverage:
     name: Test Coverage
+    # GitHub-only: coverage analysis runs on GitHub (push to main after sync, the weekly
+    # schedule, or a matching PR path there), never on Forgejo.
+    if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     # Backstop so a pathologically slow run can't hold a runner for the default 6h. Now just the
     # gating per-crate step (~65m) plus setup; the 40m whole-workspace pass this also budgeted for
@@ -52,7 +61,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # `nightly` runs current nightly (unpinned) again as of card t_93dc6b27.
+        # `nightly` runs current nightly (unpinned) again as of the coverage-nightly pin.
         #
         # ROOT CAUSE (still true, kept for context): LLVM 23 bumped INSTR_PROF_RAW_VERSION to 11,
         # changing the .profraw header (+3 uint64), the ProfileData record (+UniformCounterPtr,
@@ -138,7 +147,7 @@ jobs:
           RUSTFLAGS: ""
         run: |
           set -euo pipefail
-          # TEMPORARY (card t_93dc6b27): cargo-tarpaulin's llvm-profparser dependency cannot parse
+          # TEMPORARY: cargo-tarpaulin's llvm-profparser dependency cannot parse
           # profraw v11 (LLVM 23+). Build the same 0.37.0 release the stable row installs prebuilt,
           # but with `[patch.crates-io]` pointing llvm_profparser at a fork commit that fixes v11
           # parsing, pinned by commit SHA (not branch) since a branch is a mutable build input for
@@ -264,7 +273,7 @@ jobs:
       # debug-instrumented STARK/plonky3 and blind-token/fn-dsa keygen suites are what blow the 40
       # minutes) and a badge destination that is actually published.
       - name: Upload coverage reports
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@a8a3f3ad30e3422c9c7b888a15615d19a852ae32 # v3.1.3 (GHES-compatible pin; v4+ needs an artifact backend this Forgejo lacks)
         with:
           name: coverage-reports-${{ matrix.rust }}
           path: combined-coverage/
@@ -305,6 +314,8 @@ jobs:
   # 0.37.0 pinned here). Retune from a CI log, not from a laptop.
   extended-coverage:
     name: Test Coverage (previously ungated crates)
+    # GitHub-only: see the `coverage` job above.
+    if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     timeout-minutes: 90
     strategy:

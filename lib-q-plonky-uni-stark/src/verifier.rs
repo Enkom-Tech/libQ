@@ -261,7 +261,7 @@ where
     // and does not keep `degree_bits + log_num_quotient_chunks + is_zk` under the field's
     // two-adicity, so an attacker-chosen `degree_bits` in that gap panics
     // `natural_domain_for_degree`/`create_disjoint_domain` below (an unauthenticated,
-    // deserialization-only remote DoS). Mirrors `lib-q-stark/src/verifier.rs` (card t_00ab900a),
+    // deserialization-only remote DoS). Mirrors `lib-q-stark/src/verifier.rs`,
     // whose guard was never copied here. See `degree_fits_two_adicity`.
     if !degree_fits_two_adicity::<Val<SC>>(*degree_bits, log_num_quotient_chunks, config.is_zk()) {
         return Err(VerificationError::InvalidProofShape);

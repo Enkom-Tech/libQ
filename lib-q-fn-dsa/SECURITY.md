@@ -22,12 +22,14 @@ whose first term is approximated by a masked minimax polynomial, then gives a t-
 finds no defect in any existing masked implementation; its predecessor, ePrint 2025/628
 (Berthet & Tavernier, "Improving the masked division for the FALCON signature"),
 covered only the masked floating-point inverse and is cited by 2026/1534 as the prior
-state of the art it generalizes. Neither paper is cited anywhere else in this repo
-(`grep -rIl '2026/1534\|2025/628' .` → no matches, checked at HEAD `c96add6`).
+state of the art it generalizes. Neither paper is cited anywhere else in this repo —
+`grep -rIl '2026/1534\|2025/628' --include='*.rs' --include='*.toml' --include='*.json' .`
+returns no matches (checked at `836a0ef`, current `origin/main`). Source of truth for
+that check is code and manifests, since this file necessarily names both papers.
 
 ### What this crate actually computes, mapped by symbol
 
-Verified against HEAD `c96add6`. `Flr` is the `binary64` real type
+Verified against `836a0ef` (current `origin/main`). `Flr` is the `binary64` real type
 (`fn-dsa-sign/src/flr.rs`); `flr_native.rs` is the hardware-opcode backend
 (`x86_64`/`aarch64`/`riscv64`), `flr_emu.rs` the portable software-emulated one used on
 every other target.
@@ -37,19 +39,24 @@ every other target.
   its `logn == 1` base case (`fn-dsa-sign/src/sampler.rs:510`, AVX2 mirror
   `sampler_avx2.rs:292`). The divisor (`g00_re`) is one FFT coefficient of the secret
   Gram matrix derived from the signer's secret basis (`f`, `g`, `F`, `G`) — the operand
-  is sensitive. This is the crate's *only* division: `flr_emu_diff.rs:594` records
-  "every division in this crate is `Flr::ONE / x`". A second call site,
-  `flc_div` (`poly.rs:40`), exists only inside `poly_div_fft` and `poly_invnorm2_fft`,
-  both wrapped in `/* unused */` (dead code, not compiled) — not a live exposure.
+  is sensitive. `flr_emu_diff.rs:594` records that "every division in this crate is
+  `Flr::ONE / x`". A helper `flc_div` (`poly.rs:40`) exists but is called only from
+  `poly_div_fft` (`poly.rs:989`) and `poly_LDLmv_fft` (`poly.rs:1183`), both wrapped in
+  `/* unused */` (dead code, not compiled) — not a live exposure. Two further `/* unused
+  */` divisions exist and are likewise dead: `poly_invnorm2_fft` (`poly.rs:1008`) and
+  `poly_div_selfadj_fft` (`poly.rs:1049`). The live divisions are exactly the four call
+  sites named above, plus the scalar `impl Div for Flr` plumbing (`flr.rs:255-305`).
 - **Square root** (`Flr::sqrt`, implemented at `flr_emu.rs:676` and mirrored in
   `flr_native.rs:545`) is called on the secret FFT diagonal values `d11_re`/`d00_re`
   produced by the same LDL decomposition, at every leaf of the recursive Gaussian
   sampler tree: `sampler.rs:530`, `sampler.rs:551`, `sampler_avx2.rs:312`,
   `sampler_avx2.rs:333` (`d11_re.sqrt() * INV_SIGMA[logn]`).
 - **Inverse square root** — the third function the paper targets — **has no symbol in
-  this crate** (`grep -rniE 'invsqrt|rsqrt' lib-q-fn-dsa` → no matches). This is not an
-  oversight: the crate already applies the paper's own alternative (§4.4, "No division
-  square root", its Eq. 19: `√x = x·(1/√x)`) in the equivalent public-constant form —
+  this crate** (`grep -rniE 'invsqrt|rsqrt' lib-q-fn-dsa --include='*.rs'` → no matches;
+  the `--include` is required because this file's own text would otherwise match). This
+  is not an oversight: the crate already applies the paper's own alternative (§4.4,
+  "No division square root", its Eq. 19: `√x = x·(1/√x)`) in the equivalent
+  public-constant form —
   `INV_SIGMA` (`sampler.rs:49`) is a fixed table indexed only by `logn` (a public
   parameter, not secret), so `d.sqrt() * INV_SIGMA[logn]` never needs a runtime
   `1/√(secret)`. One of the paper's three target functions is therefore inapplicable to
@@ -115,7 +122,7 @@ per this methodology is new engineering work — choosing a representation, an i
 count, a minimax-polynomial order, and then re-deriving the NI/SNI assignment above for
 *this* crate's actual `Flr` representation, none of which 2026/1534 does for a
 concrete implementation — and is out of scope for this documentation pass. It is not
-filed as a separate implementation card: there is no concrete embedded/IoT deployment
+tracked separately as an implementation follow-up: there is no concrete embedded/IoT deployment
 of this crate today whose threat model requires it, and a speculative masked
 implementation without one would be exactly the kind of unrequested scope this repo's
 review process rejects.

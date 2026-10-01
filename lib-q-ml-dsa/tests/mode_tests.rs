@@ -5,7 +5,10 @@
 
 #![cfg(all(feature = "random", feature = "acvp"))]
 
-use lib_q_ml_dsa::*;
+use lib_q_ml_dsa::{
+    Zeroizing,
+    *,
+};
 
 #[cfg(feature = "fips-mode")]
 mod fips_mode_tests {
@@ -20,7 +23,7 @@ mod fips_mode_tests {
         let rnd = [0x42; 32];
 
         // Generate keys
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
         // Sign message
         let sig1 = ml_dsa_44::sign_internal(&keys.signing_key, message, rnd).unwrap();
@@ -45,7 +48,7 @@ mod fips_mode_tests {
         // For now, we test that the implementation is deterministic
 
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
         // Test multiple parameter sets
         let test_cases: &[(&[u8], [u8; 32])] = &[
@@ -66,13 +69,13 @@ mod fips_mode_tests {
     fn test_fips_mode_performance() {
         // Test that FIPS mode has minimal overhead
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let message = b"performance test message";
         let rnd = [0x42; 32];
 
         // Measure key generation time (should be fast in FIPS mode)
         let start = std::time::Instant::now();
-        let _keys2 = ml_dsa_44::generate_key_pair(seed);
+        let _keys2 = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let keygen_time = start.elapsed();
 
         // Measure signing time
@@ -101,7 +104,7 @@ mod hardened_mode_tests {
     fn test_enhanced_security() {
         // Test that hardened mode uses RNG abstraction
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let message = b"hardened security test message";
         let rnd = [0x42; 32];
 
@@ -128,7 +131,7 @@ mod hardened_mode_tests {
         // verify that memory is actually cleared
 
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
         // Create a signature
         let message = b"zeroization test message";
@@ -148,7 +151,7 @@ mod hardened_mode_tests {
         // measure timing variations
 
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let message = b"constant time test message";
         let rnd = [0x42; 32];
 
@@ -192,7 +195,7 @@ mod hardened_mode_tests {
         // This would typically involve statistical tests
 
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
         // Generate multiple signatures with different randomness
         let mut signatures = Vec::new();
@@ -220,7 +223,7 @@ mod hardened_mode_tests {
         // Test resistance to common attack scenarios
 
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let message = b"attack resistance test message";
 
         // Test with edge case inputs
@@ -254,7 +257,7 @@ fn test_mode_compatibility() {
         let rnd = [0x42; 32];
 
         // Generate keys in one mode
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
 
         // Sign in one mode
         let sig = ml_dsa_44::sign_internal(&keys.signing_key, message, rnd).unwrap();
@@ -268,7 +271,7 @@ fn test_mode_compatibility() {
     #[cfg(not(all(feature = "fips-mode", feature = "hardened")))]
     {
         let seed = [0x42; 32];
-        let keys = ml_dsa_44::generate_key_pair(seed);
+        let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
         let message = b"single mode test";
         let rnd = [0x42; 32];
 
@@ -282,7 +285,7 @@ fn test_mode_compatibility() {
 #[test]
 fn test_mode_error_handling() {
     let seed = [0x42; 32];
-    let keys = ml_dsa_44::generate_key_pair(seed);
+    let keys = ml_dsa_44::generate_key_pair_from_seed(&Zeroizing::new(seed));
     let message = b"error handling test";
     let rnd = [0x42; 32];
 

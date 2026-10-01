@@ -8,6 +8,7 @@ members = [
     "lib-q-random",
     "lib-q-types",
     "lib-q-utils",
+    "lib-q-sss",
     # Hash & digest
     "lib-q-hash",
     "lib-q-k12",

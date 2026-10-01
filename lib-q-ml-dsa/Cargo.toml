@@ -35,10 +35,13 @@ hax-lib.workspace = true
 # (wycheproof, nistkats, acvp, wire_format, avx2_independent_verify) and is already declared
 # in [dev-dependencies] below. The redundant entry here was unconditional and non-optional,
 # and `hex` does not declare #![no_std] unless its own `std` feature is off -- so it forced
-# std into every no_std consumer of this crate, which is what broke GIP's
-# `cargo check -p gip-packet --target thumbv7em-none-eabihf` build. Zero `hex::` uses exist
+# std into every no_std consumer of this crate, which is what broke a downstream
+# no_std embedded target check. Zero `hex::` uses exist
 # anywhere under src/, so removing it changes no compiled code.
-zeroize = { workspace = true, optional = true }
+# Not optional: the key-generation API borrows its seed from a `zeroize::Zeroizing` buffer in
+# every feature configuration. The `zeroize` feature below additionally clears signing keys on
+# drop and scrubs key-generation intermediates.
+zeroize = { workspace = true }
 subtle = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true, default-features = false }
 
@@ -116,7 +119,7 @@ subtle = ["dep:subtle"]
 getrandom = ["dep:getrandom"]
 # Atomic gate: RNG + zeroize + subtle + masked/constant-time signing paths. Do not enable piecemeal.
 hardened = ["random", "zeroize", "subtle", "getrandom"]
-zeroize = ["dep:zeroize"]                           # Automatic zeroization of sensitive material
+zeroize = []                                        # Clear signing keys on drop and scrub key-generation intermediates
 
 # Testing and validation
 acvp = []         # Expose internal API for ACVP (Automated Cryptographic Validation Protocol) testing
