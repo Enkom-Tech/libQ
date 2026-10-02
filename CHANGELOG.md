@@ -42,6 +42,19 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ### Documentation
 
+- **Radar disposition for IACR ePrint 2025/1220 (RoK and Roll — verifier-efficient random
+  projection for `Õ(λ)`-size lattice SNARKs).** Documentation only; no code,
+  wire-format, dependency, or test change. The `iacr-radar` classifier flagged the paper "medium
+  relevance — Zero-knowledge & credentials", which is topically right (same Module-SIS bounded-
+  norm-linear-relation family `lib-q-lattice-zkp` already proves) but not an adopt candidate now:
+  the paper's `Õ(λ)` structured/unstructured random-projection RoK chain only pays for its
+  overhead once the witness dimension `m` is large and asymptotic, whereas this crate's frozen
+  wire v0 profiles fix `witness_len() ∈ {2, 3}` ring elements (`src/params.rs`, `src/profile.rs`)
+  and already meet their byte budgets with a direct Σ-protocol (measured KATs 2558/3977/4009 B
+  against 4096 B / 131072 B budgets). Recorded the relation mapping (`src/sigma/{opening,linear,
+  norm,accumulator,hierarchical,amortise}.rs`) and a verified-vs-inferred provenance split in
+  [`lib-q-lattice-zkp/docs/radar-2025-1220-rok-and-roll.md`](lib-q-lattice-zkp/docs/radar-2025-1220-rok-and-roll.md).
+
 - **Radar disposition for IACR ePrint 2026/1444 (compressed post-quantum silent OT from
   isogenies).** Documentation only; no code, wire-format, dependency, or test
   change. The `iacr-radar` classifier flagged it "medium relevance — Post-Quantum OT", which is

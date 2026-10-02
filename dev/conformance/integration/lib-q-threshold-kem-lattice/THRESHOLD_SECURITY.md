@@ -90,6 +90,11 @@ dimension and relative noise, so any feasible `Q_d` is safe.
 dominating §2 instance is gated). The **load-bearing premise** is the word *fresh/high-entropy/full-rank*
 — it is exactly this premise that a malformed ciphertext violates.
 
+*External validation:* eprint 2026/1627 (Zhang–Zhou–Han–Liu–Huang) formalizes exactly this class of
+argument (their Lemma 6, a min-entropy bound for a share conditioned on adversarial linear "matrix
+hints", via Matrix-Hint LWE) for a polynomial — not super-polynomial — flooding term, where this
+section is heuristic-by-domination. See §10.
+
 ---
 
 ## 4. The malformed-ciphertext insider probe — and why a norm proof does **not** close it
@@ -155,6 +160,10 @@ without `e`, the encryptor's secret. `lib-q-mve` proves ML-KEM single-`K` multi-
 *External validation:* eprint 2025/1665 (Brzuska–Klooß–Woo) documents the identical class of gap for
 TPKE in general (their footnote 11, with details in §4). See §9.
 
+*External validation:* eprint 2026/1627's OTSS-NIZK (a knowledge-sound, extractable proof of the LWE
+witness) is a *different* primitive from the norm-only membership proof §4.2 rules out — extraction
+pins the specific `(e,f)`, closing exactly the gap §4.2 item 1 identifies. See §10.
+
 ---
 
 ## 5. Closing the boundary — the landscape
@@ -174,6 +183,10 @@ they are what the library can enforce *today* (§6). A production deployment SHO
 
 *External validation:* eprint 2025/1665 §5's non-interactive proof of randomness (NIPoR) is a candidate
 formal target for closure A's PoK of `μ`. See §9.
+
+*External validation:* eprint 2026/1627's TD1/TD2 gate partial decryption on such an OTSS-NIZK
+(verified before any partial is computed) plus their Lemma 6 flooding, functioning as a candidate
+closure distinct from (A)-(C) — call it closure D. See §10.
 
 ### 5.1 The budget arithmetic (closure C)
 
@@ -227,6 +240,10 @@ scheme so as not to dictate the deployment's PKI.
 *External input:* eprint 2025/1665 Theorem 10 (§5, NIPoR) is a candidate proof route for turning closure
 A's "argued not proven" claim into a cited construction. See §9.
 
+*External input:* eprint 2026/1627 §1 (Lemma 6) is a candidate route to a cited, non-heuristic bound
+for exactly the §3/§5.1 flooding-vs-budget arithmetic this section leaves as "argued not proven." See
+§10.
+
 ---
 
 ## 8. Repronotes / open items for the reviewer
@@ -239,6 +256,9 @@ A's "argued not proven" claim into a cited construction. See §9.
    `lib-q-stark-fri`), noting the field is FRI-native (BabyBear/M31) while `q ≈ 2^48`, so the lattice
    relation `p = B0ᵀe + f` must be carried by a bridged/emulated argument — this is the hard part.
 4. Sign off (or refute) the §7 conditional threshold IND-CCA statement.
+5. Scope eprint 2026/1627's closure D (§10): an OTSS-NIZK of the LWE relation gating
+   `partial_decap*`, sized via its Lemma 6 min-entropy bound instead of the current ad hoc
+   `RECOMMENDED_DECAP_BUDGET` / `MALFORMED_PROBE_SAFE_DECAPS` constants (§5.1, §6).
 
 ---
 
@@ -294,3 +314,74 @@ derives concretely for dual-Regev in §4.2–§4.3.
   sign-off on §7's conditional threshold IND-CCA statement (§8 item 4), not a resolution of it. No
   crate, parameter, wire format, or public API is touched by this note.
 
+---
+
+## 10. Related literature — eprint 2026/1627
+
+Zhang, Zhou, Han, Liu, and Huang, "Adaptively Secure Threshold Decryption from LWE with Polynomial
+Modulus" (Cryptology ePrint Archive, Report 2026/1627, https://eprint.iacr.org/2026/1627), resolves
+an open problem of Devevey et al. [PKC 2021] — the same super-poly-vs-polynomial-modulus tradeoff
+`SECURITY_ANALYSIS.md` and this document navigate for `lib-q-threshold-kem-lattice` — by giving three
+non-interactive `(t,N)`-threshold-decryption schemes (TD0/TD1/TD2), all with polynomial modulus, that
+are adaptively CCA-secure (TD1, TD2) or CPA-secure (TD0) against a partial-decryption-oracle adversary
+that additionally corrupts up to `t-1` decryptors adaptively during the game — the same threat model
+§1 states for this crate (static corruption here, not adaptive; see the caveat below).
+
+- **Structural match to this crate's masked path.** TD2's partial decryption (their eq. 7),
+  `h_i := λ_{i,S}·c^T sk_i + y_i + Δ_i` — Shamir shares, a polynomial noise term `y_i`, *and* a
+  pairwise zero-sum mask `Δ_i` (Σ Δ_i = 0 over the combining set, cancelling at combine, their eq. 8)
+  — is the same three-part shape as `threshold::partial_decap_masked`'s `value_i = λ_i·⟨rand(i),
+  p⟩ + m_i + flood_i` (§1 here: `m_i` is this crate's zero-sum mask, `flood_i` its noise). This crate
+  independently arrived at the TD2 architecture; eprint 2026/1627 is the first place a formal
+  min-entropy bound for that combination (their Lemma 6, Subsect. 4.3) is derived rather than assumed.
+
+- **Their Lemma 6 vs. this document's §3.** Lemma 6 bounds the average min-entropy of a share `sk_i`
+  conditioned on `(A·sk_i, E·sk_i + y)` — a "matrix hint" `E` (the stacked LWE-error rows of every
+  queried ciphertext) plus polynomial flooding `y` of norm `O(√ℓ)` for `ℓ` bounded queries — via
+  Matrix-Hint LWE (their Def. 2, adapted from [56]). This is a **general, adversarially-chosen-`E`**
+  version of exactly the argument §3 makes only for **honest, fresh, full-rank** `f^{(t)}`; §3 is
+  explicit that this freshness premise is "exactly the premise a malformed ciphertext violates" — the
+  premise their Lemma 6 does *not* need. Their bound is also explicitly cited as tighter than adapting
+  prior entropy-analysis techniques (their Remark 1, Appendix B.2) — i.e., they are aware of and reject
+  the more conservative alternative this document's heuristic-by-domination §3 argument resembles.
+
+- **The load-bearing difference from the ruled-out §4.2 proof, and closure D.** TD1/TD2's CCA proof
+  requires every ciphertext to carry a tag-based one-time-simulation-sound NIZK (OTSS-NIZK) proving
+  `c` is an LWE sample *with an extractable witness* `(s, e)`, verified **before** any partial
+  decryption is computed. §4.2 item 1 here rules out a norm-only *membership* proof precisely because
+  it "does not commit to a unique decomposition" — a plain proof that *some* short `(e,f)` exists does
+  not pin the encryptor's actual choice, so the coalition (as encryptor) can still submit its own
+  `(e_adv, f_adv)` including a spike. An OTSS proof of *knowledge* is different: the reduction
+  *extracts* the witness the adversary used, which is exactly what pins it to a specific `(s, e)` (their
+  "Thirdly" proof step) — this is a **knowledge-sound** proof, not the membership proof §4.2 excludes.
+  Composed with their Lemma 6, this gives a fourth candidate closure — **closure D** — lighter than
+  closure A's SHAKE-in-STARK PoK of `μ` (it certifies the *LWE relation*, not correct derivation of
+  `(e,f,g)` from `μ` via the XOF), and formal rather than closure C's bounded-but-unproven mitigation.
+  §8 item 5 tracks scoping this.
+
+- **Two concrete scoping gaps before closure D is actionable, not drop-in.**
+  1. *Ring vs. plain LWE.* TD0/TD1/TD2 are built over **plain LWE**, not module/ring-LWE, because the
+     paper states the only known standard-model OTSS-NIZK construction ([36], their §1) is LWE-based;
+     they note "any future module-LWE-based OTSS-NIZK could be incorporated" but do not supply one.
+     This crate is Module-LWE over `R_q = Z_q[X]/(X^1024+1)` (§1 here). Porting their OTSS-NIZK to this
+     crate's ring setting is unsolved, not a citation away.
+  2. *Sharing scheme.* TD1 (RSS, combining coefficients `λ_{i,S} = 1`) needs polynomial modulus **only
+     for small `N`** — their own example is `N ≤ 16`, which happens to equal this crate's
+     `PROFILE_MAX_PARTIES_V1` cap (`LIBQ_API.md` §2), but RSS is not this crate's sharing scheme: this
+     crate (via `lib-q-dkg`) is `t`-of-`n` **Shamir**, matching TD2's sharing scheme, not TD1's.
+     Adopting TD1 verbatim would mean replacing `lib-q-dkg`'s Shamir DKG with RSS — out of scope for a
+     documentation note.
+
+- **Adaptive vs. static corruption.** §1 here states this crate's threat model as **static**
+  corruption of `t-1` parties. eprint 2026/1627's TD schemes are proven under **adaptive** corruption
+  (§7 here does not currently claim this crate achieves that stronger notion at all, with or without
+  closure A/D) — closure D would supply a formal *bound on the malformed-ciphertext-probe leakage*
+  (§4), not by itself an upgrade from static to adaptive corruption security, which is a separate,
+  unaddressed gap in this document.
+
+- **Status of this note.** External validation and a fourth candidate closure, **not** a proof or an
+  implementation. Nobody has checked TD1/TD2's OTSS-NIZK-plus-Lemma-6 construction against this crate's
+  ring/Shamir setting, ported the OTSS-NIZK to Module-LWE, or re-derived Lemma 6's bound for this
+  crate's specific `(q, N, MU, KAPPA)` parameters. It is input for the pending human-cryptographer
+  sign-off (§8 item 4), not a resolution of it. No crate, parameter, wire format, or public API is
+  touched by this note. Filed from the literature triage of eprint 2026/1627.

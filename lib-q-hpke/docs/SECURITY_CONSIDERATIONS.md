@@ -27,6 +27,13 @@ This note summarizes how the crate approaches security properties and where to r
 - **Auth / AuthPSK sender binding:** before encapsulation, the implementation checks that the sender’s secret key matches the supplied public key for the active ML-KEM parameter set (derive/verify path in `hpke_core.rs`). Reject inconsistent sender material rather than mixing secrets.
 - **PSK wire format:** [`HpkePskWireFormat::Rfc9180`](../src/types.rs) matches RFC 9180 on the wire. [`LibQCommitmentSuffix`](../src/types.rs) adds a libQ-only commitment so peers can reject inconsistent `(psk, psk_id)` or primary ciphertext **before** decapsulation when both sides opt in (`HpkeContext::set_psk_wire_format`). That format is **not** interoperable with strict third-party RFC 9180 stacks.
 
+### Key-binding (MAL-BIND / LEAK-BIND) is out of scope for Base-mode ML-KEM
+
+- `key_schedule` (`hpke_core.rs`) derives `secret`/`key`/`base_nonce`/`exp` from the KEM's raw shared secret plus `mode || psk_id_hash || info_hash`; it does **not** independently mix the recipient's public key into that derivation. This matches RFC 9180 exactly — the RFC relies on the **KEM itself** to bind the recipient key (DHKEM's `Encap`/`Decap` compute the shared secret as `ExtractAndExpand(dh, enc || pkRm[ || pkSm])`, so `pkRm` is already inside `kem_context`).
+- `HpkeKem` only offers ML-KEM (512/768/1024), and `lib-q-kem`'s ML-KEM `encapsulate`/`decapsulate` (`lib-q-kem/src/ml_kem.rs:118-185`) call the plain FIPS-203 `EncapsulationKey::encapsulate` / `DecapsulationKey::decapsulate` with no extra binding step. Unlike DHKEM, ML-KEM's shared secret is not proven bound to a specific `(pk, sk)` pair — the literature names this gap MAL-BIND-K-PK / LEAK-BIND-K-PK (Cremers, Dax, Medinger, "Keeping Up with the KEMs"; and Djimnaibeye et al., "NAIBI", eprint 2026/1525, §1, which states FIPS 203's `seed` key-encoding arm restores the *ciphertext* axis but not the *public-key* axis).
+- Net effect: a party that accepts an ML-KEM public key from an untrusted source (e.g. a multi-recipient, certified-delivery, or anonymous-membership protocol layered on this crate) gets no guarantee that one ciphertext decapsulates to the same derived key under two different, adversarially chosen `(pk, sk)` pairs. `grep -rniE 'mal-?bind|leak-?bind|key-?committ' --include=*.rs lib-q-ml-kem lib-q-kem lib-q-hpke` returns 0 lines: there is no code, test, or (until now) documentation of this property in the crate.
+- No in-repo consumer is affected today: `lib-q-hpke` is reachable only from the `lib-q` facade crate as an optional re-exported feature (`lib-q/Cargo.toml`, `hpke` feature), with zero call sites in `lib-q/src`, so no internal construction currently relies on decapsulation binding. If you build one on top of this crate, mix the recipient public key (or its hash) into `info`/AAD yourself, or use a committing KEM — this crate does not do it for you.
+
 ### Forward secrecy
 
 - Forward secrecy properties follow RFC 9180 and how you use HPKE (ephemeral sender KEM, recipient static vs ephemeral keys, rekeying). The crate does not change the protocol’s FS story; your key lifetimes and deployment do.
@@ -82,9 +89,11 @@ Auth / AuthPSK encapsulation paths use RFC 9180–style KEM authentication plus 
 3. For PSK modes, agree on **`HpkePskWireFormat`** out of band; default is RFC 9180.
 4. Enable **`duplex-sponge-aead`** only when every peer supports `HpkeAead::DuplexSpongeAead` and you have analyzed that AEAD’s properties for your threat model.
 5. Rekey or rotate before sequence numbers exhaust policy (`HpkeContextState::NeedsRekey`).
+6. If you build a multi-recipient, certified-delivery, or membership-disclosure protocol on this crate, do not assume decapsulation is bound to a specific public key — ML-KEM (the crate's only KEM) does not provide MAL-BIND-K-PK / LEAK-BIND-K-PK guarantees (see "Key-binding" above). Mix the recipient public key (or its hash) into `info` or AAD yourself if your threat model needs that.
 
 ## Related reading
 
 - [hpke-architecture.md](../../docs/hpke-architecture.md) — workspace HPKE architecture
 - [ARCHITECTURE.md](ARCHITECTURE.md) — crate module map
 - [API_REFERENCE.md](API_REFERENCE.md) — public API summary
+- Djimnaibeye, Sow, Hassan, Tieudjo, Tchawa, "NAIBI: Binding Reconciliation KEMs and Ephemeral Key Agreement over Non-Split Commutative Algebras" ([eprint 2026/1525](https://eprint.iacr.org/2026/1525)) — source for the MAL-BIND-K-PK terminology and the claim that ML-KEM lacks it
