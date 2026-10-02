@@ -46,7 +46,10 @@ consumer-protocol references. It is the KEM analogue of
   `lib-q-threshold-raccoon`; Brzuska–Klooß–Woo, "Threshold Public-Key Encryption: Definitions,
   Relations, and CPA-to-CCA Transforms" (eprint 2025/1665) — external validation of the §7.3 /
   `THRESHOLD_SECURITY.md` §4 malformed-ciphertext finding and a candidate NIPoR-based proof route for
-  closure A (`THRESHOLD_SECURITY.md` §9).
+  closure A (`THRESHOLD_SECURITY.md` §9); Zhang–Zhou–Han–Liu–Huang, "Adaptively Secure Threshold
+  Decryption from LWE with Polynomial Modulus" (eprint 2026/1627) — a formal min-entropy/Matrix-Hint-LWE
+  bound for the §3/§5.1 flooding argument and a candidate OTSS-NIZK-based closure D
+  (`THRESHOLD_SECURITY.md` §10).
 
 ## 2. Parameters
 

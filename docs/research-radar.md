@@ -93,3 +93,87 @@ substantial new protocol work, not covered by this paper.
   moderation/reputation use case, open a Phase 7 research spike to PQ-instantiate
   the k-AGS *framework* from the crates above — do **not** port the paper's
   pairing-based instantiation.
+
+---
+
+## PANCAKE: A SNARK with Plonkish Constraints, Almost-Free Additions, No Permutation Check, and a Linear-Time Prover (eprint 2026/212)
+
+- **Paper:** Yuxi Xue, Peimin Gao, Xingye Lu, Man Ho Au, *"Pancake: A SNARK with
+  Plonkish Constraints, Almost-Free Additions, No Permutation Check, and a
+  Linear-Time Prover"*, IACR eprint 2026/212 (<https://eprint.iacr.org/2026/212>).
+- **Radar rationale (as imported):** *"high (conf 0.95) — post-quantum
+  zero-knowledge credentials. PANCAKE enables efficient, scalable ZK proofs with
+  minimal overhead for credential systems."*
+- **Verdict:** **Not applicable — no code action.** The radar rationale's
+  "post-quantum" tag is wrong (see below); this is the same misclassification
+  pattern already recorded in an earlier radar entry. No crate, module, or line in libQ is
+  affected.
+
+### What the paper actually is (VERIFIED against the PDF)
+
+An asymptotic/constant-factor optimization of HyperPlonk's arithmetization, not a
+new proof system family. Pancake removes HyperPlonk's permutation-check argument
+for wiring by folding wiring constraints and addition-gate constraints into one
+family of batched linear constraints checked by a single sumcheck (Sec. 1,
+"Technique overview"; Eq. 1-3). This shrinks the witness domain from all gates to
+only non-addition (multiplication/custom) gates and yields the claimed 1.67x
+(1 thread) / 2.43x (32 threads) prover speedup over HyperPlonk at circuit size
+2^24, half of which are addition gates (Sec. 1, Fig. 1). Setup is
+circuit-specific (not universal); the paper states this as an explicit
+limitation, justified for long-lived circuits (zkRollups, L2s, VMs) where prover
+cost dominates (p.3).
+
+### Why the radar rationale is wrong (VERIFIED)
+
+**NOT post-quantum.** Section 1.2 states the construction "leverages the
+multilinear KZG polynomial commitment scheme [36] (see Section 3.5), which is
+additively homomorphic" and the online-verification step is checked "using the
+pairing-based relation involving commitments to `Q`, `W`, and `W_r`" (p.10,
+"Challenge: Costly online computation of Q"). Multilinear KZG is a bilinear-pairing
+/ discrete-log-hardness commitment scheme, broken by Shor's algorithm — the exact
+assumption class libQ's own architecture doc excludes: "Classical ZKP systems
+that rely on elliptic-curve pairings or discrete-logarithm hardness (e.g.
+zk-SNARKs, Bulletproofs, Plonk, Halo2) are not in scope for this library — they
+depend on classical asymmetric assumptions and are broken by quantum adversaries"
+(`docs/zkp-implementation.md`, "Future Enhancements → Advanced ZKP Types"). This
+also **violates libQ's stated success metric** ("No classical cryptographic
+primitives in the project's stated PQC / SHA-3 / Saturnin threat model", ROADMAP
+"Success metrics → Security"). Nothing in the paper suggests a hash-based /
+FRI-style PCS swap-in: the linear-check technique (Sec. 1.2, "Challenge: Efficient
+evaluation of `W_r`") depends on KZG's additive homomorphism and pairing checks
+for the offline-precomputed basis-polynomial commitments `C_i`, so it is not a
+drop-in for libQ's STARK/FRI pipeline (`lib-q-stark`, `lib-q-zkp`,
+`lib-q-plonky`) without new protocol work the paper does not provide.
+
+**"Credentials" claim is the radar classifier's addition, not the paper's.**
+Pancake's abstract and introduction describe a general-purpose Plonkish SNARK
+benchmarked against HyperPlonk on synthetic vanilla-Plonk / Jellyfish
+Turbo-Plonk circuits; there is no mention of credentials, identity, or
+attribute-disclosure anywhere in the paper (checked full text, Sections 1-2 and
+headings through the appendices).
+
+### Relevance to libQ (VERIFIED — no applicable crate)
+
+libQ's ZKP stack is zk-STARK / FRI based by explicit design choice
+(`docs/zkp-implementation.md` §"Library layout", §"Future Enhancements"); pairing-
+based Plonkish SNARKs (HyperPlonk and, by the same token, Pancake) are the
+category the doc names as out of scope. `lib-q-plonky` is a Plonky3-derived
+**STARK** ecosystem (FRI-based, no pairings) and is unrelated to Plonk/PLONK-family
+pairing-based SNARKs despite the name overlap — confirmed by reading
+`docs/zkp-implementation.md` line 15 ("Full Plonky3-derived STARK ecosystem").
+Pancake's optimization (batched linear-constraint sumcheck replacing a
+permutation check) is specific to Plonkish wiring/permutation arguments, which
+libQ's STARK/AIR pipeline does not use. No crate, module, or line in libQ
+references HyperPlonk, a permutation argument, or a KZG-style PCS as production
+code.
+
+### Recommendation
+
+- Correct the card's tag: drop "post-quantum"; this is a classical
+  (discrete-log/pairing) construction.
+- No code action. No libQ crate is affected.
+- If a future Plonkish-with-linear-time-prover primitive is ever wanted over a
+  hash-based/FRI PCS instead of KZG, Pancake's linear-constraint idea (fold
+  wiring + addition into one batched sumcheck) is the citable technique — but
+  that would be new protocol work re-deriving the linear-check argument over a
+  FRI-compatible commitment, not a port of this paper.
