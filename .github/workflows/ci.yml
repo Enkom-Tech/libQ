@@ -44,7 +44,7 @@ jobs:
   core-validation:
     name: Core Validation
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     outputs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
