@@ -11,6 +11,11 @@ An implementation of FN-DSA (the Falcon-based signature scheme NIST intends to p
 > [docs/fn-dsa-nist-gate.md](../docs/fn-dsa-nist-gate.md) for the steps required before claiming NIST
 > alignment for production use.
 
+> **ADR 225 audit gate: NOT PASSED.** FN-DSA must remain excluded from
+> GIP's default signing allow-list, key issuance, and verification under ADR 225.
+> Open findings, measured evidence, and approval prerequisites are recorded in
+> [SECURITY.md](SECURITY.md#adr-225-audit-gate).
+
 ## Overview
 
 FN-DSA (Falcon-based Digital Signature Algorithm) is a post-quantum digital signature scheme selected by NIST for standardization, providing compact signatures with strong security guarantees. This implementation follows the FN-DSA design and is aimed at high-performance applications requiring quantum-resistant cryptography.
@@ -21,8 +26,8 @@ FN-DSA (Falcon-based Digital Signature Algorithm) is a post-quantum digital sign
 - **High Performance**: Optimized implementations for x86_64 and ARM64 architectures
 - **Compact Signatures**: Significantly smaller signature sizes compared to other post-quantum schemes
 - **Multiple Security Levels**: Supports Level 1 (128-bit) and Level 5 (256-bit) security
-- **Memory Safe**: Zero unsafe code with automatic secure memory management
-- **Constant-Time Operations**: All cryptographic operations are constant-time to prevent timing attacks
+- **Memory handling**: The wrapper denies unsafe code; optimized backends use unsafe intrinsics. Key owners wipe their buffers on drop, but transient seed/PRNG erasure remains an open audit finding.
+- **Side-channel status**: Timing-aware implementation, not a completed constant-time or physical side-channel audit. No power/EM masking is provided; see [SECURITY.md](SECURITY.md).
 - **WASM Compatible**: Full WebAssembly support for web applications
 - **Comprehensive Testing**: Extensive test suite including security, performance, and interoperability tests
 
@@ -166,11 +171,16 @@ cargo test --test security_tests
 cargo bench
 ```
 
-### Run Constant-Time Tests
+### Run Coarse Timing Screens
 
 ```bash
-cargo test --test constant_time
+cargo test -p lib-q-fn-dsa --profile release-ci --test constant_time -- --nocapture --test-threads=1
+cargo test -p lib-q-fn-dsa --profile release-ci --features no_avx2 --test constant_time -- --nocapture --test-threads=1
 ```
+
+These tests are ignored in debug builds. They compare FN-DSA-512 signing means
+with 1,000 samples per class and a Welch threshold of 15; a pass is not audit
+approval, and does not cover FN-DSA-1024 timing, cache leakage, or power/EM.
 
 ## Integration
 

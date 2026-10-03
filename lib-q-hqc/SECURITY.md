@@ -198,6 +198,95 @@ feature, output byte-identical to today's KATs) is tracked separately as
 a follow-up so it does not block this documentation
 change.
 
+### ARM Cortex-M4 poly-mul / sampler-expansion optimizations (ePrint 2026/1450, informational)
+
+[Jang, Shin, Kim, Hong, Kwon, "Optimizing Polynomial Multiplication and Fixed-Weight
+Sampling for HQC on ARM Cortex-M4" (ePrint
+2026/1450)](https://eprint.iacr.org/2026/1450) — the full PDF was fetched and read for
+this assessment, not only the abstract — is a performance/engineering paper, not an
+attack: it reports (i) a dirty-aware register-allocation policy (SPF) and XOR-operation
+reordering for the Frobenius Additive-FFT (FAFFT) polynomial-multiplication butterfly
+that cuts VMOV register-move instructions by 37.6-48.1% at an unchanged EOR count, plus
+a 34%-sparser FAFFT modulus for HQC-1; (ii) a rewrite of `vect_write_support_to_vector`
+(WSV) — the function that scatters a fixed-weight support (a list of *ω* positions)
+into a dense bit vector, distinct from the support-generation step that produces that
+list — using Cortex-M4 IT-block/`orreq` predicated instructions and 4-way unrolling,
+cutting its inner-loop cost from ~22 to ~6 cycles/word; and (iii) an optional cache of
+the public transforms/hash recomputed under a fixed key. All figures are measured on a
+NUCLEO-L4R5ZI (Cortex-M4) board; the paper does not claim or describe an attack.
+
+**Contribution (i), FAFFT poly-mul, is out-of-model for this crate.** libQ does not
+implement FAFFT: `grep -rniE 'fafft|frobenius' src` returns nothing under
+`lib-q-hqc/src`. Polynomial multiplication here is `vect_mul` (`src/hqc_pke.rs:737`),
+which dispatches to the scalar `schoolbook_vect_mul_mod_xnm1`
+(`src/hqc_pke.rs:1029`) or, on `x86_64` with runtime AVX2, a Toom-3 + recursive
+Karatsuba + PCLMUL path (`src/simd/avx2/gf2x.rs`) — neither shares code, structure, or
+register-pressure profile with the paper's bit-sliced Cortex-M4 GP/VFP butterfly, so
+the VMOV-count and sparser-modulus results do not transfer.
+
+**Contribution (ii) targets `vect_write_support_to_vector`, not the sampler ePrint 2026/1462
+and 2026/1491 flagged.** Reading the full paper (Section 4) corrects an assumption a source
+read of the abstract alone would invite: HQC's fixed-weight sampling is two steps —
+`vect_generate_random_support1/2` extracts the *ω* support positions from the XOF
+(rejection sampling), then `vect_write_support_to_vector` (WSV) scatters that support
+into the dense length-*n* bit vector. The paper optimizes only the second step, WSV;
+it does not touch, and its Section 4 does not claim to touch, the first step's control
+flow. libQ's WSV (`src/hqc_pke.rs:613-636`) is a line-for-line port of the paper's own
+described *baseline*: for each output word `i` it loops over every support element `j`
+and accumulates `bit_tab[j] & mask` where `mask` is a branchless constant-time
+comparison (`:628-631`, verbatim: `let val1 = 1u32 ^ ((tmp as u32 | tmp.wrapping_neg() as u32) >> 31);
+let mask = (-(val1 as i64)) as u64;`) — the same `mask = -1 xor ((t | -t) >> 31)` construction the
+paper cites (its Eq. 2) as the official implementation's branchless technique that its
+own optimization preserves the constant-time property of while replacing the 8
+mask-instructions/word with 2 predicated `orreq`s. **libQ's WSV is therefore already
+constant-time by the same design the paper starts from** — no data-dependent branch,
+no secret-dependent memory address, loop bounds fixed by `weight`/vector length — and
+the paper's contribution here is a Cortex-M4 Thumb-2 assembly speed optimization of
+that already-safe routine, not a fix for a gap. This is unrelated to ePrint
+2026/1462 and ePrint 2026/1491, which both target `vect_generate_random_
+support1`'s *first*-step rejection sampling (`src/hqc_pke.rs:506`: the rejection
+`break` at `:530`, the O(i) duplicate scan at `:538-540`, tracked as an open GAP with
+hardening follow-ups) — a different function, a different step, and a gap this paper
+does not address at all. The two assessments must not be conflated: this paper gives
+no reason to revise the 2026/1462 and 2026/1491 GAP verdict on `vect_generate_random_support1`,
+and those assessments give no reason to treat WSV as unsafe.
+
+No hardening follow-up is warranted from contribution (ii): WSV has no gap to close.
+Adopting the paper's Cortex-M4-specific predicated/unrolled assembly for speed alone
+would mean hand-writing target-specific `unsafe`/asm for one architecture, which cuts
+against this crate's stated pure-Rust, portable, `no_std`/WASM/`thumbv7em-none-eabi`-
+alike posture ("Implementation properties" above, `README.md`) for a routine that is not on this
+crate's measured hot path relative to `schoolbook_vect_mul_mod_xnm1`/AVX2 `gf2x.rs`.
+
+**Contribution (iii), fixed-key caching, is a protocol/API-level optimization, not a
+security property**, and orthogonal to (i)/(ii): it caches `H(ek)` and the forward
+transforms of the public `h`/`s` under a fixed key, all public values, compared via a
+full-length constant-time equality check on cache lookup (the paper states this
+preserves the constant-time property; no secret is cached). This crate's public KEM
+API (`encapsulate`/`decapsulate`) does not expose a fixed-key session/cache concept,
+so adopting it would be an API-shape change for a specific deployment pattern (a
+device repeatedly decapsulating under its own fixed key), not a drop-in optimization;
+noted here for completeness and not evaluated further.
+
+No code change is made here: this section is a documentation-only literature
+assessment (`git diff` for this change touches only this file). This paper found no
+new vulnerability in libQ — its poly-mul target (FAFFT) is absent from this crate, and
+its sampler target (WSV) is already constant-time here by the same design the paper's
+own baseline uses — so nothing here changes the priority, scope, or verdict of
+the hardening follow-ups for the open GAP on the unrelated `vect_generate_random_
+support1` rejection-sampling step.
+
+**Not checked:** reproducing any of the paper's cycle counts (no Cortex-M4 hardware or
+ARM Thumb-2 toolchain measurement in this environment; the `thumbv7em-none-eabi`
+target is only compile-checked elsewhere in this repo, per the 2026/1491
+assessment); whether libQ's
+`vect_generate_random_support2` (the sibling of `support1`, used for `r1`/`r2`/`e`)
+has the identical duplicate-scan shape — plausible by inspection but not the subject
+of this assessment; the AVX2 `gf2x.rs` path's own constant-time properties, which this
+paper does not analyse either.
+
+Verdict: INFORMATIONAL
+
 ### Formal verification
 
 No machine-checked proof (Kani, etc.) ships with this crate. Correctness relies on tests
