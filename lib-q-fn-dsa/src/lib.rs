@@ -32,8 +32,11 @@
 //! - **High Performance**: Optimized for both x86_64 and ARM64 architectures
 //! - **Compact Signatures**: Smaller signature sizes compared to other post-quantum schemes
 //! - **Security Levels**: Supports Level 1 (128-bit) and Level 5 (256-bit) security
-//! - **Memory Safe**: Zero unsafe code, automatic memory zeroization
-//! - **Constant-Time**: Operations designed to prevent timing attacks
+//! - **Memory Handling**: The wrapper denies unsafe code; optimized backends use unsafe
+//!   intrinsics. Key owners wipe their buffers, but transient seed/PRNG erasure is not complete.
+//! - **Side-Channel Status**: Timing-aware implementation, not an approved constant-time or
+//!   physical side-channel audit. No power/EM masking. GIP ADR 225 admission remains blocked
+//!   by open audit findings; see the crate's `SECURITY.md` for findings and approval prerequisites.
 //!
 //! # Security Levels
 //!

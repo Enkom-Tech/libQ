@@ -3,13 +3,191 @@
 See the workspace-level [SECURITY](../SECURITY.md) for the reporting process and the
 overall claim: "Side channels — implementation is written with timing and cache
 awareness; we do not claim completed independent side-channel evaluation for all
-targets." This file narrows that claim to `lib-q-fn-dsa` and records one open item.
+targets." This file narrows that claim to `lib-q-fn-dsa`.
+
+## ADR 225 audit gate
+
+**2026-09-23 verdict: NOT PASSED. No allow-list flip is authorized.** This is a
+source/compiled-code audit with focused software checks, not certification or a
+completed physical side-channel evaluation. FN-DSA-512 and FN-DSA-1024 must remain
+excluded from ADR 225 key issuance, signing, and verification until the open
+findings below are resolved and the target-specific evidence is reviewed.
+
+### Revision, threat model, and scope
+
+- libQ report base: `a3d219d597b66c031c43efead37c2ef652bd7fa7`.
+- Downstream consumer: a GIP revision applying ADR 225 D1.4/D15, which pins libQ
+  `c96add671fc70802ac0917af8025eb0cf262fbc7`. The FN-DSA subtree differs between
+  that pin and the report base only by the addition of this security document; the
+  algorithm source is identical. Executed results below are from the report base,
+  not a certification of the consumer's pinned dependency graph.
+- Executed target: Linux x86_64 microVM, AMD EPYC, AVX2 advertised; rustc
+  `1.99.0-nightly (89c61a754 2026-07-23)`, LLVM `22.1.8`, `release-ci`.
+- Secrets considered: private basis/coefficient arrays, key-generation seed,
+  sampler centre/width, signing randomness, expanded key and working buffers.
+  Public inputs include degree, message length, public key, and signature bytes.
+- Attack surfaces considered: remote timing, local cache/instruction observations,
+  post-operation memory exposure, and physical power/EM on Vault/mobile devices.
+  Only software functional/timing screens and x86_64 compiler output were run.
+- Source review followed wrapper keygen/sign/decode into the portable and AVX2
+  signer, floating-point backend selection, LDL decomposition, Gaussian rejection,
+  signing retries, key-generation rejection, and seed/PRNG lifetimes. It was not
+  an exhaustive instruction audit of every arithmetic/hash/codec dependency.
+
+### Findings and remediation register
+
+**F1 — OPEN, high priority: emulated division does not cover SIMD signing
+paths. Remediation: the division-coverage fix.**
+
+`fn-dsa-sign/src/flr_native.rs:522-534` switches `Flr::set_div` under `div_emu`.
+However, secret Gram-matrix reciprocals bypass that method through direct
+intrinsics in `poly_avx2.rs:391` and `poly.rs:1086,1099,1125,1139`.
+Compiling with `div_emu` still emitted `vdivpd` in AVX2 `poly_LDL_fft` and
+`divpd`/`divsd` in the SSE2 implementation. Compiling with `div_emu,no_avx2`
+still emitted `divpd`/`divsd`: **disabling AVX2 is not a sufficient workaround**.
+The NEON sites are source-verified, not executed. The 32-bit x86 SSE2 sampler leaf
+also uses direct divide/sqrt (`sampler.rs:437-493`); its machine code was not tested.
+The public wrapper/facade do not forward `div_emu`/`sqrt_emu` in their manifests.
+
+This is a reproduced countermeasure-coverage defect, **not** evidence of
+operand-dependent latency or a key-recovery exploit on this EPYC CPU. Fix the
+reachable feature paths, preserve rounding and distributions, inspect optimized
+code on supported targets, and rerun KAT/differential tests before closing F1.
+
+**F2 — OPEN, high priority: transient secret state has no complete erasure
+lifecycle. Remediation: the transient-secret erasure fix.**
+
+Key owners derive `ZeroizeOnDrop`, but the local key-generation seed
+(`fn-dsa-kgen/src/lib.rs:244-245`), signing seeds (`fn-dsa-sign/src/lib.rs:590-592`,
+`sign_avx2.rs:206-208`), and sampler PRNG state are outside those owners.
+`fn-dsa-comm/src/lib.rs:255` requires `PRNG: Copy + Clone`; `shake.rs:742-746,812-816`
+derives `Copy`, `Clone`, and `Debug` for the PRNGs. No explicit wipe occurs on the
+cited local seed/PRNG return paths. A smoke executable linked to the actual built
+crates printed:
+
+```text
+SHAKE256_PRNG needs_drop=false
+KeyPairGeneratorStandard needs_drop=true
+SigningKeyStandard needs_drop=true
+```
+
+This establishes destructor coverage, not recoverable stack residue or an
+exploit. Establish compiler-resistant wiping and ownership for transient secrets,
+including retries/errors and copies, and inspect optimized erasure. The existing
+`test_memory_zeroization` only signs/verifies with a still-live key; it does not
+measure erasure and must not be cited as such.
+
+**F3 — OPEN, audit evidence and deployment scope: timing screens do not
+establish the required side-channel assurance. Owner: this audit.**
+
+The existing `tests/constant_time.rs` tests only degree 512, two fixed messages or
+two generated keys, 1,000 samples per class, fixed A/B order, and a Welch threshold
+of 15. Its own calibration documents an undetected roughly 3% injected delay.
+It also maps an undefined statistic to zero (`unwrap_or(0.0)`), so a degenerate
+measurement is not fail-closed. These are coarse regression screens, not an
+approval gate. No degree-1024 timing, mobile hardware, cache/branch trace, or
+physical trace evidence was collected here.
+
+The sampler's centre/width are secret (`sampler.rs:16-19`). Its rejection loop
+and lazy Bernoulli comparison (`144-189,310-323`) intentionally have variable
+execution; the source argues the rejection rate is sufficiently decorrelated.
+Keygen likewise retries candidate secret polynomials (`fn-dsa-kgen/src/lib.rs:334-366`).
+These branches alone are **not** a demonstrated vulnerability: approval needs
+the distribution/leakage argument, target code inspection, and suitable
+measurements, rather than mechanically deleting rejection sampling.
+
+Power/EM masking is absent, as detailed below. A timing pass cannot approve
+physical resistance. Before admitting mobile/constrained use, establish the
+deployment threat model and obtain corresponding instrumented evidence and any
+necessary countermeasures. This guest had neither a physical trace setup nor
+`valgrind`/`perf`; no such evaluation is claimed.
+
+**F4 — OPEN integration acceptance: enforce the audit gate independently of
+provisional-standardization opt-in. Consumer: GIP's ADR 225 signing policy.**
+
+At the inspected GIP revision, the ADR 225 signing types and default allow-list
+are design-only; no end-to-end ADR 225 rejection can be demonstrated yet.
+GIP's existing provisional-algorithm opt-in is a different control. A throwaway
+Rust executable importing GIP's actual provisional-algorithm and wire-id modules
+produced, in separate processes (the opt-in is an environment variable):
+
+```text
+provisional opt-in unset:
+FN-DSA sig_id=5: Err(ProvisionalWireIdRejected(5))
+FN-DSA sig_id=7: Err(ProvisionalWireIdRejected(7))
+ML-DSA control: Ok(())
+
+provisional opt-in set:
+FN-DSA sig_id=5: Ok(())
+FN-DSA sig_id=7: Ok(())
+ML-DSA control: Ok(())
+```
+
+Thus legacy provisional negotiation rejects FN-DSA by default, but cannot serve
+as the non-overridable ADR 225 audit gate. Registration is not admission. A
+downstream consumer's admission policy must not depend on a provisional opt-in
+flag: the ADR 225 policy must exclude both FN-DSA variants even with that opt-in or compiled
+`falcon` support, including issuer, signer, and verifier paths. Demonstrate real
+rejection and an allowed-algorithm positive control when those paths exist.
+No GIP registry, policy, or algorithm implementation was changed by this audit.
+
+### Executed checks and limits
+
+From the libQ workspace root:
+
+```sh
+cargo test --offline --locked --profile release-ci \
+  -p lib-q-fn-dsa -p lib-q-fn-dsa-sign -p lib-q-fn-dsa-kgen \
+  -p lib-q-fn-dsa-comm -p lib-q-fn-dsa-vrfy -p lib-q-fn-dsa-alg \
+  -- --nocapture --test-threads=1
+cargo test --offline --locked --profile release-ci -p lib-q-fn-dsa \
+  --features no_avx2 --test constant_time -- --nocapture --test-threads=1
+cargo rustc --offline --locked --profile release-ci -p lib-q-fn-dsa-sign \
+  --features div_emu --lib -- --emit=asm
+cargo rustc --offline --locked --profile release-ci -p lib-q-fn-dsa-sign \
+  --features div_emu,no_avx2 --lib -- --emit=asm
+```
+
+All four commands exited successfully. The first command's test binaries reported
+passed counts `14, 2, 14, 8, 2, 2, 8, 12, 9, 20, 2`, each with zero failures;
+the wrapper compile-only doctest passed, and four backend/facade doctests were
+ignored. Functional/KAT success is not leakage evidence; in particular the
+upstream-oracle test logs known signature divergences and pins that status,
+not byte-exact signature conformance.
+
+Timing output (FN-DSA-512 only; 1,000 samples per class):
+
+| build | key-class t; medians (microseconds) | message-class t; medians (microseconds) |
+|---|---|---|
+| default | `1.12; 238.683 / 238.878` | `0.04; 244.999 / 244.825` |
+| `no_avx2` | `-0.20; 340.744 / 340.839` | `-0.37; 278.207 / 278.467` |
+
+Each timing binary reported `2 passed; 0 failed; 0 ignored`. No large mean shift
+was detected in these runs. A virtualized, unpinned wall-clock screen cannot
+establish absence of exploitable leakage. No deliberate leakage was injected
+into these measured signing paths during this audit.
+
+GIP's own provisional-policy unit tests did **not** run:
+the lockfile required updating. Retrying without `--locked` failed because
+`hax-lib v0.4.1` was not cached. The original GIP lockfile was restored. The
+direct-source policy smoke above does not substitute for a successful GIP
+workspace build or an end-to-end signer/verifier test.
+
+### Approval boundary
+
+Keep this audit open. Close the remediation findings only with reviewed changes
+and reproduction evidence; then record the exact admitted revision, compiler,
+features, degree, hardware, threat model, and target-specific leakage results.
+Review the rejection-sampling argument and physical deployment scope. Finally
+exercise the actual GIP issuance/signing/verification gate. Human RED review is
+required before any allow-list flip; this report, its merge, or passing KATs
+does not grant it.
 
 ## Physical side-channel scope: no masking countermeasure exists (informational — ePrint 2026/1534, 2025/628)
 
-**This crate defends `Flr` (the `binary64` real-number type used in signing) against
-timing leakage only. It has no masking countermeasure against power/EM analysis, and
-none is claimed.**
+**This crate uses timing-oriented `Flr` operations (the `binary64` real-number
+type used in signing), but has not passed the ADR 225 audit above. It has no
+masking countermeasure against power/EM analysis, and none is claimed.**
 
 ### What the paper says
 
@@ -86,14 +264,14 @@ fn-dsa-sign/src fn-dsa-kgen/src` → no matches. Both call sites above run on pl
 
 ### What this crate does claim, and why that claim is not contradicted
 
-The crate's own README states "Constant-Time Operations: All cryptographic operations
-are constant-time to prevent timing attacks" — a **timing**-only claim. `flr.rs:72–74`
-is explicit about the same scope: "operations are over secret values and thus should
-take care not to leak information through side-channels, in particular timing." The
-`div_emu`/`sqrt_emu` Cargo features (`flr.rs:76–103`) exist to swap a platform's
-non-constant-time FPU divide/sqrt opcode for a data-independent integer routine — that
-is a **timing** countermeasure, and neither it nor anything else in this crate defends
-against power or electromagnetic trace analysis. Nothing in 2026/1534 or 2025/628
+At the time of this paper assessment, the README stated "Constant-Time Operations:
+All cryptographic operations are constant-time to prevent timing attacks." The
+ADR 225 audit above replaces that blanket claim with a bounded status.
+`flr.rs:72–74` states the intent: "operations are over secret values and thus should
+take care not to leak information through side-channels, in particular timing."
+The `div_emu`/`sqrt_emu` Cargo features are timing-oriented scalar countermeasures,
+not power/EM protection; F1 above records the direct-intrinsic bypasses.
+Nothing in 2026/1534 or 2025/628
 contradicts a claim this crate actually makes: no masking or power/EM-resistance claim
 exists for FN-DSA here to begin with (workspace `SECURITY.md`: "we do not claim
 completed independent side-channel evaluation for all targets").
