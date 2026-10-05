@@ -33,6 +33,7 @@ $packages = @(
     "lib-q-fn-dsa-kgen", "lib-q-fn-dsa-sign", "lib-q-fn-dsa-vrfy", "lib-q-fn-dsa-alg",
     "lib-q-fn-dsa",
     "lib-q-ml-kem", "lib-q-hqc", "lib-q-slh-dsa", "lib-q-lattice-zkp", "lib-q-mayo",
+    "lib-q-aegis", "lib-q-hiae",
     "lib-q-cb-kem",
     "lib-q-ml-dsa",
     "lib-q-aead", "lib-q-kem", "lib-q-sig", "lib-q-ring-sig",
