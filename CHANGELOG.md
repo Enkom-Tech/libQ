@@ -40,6 +40,16 @@ All notable changes to this workspace are documented here. Versions follow the s
   companion build (see `npm/lib-q-jose/README.md` for the exact reproduction
   commands); no npm publication or downstream rollout claimed.
 
+### CI
+
+- Run libQ CI on GitHub-hosted runners only; retire duplicate Forgejo workflow
+  discovery with a tracked empty workflow directory. The merge-check cutover is
+  documented in `CI_CD_SETUP.md`.
+- Pin external workflow and composite actions to immutable commits, migrate
+  legacy artifact uploads to the GitHub-supported backend, and remove internal
+  tracking references from public workflow/action YAML. Downstream Rust source
+  consumers are unchanged.
+
 ### Documentation
 
 - **Radar disposition for IACR ePrint 2025/1220 (RoK and Roll — verifier-efficient random
@@ -339,6 +349,16 @@ All notable changes to this workspace are documented here. Versions follow the s
 
   These entry points remain **RED / pending human cryptographer sign-off**, like the rest of the
   crate; nothing here upgrades that status.
+
+- **`lib-q-ml-dsa`: WASM binding for ML-DSA-65 (`wasm` feature, `src/wasm.rs`).** Closes the one
+  gap in the wasm PQ surface — ML-KEM-768 (`lib-q-ml-kem`), Saturnin (`lib-q-aead`), HPKE
+  (`lib-q-hpke`) and SLH-DSA (`lib-q-slh-dsa`) already shipped `wasm-bindgen` exports; ML-DSA had
+  none. Exposes `generateKeyPair` / `sign` / `verify` for the Grid PQ suite's standard signature
+  scheme, drawing key-generation and per-signature randomness from the platform's secure RNG
+  (never a fixed seed — the crate's other ML-DSA-44 example remains a deterministic demo and is
+  unaffected). The signing key is copied to `JavaScript` as a `Uint8Array` from a
+  `zeroize::Zeroizing` buffer, mirroring `lib-q-ml-kem`'s wasm secret-handling convention. Gated
+  in `scripts/wasm-size-check.sh`.
 
 ### Changed
 

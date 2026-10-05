@@ -22,6 +22,8 @@ ignored = [
 ]
 [lib]
 bench = false
+# wasm-pack requires `cdylib` for wasm32; `rlib` remains for Rust consumers.
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 lib-q-ring = { path = "../lib-q-ring", version = "0.0.11", default-features = false, features = ["alloc"] }
@@ -44,6 +46,11 @@ hax-lib.workspace = true
 zeroize = { workspace = true }
 subtle = { workspace = true, optional = true }
 getrandom = { workspace = true, optional = true, default-features = false }
+wasm-bindgen = { workspace = true, optional = true }
+js-sys = { workspace = true, optional = true }
+# Only needed to call `Rng::fill_bytes` on `lib_q_random::LibQRng` from `wasm.rs`; `random`
+# builds elsewhere pass `[u8; N]` seeds straight through without naming this trait.
+rand_core = { workspace = true, optional = true }
 
 [target.'cfg(all(target_arch = "wasm32", target_os = "unknown"))'.dependencies]
 getrandom = { workspace = true, default-features = false, features = ["wasm_js"] }
@@ -57,6 +64,7 @@ rand_core = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
 serde_json = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
+wasm-bindgen-test = { workspace = true }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
@@ -68,6 +76,11 @@ fips204 = { version = "0.4.6", default-features = false, features = ["default-rn
 name = "hardened_dudect_smoke"
 path = "tests/hardened_dudect_smoke.rs"
 required-features = ["hardened", "mldsa44", "dudect-smoke-tests"]
+
+[[test]]
+name = "wasm_smoke"
+path = "tests/wasm_smoke.rs"
+required-features = ["wasm"]
 
 # These three are `#![cfg(all(feature = "random", feature = "acvp"))]` and `acvp` is NOT a
 # default feature. Without a `[[test]]` entry cargo auto-discovers them, builds them under
@@ -120,6 +133,19 @@ getrandom = ["dep:getrandom"]
 # Atomic gate: RNG + zeroize + subtle + masked/constant-time signing paths. Do not enable piecemeal.
 hardened = ["random", "zeroize", "subtle", "getrandom"]
 zeroize = []                                        # Clear signing keys on drop and scrub key-generation intermediates
+# WASM bindings for browser/Node: `mldsa65` generate_key_pair/sign/verify (js-sys `Uint8Array`
+# secrets from `zeroize::Zeroizing` buffers, real secure RNG — no fixed-seed demo).
+wasm = [
+    "dep:wasm-bindgen",
+    "dep:js-sys",
+    "dep:rand_core",
+    "mldsa65",
+    "random",
+    "getrandom",
+    "zeroize",
+    "std",
+    "lib-q-random/wasm",
+]
 
 # Testing and validation
 acvp = []         # Expose internal API for ACVP (Automated Cryptographic Validation Protocol) testing
@@ -145,6 +171,9 @@ required-features = ["mldsa87"]
 [[bench]]
 name = "ml-dsa"
 harness = false
+
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-bulk-memory"]
 
 [package.metadata.docs.rs]
 all-features = true

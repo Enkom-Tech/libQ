@@ -63,8 +63,9 @@ The script skips packages that are already published at the target version (npm 
 | `@lib-q/dkg` | `lib-q-dkg` | `wasm`, `std`, `random`; PROVISIONAL |
 | `@lib-q/threshold-raccoon` | `lib-q-threshold-raccoon` | `wasm`, `std`, `random`; PROVISIONAL |
 | `@lib-q/threshold-kem-lattice` | `lib-q-threshold-kem-lattice` | `wasm`, `std`, `random`; PROVISIONAL |
+| `@lib-q/ml-dsa` | `lib-q-ml-dsa` | `wasm`; ML-DSA-65 |
 
-**Total: 27 packages** (indices 0–26 in `publish-npm-ordered.sh`). See [npm-coverage.md](npm-coverage.md).
+**Total: 28 packages** (indices 0–27 in `publish-npm-ordered.sh`). See [npm-coverage.md](npm-coverage.md).
 `@lib-q/fhe` and `@lib-q/threshold-kem` were withdrawn and removed in 0.0.10 — see
 [Removed crates](npm-coverage.md#removed-crates).
 

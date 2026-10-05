@@ -94,6 +94,7 @@ lib-q-blind-pcs|@lib-q/blind-pcs|Experimental blind commitment demo (EXPERIMENTA
 lib-q-dkg|@lib-q/dkg|PROVISIONAL lattice dealerless DKG (binding BDLOP VSS) for Node.js|cryptography,post-quantum,dkg,threshold,wasm|wasm,std,random|pkg|
 lib-q-threshold-raccoon|@lib-q/threshold-raccoon|PROVISIONAL PQ lattice threshold signature (consumes lib-q-dkg shares) for Node.js|cryptography,post-quantum,threshold,signature,wasm|wasm,std,random|pkg|
 lib-q-threshold-kem-lattice|@lib-q/threshold-kem-lattice|PROVISIONAL PQ lattice threshold KEM (dealerless keygen via lib-q-dkg) for Node.js|cryptography,post-quantum,threshold,kem,wasm|wasm,std,random|pkg|
+lib-q-ml-dsa|@lib-q/ml-dsa|ML-DSA-65 (FIPS 204) post-quantum digital signatures for Node.js|cryptography,post-quantum,ml-dsa,dilithium,signature,wasm,nist|wasm|pkg|
 EOF
 
 mapfile -t ROWS < <(printf '%s\n' "$PACKAGES")

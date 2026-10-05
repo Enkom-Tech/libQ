@@ -28,7 +28,7 @@ runs:
     - name: Cache binaryen
       if: ${{ runner.os == 'Linux' && runner.arch == 'X64' }}
       id: cache-binaryen
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: ~/.cache/binaryen/${{ inputs.version }}
         key: binaryen-${{ runner.os }}-${{ runner.arch }}-${{ inputs.version }}

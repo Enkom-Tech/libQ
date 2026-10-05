@@ -59,6 +59,9 @@ pub mod ml_dsa_65;
 #[cfg(feature = "mldsa87")]
 pub mod ml_dsa_87;
 
+#[cfg(feature = "wasm")]
+pub mod wasm;
+
 #[cfg(test)]
 #[allow(clippy::assertions_on_constants)]
 mod constants_line_coverage {

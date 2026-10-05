@@ -101,6 +101,7 @@ lib-q-ml-dsa/src/simd/portable/arithmetic.rs:add_subtract_zero | delegates to a 
 lib-q-ml-dsa/src/simd/portable/arithmetic.rs:montgomery_multiply_variants | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-ml-dsa/src/simd/portable/arithmetic.rs:shift_left_then_reduce_smoke | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-ml-dsa/src/simd/portable/tests.rs:portable_operations_decompose_both_gamma2 | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
+lib-q-ml-dsa/tests/wasm_smoke.rs:wasm_smoke_skipped_on_native_host | wasm-only test stub; real assertions live in the wasm32 sibling (ml_dsa_65_round_trip_wasm: sign/verify round trip, tampered message and wrong key refused), run only under wasm-pack
 lib-q-ml-dsa/tests/cross_mode_tests.rs:test_mode_specific_feature_availability | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-ml-dsa/tests/hardened_mode_tests.rs:test_hardened_mode_zeroization | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
 lib-q-ml-kem/src/kem.rs:decapsulation_key_implements_constant_time_eq | delegates to a real-asserting helper/generic fn (spot-checked class, see header above)
