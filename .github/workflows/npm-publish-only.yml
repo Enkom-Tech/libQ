@@ -25,7 +25,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Resolve version
         id: version
         run: |
@@ -120,6 +120,12 @@ jobs:
             package-keywords: "cryptography,post-quantum,slh-dsa,sphincs,wasm"
             features: "wasm"
             out-dir: "pkg"
+          - working-directory: "lib-q-ml-dsa"
+            package-name: "@lib-q/ml-dsa"
+            package-description: "ML-DSA-65 (FIPS 204) post-quantum digital signatures for Node.js"
+            package-keywords: "cryptography,post-quantum,ml-dsa,dilithium,signature,wasm,nist"
+            features: "wasm"
+            out-dir: "pkg"
           - working-directory: "lib-q-cb-kem"
             package-name: "@lib-q/cb-kem"
             package-description: "Classical McEliece CB-KEM for Node.js (single compile-time parameter set)"
@@ -169,7 +175,7 @@ jobs:
             features: "wasm,alloc"
             out-dir: "pkg"
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Build WASM
         uses: ./.github/actions/wasm-build
         with:
@@ -195,7 +201,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Publish NPM package
         uses: ./.github/actions/npm-publish
         with:

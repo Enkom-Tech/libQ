@@ -20,6 +20,7 @@ Parts of the portable and AVX2 field/NTT and related paths are amenable to forma
 | `hardened` | **Atomic** gate: masking / shuffled processing and constant-time-oriented signing paths; requires `random`, `zeroize`, `subtle`, `getrandom`. Do not enable piecemeal. |
 | `zeroize` | Zeroization of sensitive buffers where supported. |
 | `fips-mode` | Stricter FIPS-oriented behavior flag (see source/docs). |
+| `wasm` | Browser/Node bindings (`src/wasm.rs`, needs `mldsa65`): `generateKeyPair` / `sign` / `verify`, real secure RNG, `Uint8Array` secrets from `zeroize::Zeroizing` buffers. Gated in `scripts/wasm-size-check.sh`. |
 
 ## Related workspace crates
 

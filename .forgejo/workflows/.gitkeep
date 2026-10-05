@@ -1,0 +1,4 @@
+# Intentionally no workflows here: libQ CI runs on GitHub-hosted runners.
+# Forgejo selects this directory before .github/workflows, even when it contains
+# no YAML files. Keep this marker tracked; deleting it re-enables duplicate CI.
+# See CI_CD_SETUP.md for the merge-check cutover.

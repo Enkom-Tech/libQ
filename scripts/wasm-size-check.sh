@@ -54,6 +54,12 @@ check_one "lib-q-aead" "wasm,saturnin,alloc" 10400
 check_one "lib-q-hqc" "wasm,hqc,random,serialization" 10400
 check_one "lib-q-cb-kem" "wasm,cbkem348864,wasm_getrandom,alloc,zeroize" 13900
 check_one "lib-q-slh-dsa" "wasm" 13900
+# Budget inferred, not measured under wasm-opt -- `wasm-pack`/`wasm-opt` were
+# unavailable in the sandbox this was authored in. A `cargo build --release --target
+# wasm32-unknown-unknown --features wasm` (no wasm-opt, default features so mldsa44/65/87 all
+# link in) measured ~1060 KB; this budget leaves headroom above that pre-optimization figure.
+# Re-measure with a real `wasm-pack build` and tighten once this has actually run once.
+check_one "lib-q-ml-dsa" "wasm" 2000
 check_one "lib-q-ring-sig" "wasm" 7000
 check_one "lib-q-prf" "wasm" 3500
 check_one "lib-q-random" "wasm" 1750

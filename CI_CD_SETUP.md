@@ -2,6 +2,38 @@
 
 This document describes the CI/CD pipeline configuration for lib-Q.
 
+## CI execution ownership
+
+The workflows in `.github/workflows/` run on GitHub-hosted runners at
+[`Enkom-Tech/libQ`](https://github.com/Enkom-Tech/libQ/actions). Pushes to `main`
+and pull requests retain the existing test, feature, target and coverage gates.
+External actions, including those called by local composite actions, are pinned
+to full commit SHAs. Version comments identify the upstream release line; update
+the SHA and comment together after reviewing the upstream change.
+
+Duplicate CI on Forgejo is retired. The tracked
+`.forgejo/workflows/.gitkeep` intentionally creates a workflow directory with no
+YAML files. Forgejo selects the first existing directory in this order:
+`.forgejo/workflows`, `.gitea/workflows`, `.github/workflows`; it does not fall
+through when the first directory is empty. Do not delete the marker or add build
+workflows there: either would undo the retirement.
+
+**Merge-check cutover:** before merging this retirement, the repository owner
+must remove requirements for the retired Forgejo job contexts and establish the
+GitHub review/check gate for the synchronized libQ revision. An empty Forgejo
+workflow directory is not a successful test result, and a green run for a
+different revision is not evidence for the proposed change. Commit identities
+may differ after synchronization rewrites; verify the corresponding source tree
+and the GitHub run, not just an identically named branch.
+
+This changes libQ's own CI only. It does **not** stop downstream Cargo consumers
+from compiling libQ Rust path dependencies. A released JS/WASM package or native
+shared library is not a replacement for those Rust dependencies. Prebuilt Rust
+outputs require a consumer-compatible compiler, target, dependency resolution,
+feature set, profile and flags; a generic `target/` archive is only a cache and
+may rebuild. Downstream integration tests must continue to exercise the current
+consumer source rather than substituting upstream test results.
+
 ## Workflows
 
 ### CI Pipeline (`.github/workflows/ci.yml`)

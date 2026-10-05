@@ -57,7 +57,7 @@ runs:
         components: rustfmt, clippy
     
     - name: Cache dependencies
-      uses: actions/cache@v6
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
         path: |
           ~/.cargo/registry
@@ -159,7 +159,7 @@ runs:
     
     - name: Upload benchmark results
       if: inputs.save-results == 'true'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
       with:
         name: benchmark-results-${{ github.run_id }}
         path: ${{ inputs.working-directory }}/benchmark-results/
