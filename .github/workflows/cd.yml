@@ -19,8 +19,28 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
+  # Publish runs only from a release ref. workflow_dispatch can name ANY ref, and a dispatch on a
+  # ci/** branch (a pre-merge snapshot of a forge PR head) would otherwise run these publish jobs,
+  # with the publish credentials, over that PR's code. This job fails such a run before any job
+  # that can reach a secret starts: it has no checkout, no secrets and no token permissions.
+  release-ref-guard:
+    name: Release ref guard
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Refuse any ref but a v* tag or main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          case "$REF" in
+            refs/tags/v*|refs/heads/main) echo "release ref: $REF" ;;
+            *) echo "::error::refusing to publish from $REF: only v* tags and main may run this workflow"; exit 1 ;;
+          esac
+
   # Pre-release validation
   pre-release-validation:
+    needs: release-ref-guard
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Pre-Release Validation
     runs-on: ubuntu-latest
     # audit/fmt/clippy + rust-test (std,all-algorithms) for the WHOLE umbrella in one job. Unlike CI —
@@ -121,6 +141,8 @@ jobs:
   # pre-release-validation job rather than serializing after it — publish-rust-lib-q-types below
   # gates on both, so this adds ~0 wall-clock time to the release critical path.
   aarch64-qemu-execution:
+    needs: release-ref-guard
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: aarch64 QEMU execution (lib-q-ml-dsa, simd128)
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -209,6 +231,7 @@ jobs:
   # and `cpufeatures`. It previously waited on tier-1 and lib-q-random, neither of which it
   # actually needs.
   publish-rust-fn-dsa-comm:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-fn-dsa-comm
     needs: [pre-release-validation, aarch64-qemu-execution]
     runs-on: ubuntu-latest
@@ -228,6 +251,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-lib-q-types:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-types
     # Gated on BOTH the (slow) comprehensive validation AND the real aarch64 execution check --
     # if either fails, NOTHING publishes (every tier below chains off this job's needs:).
@@ -250,6 +274,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-0:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 0)
     needs: [publish-rust-lib-q-types]
     runs-on: ubuntu-latest
@@ -275,6 +300,7 @@ jobs:
   # lib-q-sha3 must be on crates.io before lib-q-keccak-digest (and before other tier-1 crates that need it).
   # Matrix jobs are parallel: do not put lib-q-keccak-digest in the same matrix as lib-q-sha3.
   publish-rust-lib-q-sha3:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-sha3
     needs: [publish-rust-tier-0]
     runs-on: ubuntu-latest
@@ -293,6 +319,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-1:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 1)
     needs: [publish-rust-lib-q-sha3]
     runs-on: ubuntu-latest
@@ -326,6 +353,7 @@ jobs:
 
   # k12 + intrinsics before hash/random; algorithm crates that depend on lib-q-random publish later.
   publish-rust-tier-2-early:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 2 — k12, intrinsics)
     needs: [publish-rust-tier-1]
     runs-on: ubuntu-latest
@@ -351,6 +379,7 @@ jobs:
   # lib-q-hash and lib-q-random must publish before crates that depend on lib-q-random (incl. dev-deps).
   # lib-q-random requires lib-q-k12 and resolves lib-q-hash from crates.io on publish.
   publish-rust-lib-q-hash:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-hash
     needs: [publish-rust-tier-2-early]
     runs-on: ubuntu-latest
@@ -369,6 +398,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-lib-q-random:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-random
     needs: [publish-rust-lib-q-hash]
     runs-on: ubuntu-latest
@@ -387,6 +417,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-fn-dsa-kgen-sign:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish FN-DSA (kgen, sign)
     needs: [publish-rust-fn-dsa-comm]
     runs-on: ubuntu-latest
@@ -413,6 +444,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-fn-dsa-vrfy:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-fn-dsa-vrfy
     needs: [publish-rust-fn-dsa-kgen-sign]
     runs-on: ubuntu-latest
@@ -432,6 +464,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-fn-dsa-alg:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-fn-dsa-alg
     needs: [publish-rust-fn-dsa-vrfy]
     runs-on: ubuntu-latest
@@ -451,6 +484,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-lib-q-fn-dsa:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-fn-dsa
     # MUST include lib-q-random and tier-0 (lib-q-core), not just the nested fn-dsa chain:
     # lib-q-fn-dsa/Cargo.toml declares VERSIONED deps on both, and `cargo publish` resolves those
@@ -476,6 +510,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-2:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 2 — algorithms)
     needs: [publish-rust-lib-q-fn-dsa, publish-rust-lib-q-random]
     runs-on: ubuntu-latest
@@ -503,6 +538,7 @@ jobs:
 
   # lib-q-kem lists optional cb-kem/ml-dsa in Cargo.toml; publish them before lib-q-kem.
   publish-rust-lib-q-cb-kem:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-cb-kem
     needs: [publish-rust-tier-2]
     runs-on: ubuntu-latest
@@ -522,6 +558,7 @@ jobs:
 
   # lib-q-sig lists lib-q-ml-dsa in Cargo.toml; publish ml-dsa before sig/kem/ring-sig.
   publish-rust-lib-q-ml-dsa:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-ml-dsa
     needs: [publish-rust-tier-2]
     runs-on: ubuntu-latest
@@ -540,6 +577,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-3:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 3)
     needs: [publish-rust-lib-q-ml-dsa, publish-rust-lib-q-cb-kem]
     runs-on: ubuntu-latest
@@ -565,6 +603,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-4:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 4)
     needs: [publish-rust-tier-3]
     runs-on: ubuntu-latest
@@ -588,6 +627,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-4b-new-primitives:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 4b — new primitives)
     needs: [publish-rust-tier-4]
     runs-on: ubuntu-latest
@@ -626,6 +666,7 @@ jobs:
   # (matrix jobs publish in parallel; raccoon's verify build then can't resolve dkg from crates.io
   # yet — "no matching package named lib-q-dkg found"). Publish it after tier-4b completes.
   publish-rust-tier-4b-raccoon:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-threshold-raccoon
     needs: [publish-rust-tier-4b-new-primitives]
     runs-on: ubuntu-latest
@@ -655,6 +696,7 @@ jobs:
   # (matrix jobs publish in parallel; kem-lattice's verify build then can't resolve dkg from crates.io
   # yet). Publish it after tier-4b completes, same reason as raccoon.
   publish-rust-tier-4b-kem-lattice:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-threshold-kem-lattice
     needs: [publish-rust-tier-4b-new-primitives]
     runs-on: ubuntu-latest
@@ -682,6 +724,7 @@ jobs:
 
   # Tiers 5–12: lib-q-stark subtree and lib-q-poseidon in dependency order.
   publish-rust-tier-5:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 5)
     needs: [publish-rust-tier-4b-raccoon, publish-rust-tier-4b-kem-lattice]
     runs-on: ubuntu-latest
@@ -705,6 +748,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-6:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 6 — stark-field)
     needs: [publish-rust-tier-5]
     runs-on: ubuntu-latest
@@ -723,6 +767,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-6-symmetric:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 6 — stark-symmetric)
     needs: [publish-rust-tier-6]
     runs-on: ubuntu-latest
@@ -741,6 +786,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-7-matrix:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 7 — stark-matrix)
     needs: [publish-rust-tier-6-symmetric]
     runs-on: ubuntu-latest
@@ -759,6 +805,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-7:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 7 — stark-dft, commit)
     needs: [publish-rust-tier-7-matrix]
     runs-on: ubuntu-latest
@@ -782,6 +829,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-8-hashes:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 8 — stark SHAKE/SHA3 adapters)
     needs: [publish-rust-tier-7]
     runs-on: ubuntu-latest
@@ -806,6 +854,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-8:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 8 — stark-mds, field-testing)
     needs: [publish-rust-tier-7]
     runs-on: ubuntu-latest
@@ -829,6 +878,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-9:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 9)
     needs: [publish-rust-tier-8, publish-rust-tier-8-hashes]
     runs-on: ubuntu-latest
@@ -852,6 +902,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-10:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 10)
     needs: [publish-rust-tier-9]
     runs-on: ubuntu-latest
@@ -878,6 +929,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-11:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 11)
     needs: [publish-rust-tier-10]
     runs-on: ubuntu-latest
@@ -901,6 +953,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-11-merkle:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 11 — stark-merkle)
     needs: [publish-rust-tier-11]
     runs-on: ubuntu-latest
@@ -919,6 +972,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-11-fri:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 11 — stark-fri)
     needs: [publish-rust-tier-11-merkle]
     runs-on: ubuntu-latest
@@ -937,6 +991,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-12:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 12)
     needs: [publish-rust-tier-11-fri]
     runs-on: ubuntu-latest
@@ -959,6 +1014,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-13:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 13 — plonky multilinear, lookup)
     needs: [publish-rust-tier-12]
     runs-on: ubuntu-latest
@@ -982,6 +1038,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-14:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 14 — plonky-uni-stark)
     needs: [publish-rust-tier-13]
     runs-on: ubuntu-latest
@@ -1000,6 +1057,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-14-keccak:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 14 — plonky-keccak-air)
     needs: [publish-rust-tier-14]
     runs-on: ubuntu-latest
@@ -1018,6 +1076,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-15:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 15 — plonky-batch-stark)
     needs: [publish-rust-tier-14]
     runs-on: ubuntu-latest
@@ -1036,6 +1095,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-15-plonky:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 15 — lib-q-plonky)
     needs: [publish-rust-tier-15, publish-rust-tier-14-keccak]
     runs-on: ubuntu-latest
@@ -1054,6 +1114,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-16:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 16)
     needs: [publish-rust-tier-15-plonky]
     runs-on: ubuntu-latest
@@ -1079,6 +1140,7 @@ jobs:
   # Both have NO workspace dependents, so they publish after zkp. Threaded before tier 17 (umbrella)
   # so a failure here blocks the release (post-release/cd-summary gate on tier 17).
   publish-rust-tier-16b:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 16b — mve, transcript, zk-encryption-proof)
     needs: [publish-rust-tier-16]
     runs-on: ubuntu-latest
@@ -1103,6 +1165,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-rust-tier-17:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 17 — lib-q umbrella)
     needs: [publish-rust-tier-16b]
     runs-on: ubuntu-latest
@@ -1121,6 +1184,7 @@ jobs:
           token: ${{ steps.crates-io-auth.outputs.token }}
 
   publish-wasm-packages:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish WASM Packages
     needs: [pre-release-validation, publish-rust-tier-17]
     runs-on: ubuntu-latest
@@ -1317,6 +1381,7 @@ jobs:
 
   # TypeScript-only package: publish after WASM tarballs so a types failure does not cancel wasm matrix jobs.
   publish-npm-types:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish @lib-q/types
     needs: [pre-release-validation, publish-rust-tier-17]
     runs-on: ubuntu-latest
@@ -1335,6 +1400,7 @@ jobs:
 
   # Post-release tasks - run after publishing
   post-release:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Post-Release Tasks
     needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, publish-npm-types]
     runs-on: ubuntu-latest
@@ -1415,6 +1481,7 @@ jobs:
 
   # Security verification - runs after release
   security-verification:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Post-Release Security Verification
     needs: [pre-release-validation, post-release]
     runs-on: ubuntu-latest
@@ -1470,7 +1537,7 @@ jobs:
     name: CD Summary
     needs: [pre-release-validation, aarch64-qemu-execution, publish-rust-tier-17, publish-wasm-packages, publish-npm-types, post-release, security-verification]
     runs-on: ubuntu-latest
-    if: always()
+    if: ${{ always() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') }}
     steps:
       - name: Generate CD summary
         run: |

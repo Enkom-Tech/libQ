@@ -2,7 +2,9 @@ name: Security Validation
 
 on:
   push:
-    branches: [ main, develop ]
+    # ci/**: pre-merge CI snapshots of forge PR heads, pushed by `hive publish github --pr`
+    # and deleted once judged. They run the full push set, not the lighter pull_request one.
+    branches: [ main, develop, 'ci/**' ]
   pull_request:
     branches: [ main, develop ]
   schedule:
@@ -15,10 +17,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Read-only by default. Only `pr-comment` writes, and it runs on pull_request events only: every
+# other job, including on ci/** pushes of pre-merge snapshots, gets a read-only token.
 permissions:
   contents: read
-  pull-requests: write
-  issues: write
   actions: read
 
 env:
@@ -37,6 +39,9 @@ jobs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Generate cache key
         id: cache-key
@@ -64,6 +69,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -138,6 +146,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Run constant-time validation
         uses: ./.github/actions/rust-build
@@ -181,6 +192,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Run memory safety validation
         uses: ./.github/actions/rust-build
@@ -203,6 +217,9 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Run dependency security audit
         uses: ./.github/actions/rust-build
@@ -249,6 +266,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Build WASM
         uses: ./.github/actions/wasm-build
@@ -279,6 +299,9 @@ jobs:
     if: always()
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Generate security summary
         run: |
@@ -332,19 +355,28 @@ jobs:
         with:
           name: security-report
           path: security-report.md
-      
-      - name: Comment on PR (if applicable)
-        if: github.event_name == 'pull_request'
+
+  # The only job with write access, and only for a pull request. It needs no checkout: the
+  # comment is built from the jobs' results.
+  pr-comment:
+    name: Comment security report on PR
+    needs: [core-security, crypto-validation, constant-time, memory-safety, dependency-audit, wasm-security, security-report]
+    runs-on: ubuntu-latest
+    if: always() && github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Comment on PR
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8
         env:
           NEEDS: ${{ toJSON(needs) }}
         with:
           script: |
             try {
-              const fs = require('fs');
-              const report = fs.readFileSync('security-report.md', 'utf8');
               const needs = JSON.parse(process.env.NEEDS || '{}');
-
+              const r = (job) => needs[job]?.result ?? 'unknown';
               const criticalJobs = [
                 'core-security',
                 'crypto-validation',
@@ -352,29 +384,37 @@ jobs:
                 'memory-safety',
                 'dependency-audit'
               ];
-
-              let securityPassed = true;
-              for (const job of criticalJobs) {
-                if (needs[job]?.result !== 'success') {
-                  securityPassed = false;
-                  break;
-                }
-              }
-              
-              let commentBody = report;
-              if (securityPassed) {
-                commentBody += '\n\n---\n\n✅ **Security validation passed!** This code meets all security requirements.';
-              } else {
-                commentBody += '\n\n---\n\n❌ **Security validation failed!** Please address security issues before merging.';
-              }
-              
+              const securityPassed = criticalJobs.every((job) => r(job) === 'success');
+              const lines = [
+                '# 🔒 Security Validation Report',
+                `Generated: ${new Date().toUTCString()}`,
+                '',
+                '## 📊 Summary',
+                `- NIST compliance: ${r('core-security')}`,
+                `- Cryptographic validation: ${r('crypto-validation')}`,
+                `- Constant-time operations: ${r('constant-time')}`,
+                `- Memory safety: ${r('memory-safety')}`,
+                `- Dependency security: ${r('dependency-audit')}`,
+                `- WASM security: ${r('wasm-security')}`,
+                '',
+                securityPassed
+                  ? '## ✅ Overall Security Status: PASSED'
+                  : '## ❌ Overall Security Status: FAILED',
+                '',
+                'The full report is the `security-report` artifact of this run.',
+                '',
+                '---',
+                '',
+                securityPassed
+                  ? '✅ **Security validation passed!** This code meets all security requirements.'
+                  : '❌ **Security validation failed!** Please address security issues before merging.'
+              ];
               await github.rest.issues.createComment({
                 issue_number: context.issue.number,
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                body: commentBody
+                body: lines.join('\n')
               });
-              
               console.log('✅ Security report posted to PR successfully');
             } catch (error) {
               console.error('❌ Failed to post security report to PR:', error.message);
