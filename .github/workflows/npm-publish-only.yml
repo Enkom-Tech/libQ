@@ -19,7 +19,27 @@ env:
   CARGO_INCREMENTAL: "0"
 
 jobs:
+  # Publish runs only from a release ref. workflow_dispatch can name ANY ref, and a dispatch on a
+  # ci/** branch (a pre-merge snapshot of a forge PR head) would otherwise run these publish jobs,
+  # with the publish credentials, over that PR's code. This job fails such a run before any job
+  # that can reach a secret starts: it has no checkout, no secrets and no token permissions.
+  release-ref-guard:
+    name: Release ref guard
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Refuse any ref but a v* tag or main
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          case "$REF" in
+            refs/tags/v*|refs/heads/main) echo "release ref: $REF" ;;
+            *) echo "::error::refusing to publish from $REF: only v* tags and main may run this workflow"; exit 1 ;;
+          esac
+
   resolve-version:
+    needs: release-ref-guard
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Resolve version
     runs-on: ubuntu-latest
     outputs:
@@ -37,6 +57,7 @@ jobs:
           echo "Publishing npm packages at version $VERSION"
 
   publish-wasm-packages:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish WASM Packages
     needs: resolve-version
     runs-on: ubuntu-latest
@@ -196,6 +217,7 @@ jobs:
           version: ${{ needs.resolve-version.outputs.version }}
 
   publish-npm-types:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish @lib-q/types
     needs: resolve-version
     runs-on: ubuntu-latest
@@ -216,7 +238,7 @@ jobs:
     name: NPM publish summary
     needs: [publish-wasm-packages, publish-npm-types]
     runs-on: ubuntu-latest
-    if: always()
+    if: ${{ always() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') }}
     steps:
       - run: |
           echo "## NPM publish summary" >> "$GITHUB_STEP_SUMMARY"

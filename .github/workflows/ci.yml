@@ -13,7 +13,9 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    # ci/**: pre-merge CI snapshots of forge PR heads, pushed by `hive publish github --pr`
+    # and deleted once judged. They run the full push set, not the lighter pull_request one.
+    branches: [ main, develop, 'ci/**' ]
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:
@@ -49,6 +51,9 @@ jobs:
       cache-key: ${{ steps.cache-key.outputs.value }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Node.js (npm guards)
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
@@ -236,7 +241,9 @@ jobs:
       # scan. Static and stdlib-only, no network.
       - name: Guard against internal tracker references and infrastructure names
         env:
-          INTERNAL_REFS_KEY: ${{ secrets.INTERNAL_REFS_KEY }}
+          # Withheld on ci/** (pre-merge snapshots of forge PR heads): the script that reads it
+          # comes from the snapshot. The publisher scans for internal names before it pushes.
+          INTERNAL_REFS_KEY: ${{ !startsWith(github.ref, 'refs/heads/ci/') && secrets.INTERNAL_REFS_KEY || '' }}
         run: bash ./scripts/ci-guard-internal-refs.sh
 
       # Static analysis of .github/**/*.yml itself: catches a NEW `cargo test` call site landing
@@ -360,6 +367,9 @@ jobs:
           - package: "lib-q-stark-baby-bear"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
           toolchain: stable
@@ -526,6 +536,9 @@ jobs:
     
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Run tests
         uses: ./.github/actions/rust-test
@@ -561,6 +574,9 @@ jobs:
             package: "lib-q-ml-dsa"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Run tests
         uses: ./.github/actions/rust-test
@@ -578,6 +594,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -717,6 +736,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Build WASM
         uses: ./.github/actions/wasm-build
@@ -734,6 +756,9 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
@@ -807,6 +832,9 @@ jobs:
       CARGO_TARGET_WASM32_WASIP1_RUNNER: wasmtime
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       # Read the channel out of rust-toolchain.toml rather than repeating it, so this
       # job cannot silently drift off the pinned toolchain when that file is bumped.
@@ -916,6 +944,9 @@ jobs:
           - lib-q-threshold-kem-lattice
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
@@ -1059,6 +1090,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
@@ -1115,6 +1149,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
@@ -1145,6 +1182,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       # This job had NO toolchain step at all -- checkout, then straight into a script full of
       # `cargo check`. cargo is not in the runner image, so every run exited 127 and the script
@@ -1167,6 +1207,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
@@ -1247,6 +1290,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -1437,6 +1483,9 @@ jobs:
       AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -1509,6 +1558,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -1532,6 +1584,9 @@ jobs:
       CARGO_INCREMENTAL: "0"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -1577,6 +1632,9 @@ jobs:
       matrix: ${{ steps.matrix.outputs.matrix }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Generate and verify benchmark matrix JSON
         id: matrix
@@ -1601,6 +1659,9 @@ jobs:
       matrix: ${{ fromJson(needs.bench-matrix.outputs.matrix) }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Run benchmark shard
         uses: ./.github/actions/run-bench-shard
@@ -1617,6 +1678,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -1790,6 +1854,9 @@ jobs:
     
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Run algorithm tests
         uses: ./.github/actions/test-keccak
@@ -1983,6 +2050,9 @@ jobs:
       CARGO_PROFILE_DEV_PACKAGE_ALL_OPT_LEVEL: "2"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -2024,6 +2094,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -2070,6 +2143,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -2124,6 +2200,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -2213,6 +2292,9 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
@@ -2246,6 +2328,9 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # No token left in .git/config: a snapshot's own code runs in these jobs.
+          persist-credentials: false
       
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05

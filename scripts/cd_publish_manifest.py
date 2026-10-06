@@ -25,7 +25,7 @@ It runs in the ci.yml `core-validation` job, which has no pip step (same constra
 scripts/ci_guard_coverage_honesty.py), and PyYAML is not a dependency of this repo -- no
 script imports it today. So the parser below is stdlib-only and covers exactly the block-YAML
 subset cd.yml uses. It FAILS CLOSED: anything it does not model (tabs, anchors/aliases, flow
-mappings, merge keys) raises rather than being silently skipped, because a parser that
+mappings other than the empty `{}`, merge keys) raises rather than being silently skipped, because a parser that
 silently drops a job is the very failure mode this file exists to prevent.
 
 It is also cross-checked: `--self-check` re-derives the manifest with PyYAML when PyYAML
@@ -129,6 +129,12 @@ def _scalar(raw: str) -> object:
     if text[0] in "&*":
         raise CdParseError(f"YAML anchors/aliases are not modelled: {raw!r}")
     if text[0] == "{":
+        # The EMPTY flow mapping is modelled, and only it: `permissions: {}` is GitHub's documented
+        # spelling of "this job's token has no permissions" (cd.yml's release-ref-guard job). It has
+        # no keys, so there is nothing a block-subset parser could misread. Any non-empty flow
+        # mapping still fails closed.
+        if text[1:].rstrip("}").strip() == "" and text.endswith("}") and text.count("}") == 1:
+            return {}
         raise CdParseError(f"flow mappings are not modelled: {raw!r}")
     if text[0] == "[":
         if not text.endswith("]"):
