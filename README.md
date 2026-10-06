@@ -71,6 +71,8 @@ Publishing to [crates.io](https://crates.io/) is driven by [`.github/workflows/c
 | **`lib-q-aead`** | AEAD façade (Saturnin, Rocca-S, Romulus, duplex, tweak) |
 | **`lib-q-saturnin`** | Saturnin suite |
 | **`lib-q-rocca-s`** | Rocca-S AEAD (AES-accelerated; IETF draft-nakano-rocca-s) |
+| **`lib-q-aegis`** | AEGIS-256 AEAD (RFC 10032), AES-round, for hardware-negotiated use; constant-time portable fallback |
+| **`lib-q-hiae`** | HiAE AEAD (draft-pham-cfrg-hiae, provisional), AES-round |
 | **`lib-q-duplex-aead`** | Duplex-sponge AEAD |
 | **`lib-q-tweak-aead`** | Tweakable CTR AEAD over Keccak |
 | **`lib-q-romulus`** | Romulus AEAD (Skinny-based) |

@@ -354,6 +354,8 @@ jobs:
           - package: "lib-q-threshold-kem-lattice"
           - package: "lib-q-blind-token"
           - package: "lib-q-rocca-s"
+          - package: "lib-q-aegis"
+          - package: "lib-q-hiae"
           # New paper crates (IACR membership work): guard they stay in cd.yml + keep version-pinned deps.
           - package: "lib-q-mve"
           - package: "lib-q-transcript"

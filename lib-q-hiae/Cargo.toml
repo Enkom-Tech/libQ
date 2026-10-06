@@ -1,0 +1,69 @@
+[package]
+name = "lib-q-hiae"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+description = "HiAE AEAD (draft-pham-cfrg-hiae-06) for lib-Q. PROVISIONAL: individual draft; security model excludes repeated forgery attempts"
+license.workspace = true
+repository.workspace = true
+keywords = ["cryptography", "aead", "hiae", "aes"]
+categories = ["cryptography"]
+readme = "README.md"
+
+[dependencies]
+lib-q-core = { path = "../lib-q-core", version = "0.0.11", default-features = false }
+lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.11", default-features = false, features = ["aes-round"] }
+zeroize = { workspace = true, default-features = false, features = ["derive"] }
+
+[features]
+# `simd` is on by default so a plain `std` build uses the hardware AES round
+# (AES-NI / ARMv8 AES), selected at runtime. The portable round in
+# `lib-q-intrinsics` (`aes_round::soft`) is bitsliced and constant-time, so turning
+# `simd` off costs speed, not timing safety.
+default = ["std", "alloc", "simd"]
+std = ["alloc", "lib-q-core/std", "lib-q-intrinsics/std"]
+alloc = ["lib-q-core/alloc", "zeroize/alloc"]
+
+# Runtime-dispatched hardware AES round. CPU detection uses `std`.
+simd = ["simd-aesni", "simd-neon"]
+simd-aesni = ["std", "lib-q-intrinsics/aes-round-hw"]
+simd-neon = ["std", "lib-q-intrinsics/aes-round-hw"]
+
+[lib]
+bench = false
+name = "lib_q_hiae"
+path = "src/lib.rs"
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[[test]]
+name = "hiae_kat"
+path = "tests/hiae_kat.rs"
+
+[[test]]
+name = "backend_equivalence"
+path = "tests/backend_equivalence.rs"
+
+[[test]]
+name = "integration_tests"
+path = "tests/integration_tests.rs"
+required-features = ["alloc"]
+
+[[test]]
+name = "constant_time"
+path = "tests/constant_time.rs"
+required-features = ["alloc"]
+
+[[bench]]
+name = "hiae_benches"
+harness = false
+required-features = ["alloc"]
+
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+criterion = { workspace = true }
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(docsrs)'] }
