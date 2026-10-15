@@ -171,8 +171,11 @@ jobs:
           set -euo pipefail
           SUDO=""
           if [ "$(id -u)" != "0" ]; then SUDO="sudo"; fi
-          $SUDO apt-get update
-          $SUDO apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
+          # Same rationale as ci.yml's aarch64-qemu-execution job: install-phase
+          # deaths on a runner that is occasionally reclaimed mid-step; bounded
+          # retry, INFRA-FAILURE banner on exhaustion, tests stay unretried.
+          bash ./scripts/ci-retry.sh -- $SUDO apt-get update
+          bash ./scripts/ci-retry.sh -- $SUDO apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
           aarch64-linux-gnu-gcc --version | head -1
           qemu-aarch64 --version | head -1
           test -e /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1
