@@ -98,10 +98,27 @@ fetch_crate_json() {
     # body and exiting 0. Capture output and exit code separately -- never through a pipe, so
     # $? is curl's own status, not some downstream command's (the classic `cmd | tail; echo $?`
     # trap this repo has been bitten by before).
-    json="$(curl -s -f -A "$UA" "$API_BASE/$crate" 2>/dev/null)"
-    rc=$?
+    #
+    # Bounded retry + hard per-request timeout: a single crates.io 5xx or a stalled
+    # connection must not turn the whole job red -- that is an environmental failure,
+    # the exact class that made Core Validation flake, and an unbounded curl could
+    # previously stall the job into its own step timeout. Still fail-closed: after the
+    # last attempt the error stands and the job fails, with an INFRA-FAILURE banner
+    # naming the class instead of reading as a guard defect. Fixture mode (self-test)
+    # is never retried and never hits the network.
+    local attempt
+    rc=0
+    for attempt in 1 2 3; do
+      json="$(curl -s -f --max-time 30 -A "$UA" "$API_BASE/$crate" 2>/dev/null)"
+      rc=$?
+      [[ $rc -eq 0 ]] && break
+      if [[ $attempt -lt 3 ]]; then
+        echo "  WARN: curl failed fetching '$crate' (exit $rc), attempt $attempt/3; retrying" >&2
+        sleep $((attempt * 5))
+      fi
+    done
     if [[ $rc -ne 0 ]]; then
-      echo "  ERROR: curl failed fetching '$crate' (exit $rc)" >&2
+      echo "  ERROR INFRA-FAILURE: crates.io unreachable after 3 attempt(s) fetching '$crate' (last exit $rc)" >&2
       return 2
     fi
   fi
@@ -132,10 +149,23 @@ fetch_deps_json() {
     fi
     json="$(cat "$f" 2>/dev/null)"
   else
-    json="$(curl -s -f -A "$UA" "$API_BASE/$crate/$ver/dependencies" 2>/dev/null)"
-    rc=$?
+    # Same bounded retry + hard timeout as fetch_crate_json above: environmental
+    # crates.io failures absorb themselves; real failures still fail closed, now
+    # named INFRA-FAILURE instead of reading as a guard defect. Fixture mode is
+    # never retried and never hits the network.
+    local attempt
+    rc=0
+    for attempt in 1 2 3; do
+      json="$(curl -s -f --max-time 30 -A "$UA" "$API_BASE/$crate/$ver/dependencies" 2>/dev/null)"
+      rc=$?
+      [[ $rc -eq 0 ]] && break
+      if [[ $attempt -lt 3 ]]; then
+        echo "  WARN: curl failed fetching deps for '$crate@$ver' (exit $rc), attempt $attempt/3; retrying" >&2
+        sleep $((attempt * 5))
+      fi
+    done
     if [[ $rc -ne 0 ]]; then
-      echo "  ERROR: curl failed fetching deps for '$crate@$ver' (exit $rc)" >&2
+      echo "  ERROR INFRA-FAILURE: crates.io unreachable after 3 attempt(s) fetching deps for '$crate@$ver' (last exit $rc)" >&2
       return 2
     fi
   fi

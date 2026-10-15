@@ -1504,8 +1504,15 @@ jobs:
           set -euo pipefail
           SUDO=""
           if [ "$(id -u)" != "0" ]; then SUDO="sudo"; fi
-          $SUDO apt-get update
-          $SUDO apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
+          # This install step is where the job's intermittent reds happen: the job dies
+          # minutes in, before any test has run, and this runner is occasionally reclaimed
+          # mid-step (the dependency-audit job in security.yml records the same). Bounded
+          # retry with an INFRA-FAILURE banner on exhaustion -- a transient apt/registry
+          # blip absorbs itself, and a real infra death is named in the log instead of
+          # reading as a code regression. The test step below stays UNRETRIED on purpose:
+          # its failure is a defect, not an environment.
+          bash ./scripts/ci-retry.sh -- $SUDO apt-get update
+          bash ./scripts/ci-retry.sh -- $SUDO apt-get install -y --no-install-recommends gcc-aarch64-linux-gnu libc6-dev-arm64-cross qemu-user
           aarch64-linux-gnu-gcc --version | head -1
           qemu-aarch64 --version | head -1
           test -e /usr/aarch64-linux-gnu/lib/ld-linux-aarch64.so.1
