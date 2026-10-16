@@ -324,7 +324,7 @@ jobs:
         include:
           # Shards are balanced by measured wall clock, not by crate count.
           - shard: aead-and-primitives
-            crates: "lib-q-saturnin lib-q-rocca-s lib-q-romulus lib-q-duplex-aead lib-q-tweak-aead lib-q-mac lib-q-prf"
+            crates: "lib-q-saturnin lib-q-rocca-s lib-q-aegis lib-q-hiae lib-q-romulus lib-q-duplex-aead lib-q-tweak-aead lib-q-mac lib-q-prf"
           - shard: signatures-and-kem
             crates: "lib-q-slh-dsa lib-q-mayo lib-q-hqc lib-q-hqc-traits lib-q-random"
           - shard: zk-and-misc
@@ -399,6 +399,13 @@ jobs:
               # The COVERED line count is unchanged at 349 -- only the denominator moved (445 ->
               # 357), which is the evidence that no test was lost. Floor left at 93.
               lib-q-rocca-s)      THRESH=93 ;;  # CI 98.21%, re-measured 97.76% post-simd-default
+              # lib-q-aegis / lib-q-hiae: measured 2026-10-06 with this script (tarpaulin 0.37.0,
+              # --engine llvm, Linux x86_64, AES-NI host): aegis 95.92% (235/245), hiae 97.92%
+              # (283/289). Floors ~5-6 points under. Their NEON entry points are a few lines inside
+              # aegis256.rs / hiae.rs that x86_64 cannot run; they are inside these figures, not
+              # excluded. Re-calibrate from the first CI log.
+              lib-q-aegis)        THRESH=90 ;;  # Linux 95.92%
+              lib-q-hiae)         THRESH=92 ;;  # Linux 97.92%
               lib-q-prf)          THRESH=55 ;;  # CI 60.20%
               lib-q-mac)          THRESH=72 ;;  # CI 77.27%
               lib-q-tweak-aead)   THRESH=67 ;;  # CI 72.20%

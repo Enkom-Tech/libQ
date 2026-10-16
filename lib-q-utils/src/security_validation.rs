@@ -253,6 +253,22 @@ const ALLOWED_UNSAFE_CRATES: &[UnsafeAllowlistEntry] = &[
         allowed_file_scope: &[],
     },
     UnsafeAllowlistEntry {
+        crate_name: "lib-q-aegis",
+        justification: "AES-NI / ARMv8 AES round dispatch: `#[target_feature]` entry points \
+                        reached only after runtime AES detection, calls through the unsafe \
+                        `lib_q_intrinsics::aes_round::AesBlock` trait, and write_volatile wipes \
+                        of the state and the recomputed tag",
+        allowed_file_scope: &["src/aegis256.rs", "src/dispatch.rs", "src/wrapper.rs"],
+    },
+    UnsafeAllowlistEntry {
+        crate_name: "lib-q-hiae",
+        justification: "AES-NI / ARMv8 AES round dispatch: `#[target_feature]` entry points \
+                        reached only after runtime AES detection, calls through the unsafe \
+                        `lib_q_intrinsics::aes_round::AesBlock` trait, and write_volatile wipes \
+                        of the state and the recomputed tag",
+        allowed_file_scope: &["src/hiae.rs", "src/dispatch.rs", "src/wrapper.rs"],
+    },
+    UnsafeAllowlistEntry {
         crate_name: "lib-q-saturnin",
         justification: "SIMD SATURNIN block-cipher paths",
         allowed_file_scope: &[],
@@ -438,10 +454,12 @@ const SHA3_COMPLIANCE_DENYLIST: &[&str] = &["sha3", "tiny-keccak", "tiny_keccak"
 /// primary function. Each must depend on and actually reference `zeroize`.
 #[cfg(feature = "std")]
 const KEY_MATERIAL_CRATES: &[&str] = &[
+    "lib-q-aegis",
     "lib-q-aead",
     "lib-q-cb-kem",
     "lib-q-dkg",
     "lib-q-duplex-aead",
+    "lib-q-hiae",
     "lib-q-hpke",
     "lib-q-hqc",
     "lib-q-k12",
@@ -468,6 +486,8 @@ const KEY_MATERIAL_CRATES: &[&str] = &[
 const AEAD_MAC_CRATES: &[&str] = &[
     "lib-q-mac",
     "lib-q-aead",
+    "lib-q-aegis",
+    "lib-q-hiae",
     "lib-q-duplex-aead",
     "lib-q-tweak-aead",
     "lib-q-rocca-s",
