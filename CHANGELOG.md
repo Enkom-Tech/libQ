@@ -4,6 +4,19 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 ## Unreleased
 
+### Added
+
+- **`lib-q-aegis` and `lib-q-hiae` (new crates): AEGIS-256 (RFC 10032) and HiAE
+  (draft-pham-cfrg-hiae-06).** AES-round AEADs for protocols that negotiate them only when both
+  peers have AES hardware. `lib-q-aegis` has `Aegis256` (256-bit tag) and `Aegis256Tag128`;
+  `lib-q-hiae` has `Hiae`, provisional (its security model excludes repeated forgery attempts; see
+  its `SECURITY.md`). Each type implements `Aead` / `AeadDecryptSemantic` and has an allocation-free
+  in-place API with a detached tag; `hardware_aes_available()` reports the backend. Both are checked
+  against every RFC / draft test vector.
+- **`lib-q-intrinsics`: `aes_round` module (features `aes-round`, `aes-round-hw`).** The shared AES
+  round for those crates: runtime-selected AES-NI / ARMv8 AES backends and a constant-time
+  bitsliced portable round (Boyar-Peralta S-box circuit, no tables).
+
 ### Changed — BREAKING (API)
 
 - **`lib-q-ml-dsa`: the by-value seed key-generation functions are removed.** The seed is a

@@ -30,6 +30,8 @@ members = [
     "lib-q-slh-dsa",
     # AEAD & HPKE
     "lib-q-aead",
+    "lib-q-aegis",
+    "lib-q-hiae",
     "lib-q-duplex-aead",
     "lib-q-hpke",
     "lib-q-rocca-s",

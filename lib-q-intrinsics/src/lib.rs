@@ -7,8 +7,16 @@
 #![allow(unsafe_code)]
 #![warn(missing_docs, missing_debug_implementations)]
 
+#[cfg(feature = "std")]
+extern crate std;
+
 /// Platform-specific intrinsics
 pub mod platform;
+
+/// AES round function backends (portable bitsliced, AES-NI, ARMv8 AES) shared by
+/// lib-Q's AES-round AEADs.
+#[cfg(feature = "aes-round")]
+pub mod aes_round;
 
 /// Generic fallback implementations
 pub mod generic;

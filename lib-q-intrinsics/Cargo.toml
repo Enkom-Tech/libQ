@@ -39,6 +39,12 @@ std = ["lib-q-platform/std"]
 simd128 = []
 simd256 = []
 simd512 = []
+# AES round function backends for lib-q-aegis / lib-q-hiae: the portable,
+# constant-time bitsliced round (no_std).
+aes-round = []
+# Adds the runtime-detected hardware AES round (x86 AES-NI, ARMv8 AES); CPU
+# detection needs `std`.
+aes-round-hw = ["aes-round", "std"]
 
 [lib]
 name = "lib_q_intrinsics"
