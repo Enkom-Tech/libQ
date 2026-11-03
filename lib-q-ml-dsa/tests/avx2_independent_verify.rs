@@ -46,10 +46,11 @@ fn avx2_siggen_output_is_independently_valid() {
     let fips_sk = ref_impl::PrivateKey::try_from_bytes(sk_arr).expect("fips204 sk decode failed");
     let fips_pk = fips_sk.get_public_key();
 
-    // ACVP internal sign/verify uses the empty context (ML-DSA.Sign_internal / Verify_internal
-    // wrap M as 0x00 || 0x00 || M, i.e. context = "").
+    // ACVP internal sign/verify: Verify_internal takes the caller-formatted M' as is,
+    // mu = H(tr || M') (FIPS 204 Algorithm 8). fips204 exposes it as `verify_internal`
+    // behind its `acvp-internal` test-hook feature (enabled on the dev-dependency).
     let sig_arr: [u8; 2420] = signature.as_slice().try_into().unwrap();
-    let verified = ref_impl::_internal_verify(&fips_pk, &msg_bytes, &sig_arr, &[]);
+    let verified = fips_pk.verify_internal(&msg_bytes, &sig_arr);
     eprintln!("fips204 (independent) verify_internal of AVX2 signature: {verified}");
 
     assert!(
