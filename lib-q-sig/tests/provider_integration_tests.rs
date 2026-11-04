@@ -25,9 +25,6 @@ mod provider_tests {
         let provider = LibQSignatureProvider::new().expect("Failed to create provider");
 
         let algorithms = [
-            Algorithm::SlhDsaSha256128fRobust,
-            Algorithm::SlhDsaSha256192fRobust,
-            Algorithm::SlhDsaSha256256fRobust,
             Algorithm::SlhDsaShake256128fRobust,
             Algorithm::SlhDsaShake256192fRobust,
             Algorithm::SlhDsaShake256256fRobust,

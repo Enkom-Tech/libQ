@@ -469,9 +469,9 @@ def extract(root: pathlib.Path, doc: dict | None = None) -> dict:
     for item in npm:
         if not item["working_directory"]:
             raise CdParseError(f"npm package {item['package']!r} has no working-directory")
-        # cd.yml defaults out-dir to `pkg` (`${{ matrix.out-dir || 'pkg' }}`); the TypeScript-only
-        # package is published straight from its source dir and has no wasm-pack out-dir at all.
-        if item["out_dir"] in (None, "") and item["job"] != "publish-npm-types":
+        # cd.yml defaults out-dir to `pkg` (`${{ matrix.out-dir || 'pkg' }}`); the hand-written
+        # npm/ packages are published straight from their source dir and have no wasm-pack out-dir.
+        if item["out_dir"] in (None, "") and item["job"] not in ("publish-npm-types", "publish-npm-jose"):
             item["out_dir"] = "pkg"
 
     seen: set[str] = set()

@@ -10,9 +10,15 @@ on:
         required: false
         type: string
 
+# Publishing uses Trusted Publishing (OIDC) only: there is no crates.io or npm token in this
+# repository. One human approval gates a release: the `approve-release` job runs in the GitHub
+# environment `release` (v* tags only, required reviewer) right after `release-ref-guard`, and
+# every job that publishes lists it in `needs:` directly. The publish jobs run in the environment
+# `release-publish` (v* tags only, no reviewer) and are the only jobs granted `id-token: write`;
+# the crates.io and npm trusted-publisher entries name this repository, this workflow file and
+# `release-publish`. id-token is deliberately absent from the workflow-level permissions below.
 permissions:
   contents: read
-  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -37,6 +43,22 @@ jobs:
             *) echo "::error::refusing to publish from $REF: only v* tags and main may run this workflow"; exit 1 ;;
           esac
 
+  # The single human approval for a release. `release` admits v* tags only and requires a reviewer,
+  # so this job waits for that approval; every publish job needs it directly. It runs after
+  # release-ref-guard and holds no checkout, no secrets and no token permissions.
+  approve-release:
+    needs: release-ref-guard
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+    name: Approve release
+    runs-on: ubuntu-latest
+    environment: release
+    permissions: {}
+    steps:
+      - name: Release approved
+        env:
+          REF: ${{ github.ref }}
+        run: echo "release approved for $REF"
+
   resolve-version:
     needs: release-ref-guard
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
@@ -59,8 +81,12 @@ jobs:
   publish-wasm-packages:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish WASM Packages
-    needs: resolve-version
+    needs: [approve-release, resolve-version]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -213,14 +239,17 @@ jobs:
           package-keywords: ${{ matrix.package-keywords }}
           working-directory: ${{ format('{0}/{1}', matrix.working-directory, matrix.out-dir || 'pkg') }}
           crate-root: ${{ matrix.working-directory }}
-          token: ${{ secrets.NPM_TOKEN }}
           version: ${{ needs.resolve-version.outputs.version }}
 
   publish-npm-types:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish @lib-q/types
-    needs: resolve-version
+    needs: [approve-release, resolve-version]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -231,12 +260,34 @@ jobs:
           package-description: "TypeScript typings for @lib-q WASM packages"
           package-keywords: "typescript,lib-q,wasm,types"
           working-directory: "npm/lib-q-types"
-          token: ${{ secrets.NPM_TOKEN }}
+          version: ${{ needs.resolve-version.outputs.version }}
+
+  # Pure-JS package. Its dependency on @lib-q/sig is pinned to the exact workspace version, so
+  # it publishes only after the WASM matrix (which includes @lib-q/sig) has succeeded.
+  publish-npm-jose:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+    name: Publish @lib-q/jose
+    needs: [approve-release, resolve-version, publish-wasm-packages]
+    runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Publish NPM package
+        uses: ./.github/actions/npm-publish
+        with:
+          package-name: "@lib-q/jose"
+          package-description: "Node ML-DSA-65 compact JWS and OpenID Connect ID token verification"
+          package-keywords: "cryptography,post-quantum,ml-dsa,jose,jws,oidc"
+          working-directory: "npm/lib-q-jose"
           version: ${{ needs.resolve-version.outputs.version }}
 
   npm-publish-summary:
     name: NPM publish summary
-    needs: [publish-wasm-packages, publish-npm-types]
+    needs: [publish-wasm-packages, publish-npm-types, publish-npm-jose]
     runs-on: ubuntu-latest
     if: ${{ always() && (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main') }}
     steps:
@@ -244,7 +295,9 @@ jobs:
           echo "## NPM publish summary" >> "$GITHUB_STEP_SUMMARY"
           echo "- WASM matrix: ${{ needs.publish-wasm-packages.result }}" >> "$GITHUB_STEP_SUMMARY"
           echo "- @lib-q/types: ${{ needs.publish-npm-types.result }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- @lib-q/jose: ${{ needs.publish-npm-jose.result }}" >> "$GITHUB_STEP_SUMMARY"
           if [[ "${{ needs.publish-wasm-packages.result }}" == "failure" ]] || \
-             [[ "${{ needs.publish-npm-types.result }}" == "failure" ]]; then
+             [[ "${{ needs.publish-npm-types.result }}" == "failure" ]] || \
+             [[ "${{ needs.publish-npm-jose.result }}" == "failure" ]]; then
             exit 1
           fi

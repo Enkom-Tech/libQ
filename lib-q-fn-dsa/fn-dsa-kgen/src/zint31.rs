@@ -782,15 +782,15 @@ mod tests {
 
     use core::convert::TryFrom;
 
+    use lib_q_sha3::{
+        Digest,
+        Sha3_256,
+    };
     use num_bigint::{
         BigInt,
         Sign,
     };
     use num_traits::cast::ToPrimitive;
-    use sha2::{
-        Digest,
-        Sha256,
-    };
 
     use super::zint_bezout;
 
@@ -857,7 +857,7 @@ mod tests {
         let x = &mut [0u32; SZ][..n];
         let y = &mut [0u32; SZ][..n];
         let tmp = &mut [0u32; 4 * SZ][..(4 * n)];
-        let mut sh = Sha256::new();
+        let mut sh = Sha3_256::new();
         for i in 0..20 {
             let mut j = 0;
             while j < n {

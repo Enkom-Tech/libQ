@@ -811,15 +811,15 @@ pub(crate) unsafe fn vect_invnorm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[
 
 #[cfg(test)]
 mod tests {
-    use sha2::{
+    use lib_q_sha3::{
         Digest,
-        Sha256,
+        Sha3_256,
     };
 
     use super::*;
 
     fn rndvect(logn: u32, f: &mut [Fxr], seed: u64) {
-        let mut sh = Sha256::new();
+        let mut sh = Sha3_256::new();
         let mut buf = [0u8; 32];
         for i in 0..(1usize << logn) {
             if (i & 31) == 0 {
@@ -894,7 +894,7 @@ mod tests {
     fn test_fxr_x4() {
         if fn_dsa_comm::has_avx2() {
             unsafe {
-                let mut sh = Sha256::new();
+                let mut sh = Sha3_256::new();
                 let mut buf = [0u8; 32];
                 for i in 0..1000u32 {
                     let mut f = [Fxr::ZERO; 4];

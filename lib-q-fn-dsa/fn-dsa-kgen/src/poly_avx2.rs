@@ -1361,9 +1361,9 @@ pub(crate) unsafe fn poly_sub_kfg_scaled_depth1(
 
 #[cfg(test)]
 mod tests {
-    use sha2::{
+    use lib_q_sha3::{
         Digest,
-        Sha256,
+        Sha3_256,
     };
 
     use super::*;
@@ -1377,7 +1377,7 @@ mod tests {
         let (t5, _) = tx.split_at_mut(n);
 
         // Generate random polynomials in t1 and t2.
-        let mut sh = Sha256::new();
+        let mut sh = Sha3_256::new();
         for i in 0..n {
             sh.update((p as u64).to_le_bytes());
             sh.update((i as u16).to_le_bytes());

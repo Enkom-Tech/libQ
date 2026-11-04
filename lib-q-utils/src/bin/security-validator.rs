@@ -154,8 +154,8 @@ mod tests {
 
     #[test]
     fn run_command_validate_nist_passes_on_clean_tree() {
-        // classical_crypto_detection + sha3_compliance: both pass today (sha2/aes are
-        // allowlisted NIST mandates; no external sha3/tiny-keccak dependency exists).
+        // classical_crypto_detection + sha3_compliance: both pass today (aes is an
+        // allowlisted NIST mandate and sha2 is denied; no external sha3/tiny-keccak dependency exists).
         assert_eq!(run_command("validate-nist", None), 0);
     }
 

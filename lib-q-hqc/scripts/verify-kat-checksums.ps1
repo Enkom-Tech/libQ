@@ -46,10 +46,12 @@ function Get-FileChecksum {
     # turned this comparison into one that could never pass.)
     $lines = Get-Content $FilePath -Encoding UTF8 | Where-Object { -not $_.TrimStart().StartsWith('#') }
     $content = ($lines -join "`n")
-    $hash = [System.Security.Cryptography.SHA256]::Create()
+    # SHA3-256: lib-Q uses no SHA-2. Needs PowerShell 7.4+ (.NET 8) on a platform with SHA-3.
+    if (-not [System.Security.Cryptography.SHA3_256]::IsSupported) {
+        throw "SHA3-256 is not available here (needs PowerShell 7.4+ on a platform with SHA-3)"
+    }
     $bytes = [System.Text.Encoding]::UTF8.GetBytes($content)
-    $hashBytes = $hash.ComputeHash($bytes)
-    $hash.Dispose()
+    $hashBytes = [System.Security.Cryptography.SHA3_256]::HashData($bytes)
 
     return [System.BitConverter]::ToString($hashBytes) -replace '-', ''
 }

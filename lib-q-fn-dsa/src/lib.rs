@@ -184,7 +184,10 @@ fn sign_from_seed_bytes(
         &HASH_ID_RAW,
         message,
         &mut signature,
-    );
+    )
+    .map_err(|_| Error::InvalidAlgorithm {
+        algorithm: "FN-DSA pre-hash identifier is not supported",
+    })?;
     Ok(signature)
 }
 
@@ -316,7 +319,10 @@ impl Signature for FnDsa512 {
             &HASH_ID_RAW,
             message,
             &mut signature,
-        );
+        )
+        .map_err(|_| Error::InvalidAlgorithm {
+            algorithm: "FN-DSA pre-hash identifier is not supported",
+        })?;
 
         Ok(signature)
     }
@@ -442,7 +448,10 @@ impl Signature for FnDsa1024 {
             &HASH_ID_RAW,
             message,
             &mut signature,
-        );
+        )
+        .map_err(|_| Error::InvalidAlgorithm {
+            algorithm: "FN-DSA pre-hash identifier is not supported",
+        })?;
 
         Ok(signature)
     }
@@ -568,7 +577,10 @@ impl Signature for FnDsa {
             &HASH_ID_RAW,
             message,
             &mut signature,
-        );
+        )
+        .map_err(|_| Error::InvalidAlgorithm {
+            algorithm: "FN-DSA pre-hash identifier is not supported",
+        })?;
 
         Ok(signature)
     }

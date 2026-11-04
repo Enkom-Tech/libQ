@@ -57,9 +57,6 @@ fn benchmark_provider_key_generation(c: &mut Criterion) {
     #[cfg(feature = "slh-dsa")]
     {
         let slh_dsa_algorithms = [
-            Algorithm::SlhDsaSha256128fRobust,
-            Algorithm::SlhDsaSha256192fRobust,
-            Algorithm::SlhDsaSha256256fRobust,
             Algorithm::SlhDsaShake256128fRobust,
             Algorithm::SlhDsaShake256192fRobust,
             Algorithm::SlhDsaShake256256fRobust,

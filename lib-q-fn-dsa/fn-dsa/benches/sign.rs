@@ -36,7 +36,8 @@ fn bench_sign(logn: u32) -> (f64, u8) {
     for t in &mut tt {
         let begin = core_cycles();
         for _ in 0..100 {
-            sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, &msg, sig);
+            sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, &msg, sig)
+                .unwrap();
             msg[0] = sig[sig.len() >> 1];
         }
         let end = core_cycles();
@@ -64,7 +65,8 @@ fn bench_sign_full(logn: u32) -> (f64, u8) {
         let begin = core_cycles();
         for _ in 0..100 {
             let mut sk = SigningKeyStandard::decode(sk_e).unwrap();
-            sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, &msg, sig);
+            sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, &msg, sig)
+                .unwrap();
             msg[0] = sig[sig.len() >> 1];
         }
         let end = core_cycles();

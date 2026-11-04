@@ -31,6 +31,11 @@ runs:
         toolchain: ${{ inputs.rust-version }}
         components: rust-src
 
+    - name: Cargo.lock fingerprint (SHA3-256)
+      id: lockfp2
+      shell: bash
+      # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+      run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
     - name: Restore cache
       uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
@@ -38,7 +43,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
+        key: ${{ runner.os }}-bench-${{ steps.lockfp2.outputs.hash }}
         restore-keys: |
           ${{ runner.os }}-bench-
 

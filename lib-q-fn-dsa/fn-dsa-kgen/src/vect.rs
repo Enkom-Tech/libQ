@@ -225,9 +225,9 @@ pub(crate) fn vect_invnorm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr], e
 #[cfg(test)]
 mod tests {
 
-    use sha2::{
+    use lib_q_sha3::{
         Digest,
-        Sha256,
+        Sha3_256,
     };
 
     use super::{
@@ -238,7 +238,7 @@ mod tests {
     };
 
     fn rndvect(logn: u32, f: &mut [Fxr], seed: u64) {
-        let mut sh = Sha256::new();
+        let mut sh = Sha3_256::new();
         let mut buf = [0u8; 32];
         for i in 0..(1usize << logn) {
             if (i & 31) == 0 {

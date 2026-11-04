@@ -62,7 +62,7 @@ The library uses feature flags to control which intrinsics are compiled:
 
 ```toml
 [dependencies]
-lib-q-intrinsics = { version = "0.0.11", features = ["simd256"] }
+lib-q-intrinsics = { version = "0.0.12", features = ["simd256"] }
 ```
 
 Available features:

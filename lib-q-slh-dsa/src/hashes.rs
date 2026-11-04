@@ -1,8 +1,7 @@
 //! Hash functions used in the SLH-DSA signature scheme
 //!
-//! Each parameter set defines several functions derived from the core hash function (SHA2 or SHAKE)
+//! Each parameter set defines several functions derived from the core hash function (SHAKE)
 //! A `HashSuite` contains all of these functions, defined in FIPS-205 section 10
-mod sha2;
 mod shake;
 
 use core::fmt::Debug;
@@ -10,16 +9,6 @@ use core::fmt::Debug;
 use hybrid_array::{
     Array,
     ArraySize,
-};
-pub use sha2::{
-    Sha2_128f,
-    Sha2_128s,
-    Sha2_192f,
-    Sha2_192s,
-    Sha2_256f,
-    Sha2_256s,
-    Sha2L1,
-    Sha2L35,
 };
 pub use shake::{
     Shake,
@@ -41,11 +30,8 @@ use crate::{
 /// A trait specifying the hash functions described in FIPS-205 section 10
 ///
 /// A `HashSuite` is constructed once per signing/verifying/keygen operation from the
-/// `PkSeed` via [`HashSuite::new_from_pk_seed`]. The SHA-2 suites use this to pre-compute
-/// the hash midstate over the padded `PkSeed` block (FIPS-205 §8.1.6), so that each
-/// subsequent `f`/`h`/`t`/`prf_sk` call only needs to absorb the (short) compressed
-/// address and message — a significant speedup. The output is byte-for-byte identical to
-/// recomputing the full hash each time.
+/// `PkSeed` via [`HashSuite::new_from_pk_seed`], so a suite can pre-compute any state keyed on
+/// the seed once. The output is byte-for-byte identical to recomputing the full hash each time.
 pub(crate) trait HashSuite: Sized + Clone + Debug {
     type N: ArraySize + Debug + Clone + PartialEq + Eq;
     type M: ArraySize + Debug + Clone + PartialEq + Eq;
@@ -100,8 +86,7 @@ pub(crate) trait HashSuite: Sized + Clone + Debug {
     /// four of them in lockstep.
     ///
     /// The default implementation simply calls [`f`](Self::f) four times, so it is byte-for-byte
-    /// identical to the scalar path; suites override it only to go faster. SHA-2 suites keep the
-    /// default (there is no batched SHA-256 here).
+    /// identical to the scalar path; suites override it only to go faster.
     fn f_x4<A: Address>(
         &self,
         adrs: &[A; 4],
@@ -151,41 +136,8 @@ mod tests {
         assert_eq!(result.as_slice(), expected);
     }
 
-    fn h_msg<H: HashSuite>(expected: &[u8]) {
-        let rand = Array::<u8, H::N>::from_fn(|_| 0);
-        let pk_seed = PkSeed(Array::<u8, H::N>::from_fn(|_| 1));
-        let pk_root = Array::<u8, H::N>::from_fn(|_| 2);
-        let msg = [3u8; 32];
-        let hasher = H::new_from_pk_seed(&pk_seed);
-
-        let result = hasher.h_msg(&rand, &pk_root, &[&[msg]]);
-
-        assert_eq!(result.as_slice(), expected);
-    }
-
     #[test]
     fn prf_msg_shake128f() {
         prf_msg::<Shake128f>(&hex!("bc5c062307df0a41aeeae19ad655f7b2"));
-    }
-
-    #[test]
-    fn prf_msg_sha2_128_f() {
-        prf_msg::<Sha2_128f>(&hex!("6a4b5cf23911d4f3a6591d7003445316"));
-    }
-
-    // Exercises the mgf1_sha256 function
-    #[test]
-    fn h_msg_sha2_128_f() {
-        h_msg::<Sha2_128f>(&hex!(
-            "56658221f675d907a309255e8faef639d11e6a1118fa05d3bbd26179a7e0a54a7f5b"
-        ));
-    }
-
-    // Exercises the mgf1_sha512 function
-    #[test]
-    fn h_msg_sha2_256_f() {
-        h_msg::<Sha2_256f>(&hex!(
-            "8c86dfb66392d1b647df0deab90be68fb6f988513e84d3ef75fa68591122bb5d74f6413672db5164e56492b7ca2c2e0335"
-        ));
     }
 }

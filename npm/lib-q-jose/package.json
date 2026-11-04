@@ -1,6 +1,6 @@
 {
   "name": "@lib-q/jose",
-  "version": "0.0.11-jose.0",
+  "version": "0.0.12",
   "description": "Node ML-DSA-65 compact JWS and OpenID Connect ID token verification",
   "type": "module",
   "license": "Apache-2.0",
@@ -11,5 +11,5 @@
   "exports": { ".": { "types": "./index.d.ts", "node": "./index.js" }, "./package.json": "./package.json" },
   "files": ["index.js", "index.d.ts", "README.md", "LICENSE"],
   "scripts": { "test": "node --test test/*.test.js" },
-  "dependencies": { "@lib-q/sig": "0.0.11-jose.0" }
+  "dependencies": { "@lib-q/sig": "0.0.12" }
 }

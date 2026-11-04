@@ -15,9 +15,6 @@ inputs:
     description: Working directory containing the package
     default: "pkg"
     required: false
-  token:
-    description: NPM token
-    required: true
   version:
     description: Package version
     required: true
@@ -35,12 +32,14 @@ runs:
   steps:
     - name: Setup Node.js
       uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+      # No registry-url: setup-node would write an `_authToken=${NODE_AUTH_TOKEN}` line and a
+      # placeholder token. Publishing is Trusted Publishing (OIDC) only; the default registry is
+      # registry.npmjs.org.
       with:
         node-version: '24'
-        registry-url: 'https://registry.npmjs.org'
-        always-auth: true
 
-    # npm 11.6.2+ fixes misleading E404 on publish (token + provenance / trusted publishing).
+    # Trusted publishing needs npm >= 11.5.1 (and Node >= 22.14); 11.6.2 also fixes a misleading
+    # E404 on OIDC publish.
     - name: Upgrade npm CLI
       shell: bash
       run: npm install -g npm@11.6.2
@@ -91,6 +90,9 @@ runs:
         README_DST="README.md"
         if [[ -n "$CRATE_ROOT" && -f "$REPO_ROOT/$CRATE_ROOT/README.md" ]]; then
           cp "$REPO_ROOT/$CRATE_ROOT/README.md" "$README_DST"
+        elif [[ -z "$CRATE_ROOT" && -f "$README_DST" ]]; then
+          # Hand-written package (npm/<name>): keep the README it ships.
+          echo "Keeping the package's own README.md"
         else
           sed 's/^        //' > "$README_DST" <<EOF
         # ${{ inputs.package-name }}
@@ -139,80 +141,44 @@ runs:
       run: |
         node "$GITHUB_WORKSPACE/scripts/ci-guard-npm-exports.mjs" "${{ inputs.working-directory }}"
 
+    # Trusted Publishing (OIDC) only: npm exchanges this job's GitHub OIDC token (the calling job
+    # runs in environment `release-publish` with `id-token: write`) for a short-lived publish credential.
+    # No npm token exists in this repository. Each @lib-q/* package needs an npm trusted-publisher
+    # entry for Enkom-Tech/libQ, the calling workflow file and environment `release-publish`.
     - name: Publish NPM package
       shell: bash
-      env:
-        NODE_AUTH_TOKEN: ${{ inputs.token }}
       run: |
-        echo "Publishing NPM package..."
         cd ${{ inputs.working-directory }}
 
-        publish_args=(--access public)
-        publish_once() {
-          npm publish "${publish_args[@]}" "$@"
-        }
+        # Never fall back to a token: drop any that leaked into the environment.
+        unset NODE_AUTH_TOKEN NPM_TOKEN
 
-        npm_already_published() {
-          grep -qE 'cannot publish over the previously published|You cannot publish over the previously published|403 Forbidden.*previously published' "$1"
-        }
+        publish_args=(--access public --provenance)
 
-        if [ -n "$NODE_AUTH_TOKEN" ]; then
-          {
-            echo "@lib-q:registry=https://registry.npmjs.org/"
-            echo "//registry.npmjs.org/:_authToken=${NODE_AUTH_TOKEN}"
-          } >> "$HOME/.npmrc"
-        fi
-        
         if [ "${{ inputs.dry-run }}" = "true" ]; then
           echo "Dry run mode - would publish ${{ inputs.package-name }}"
-          publish_once --dry-run
-        elif [ -n "$NODE_AUTH_TOKEN" ]; then
-          log="$(mktemp)"
-          echo "Publishing with NODE_AUTH_TOKEN"
-          set +e
-          publish_once 2>&1 | tee "$log"
-          publish_status=${PIPESTATUS[0]}
-          set -e
-          if [ "$publish_status" -ne 0 ]; then
-            if npm_already_published "$log"; then
-              echo "${{ inputs.package-name }}@${{ inputs.version }} is already on npm; skipping"
-            elif grep -qE 'E404|ENEEDAUTH|401 Unauthorized' "$log"; then
-              echo "Token publish failed; retrying with npm trusted publishing (OIDC)"
-              unset NODE_AUTH_TOKEN
-              set +e
-              publish_once 2>&1 | tee "$log"
-              publish_status=${PIPESTATUS[0]}
-              set -e
-              if [ "$publish_status" -ne 0 ]; then
-                if npm_already_published "$log"; then
-                  echo "${{ inputs.package-name }}@${{ inputs.version }} is already on npm; skipping"
-                else
-                  echo "::error::npm publish failed for ${{ inputs.package-name }} after token and OIDC attempts."
-                  cat "$log"
-                  exit 1
-                fi
-              fi
-            else
-              cat "$log"
-              exit "$publish_status"
-            fi
-          fi
-        else
-          log="$(mktemp)"
-          echo "Publishing with npm trusted publishing (OIDC)"
-          set +e
-          publish_once 2>&1 | tee "$log"
-          publish_status=${PIPESTATUS[0]}
-          set -e
-          if [ "$publish_status" -ne 0 ]; then
-            if npm_already_published "$log"; then
-              echo "${{ inputs.package-name }}@${{ inputs.version }} is already on npm; skipping"
-            else
-              echo "::error::npm publish failed for ${{ inputs.package-name }}. Configure npm Trusted Publishers for Enkom-Tech/libQ workflow cd.yml or set secrets.NPM_TOKEN with publish access to @lib-q/*."
-              cat "$log"
-              exit 1
-            fi
+          npm publish "${publish_args[@]}" --dry-run
+          exit 0
+        fi
+
+        if [ -z "${ACTIONS_ID_TOKEN_REQUEST_URL:-}" ]; then
+          echo "::error::no OIDC token available: the calling job needs 'permissions: id-token: write' and 'environment: release-publish'"
+          exit 1
+        fi
+
+        log="$(mktemp)"
+        echo "Publishing ${{ inputs.package-name }} with npm trusted publishing (OIDC)"
+        set +e
+        npm publish "${publish_args[@]}" 2>&1 | tee "$log"
+        publish_status=${PIPESTATUS[0]}
+        set -e
+        if [ "$publish_status" -ne 0 ]; then
+          if grep -qE 'cannot publish over the previously published|You cannot publish over the previously published|403 Forbidden.*previously published' "$log"; then
+            echo "${{ inputs.package-name }}@${{ inputs.version }} is already on npm; skipping"
+          else
+            echo "::error::npm publish failed for ${{ inputs.package-name }}. Check its npm trusted publisher: repository Enkom-Tech/libQ, workflow ${GITHUB_WORKFLOW_REF##*/} (file name only, without @ref), environment release-publish."
+            exit 1
           fi
         fi
-        
+
         echo "Successfully published ${{ inputs.package-name }}"

@@ -2780,9 +2780,9 @@ pub(crate) const PRIMES: [SmallPrime; 308] = [
 
 #[cfg(test)]
 mod tests {
-    use sha2::{
+    use lib_q_sha3::{
         Digest,
-        Sha256,
+        Sha3_256,
     };
 
     use super::*;
@@ -2794,7 +2794,7 @@ mod tests {
 
     #[test]
     fn check_small_primes() {
-        let mut sh = Sha256::new();
+        let mut sh = Sha3_256::new();
         for (i, prime) in PRIMES.iter().enumerate() {
             let p = prime.p;
             // 1438814045 = 1 + floor(1.34*2^30)
@@ -2839,7 +2839,7 @@ mod tests {
                 assert!(s == 1);
             }
         }
-        let rh = hex::decode("383babc06a50dafbc446cecc9043ee30ac56d598e3ef057f4ab88e0ef0368f54")
+        let rh = hex::decode("b878dca15dd1bfdcd3ff677e4220aae7074a109e8b1533b9c0f75fc53aca504d")
             .unwrap();
         assert!(sh.finalize()[..] == rh);
     }

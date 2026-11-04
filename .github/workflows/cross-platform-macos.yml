@@ -65,13 +65,18 @@ jobs:
       # Dependency sources only, keyed by repository: never `target/`, so no build output is ever
       # restored from another run or repository. The macOS runner is ephemeral (one fresh VM per job)
       # and its cache server is off, so on the forge this is a restore miss by design.
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp32
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependency sources
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-          key: ${{ github.repository }}-${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ github.repository }}-${{ runner.os }}-${{ matrix.target }}-${{ steps.lockfp32.outputs.hash }}
           restore-keys: |
             ${{ github.repository }}-${{ runner.os }}-${{ matrix.target }}-
 

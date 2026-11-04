@@ -19,21 +19,6 @@ where
     Array::try_from(slice)
 }
 
-/// Parse the first `N::USIZE` bytes of `slice` as an [`Array`].
-///
-/// Returns an error if `slice` is shorter than `N::USIZE`. Accepts any `AsRef<[u8]>`
-/// (e.g. digest or MAC output types).
-#[inline]
-pub(crate) fn array_u8_try_from_prefix<N, S>(src: S) -> Result<Array<u8, N>, TryFromSliceError>
-where
-    N: ArraySize,
-    Array<u8, N>: Clone,
-    S: AsRef<[u8]>,
-{
-    let s = src.as_ref();
-    Array::try_from(&s[..N::USIZE])
-}
-
 // Algorithm 3
 pub fn base_2b<OutLen: ArraySize, B: Unsigned>(x: &[u8]) -> Array<u16, OutLen> {
     debug_assert!(x.len() >= (OutLen::USIZE * B::USIZE).div_ceil(8));
@@ -99,9 +84,8 @@ pub mod macros {
         ($name:ident) => {
             #[allow(unused_imports)]
             use crate::hashes::*;
-            // Smoke: one SHAKE and one SHA2 (level-1f). Full suite: `--features all-parameter-set-tests`.
+            // Smoke: SHAKE level-1f. Full suite: `--features all-parameter-set-tests`.
             crate::gen_test!($name, Shake128f);
-            crate::gen_test!($name, Sha2_128f);
             #[cfg(feature = "all-parameter-set-tests")]
             crate::gen_test!($name, Shake128s);
             #[cfg(feature = "all-parameter-set-tests")]
@@ -112,16 +96,6 @@ pub mod macros {
             crate::gen_test!($name, Shake256f);
             #[cfg(feature = "all-parameter-set-tests")]
             crate::gen_test!($name, Shake256s);
-            #[cfg(feature = "all-parameter-set-tests")]
-            crate::gen_test!($name, Sha2_128s);
-            #[cfg(feature = "all-parameter-set-tests")]
-            crate::gen_test!($name, Sha2_192f);
-            #[cfg(feature = "all-parameter-set-tests")]
-            crate::gen_test!($name, Sha2_192s);
-            #[cfg(feature = "all-parameter-set-tests")]
-            crate::gen_test!($name, Sha2_256f);
-            #[cfg(feature = "all-parameter-set-tests")]
-            crate::gen_test!($name, Sha2_256s);
         };
     }
 

@@ -30,8 +30,6 @@ use crate::util::{
 };
 use crate::{
     ParameterSet,
-    Sha2L1,
-    Sha2L35,
     Shake,
 };
 
@@ -245,17 +243,6 @@ impl<P: ParameterSet> TryFrom<pkcs8::SubjectPublicKeyInfoRef<'_>> for VerifyingK
         )
         .map_err(|_| pkcs8::Error::from(pkcs8::KeyError::Invalid))?)
     }
-}
-
-impl<M> VerifyingKeyLen for Sha2L1<U16, M> {
-    type VkLen = U<32>;
-}
-
-impl<M> VerifyingKeyLen for Sha2L35<U24, M> {
-    type VkLen = U<48>;
-}
-impl<M> VerifyingKeyLen for Sha2L35<U32, M> {
-    type VkLen = U<64>;
 }
 
 impl<M> VerifyingKeyLen for Shake<U16, M> {

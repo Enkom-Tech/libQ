@@ -32,8 +32,11 @@ test('lib-q-sig signer verifies compact bytes and an ID token', async () => {
   assert.deepEqual(await verifyIdToken(token, options), claims);
 });
 
-test('AKP thumbprint uses exactly alg/kty/pub in RFC 9964 order', () => {
-  const expected = createHash('sha256').update(`{"alg":"ML-DSA-65","kty":"AKP","pub":"${jwk.pub}"}`).digest('base64url');
+test('AKP thumbprint is SHA3-256 over exactly alg/kty/pub in RFC 9964 order', () => {
+  const expected = createHash('sha3-256').update(`{"alg":"ML-DSA-65","kty":"AKP","pub":"${jwk.pub}"}`).digest('base64url');
+  // Literal pin for the fixture key (seed = 32 bytes of 7), cross-checked with Python's
+  // hashlib.sha3_256, so a change of hash in importAkpJwk cannot pass by also changing `expected`.
+  assert.equal(expected, '-xgYNBkXew7bJqHI-6hdq4PpHcjVhtkKADjBxmofzPg');
   const imported = importAkpJwk({ ...jwk, kid: 'issuer-key', use: 'sig', key_ops: ['verify'] });
   assert.equal(imported.thumbprint, expected);
   assert.equal(imported.kid, 'issuer-key');

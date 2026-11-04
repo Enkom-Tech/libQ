@@ -41,9 +41,6 @@ pub enum Algorithm {
     FnDsa,
     FnDsa512,
     FnDsa1024,
-    SlhDsaSha256128fRobust,
-    SlhDsaSha256192fRobust,
-    SlhDsaSha256256fRobust,
     SlhDsaShake256128fRobust,
     SlhDsaShake256192fRobust,
     SlhDsaShake256256fRobust,
@@ -71,14 +68,6 @@ pub enum Algorithm {
     TupleHash256,
     ParallelHash128,
     ParallelHash256,
-
-    // SHA-2 algorithms
-    Sha224,
-    Sha256,
-    Sha384,
-    Sha512,
-    Sha512_224,
-    Sha512_256,
 
     // AEAD algorithms
     Saturnin,
@@ -126,7 +115,6 @@ impl Algorithm {
             Algorithm::MlDsa44 => 1,
             Algorithm::FnDsa => 1,
             Algorithm::FnDsa512 => 1,
-            Algorithm::SlhDsaSha256128fRobust => 1,
             Algorithm::SlhDsaShake256128fRobust => 1,
 
             // Level 3 (192-bit security)
@@ -134,7 +122,6 @@ impl Algorithm {
             Algorithm::CbKem460896 => 3,
             Algorithm::Hqc192 => 3,
             Algorithm::MlDsa65 => 3,
-            Algorithm::SlhDsaSha256192fRobust => 3,
             Algorithm::SlhDsaShake256192fRobust => 3,
 
             // Level 5. These were all returning 4, which is not a category any of them claims --
@@ -155,7 +142,6 @@ impl Algorithm {
             Algorithm::CbKem6960119 => 5,
             Algorithm::Hqc256 => 5,
             Algorithm::MlDsa87 => 5,
-            Algorithm::SlhDsaSha256256fRobust => 5,
             Algorithm::SlhDsaShake256256fRobust => 5,
             Algorithm::FnDsa1024 => 5,
             Algorithm::CbKem8192128 => 5,
@@ -182,13 +168,7 @@ impl Algorithm {
             Algorithm::TupleHash128 |
             Algorithm::TupleHash256 |
             Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 |
-            Algorithm::Sha224 |
-            Algorithm::Sha256 |
-            Algorithm::Sha384 |
-            Algorithm::Sha512 |
-            Algorithm::Sha512_224 |
-            Algorithm::Sha512_256 => 0,
+            Algorithm::ParallelHash256 => 0,
 
             // AEAD algorithms
             Algorithm::Saturnin => 1,
@@ -234,9 +214,6 @@ impl Algorithm {
             Algorithm::FnDsa |
             Algorithm::FnDsa512 |
             Algorithm::FnDsa1024 |
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => AlgorithmCategory::Signature,
@@ -262,13 +239,7 @@ impl Algorithm {
             Algorithm::TupleHash128 |
             Algorithm::TupleHash256 |
             Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 |
-            Algorithm::Sha224 |
-            Algorithm::Sha256 |
-            Algorithm::Sha384 |
-            Algorithm::Sha512 |
-            Algorithm::Sha512_224 |
-            Algorithm::Sha512_256 => AlgorithmCategory::Hash,
+            Algorithm::ParallelHash256 => AlgorithmCategory::Hash,
 
             // AEAD algorithms
             Algorithm::Saturnin |
@@ -316,9 +287,6 @@ impl Algorithm {
             Algorithm::FnDsa |
             Algorithm::FnDsa512 |
             Algorithm::FnDsa1024 |
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => category == AlgorithmCategory::Signature,
@@ -345,13 +313,7 @@ impl Algorithm {
             Algorithm::TupleHash128 |
             Algorithm::TupleHash256 |
             Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 |
-            Algorithm::Sha224 |
-            Algorithm::Sha256 |
-            Algorithm::Sha384 |
-            Algorithm::Sha512 |
-            Algorithm::Sha512_224 |
-            Algorithm::Sha512_256 => category == AlgorithmCategory::Hash,
+            Algorithm::ParallelHash256 => category == AlgorithmCategory::Hash,
 
             // Pure AEAD algorithms
             Algorithm::Saturnin |
@@ -442,9 +404,6 @@ impl core::fmt::Display for Algorithm {
             Algorithm::FnDsa => write!(f, "FN-DSA"),
             Algorithm::FnDsa512 => write!(f, "FN-DSA-512"),
             Algorithm::FnDsa1024 => write!(f, "FN-DSA-1024"),
-            Algorithm::SlhDsaSha256128fRobust => write!(f, "SLH-DSA-SHA256-128f-Robust"),
-            Algorithm::SlhDsaSha256192fRobust => write!(f, "SLH-DSA-SHA256-192f-Robust"),
-            Algorithm::SlhDsaSha256256fRobust => write!(f, "SLH-DSA-SHA256-256f-Robust"),
             Algorithm::SlhDsaShake256128fRobust => write!(f, "SLH-DSA-SHAKE256-128f-Robust"),
             Algorithm::SlhDsaShake256192fRobust => write!(f, "SLH-DSA-SHAKE256-192f-Robust"),
             Algorithm::SlhDsaShake256256fRobust => write!(f, "SLH-DSA-SHAKE256-256f-Robust"),
@@ -462,12 +421,6 @@ impl core::fmt::Display for Algorithm {
             Algorithm::Keccak256 => write!(f, "Keccak-256"),
             Algorithm::Keccak384 => write!(f, "Keccak-384"),
             Algorithm::Keccak512 => write!(f, "Keccak-512"),
-            Algorithm::Sha224 => write!(f, "SHA-224"),
-            Algorithm::Sha256 => write!(f, "SHA-256"),
-            Algorithm::Sha384 => write!(f, "SHA-384"),
-            Algorithm::Sha512 => write!(f, "SHA-512"),
-            Algorithm::Sha512_224 => write!(f, "SHA-512/224"),
-            Algorithm::Sha512_256 => write!(f, "SHA-512/256"),
 
             // AEAD algorithms
             Algorithm::Saturnin => write!(f, "Saturnin"),

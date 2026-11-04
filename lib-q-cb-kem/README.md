@@ -51,14 +51,14 @@ for the "distribute one public key, reuse it for many encapsulations" pattern re
 Add this to your `Cargo.toml`:
 ```toml
 [dependencies]
-lib-q-cb-kem = { version = "0.0.11", path = "../lib-q-cb-kem" }  # from workspace root
+lib-q-cb-kem = { version = "0.0.12", path = "../lib-q-cb-kem" }  # from workspace root
 ```
 
 To use a specific Classic McEliece variant, you need to import it with the corresponding feature flag:
 
 ```toml
 [dependencies]
-lib-q-cb-kem = { version = "0.0.11", features = ["mceliece6960119"] }
+lib-q-cb-kem = { version = "0.0.12", features = ["mceliece6960119"] }
 ```
 
 Assuming this dependency, the simplest and most ergonomic way of using the library

@@ -42,8 +42,8 @@ GUARD = pathlib.Path(__file__).resolve().parent / "ci_guard_kat_provenance.py"
 VECTOR_BODY = "count = 0\nseed = 00112233\nss = AABBCCDD\n"
 
 
-def sha256_of(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+def sha3_256_of(text: str) -> str:
+    return hashlib.sha3_256(text.encode("utf-8")).hexdigest()
 
 
 def build_fixture(tmp: pathlib.Path) -> None:
@@ -63,7 +63,7 @@ extensions = ["rsp"]
 path = "vectors/fixture_regression_pin.rsp"
 origin = "self-generated"
 generator = "provenance guard self-test fixture"
-sha256 = "{sha256_of(content)}"
+sha3_256 = "{sha3_256_of(content)}"
 """.lstrip()
     (tmp / "kats-manifest.toml").write_text(manifest, encoding="utf-8")
 
@@ -80,7 +80,7 @@ def run_guard(tmp: pathlib.Path) -> tuple[int, str]:
 def rewrite_manifest_hash(tmp: pathlib.Path, new_hash: str) -> None:
     p = tmp / "kats-manifest.toml"
     lines = p.read_text(encoding="utf-8").splitlines()
-    out = [f'sha256 = "{new_hash}"' if ln.startswith("sha256 = ") else ln for ln in lines]
+    out = [f'sha3_256 = "{new_hash}"' if ln.startswith("sha3_256 = ") else ln for ln in lines]
     p.write_text("\n".join(out) + "\n", encoding="utf-8")
 
 
@@ -126,7 +126,7 @@ def mutate_header_contradicts_manifest(tmp: pathlib.Path) -> str:
     f = tmp / "vectors" / "fixture_regression_pin.rsp"
     content = "# authoritative upstream reference vectors, official NIST source\n" + VECTOR_BODY
     f.write_text(content, encoding="utf-8")
-    rewrite_manifest_hash(tmp, sha256_of(content))
+    rewrite_manifest_hash(tmp, sha3_256_of(content))
     return "CHECK 5"
 
 

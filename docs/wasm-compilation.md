@@ -31,7 +31,7 @@ Use `-C panic=abort` for release `wasm-pack` / `cdylib` builds to reduce binary 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 ```
 
-Bench-only crates (e.g. `fips204` next to `criterion` in `lib-q-ml-dsa`) belong in the same host-only block.
+Bench-only crates (e.g. `criterion` in `lib-q-ml-dsa`) belong in the same host-only block.
 
 ## Compilation modes
 

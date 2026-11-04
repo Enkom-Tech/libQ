@@ -89,7 +89,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
   - [x] Core implementation
   - [x] Key generation
   - [x] Signing/Verification
-  - [x] All 12 parameter sets (SHA2-128f/s, SHA2-192f/s, SHA2-256f/s, SHAKE-128f/s, SHAKE-192f/s, SHAKE-256f/s)
+  - [x] All 6 SHAKE parameter sets (SHAKE-128f/s, SHAKE-192f/s, SHAKE-256f/s); the SHA2 sets are not offered (no SHA-2)
   - [x] Complete test coverage
   - [ ] Performance optimization
 

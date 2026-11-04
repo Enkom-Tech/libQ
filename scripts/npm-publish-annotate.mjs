@@ -118,6 +118,10 @@ if (dual) {
   } else {
     pkg.files = ["*.js", "*.d.ts", "README.md"];
   }
+} else if (!stem && !hasWasm && pkg.exports && typeof pkg.exports === "object") {
+  // Hand-written npm/<name> package (@lib-q/types, @lib-q/jose): its package.json already
+  // declares exports, entry points and files[]. Keep them; rewriting them here dropped
+  // @lib-q/jose's `node` condition and its LICENSE entry.
 } else if (fs.existsSync(path.join(cwd, "index.js"))) {
   pkg.main = "./index.js";
   pkg.module = "./index.js";

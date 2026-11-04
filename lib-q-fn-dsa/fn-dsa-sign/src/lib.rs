@@ -56,7 +56,7 @@
 //!
 //! let mut sk = SigningKeyStandard::decode(encoded_signing_key)?;
 //! let mut sig = vec![0u8; signature_size(sk.get_logn())];
-//! sk.sign(&mut OsRng, &DOMAIN_NONE, &HASH_ID_RAW, b"message", &mut sig);
+//! sk.sign(&mut OsRng, &DOMAIN_NONE, &HASH_ID_RAW, b"message", &mut sig)?;
 //! ```
 
 mod flr;
@@ -74,15 +74,12 @@ pub use fn_dsa_comm::{
     HASH_ID_SHA3_256,
     HASH_ID_SHA3_384,
     HASH_ID_SHA3_512,
-    HASH_ID_SHA256,
-    HASH_ID_SHA384,
-    HASH_ID_SHA512,
-    HASH_ID_SHA512_256,
     HASH_ID_SHAKE128,
     HASH_ID_SHAKE256,
     HashIdentifier,
     Rng,
     RngError,
+    UnsupportedHashIdentifier,
     sign_key_size,
     signature_size,
     vrfy_key_size,
@@ -141,6 +138,11 @@ pub trait SigningKey: Sized {
     ///  - `sig`: the output slice for the generated signature; its size
     ///    MUST be exactly that expected for the key degree (see
     ///    `signature_size()`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`UnsupportedHashIdentifier`], without touching `sig` or `rng`, when `id` names
+    /// a SHA-2 function: lib-Q ships no SHA-2.
     fn sign<T: CryptoRng + Rng>(
         &mut self,
         rng: &mut T,
@@ -148,7 +150,7 @@ pub trait SigningKey: Sized {
         id: &HashIdentifier,
         hv: &[u8],
         sig: &mut [u8],
-    );
+    ) -> Result<(), UnsupportedHashIdentifier>;
 }
 
 macro_rules! sign_key_impl {
@@ -301,7 +303,10 @@ macro_rules! sign_key_impl {
                 id: &HashIdentifier,
                 hv: &[u8],
                 sig: &mut [u8],
-            ) {
+            ) -> Result<(), UnsupportedHashIdentifier> {
+                if id.is_sha2() {
+                    return Err(UnsupportedHashIdentifier);
+                }
                 let n = 1usize << self.logn;
 
                 #[cfg(all(not(feature = "no_avx2"), target_arch = "x86_64"))]
@@ -347,7 +352,7 @@ macro_rules! sign_key_impl {
                             &mut self.tmp_flr,
                         );
                     }
-                    return;
+                    return Ok(());
                 }
 
                 #[cfg(feature = "shake256x4")]
@@ -389,6 +394,7 @@ macro_rules! sign_key_impl {
                     &mut self.tmp_u16,
                     &mut self.tmp_flr,
                 );
+                Ok(())
             }
         }
     };

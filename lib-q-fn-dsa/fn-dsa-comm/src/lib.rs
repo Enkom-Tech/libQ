@@ -109,6 +109,30 @@ pub const fn signature_size(logn: u32) -> usize {
 /// (i.e. not pre-hashed at all); it uses a single byte of value 0x00.
 pub struct HashIdentifier<'a>(pub &'a [u8]);
 
+/// DER prefix of the NIST `hashAlgs` arc 2.16.840.1.101.3.4.2 (tag, length, first nine bytes).
+const NIST_HASH_ALGS_PREFIX: [u8; 10] =
+    [0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02];
+
+impl HashIdentifier<'_> {
+    /// Whether this identifier names a SHA-2 function: SHA-256, SHA-384, SHA-512, SHA-224,
+    /// SHA-512/224 or SHA-512/256 (`hashAlgs` arcs 1 to 6). lib-Q ships no SHA-2, so signing
+    /// refuses these identifiers.
+    pub fn is_sha2(&self) -> bool {
+        self.0.len() == 11 && self.0[..10] == NIST_HASH_ALGS_PREFIX && (1..=6).contains(&self.0[10])
+    }
+}
+
+/// Error returned when signing is asked to use a pre-hash identifier lib-Q refuses: any SHA-2
+/// function (see [`HashIdentifier::is_sha2`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct UnsupportedHashIdentifier;
+
+impl core::fmt::Display for UnsupportedHashIdentifier {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("SHA-2 pre-hash identifiers are not supported: lib-Q ships no SHA-2")
+    }
+}
+
 /// Hash function identifier: none.
 ///
 /// This is the identifier used internally to specify that signature
@@ -121,26 +145,6 @@ pub const HASH_ID_RAW: HashIdentifier = HashIdentifier(&[0x00]);
 // critical security vulnerability that could enable cross-protocol attacks.
 // All operations now use proper FN-DSA domain separation as specified
 // in the NIST standard.
-
-/// Hash function identifier: SHA-256
-pub const HASH_ID_SHA256: HashIdentifier = HashIdentifier(&[
-    0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x01,
-]);
-
-/// Hash function identifier: SHA-384
-pub const HASH_ID_SHA384: HashIdentifier = HashIdentifier(&[
-    0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x02,
-]);
-
-/// Hash function identifier: SHA-512
-pub const HASH_ID_SHA512: HashIdentifier = HashIdentifier(&[
-    0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x03,
-]);
-
-/// Hash function identifier: SHA-512-256
-pub const HASH_ID_SHA512_256: HashIdentifier = HashIdentifier(&[
-    0x06, 0x09, 0x60, 0x86, 0x48, 0x01, 0x65, 0x03, 0x04, 0x02, 0x06,
-]);
 
 /// Hash function identifier: SHA3-256
 pub const HASH_ID_SHA3_256: HashIdentifier = HashIdentifier(&[

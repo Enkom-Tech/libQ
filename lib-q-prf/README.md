@@ -22,7 +22,7 @@ This crate does **not** implement full anonymous ring signatures; [`lib-q-ring-s
 ## Tests and KATs
 
 - [`tests/reference_vectors.txt`](tests/reference_vectors.txt) — hex KATs; regenerate with [`scripts/gen_prf_kat.py`](../scripts/gen_prf_kat.py) (requires SymPy).
-- SHA-256 fingerprints of modulus encodings catch typos in `params.rs`.
+- SHA3-256 fingerprints of modulus encodings catch typos in `params.rs`.
 
 ## Documentation
 

@@ -16,7 +16,7 @@
 //! cargo test -p lib-q-maul --test kat -- --ignored --nocapture regenerate_vectors
 //! ```
 //!
-//! then paste the printed file over `tests/vectors/maul_kat.txt` and update the `sha256` in
+//! then paste the printed file over `tests/vectors/maul_kat.txt` and update the `sha3_256` in
 //! `kats-manifest.toml`. A regeneration that changes any existing line is a WIRE-FORMAT BREAK,
 //! not a test fix.
 

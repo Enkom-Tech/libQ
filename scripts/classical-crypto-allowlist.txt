@@ -19,11 +19,9 @@
 # and it happens on the member's own manifest, which is where these lines live.
 
 # --- Standardised parameter sets that are defined over classical primitives --------------
-# FIPS 205 specifies SLH-DSA in two hash families, SHAKE and SHA-2. Implementing the SHA-2
-# parameter sets requires SHA-2; it is the standard, not a fallback.
-lib-q-slh-dsa | sha2 | JUSTIFIED | FIPS 205 SLH-DSA-SHA2 parameter sets (src/hashes/sha2.rs, const_oid::db::fips205)
-lib-q-sig     | sha2 | JUSTIFIED | optional, enabled only by the `slh-dsa` feature which forwards to lib-q-slh-dsa's SHA-2 parameter sets
-
+# lib-Q ships no SHA-2 at all, not even for the FIPS 205 SLH-DSA-SHA2 parameter sets or for
+# test-vector checksums: only the SHAKE parameter sets are implemented.
+#
 # MAYO expands its public matrices with AES-128-CTR (zero IV, big-endian block counter),
 # matching aes128ctr.c in the reference implementation. Substituting a PQ primitive would
 # produce a different, non-interoperable scheme.
@@ -36,14 +34,7 @@ lib-q-cb-kem | aes | JUSTIFIED | NIST SP 800-90A CTR_DRBG (AES-256, no df) for K
 lib-q-hqc    | aes | JUSTIFIED | NIST SP 800-90A AES-256-CTR-DRBG, optional, for KAT reproduction (src/aes_ctr_drbg.rs)
 lib-q-random | aes | JUSTIFIED | optional AES-256-CTR-DRBG used for deterministic KAT seeding (src/entropy.rs)
 
-# --- Deliberate interoperability surface -------------------------------------------------
-# lib-q-hash exports the SHA-2 family alongside SHA-3/Keccak so callers can interoperate
-# with existing systems. Documented as such at the top of the module.
-lib-q-hash | sha2 | JUSTIFIED | FIPS 180-4 SHA-2 wrappers exported for interoperability (src/sha2_hashes.rs)
-
 # --- Test-only: comparing against upstream / reference vectors ---------------------------
 # dev-dependencies do not ship to users.
-lib-q-fn-dsa/fn-dsa-kgen | sha2 | JUSTIFIED | dev-only; upstream test vectors are checksummed with SHA-2
-lib-q-prf                | sha2 | JUSTIFIED | dev-only; accept_reference_vectors.rs checks published reference vectors
 lib-q-slh-dsa            | aes  | JUSTIFIED | dev-only; KAT harness DRBG
 

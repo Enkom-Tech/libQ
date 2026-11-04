@@ -46,11 +46,8 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        if command -v sha256sum >/dev/null 2>&1; then
-          echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-        else
-          echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-        fi
+        # SHA3-256: lib-Q uses no SHA-2, not even for CI cache keys.
+        echo "hash=$(rustc -vV | python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())')" >> "$GITHUB_OUTPUT"
 
     - name: Compute cache-key fragment
       id: cache-frag
@@ -60,15 +57,16 @@ runs:
         CACHE_EPOCH: "v2"
       run: |
         set -euo pipefail
-        # SHA-256 of features — actions/cache rejects keys containing commas.
+        # SHA3-256 of features — actions/cache rejects keys containing commas.
         payload=$(printf '%s\n%s\n' "$FEATURES" "$CACHE_EPOCH")
-        if command -v sha256sum >/dev/null 2>&1; then
-          hash=$(printf '%s' "$payload" | sha256sum | awk '{print $1}')
-        else
-          hash=$(printf '%s' "$payload" | shasum -a 256 | awk '{print $1}')
-        fi
+        hash=$(printf '%s' "$payload" | python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())')
         echo "hash=$hash" >> "$GITHUB_OUTPUT"
 
+    - name: Cargo.lock fingerprint (SHA3-256)
+      id: lockfp5
+      shell: bash
+      # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+      run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat rust-toolchain.toml /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
     - name: Cache dependencies
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
       with:
@@ -76,7 +74,7 @@ runs:
           ~/.cargo/registry
           ~/.cargo/git
           target
-        key: ${{ runner.os }}-cb-kem-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}-${{ steps.cache-frag.outputs.hash }}
+        key: ${{ runner.os }}-cb-kem-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-${{ steps.lockfp5.outputs.hash }}-${{ steps.cache-frag.outputs.hash }}
         restore-keys: |
           ${{ runner.os }}-cb-kem-${{ inputs.rust-version }}-${{ steps.toolchain-fp.outputs.hash }}-
     

@@ -126,7 +126,7 @@ pub enum Error {
     ///
     /// **When it occurs:** A hash output has an incorrect size.
     /// **Cause:** The hash size doesn't match the expected output length for the hash function.
-    /// **Resolution:** Ensure the hash size matches the algorithm's output length (e.g., SHA-256 = 32 bytes).
+    /// **Resolution:** Ensure the hash size matches the algorithm's output length (e.g., SHA3-256 = 32 bytes).
     InvalidHashSize { expected: usize, actual: usize },
 
     /// Invalid algorithm

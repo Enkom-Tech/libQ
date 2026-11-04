@@ -247,7 +247,8 @@ fn run_case<KG: KeyPairGenerator, SK: SigningKey, VK: VerifyingKey>(
     let v = VK::decode(vk).expect("verifying key must decode");
     let dom = DomainContext(b"domain");
     if (num & 1) == 0 {
-        s.sign(&mut rng2, &dom, &HASH_ID_RAW, b"message", sig);
+        s.sign(&mut rng2, &dom, &HASH_ID_RAW, b"message", sig)
+            .unwrap();
         assert!(
             v.verify(sig, &dom, &HASH_ID_RAW, b"message"),
             "self-verification failed"
@@ -256,7 +257,8 @@ fn run_case<KG: KeyPairGenerator, SK: SigningKey, VK: VerifyingKey>(
         let mut sh = SHA3_256::new();
         sh.update(&b"message"[..]);
         let hv = sh.digest();
-        s.sign(&mut rng2, &dom, &HASH_ID_SHA3_256, &hv, sig);
+        s.sign(&mut rng2, &dom, &HASH_ID_SHA3_256, &hv, sig)
+            .unwrap();
         assert!(
             v.verify(sig, &dom, &HASH_ID_SHA3_256, &hv),
             "self-verification failed"

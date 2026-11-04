@@ -213,7 +213,17 @@ The following classical algorithms are explicitly forbidden in lib-Q:
 - **SHA-1**: Practically broken (collision attacks)
 - **SHA-256 / SHA-512** (SHA-2 family): Grover's algorithm halves the effective security level — SHA-256 is reduced to 128-bit security against quantum adversaries, which falls below the required margin for new designs. lib-Q uses the SHA-3 / Keccak family exclusively for hash-based constructions.
 
-  Note: SHA-2 may still appear inside third-party crates as part of TLS record MAC or HKDF where no lib-Q-controlled path is involved. Those usages are not sanctioned for security-critical lib-Q operations.
+  lib-Q ships no SHA-2: no crate depends on `sha2` (normal, build or dev; `cargo tree --workspace --all-features -i sha2` matches nothing), no SLH-DSA SHA2 parameter set or FN-DSA SHA-2 pre-hash identifier is accepted, and test-vector and provenance pins use SHA3-256.
+
+  **Exception: browser-mandated integrity digests (release packaging only), approved by the project owner.** One place outside the library still computes SHA-2, because the consumer it serves accepts nothing else:
+
+  - **npm Subresource Integrity.** [`scripts/npm-publish-annotate.mjs`](../scripts/npm-publish-annotate.mjs) writes `integrity-manifest.json` with SHA-384 digests of the packaged `.wasm` files ([wasm-security-model.md](wasm-security-model.md#subresource-integrity-sri)). The W3C SRI specification allows only `sha256`, `sha384` and `sha512`, so a browser cannot check a SHA-3 value.
+
+  It touches no key, signature, or anything a lib-Q primitive computes. It is an integrity label for a browser to check. This exception covers only this release-packaging script. Any new SHA-2 use needs its own approved entry here.
+
+  Every digest this repository computes itself uses SHA3-256: [`scripts/build-wasm.ps1`](../scripts/build-wasm.ps1) writes `<name>.wasm.sha3-256` checksum files, and every CI cache key is built from SHA3-256 fingerprints (toolchain, feature strings, and the tracked `Cargo.lock` files; GitHub's built-in `hashFiles()` is SHA-256 and is not used).
+
+  Third-party tooling still uses SHA-256 internally where lib-Q does not choose the algorithm: cargo's registry `checksum` fields in `Cargo.lock`. That is not lib-Q output.
 
 #### Forbidden Symmetric Ciphers
 - **AES-128**: Grover's algorithm reduces security to approximately 64 bits — not acceptable for post-quantum use.

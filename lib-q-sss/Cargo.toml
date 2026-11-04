@@ -21,7 +21,7 @@ zeroize = { workspace = true, default-features = false, features = ["derive"] }
 rand_core = { workspace = true }
 thiserror = { workspace = true }
 # Only pulled in under `sca-test`, for the dudect-style constant-time smoke test.
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.11", default-features = false, optional = true }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.12", default-features = false, optional = true }
 
 [dev-dependencies]
 rand = { workspace = true, features = ["std", "thread_rng"] }

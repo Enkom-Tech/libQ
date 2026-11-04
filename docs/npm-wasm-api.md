@@ -28,21 +28,19 @@ KEM façade over ML-KEM (and optional features in custom builds). See generated 
 
 ML-DSA / SLH-DSA WASM paths enabled in CD (`wasm`, `ml-dsa`). See `lib_q_sig.d.ts` under `pkg-sig/web` or `pkg-sig/nodejs`.
 
-`MlDsa.ml_dsa_65()` is exported from current source, followed by
-`verify_with_context_wasm(publicKey, message, context, signature)`. Published
-`@lib-q/sig@0.0.11` has the instance methods but **no JavaScript factory**; it
-cannot be used to construct this verifier. The Node JOSE adapter below requires
-the patched companion build, not that published artifact.
+`MlDsa.ml_dsa_65()` constructs an ML-DSA-65 instance, followed by
+`verify_with_context_wasm(publicKey, message, context, signature)`. The factory
+ships from 0.0.12 on; `@lib-q/sig@0.0.11` had the instance methods but no
+JavaScript factory, so it cannot back the Node JOSE adapter below.
 
-## `@lib-q/jose` (Node prerelease)
+## `@lib-q/jose` (Node)
 
 `npm/lib-q-jose` wraps ML-DSA-65 for RFC 9964 compact JWS and OIDC ID tokens:
 `importAkpJwk`, `verifyCompactJws`, and `verifyIdToken`. No classical fallback.
-The package and its companion sig build use `0.0.11-jose.0` tarballs pending
-coordinated release; neither is claimed to be published. See the
-[package README](../npm/lib-q-jose/README.md) for exact build/install commands,
-verification status, and Hive/aerax-app integration. This prerelease is an
-exception to the stable workspace-version examples below.
+It ships at the workspace version with an exact dependency on `@lib-q/sig` at the
+same version (first release: 0.0.12). See the
+[package README](../npm/lib-q-jose/README.md) for install and build commands,
+verification status, and relying-party integration.
 
 ## `@lib-q/fn-dsa`
 
@@ -246,11 +244,11 @@ TypeScript-only (`index.d.ts`, `index.js`). No WASM. Shared interfaces for cross
 
 ## Versioning
 
-All packages share the workspace version on release — currently **0.0.11** (the single source of
+All packages share the workspace version on release — currently **0.0.12** (the single source of
 truth is `version` under `[workspace.package]` in the root `Cargo.toml`). Pin in production:
 
 ```bash
-npm install @lib-q/core@0.0.11 @lib-q/zkp@0.0.11
+npm install @lib-q/core@0.0.12 @lib-q/zkp@0.0.12
 ```
 
 ## Security

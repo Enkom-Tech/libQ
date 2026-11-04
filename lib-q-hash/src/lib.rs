@@ -66,7 +66,6 @@ mod kmac;
 mod parallelhash;
 #[cfg(feature = "alloc")]
 mod provider;
-mod sha2_hashes;
 mod shake;
 mod tuplehash;
 mod turbo_shake;
@@ -95,14 +94,6 @@ pub use parallelhash::{
 // Re-export provider
 #[cfg(feature = "alloc")]
 pub use provider::LibQHashProvider;
-pub use sha2_hashes::{
-    Sha224Hash,
-    Sha256Hash,
-    Sha384Hash,
-    Sha512_224Hash,
-    Sha512_256Hash,
-    Sha512Hash,
-};
 pub use shake::{
     Shake128 as InternalShake128,
     Shake128Reader as InternalShake128Reader,
@@ -212,18 +203,6 @@ pub enum HashAlgorithm {
     ParallelHash128,
     /// ParallelHash256
     ParallelHash256,
-    /// SHA-224
-    Sha224,
-    /// SHA-256
-    Sha256,
-    /// SHA-384
-    Sha384,
-    /// SHA-512
-    Sha512,
-    /// SHA-512/224
-    Sha512_224,
-    /// SHA-512/256
-    Sha512_256,
 }
 
 impl HashAlgorithm {
@@ -252,12 +231,6 @@ impl HashAlgorithm {
             HashAlgorithm::TupleHash256 => 32,
             HashAlgorithm::ParallelHash128 => 16,
             HashAlgorithm::ParallelHash256 => 32,
-            HashAlgorithm::Sha224 => 28,
-            HashAlgorithm::Sha256 => 32,
-            HashAlgorithm::Sha384 => 48,
-            HashAlgorithm::Sha512 => 64,
-            HashAlgorithm::Sha512_224 => 28,
-            HashAlgorithm::Sha512_256 => 32,
         }
     }
 }
@@ -288,12 +261,6 @@ pub fn available_algorithms() -> Vec<&'static str> {
         "tuplehash256",
         "parallelhash128",
         "parallelhash256",
-        "sha-224",
-        "sha-256",
-        "sha-384",
-        "sha-512",
-        "sha-512/224",
-        "sha-512/256",
     ]
 }
 
@@ -322,12 +289,6 @@ pub fn algorithm_to_hash_algorithm(algorithm: Algorithm) -> Result<HashAlgorithm
         Algorithm::TupleHash256 => Ok(HashAlgorithm::TupleHash256),
         Algorithm::ParallelHash128 => Ok(HashAlgorithm::ParallelHash128),
         Algorithm::ParallelHash256 => Ok(HashAlgorithm::ParallelHash256),
-        Algorithm::Sha224 => Ok(HashAlgorithm::Sha224),
-        Algorithm::Sha256 => Ok(HashAlgorithm::Sha256),
-        Algorithm::Sha384 => Ok(HashAlgorithm::Sha384),
-        Algorithm::Sha512 => Ok(HashAlgorithm::Sha512),
-        Algorithm::Sha512_224 => Ok(HashAlgorithm::Sha512_224),
-        Algorithm::Sha512_256 => Ok(HashAlgorithm::Sha512_256),
         _ => Err(lib_q_core::Error::InvalidAlgorithm {
             algorithm: "Algorithm is not a hash algorithm",
         }),
@@ -359,12 +320,6 @@ pub fn create_hash(algorithm: HashAlgorithm) -> Result<Box<dyn lib_q_core::Hash>
         HashAlgorithm::Keccak512 => Ok(Box::new(Keccak512Hash::new())),
         HashAlgorithm::TurboShake128 => Ok(Box::new(TurboShake128Hash::new())),
         HashAlgorithm::TurboShake256 => Ok(Box::new(TurboShake256Hash::new())),
-        HashAlgorithm::Sha224 => Ok(Box::new(Sha224Hash::new())),
-        HashAlgorithm::Sha256 => Ok(Box::new(Sha256Hash::new())),
-        HashAlgorithm::Sha384 => Ok(Box::new(Sha384Hash::new())),
-        HashAlgorithm::Sha512 => Ok(Box::new(Sha512Hash::new())),
-        HashAlgorithm::Sha512_224 => Ok(Box::new(Sha512_224Hash::new())),
-        HashAlgorithm::Sha512_256 => Ok(Box::new(Sha512_256Hash::new())),
     }
 }
 
@@ -431,18 +386,6 @@ mod tests {
         assert!(algorithms.contains(&"keccak256"));
         assert!(algorithms.contains(&"keccak384"));
         assert!(algorithms.contains(&"keccak512"));
-        assert!(algorithms.contains(&"sha-256"));
-    }
-
-    #[test]
-    fn test_sha256_known_answer() {
-        let h = Sha256Hash::new();
-        let out = h.hash(b"").expect("sha256");
-        assert_eq!(out.len(), 32);
-        assert_eq!(
-            out.as_slice(),
-            hex_literal::hex!("e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855")
-        );
     }
 
     #[test]
@@ -474,6 +417,11 @@ mod tests {
     }
 
     #[test]
+    fn sha2_names_are_not_listed() {
+        assert!(!available_algorithms().iter().any(|a| a.starts_with("sha-")));
+    }
+
+    #[test]
     fn hash_algorithm_output_size_exhaustive() {
         use HashAlgorithm::*;
         let all = [
@@ -499,12 +447,6 @@ mod tests {
             TupleHash256,
             ParallelHash128,
             ParallelHash256,
-            Sha224,
-            Sha256,
-            Sha384,
-            Sha512,
-            Sha512_224,
-            Sha512_256,
         ];
         for a in all {
             assert!(a.output_size() > 0);
@@ -537,12 +479,6 @@ mod tests {
             Keccak512,
             TurboShake128,
             TurboShake256,
-            Sha224,
-            Sha256,
-            Sha384,
-            Sha512,
-            Sha512_224,
-            Sha512_256,
         ];
         for alg in variants {
             let h = create_hash(alg.clone()).expect("create_hash");
@@ -565,8 +501,6 @@ mod tests {
             (Algorithm::Kt256, HashAlgorithm::Kt256),
             (Algorithm::Keccak256, HashAlgorithm::Keccak256),
             (Algorithm::TurboShake128, HashAlgorithm::TurboShake128),
-            (Algorithm::Sha256, HashAlgorithm::Sha256),
-            (Algorithm::Sha512_256, HashAlgorithm::Sha512_256),
         ];
         for (core, expected) in pairs {
             assert_eq!(algorithm_to_hash_algorithm(core).unwrap(), expected);

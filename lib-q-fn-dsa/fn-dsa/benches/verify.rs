@@ -44,7 +44,8 @@ fn bench_verify(logn: u32) -> (f64, u8) {
             &HASH_ID_RAW,
             &msg,
             &mut sig[..sig_len],
-        );
+        )
+        .unwrap();
     }
 
     let vk = VerifyingKeyStandard::decode(vk_e).unwrap();
@@ -86,7 +87,8 @@ fn bench_verify_full(logn: u32) -> (f64, u8) {
             &HASH_ID_RAW,
             &msg,
             &mut sig[..sig_len],
-        );
+        )
+        .unwrap();
     }
 
     let mut tt = [0; 10];

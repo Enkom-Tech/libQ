@@ -2,41 +2,39 @@
 
 Compact JWS and OIDC ID token verification using lib-q-sig's WASM primitive.
 Node 20+; ESM; no browser build, classical signature fallback, userinfo fallback,
-or new signature implementation. SHA-256 is used only for the RFC 7638 key
-identifier, not for signing or prehashing the JWS.
+or new signature implementation. SHA3-256 is used only for the RFC 7638 key
+identifier, not for signing or prehashing the JWS. No SHA-2 is used anywhere.
 
-## Distribution and the required sig build
-
-This package uses **0.0.11-jose.0** for both tarballs. They are not claimed to be
-published on npm. Install **both** tarballs together; the exact dependency pin
-prevents npm from silently using the broken published build.
-
-Published `@lib-q/sig@0.0.11` includes `verify_with_context_wasm`, but exposes no
-`MlDsa` constructor or factory (its declaration has `private constructor()`).
-This package exports the existing `MlDsa.ml_dsa_65()` factory; it does not change
-Rust keygen/sign/verify semantics. A version of sig built with this factory export is
-required. Once a coordinated stable release contains the factory, replace the
-prerelease dependency with that exact released version, not stock 0.0.11.
-
-Build the companion Node tarball from the repository root with the repository's
-Rust toolchain, wasm-pack, and npm available:
+## Install
 
 ```sh
-export LIBQ="$PWD"
+npm install @lib-q/jose@0.0.12
+```
+
+`@lib-q/jose` is released with the rest of lib-Q at the workspace version and
+depends on `@lib-q/sig` at exactly the same version. It needs the
+`MlDsa.ml_dsa_65()` factory, which `@lib-q/sig` exports from 0.0.12 on
+(`@lib-q/sig@0.0.11` has no JavaScript factory), so 0.0.12 is the first usable
+pair.
+
+## Building and testing from source
+
+From the repository root, with the repository's Rust toolchain, wasm-pack and
+npm available, build the companion `@lib-q/sig` Node package the way CD does
+and test against it:
+
+```sh
+export LIBQ="$PWD" VERSION=0.0.12
 wasm-pack build lib-q-sig --target nodejs --out-dir ../target/jose-sig -- --features wasm,ml-dsa
 cd "$LIBQ/target/jose-sig"
-npm pkg set 'name=@lib-q/sig' 'version=0.0.11-jose.0'
+npm pkg set 'name=@lib-q/sig' "version=$VERSION"
 NPM_PUBLISH_STEM=lib_q_sig node "$LIBQ/scripts/npm-publish-annotate.mjs"
 npm pack --ignore-scripts
 cd "$LIBQ/npm/lib-q-jose"
-npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund "$LIBQ/target/jose-sig/lib-q-sig-0.0.11-jose.0.tgz"
+npm install --no-save --package-lock=false --ignore-scripts --no-audit --no-fund "$LIBQ/target/jose-sig/lib-q-sig-$VERSION.tgz"
 npm test
 npm pack --ignore-scripts
 ```
-
-Distribute the pair of tarballs as release attachments, or publish both
-versions together. Neither is included here. Do not publish a package
-claiming to work with the unpatched sig build.
 
 ## API
 
@@ -58,8 +56,12 @@ const claims = await verifyIdToken(idToken, {
 
 - `importAkpJwk`: accepts public RFC 9964 `kty: "AKP"`, `alg: "ML-DSA-65"`,
   `pub` only. Public key length is 1952 bytes. Rejects `priv`, incompatible
-  `use`/`key_ops`, and noncanonical base64url. Thumbprint is SHA-256 of canonical
-  `{"alg":"ML-DSA-65","kty":"AKP","pub":"..."}`. Returned `kid` defaults to
+  `use`/`key_ops`, and noncanonical base64url. Thumbprint is SHA3-256 of canonical
+  `{"alg":"ML-DSA-65","kty":"AKP","pub":"..."}`, base64url-encoded.
+  RFC 7638 leaves the hash to the application. This differs from the common
+  SHA-256 thumbprint, so a `kid` computed elsewhere with SHA-256 will not match.
+  In RFC 9278 URI form the hash name is `sha3-256`:
+  `urn:ietf:params:oauth:jwk-thumbprint:sha3-256:<thumbprint>`. Returned `kid` defaults to
   the thumbprint if absent; an issuer-supplied `kid` need not equal it.
 - `verifyCompactJws`: synchronous; returns authenticated **Uint8Array bytes**,
   not parsed JSON. Requires the exact algorithm allowlist shown. Requires a
@@ -91,8 +93,8 @@ revocation is required.
 
 ## Integrating with an OIDC relying party
 
-Install the same pair of reviewed tarballs into the server workspace (or pin the
-coordinated npm versions when released). Keep this package server-side; it loads
+Install `@lib-q/jose` in the server workspace; it pulls in `@lib-q/sig` at the
+same exact version. Keep this package server-side; it loads
 Node's WASM glue and is not an Edge/browser verifier.
 
 In a relying party's OIDC callback (for example, a `jose`-based `jwtVerify` call
@@ -117,15 +119,15 @@ is integration guidance only.
 
 ## Scratch plain-JavaScript install / verify
 
-After building the two tarballs above, with `LIBQ` still set:
+After building the two tarballs above, with `LIBQ` and `VERSION` still set:
 
 ```sh
 mkdir -p /tmp/libq-jose-smoke
 cd /tmp/libq-jose-smoke
 npm init -y
 npm install --ignore-scripts --no-audit --no-fund \
-  "$LIBQ/target/jose-sig/lib-q-sig-0.0.11-jose.0.tgz" \
-  "$LIBQ/npm/lib-q-jose/lib-q-jose-0.0.11-jose.0.tgz"
+  "$LIBQ/target/jose-sig/lib-q-sig-$VERSION.tgz" \
+  "$LIBQ/npm/lib-q-jose/lib-q-jose-$VERSION.tgz"
 node --input-type=module <<'JS'
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';

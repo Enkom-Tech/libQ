@@ -202,20 +202,8 @@ impl SignatureOperations for LibQSignatureProvider {
 
             // SLH-DSA algorithms
             #[cfg(feature = "slh-dsa")]
-            Algorithm::SlhDsaSha256128fRobust => {
-                let slh_dsa = SlhDsa::new();
-                slh_dsa.generate_keypair_for_algorithm(algorithm, randomness)
-            }
             #[cfg(feature = "slh-dsa")]
-            Algorithm::SlhDsaSha256192fRobust => {
-                let slh_dsa = SlhDsa::new();
-                slh_dsa.generate_keypair_for_algorithm(algorithm, randomness)
-            }
             #[cfg(feature = "slh-dsa")]
-            Algorithm::SlhDsaSha256256fRobust => {
-                let slh_dsa = SlhDsa::new();
-                slh_dsa.generate_keypair_for_algorithm(algorithm, randomness)
-            }
             #[cfg(feature = "slh-dsa")]
             Algorithm::SlhDsaShake256128fRobust => {
                 let slh_dsa = SlhDsa::new();
@@ -246,9 +234,6 @@ impl SignatureOperations for LibQSignatureProvider {
                 })
             }
             #[cfg(not(feature = "slh-dsa"))]
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
@@ -352,9 +337,6 @@ impl SignatureOperations for LibQSignatureProvider {
 
             // SLH-DSA algorithms
             #[cfg(feature = "slh-dsa")]
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => {
@@ -376,9 +358,6 @@ impl SignatureOperations for LibQSignatureProvider {
                 })
             }
             #[cfg(not(feature = "slh-dsa"))]
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
@@ -454,9 +433,6 @@ impl SignatureOperations for LibQSignatureProvider {
 
             // SLH-DSA algorithms
             #[cfg(feature = "slh-dsa")]
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => {
@@ -478,9 +454,6 @@ impl SignatureOperations for LibQSignatureProvider {
                 })
             }
             #[cfg(not(feature = "slh-dsa"))]
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
@@ -706,7 +679,7 @@ mod tests {
         // Test SLH-DSA without feature flag
         #[cfg(not(feature = "slh-dsa"))]
         {
-            let result = _provider.generate_keypair(Algorithm::SlhDsaSha256128fRobust, None);
+            let result = _provider.generate_keypair(Algorithm::SlhDsaShake256128fRobust, None);
             assert!(
                 result.is_err(),
                 "Should return error when feature flag is not enabled"
@@ -770,7 +743,7 @@ mod tests {
 
         #[cfg(feature = "slh-dsa")]
         {
-            let result = provider.generate_keypair(Algorithm::SlhDsaSha256128fRobust, None);
+            let result = provider.generate_keypair(Algorithm::SlhDsaShake256128fRobust, None);
             // Should either succeed or return NotImplemented (depending on std feature)
             match result {
                 Ok(_) => {

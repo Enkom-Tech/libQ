@@ -38,8 +38,8 @@ def gold_prf(k: int, x: int, g: int, p: int) -> int:
     return pow((k + x) % p, g, p)
 
 
-def sha256_le_uint(data: bytes) -> str:
-    return hashlib.sha256(data).hexdigest()
+def sha3_256_le_uint(data: bytes) -> str:
+    return hashlib.sha3_256(data).hexdigest()
 
 
 def emit_set(name: str, p: int) -> None:
@@ -54,8 +54,8 @@ def emit_set(name: str, p: int) -> None:
     else:
         assert p.bit_length() <= 512
         p_le_padded = p_le.ljust(64, b"\x00")
-    label = "SHA256_P256_LE" if name == "256" else "SHA256_P512_LE"
-    print(f"{label}={sha256_le_uint(p_le_padded)}")
+    label = "SHA3_256_P256_LE" if name == "256" else "SHA3_256_P512_LE"
+    print(f"{label}={sha3_256_le_uint(p_le_padded)}")
     k = 0x123456789ABCDEF % p
     if k == 0:
         k = 1

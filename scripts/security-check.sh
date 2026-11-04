@@ -27,8 +27,8 @@
 # because most of them could not be made meaningful:
 #
 #   * "No classical cryptographic algorithms" -- premise is false. 21 tracked files use
-#     one, nearly all because a standard says to (FIPS 205 SLH-DSA-SHA2, MAYO's AES-CTR
-#     matrix expansion, NIST KAT AES-CTR-DRBGs). Repointed as written it would fail on
+#     one, nearly all because a standard says to (MAYO's AES-CTR matrix expansion, NIST
+#     KAT AES-CTR-DRBGs). Repointed as written it would fail on
 #     correct code. It is now a RATCHET over a reviewed allowlist -- see below.
 #   * "SHA-3 family compliance" (`use.*sha[0-9]` minus shake/cshake) -- would match this
 #     repo's own `use lib_q_sha3::...`, i.e. flag the compliant crate as a violation.

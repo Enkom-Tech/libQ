@@ -187,12 +187,6 @@ mod tests {
         if let Ok(hash) = result {
             assert_eq!(hash.len(), 32, "SHAKE256 should produce 32-byte hash");
         }
-
-        let result = HashOperations::hash(&provider, Algorithm::Sha256, test_data);
-        assert!(result.is_ok(), "SHA-256 should work");
-        if let Ok(hash) = result {
-            assert_eq!(hash.len(), 32, "SHA-256 should produce 32-byte hash");
-        }
     }
 
     /// Hash inputs are not subject to the AEAD default binding cap (formerly 1 MiB for all payloads).

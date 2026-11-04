@@ -211,33 +211,6 @@ impl AlgorithmRegistry {
 
         // SLH-DSA algorithms
         self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SlhDsaSha256128fRobust,
-            category: AlgorithmCategory::Signature,
-            security_level: 1,
-            name: "SLH-DSA-SHA256-128f-Robust",
-            description: "SLH-DSA SHA256 Level 1 (128-bit security)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SlhDsaSha256192fRobust,
-            category: AlgorithmCategory::Signature,
-            security_level: 3,
-            name: "SLH-DSA-SHA256-192f-Robust",
-            description: "SLH-DSA SHA256 Level 3 (192-bit security)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::SlhDsaSha256256fRobust,
-            category: AlgorithmCategory::Signature,
-            security_level: 5,
-            name: "SLH-DSA-SHA256-256f-Robust",
-            description: "SLH-DSA SHA256 Level 5 (256-bit security)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
             algorithm: Algorithm::SlhDsaShake256128fRobust,
             category: AlgorithmCategory::Signature,
             security_level: 1,
@@ -464,61 +437,6 @@ impl AlgorithmRegistry {
             enabled: true,
         });
 
-        // SHA-2 algorithms
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Sha224,
-            category: AlgorithmCategory::Hash,
-            security_level: 0,
-            name: "SHA-224",
-            description: "SHA-224 hash function",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Sha256,
-            category: AlgorithmCategory::Hash,
-            security_level: 0,
-            name: "SHA-256",
-            description: "SHA-256 hash function",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Sha384,
-            category: AlgorithmCategory::Hash,
-            security_level: 0,
-            name: "SHA-384",
-            description: "SHA-384 hash function",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Sha512,
-            category: AlgorithmCategory::Hash,
-            security_level: 0,
-            name: "SHA-512",
-            description: "SHA-512 hash function",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Sha512_224,
-            category: AlgorithmCategory::Hash,
-            security_level: 0,
-            name: "SHA-512/224",
-            description: "SHA-512/224 hash function (truncated)",
-            enabled: true,
-        });
-
-        self.register(AlgorithmMetadata {
-            algorithm: Algorithm::Sha512_256,
-            category: AlgorithmCategory::Hash,
-            security_level: 0,
-            name: "SHA-512/256",
-            description: "SHA-512/256 hash function (truncated)",
-            enabled: true,
-        });
-
         // TurboSHAKE algorithms
         self.register(AlgorithmMetadata {
             algorithm: Algorithm::TurboShake128,
@@ -729,12 +647,28 @@ impl AlgorithmRegistry {
                 Algorithm::FnDsa1024,
             ],
             AlgorithmCategory::Hash => &[
-                Algorithm::Sha224,
-                Algorithm::Sha256,
-                Algorithm::Sha384,
-                Algorithm::Sha512,
-                Algorithm::Sha512_224,
-                Algorithm::Sha512_256,
+                Algorithm::Sha3_224,
+                Algorithm::Sha3_256,
+                Algorithm::Sha3_384,
+                Algorithm::Sha3_512,
+                Algorithm::Shake128,
+                Algorithm::Shake256,
+                Algorithm::CShake128,
+                Algorithm::CShake256,
+                Algorithm::Kmac128,
+                Algorithm::Kmac256,
+                Algorithm::TupleHash128,
+                Algorithm::TupleHash256,
+                Algorithm::ParallelHash128,
+                Algorithm::ParallelHash256,
+                Algorithm::Keccak224,
+                Algorithm::Keccak256,
+                Algorithm::Keccak384,
+                Algorithm::Keccak512,
+                Algorithm::Kt128,
+                Algorithm::Kt256,
+                Algorithm::TurboShake128,
+                Algorithm::TurboShake256,
             ],
             AlgorithmCategory::Aead => &[
                 Algorithm::Saturnin,
@@ -895,10 +829,28 @@ pub fn algorithms_by_category(category: AlgorithmCategory) -> &'static [Algorith
             Algorithm::FnDsa1024,
         ],
         AlgorithmCategory::Hash => &[
-            Algorithm::Sha224,
-            Algorithm::Sha256,
-            Algorithm::Sha384,
-            Algorithm::Sha512,
+            Algorithm::Sha3_224,
+            Algorithm::Sha3_256,
+            Algorithm::Sha3_384,
+            Algorithm::Sha3_512,
+            Algorithm::Shake128,
+            Algorithm::Shake256,
+            Algorithm::CShake128,
+            Algorithm::CShake256,
+            Algorithm::Kmac128,
+            Algorithm::Kmac256,
+            Algorithm::TupleHash128,
+            Algorithm::TupleHash256,
+            Algorithm::ParallelHash128,
+            Algorithm::ParallelHash256,
+            Algorithm::Keccak224,
+            Algorithm::Keccak256,
+            Algorithm::Keccak384,
+            Algorithm::Keccak512,
+            Algorithm::Kt128,
+            Algorithm::Kt256,
+            Algorithm::TurboShake128,
+            Algorithm::TurboShake256,
         ],
         AlgorithmCategory::Aead => &[
             Algorithm::Saturnin,
@@ -956,7 +908,6 @@ const SECURITY_LEVEL_1_ALGORITHMS: &[Algorithm] = &[
     Algorithm::MlDsa44,
     Algorithm::FnDsa,
     Algorithm::FnDsa512,
-    Algorithm::SlhDsaSha256128fRobust,
     Algorithm::SlhDsaShake256128fRobust,
     Algorithm::Saturnin,
     Algorithm::Shake256Aead,
@@ -971,7 +922,6 @@ const SECURITY_LEVEL_3_ALGORITHMS: &[Algorithm] = &[
     Algorithm::CbKem460896,
     Algorithm::Hqc192,
     Algorithm::MlDsa65,
-    Algorithm::SlhDsaSha256192fRobust,
     Algorithm::SlhDsaShake256192fRobust,
     Algorithm::LatticeRingSignature,
     Algorithm::LatticeBlindIssuance,
@@ -1000,7 +950,6 @@ const SECURITY_LEVEL_5_ALGORITHMS: &[Algorithm] = &[
     Algorithm::Hqc256,
     Algorithm::MlDsa87,
     Algorithm::FnDsa1024,
-    Algorithm::SlhDsaSha256256fRobust,
     Algorithm::SlhDsaShake256256fRobust,
 ];
 
@@ -1067,10 +1016,7 @@ mod tests {
     ///   value is genuinely ambiguous without knowing which RBG posture this
     ///   crate assumes (see the registry security-level fix follow-up notes).
     /// - FN-DSA-512/1024 (Falcon): Categories 1/5
-    /// - SLH-DSA SHA256/SHAKE256 -128f/-192f/-256f: FIPS 205 Table (Categories
-    ///   1/3/5; confirmed via reference/fips205/NIST.FIPS.205.pdf sections
-    ///   11.2.1 "SLH-DSA Using SHA2 for Security Category 1" and 11.2.2
-    ///   "...for Security Categories 3 and 5")
+    /// - SLH-DSA SHAKE -128f/-192f/-256f: FIPS 205 Table 2 (Categories 1/3/5)
     /// - CB-KEM 348864/460896/6688128/6960119/8192128: Classic McEliece spec
     ///   (Categories 1/3/5/5/5 — all three "128"-suffixed parameter sets are
     ///   Category 5)
@@ -1101,9 +1047,6 @@ mod tests {
             (Algorithm::FnDsa, 1),
             (Algorithm::FnDsa512, 1),
             (Algorithm::FnDsa1024, 5),
-            (Algorithm::SlhDsaSha256128fRobust, 1),
-            (Algorithm::SlhDsaSha256192fRobust, 3),
-            (Algorithm::SlhDsaSha256256fRobust, 5),
             (Algorithm::SlhDsaShake256128fRobust, 1),
             (Algorithm::SlhDsaShake256192fRobust, 3),
             (Algorithm::SlhDsaShake256256fRobust, 5),

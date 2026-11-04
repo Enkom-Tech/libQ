@@ -23,13 +23,11 @@ ignored = [
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
 typenum = { version = "1.20.1", features = ["const-generics"] }
-lib-q-core = { path = "../lib-q-core", version = "0.0.11", default-features = false, features = ["alloc"] }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11", default-features = false }
-lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true, default-features = false, features = ["signature"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.12", default-features = false, features = ["alloc"] }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.12", default-features = false }
+lib-q-random = { path = "../lib-q-random", version = "0.0.12", optional = true, default-features = false, features = ["signature"] }
 rand_core = { workspace = true }
 signature = { version = "3.0.0", features = ["rand_core"] }
-hmac = "0.13.0"
-sha2 = { workspace = true, default-features = false }
 digest = { workspace = true }
 pkcs8 = { version = "0.11.0", default-features = false, features = ["alloc"] }
 const-oid = { version = "0.10.2", features = ["db"] }
@@ -49,7 +47,7 @@ getrandom = { workspace = true, default-features = false, features = ["wasm_js"]
 [dev-dependencies]
 # Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
 # this crate asserts its own real computed sizes match, so drift fails CI on either side.
-lib-q-types = { path = "../lib-q-types", version = "0.0.11", default-features = false }
+lib-q-types = { path = "../lib-q-types", version = "0.0.12", default-features = false }
 wasm-bindgen-test = { workspace = true }
 hex-literal = { workspace = true }
 pastey = { workspace = true }
@@ -57,7 +55,7 @@ pastey = { workspace = true }
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
 hex = { workspace = true, features = ["serde"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.11", features = ["std", "signature"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.12", features = ["std", "signature"] }
 num-bigint = { workspace = true }
 quickcheck = "1.1.0"
 quickcheck_macros = "1.2.0"
@@ -105,7 +103,7 @@ no_std = [
     "lib-q-random/zeroize",
 ]
 test = []
-# Expand `test_parameter_sets!`, ACVP keygen projection, and integration KATs to all 12 FIPS parameter sets and slow `*s` vectors (slow). Default smoke uses Shake128f + Sha2_128f only and skips `*s` ACVP groups.
+# Expand `test_parameter_sets!`, ACVP keygen projection, and integration KATs to all 6 SHAKE parameter sets and slow `*s` vectors (slow). Default smoke uses Shake128f only and skips `*s` ACVP groups.
 all-parameter-set-tests = []
 wasm = [
     "dep:wasm-bindgen",

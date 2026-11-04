@@ -115,9 +115,6 @@
 //!
 //! ## Supported Parameter Sets
 //!
-//! - **SHA256-128f-Robust**: Level 1 security (128-bit)
-//! - **SHA256-192f-Robust**: Level 3 security (192-bit)
-//! - **SHA256-256f-Robust**: Level 5 security (256-bit)
 //! - **SHAKE256-128f-Robust**: Level 1 security (128-bit)
 //! - **SHAKE256-192f-Robust**: Level 3 security (192-bit)
 //! - **SHAKE256-256f-Robust**: Level 5 security (256-bit)
@@ -165,9 +162,6 @@ pub use lib_q_slh_dsa::lib_q_integration::SLH_DSA_CONTEXT_MAX_LEN;
 #[cfg(feature = "slh-dsa")]
 use lib_q_slh_dsa::{
     ParameterSet,
-    Sha2_128f,
-    Sha2_192f,
-    Sha2_256f,
     Shake128f,
     Shake192f,
     Shake256f,
@@ -331,10 +325,7 @@ impl SlhDsa {
             // Validate algorithm is SLH-DSA
             if !matches!(
                 algorithm,
-                Algorithm::SlhDsaSha256128fRobust |
-                    Algorithm::SlhDsaSha256192fRobust |
-                    Algorithm::SlhDsaSha256256fRobust |
-                    Algorithm::SlhDsaShake256128fRobust |
+                Algorithm::SlhDsaShake256128fRobust |
                     Algorithm::SlhDsaShake256192fRobust |
                     Algorithm::SlhDsaShake256256fRobust
             ) {
@@ -345,15 +336,6 @@ impl SlhDsa {
 
             // Generate keypair based on algorithm
             let (public_key, secret_key) = match algorithm {
-                Algorithm::SlhDsaSha256128fRobust => {
-                    self.generate_keypair_impl::<Sha2_128f>(randomness)?
-                }
-                Algorithm::SlhDsaSha256192fRobust => {
-                    self.generate_keypair_impl::<Sha2_192f>(randomness)?
-                }
-                Algorithm::SlhDsaSha256256fRobust => {
-                    self.generate_keypair_impl::<Sha2_256f>(randomness)?
-                }
                 Algorithm::SlhDsaShake256128fRobust => {
                     self.generate_keypair_impl::<Shake128f>(randomness)?
                 }
@@ -412,10 +394,7 @@ impl SlhDsa {
             // Validate algorithm is SLH-DSA
             if !matches!(
                 algorithm,
-                Algorithm::SlhDsaSha256128fRobust |
-                    Algorithm::SlhDsaSha256192fRobust |
-                    Algorithm::SlhDsaSha256256fRobust |
-                    Algorithm::SlhDsaShake256128fRobust |
+                Algorithm::SlhDsaShake256128fRobust |
                     Algorithm::SlhDsaShake256192fRobust |
                     Algorithm::SlhDsaShake256256fRobust
             ) {
@@ -426,12 +405,6 @@ impl SlhDsa {
 
             // Sign based on algorithm
             match algorithm {
-                Algorithm::SlhDsaSha256128fRobust => self
-                    .sign_impl_with_context::<Sha2_128f>(secret_key, message, context, randomness),
-                Algorithm::SlhDsaSha256192fRobust => self
-                    .sign_impl_with_context::<Sha2_192f>(secret_key, message, context, randomness),
-                Algorithm::SlhDsaSha256256fRobust => self
-                    .sign_impl_with_context::<Sha2_256f>(secret_key, message, context, randomness),
                 Algorithm::SlhDsaShake256128fRobust => self
                     .sign_impl_with_context::<Shake128f>(secret_key, message, context, randomness),
                 Algorithm::SlhDsaShake256192fRobust => self
@@ -483,10 +456,7 @@ impl SlhDsa {
             // Validate algorithm is SLH-DSA
             if !matches!(
                 algorithm,
-                Algorithm::SlhDsaSha256128fRobust |
-                    Algorithm::SlhDsaSha256192fRobust |
-                    Algorithm::SlhDsaSha256256fRobust |
-                    Algorithm::SlhDsaShake256128fRobust |
+                Algorithm::SlhDsaShake256128fRobust |
                     Algorithm::SlhDsaShake256192fRobust |
                     Algorithm::SlhDsaShake256256fRobust
             ) {
@@ -497,12 +467,6 @@ impl SlhDsa {
 
             // Verify based on algorithm
             match algorithm {
-                Algorithm::SlhDsaSha256128fRobust => self
-                    .verify_impl_with_context::<Sha2_128f>(public_key, message, context, signature),
-                Algorithm::SlhDsaSha256192fRobust => self
-                    .verify_impl_with_context::<Sha2_192f>(public_key, message, context, signature),
-                Algorithm::SlhDsaSha256256fRobust => self
-                    .verify_impl_with_context::<Sha2_256f>(public_key, message, context, signature),
                 Algorithm::SlhDsaShake256128fRobust => self
                     .verify_impl_with_context::<Shake128f>(public_key, message, context, signature),
                 Algorithm::SlhDsaShake256192fRobust => self
@@ -652,9 +616,6 @@ mod tests {
 
         // Test valid SLH-DSA algorithms
         let valid_algorithms = [
-            Algorithm::SlhDsaSha256128fRobust,
-            Algorithm::SlhDsaSha256192fRobust,
-            Algorithm::SlhDsaSha256256fRobust,
             Algorithm::SlhDsaShake256128fRobust,
             Algorithm::SlhDsaShake256192fRobust,
             Algorithm::SlhDsaShake256256fRobust,
@@ -797,9 +758,6 @@ impl SlhDsa {
         randomness: Option<Uint8Array>,
     ) -> core::result::Result<WasmSlhDsaKeyPair, JsValue> {
         let algorithm = match algorithm {
-            "SlhDsaSha256128fRobust" => Algorithm::SlhDsaSha256128fRobust,
-            "SlhDsaSha256192fRobust" => Algorithm::SlhDsaSha256192fRobust,
-            "SlhDsaSha256256fRobust" => Algorithm::SlhDsaSha256256fRobust,
             "SlhDsaShake256128fRobust" => Algorithm::SlhDsaShake256128fRobust,
             "SlhDsaShake256192fRobust" => Algorithm::SlhDsaShake256192fRobust,
             "SlhDsaShake256256fRobust" => Algorithm::SlhDsaShake256256fRobust,
@@ -839,9 +797,6 @@ impl SlhDsa {
         randomness: Option<Uint8Array>,
     ) -> core::result::Result<Uint8Array, JsValue> {
         let algorithm = match algorithm {
-            "SlhDsaSha256128fRobust" => Algorithm::SlhDsaSha256128fRobust,
-            "SlhDsaSha256192fRobust" => Algorithm::SlhDsaSha256192fRobust,
-            "SlhDsaSha256256fRobust" => Algorithm::SlhDsaSha256256fRobust,
             "SlhDsaShake256128fRobust" => Algorithm::SlhDsaShake256128fRobust,
             "SlhDsaShake256192fRobust" => Algorithm::SlhDsaShake256192fRobust,
             "SlhDsaShake256256fRobust" => Algorithm::SlhDsaShake256256fRobust,
@@ -881,9 +836,6 @@ impl SlhDsa {
         signature: Uint8Array,
     ) -> core::result::Result<bool, JsValue> {
         let algorithm = match algorithm {
-            "SlhDsaSha256128fRobust" => Algorithm::SlhDsaSha256128fRobust,
-            "SlhDsaSha256192fRobust" => Algorithm::SlhDsaSha256192fRobust,
-            "SlhDsaSha256256fRobust" => Algorithm::SlhDsaSha256256fRobust,
             "SlhDsaShake256128fRobust" => Algorithm::SlhDsaShake256128fRobust,
             "SlhDsaShake256192fRobust" => Algorithm::SlhDsaShake256192fRobust,
             "SlhDsaShake256256fRobust" => Algorithm::SlhDsaShake256256fRobust,
@@ -989,9 +941,6 @@ impl SlhDsa {
     /// Map the JavaScript algorithm name onto an [`Algorithm`].
     fn algorithm_from_wasm_name(algorithm: &str) -> Option<Algorithm> {
         match algorithm {
-            "SlhDsaSha256128fRobust" => Some(Algorithm::SlhDsaSha256128fRobust),
-            "SlhDsaSha256192fRobust" => Some(Algorithm::SlhDsaSha256192fRobust),
-            "SlhDsaSha256256fRobust" => Some(Algorithm::SlhDsaSha256256fRobust),
             "SlhDsaShake256128fRobust" => Some(Algorithm::SlhDsaShake256128fRobust),
             "SlhDsaShake256192fRobust" => Some(Algorithm::SlhDsaShake256192fRobust),
             "SlhDsaShake256256fRobust" => Some(Algorithm::SlhDsaShake256256fRobust),

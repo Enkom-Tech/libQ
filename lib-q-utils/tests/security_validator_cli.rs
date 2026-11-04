@@ -73,7 +73,7 @@ fn unknown_command_exits_with_error() {
 
 // These five subcommands each now run only their named, real check(s) (previously every
 // subcommand ran all eight identical stubs). They pass today against the real workspace:
-// sha2/aes are NIST-mandated allowlisted deps, no external sha3/tiny-keccak dependency exists,
+// aes is the only NIST-mandated allowlisted dep (sha2 is denied), no external sha3/tiny-keccak dependency exists,
 // every AEAD/MAC crate uses a constant-time comparison, and every key-material crate uses
 // `zeroize`.
 

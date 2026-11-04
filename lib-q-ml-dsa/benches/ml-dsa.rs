@@ -5,10 +5,6 @@ use criterion::{
     criterion_group,
     criterion_main,
 };
-use fips204::traits::{
-    Signer,
-    Verifier,
-};
 use lib_q_ml_dsa::{
     Zeroizing,
     ml_dsa_65,
@@ -27,12 +23,6 @@ pub fn comparisons_key_generation(c: &mut Criterion) {
     group.bench_function("lib-q (external random)", move |b| {
         b.iter(|| {
             let _ = ml_dsa_65::generate_key_pair_from_seed(&Zeroizing::new(randomness));
-        })
-    });
-
-    group.bench_function("fips204 (OS RNG)", move |b| {
-        b.iter(|| {
-            let _ = fips204::ml_dsa_65::try_keygen().expect("fips204 keygen");
         })
     });
 }
@@ -56,13 +46,6 @@ pub fn comparisons_signing(c: &mut Criterion) {
             let _ = ml_dsa_65::sign(&keypair.signing_key, &message, b"", randomness);
         })
     });
-
-    let (_pk_f, sk_f) = fips204::ml_dsa_65::try_keygen().expect("fips204 keygen");
-    group.bench_function("fips204 (OS RNG)", move |b| {
-        b.iter(|| {
-            let _ = sk_f.try_sign(&message, &[]).expect("fips204 sign");
-        })
-    });
 }
 
 pub fn comparisons_verification(c: &mut Criterion) {
@@ -83,15 +66,6 @@ pub fn comparisons_verification(c: &mut Criterion) {
     group.bench_function("lib-q", move |b| {
         b.iter(|| {
             ml_dsa_65::verify(&keypair.verification_key, &message, b"", &signature).unwrap();
-        })
-    });
-
-    let (pk_f, sk_f) = fips204::ml_dsa_65::try_keygen().expect("fips204 keygen");
-    let sig_f = sk_f.try_sign(&message, &[]).expect("fips204 sign");
-
-    group.bench_function("fips204", move |b| {
-        b.iter(|| {
-            assert!(pk_f.verify(&message, &sig_f, &[]));
         })
     });
 }

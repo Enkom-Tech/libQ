@@ -55,7 +55,7 @@ consumer source rather than substituting upstream test results.
 - **Trigger**: Version tags matching `v*`.
 - **Pre-release validation**: Workspace `Cargo.toml` version must match the tag; `rust-build` + `cargo test --all-features --release`.
 - **Rust publishing**: Crates publish in dependency order across **tiers 0–16** via `rust-lang/crates-io-auth-action` (crates.io **Trusted Publishing** / OIDC) and `./.github/actions/crate-publish`. Exact package lists per tier are defined only in `cd.yml`.
-- **WASM / npm**: `wasm-build` then `./.github/actions/npm-publish` for scoped `@lib-q/*` packages (requires `NPM_TOKEN`).
+- **WASM / npm**: `wasm-build` then `./.github/actions/npm-publish` for scoped `@lib-q/*` packages via **npm Trusted Publishing** (OIDC, `--provenance`).
 - **Post-release**: GitHub Release with changelog; post-release security verification (install published `lib-q`, smoke-load `@lib-q/core`, constant-time tests where applicable). **`post-release` and `cd-summary` wait on `publish-rust-tier-17`** so the GitHub release is cut after the last crates.io tier (including the `lib-q` umbrella).
 
 ### Security Pipeline (`.github/workflows/security.yml`)
@@ -119,7 +119,7 @@ Used in `ci.yml` and `cd.yml` (wasm-pack; supports `out-dir`, feature flags, `ch
 ### Crate publish / NPM publish
 
 - **`.github/actions/crate-publish`**: `cargo publish` with token from OIDC (`crates-io-auth-action`) in CD.
-- **`.github/actions/npm-publish`**: Node **20**, npm CLI **11.6.2+**, dual-target `pkg/web` + `pkg/nodejs` (seeds root `package.json` before `npm pkg set`). Publishes with `secrets.NPM_TOKEN` when set; on `E404`/`ENEEDAUTH` retries via **npm Trusted Publishing** (OIDC; requires `id-token: write` and a trusted publisher for `Enkom-Tech/libQ` / workflow `cd.yml` on npm). Do not pass `--provenance` with token auth. `@lib-q/types` is a separate job (`fail-fast: false` on the WASM matrix).
+- **`.github/actions/npm-publish`**: Node **24**, npm CLI **11.6.2+**, dual-target `pkg/web` + `pkg/nodejs` (seeds root `package.json` before `npm pkg set`). Publishes with **npm Trusted Publishing** only (OIDC, `npm publish --provenance`; the calling job runs in environment `release-publish` with `id-token: write`). There is no token path. `@lib-q/types` is a separate job (`fail-fast: false` on the WASM matrix).
 
 ### Performance benchmark (`.github/actions/performance-benchmark`)
 
@@ -238,7 +238,7 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
     run-benchmarks: "true"
     run-security-tests: "true"
     run-constant-time: "true"
-    test-algorithms: "sha2-128f,sha2-192f,sha2-256f,shake128f,shake192f,shake256f"
+    test-algorithms: "shake128f,shake192f,shake256f"
 ```
 
 #### HPKE (`.github/actions/test-hpke`)
@@ -273,13 +273,16 @@ K12 tests run against **`lib-q-hash`** in CI (not `lib-q-k12`).
 
 ### Secrets and publishing auth
 
-- **crates.io**: CD uses `./.github/actions/crates-io-auth`, which prefers the repo secret **`CARGO_REGISTRY_TOKEN`** when set; otherwise it falls back to **Trusted Publishing** (OIDC) via `rust-lang/crates-io-auth-action@v1`. For OIDC-only runs, configure each published crate under **Settings → Trusted Publishing** with `Enkom-Tech/libQ` + workflow `cd.yml` ([docs](https://crates.io/docs/trusted-publishing)).
-- **npm**: `NPM_TOKEN` — automation token with **publish** access to all `@lib-q/*` packages (maintainer on the scope), **or** configure [npm Trusted Publishers](https://docs.npmjs.com/trusted-publishers/) on each package (or the `@lib-q` org) for repository `Enkom-Tech/libQ`, workflows `cd.yml` and `npm-publish-only.yml`, environment `github`, ref filter `v*`. If publish fails with `E404` / `ENEEDAUTH` after the OIDC retry, the secret is missing, expired, or trusted publishing is not configured. Recovery without re-tagging: run workflow **NPM Publish Only** (`workflow_dispatch`, version `0.0.5`).
+There are **no publishing secrets** in this repository: crates.io and npm are reached only through **Trusted Publishing** (OIDC).
+
+- **One approval, two GitHub environments**: the `approve-release` job runs right after `release-ref-guard` in environment **`release`** (`v*` tags only, required reviewer); that is the single human approval per release. Every publish job lists `approve-release` in `needs:` and runs in environment **`release-publish`** (`v*` tags only, no reviewer). Publish jobs are the only ones granted `id-token: write`; it is absent from the workflow-level permissions.
+- **crates.io**: `./.github/actions/crates-io-auth` wraps `rust-lang/crates-io-auth-action` (pinned by SHA), which exchanges the job's OIDC token for a short-lived publish token and revokes it afterwards. Each published crate needs a trusted publisher (**Settings → Trusted Publishing**) for repository `Enkom-Tech/libQ`, workflow `cd.yml`, environment `release-publish` ([docs](https://crates.io/docs/trusted-publishing)). A crate's first-ever version cannot be published this way: crates.io only accepts a trusted-publisher entry for a crate that already exists.
+- **npm**: each `@lib-q/*` package needs trusted publishers for repository `Enkom-Tech/libQ`, environment `release-publish`, and workflows `cd.yml` **and** `npm-publish-only.yml` (npm allows several per package). Requires npm CLI 11.5.1+ and Node 22.14+ in the job. Recovery without re-tagging: dispatch workflow **NPM Publish Only** on the release tag (both environments refuse any other ref).
 
 ### Environment requirements
 
 - **Rust**: **1.96.0** minimum (workspace `rust-version` in [Cargo.toml](Cargo.toml)).
-- **Node.js**: **20** for npm publish actions; **18+** is still a reasonable local baseline for WASM tooling where not pinned by CI.
+- **Node.js**: **24** for npm publish actions (trusted publishing needs 22.14+); **18+** is still a reasonable local baseline for WASM tooling where not pinned by CI.
 - **Development tools**: `cargo-audit`, `cargo-tarpaulin` (coverage workflows), `wasm-pack`, and `cargo-fuzz` (ZKP scheduled workflow).
 
 ## Publishing targets

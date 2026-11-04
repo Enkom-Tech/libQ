@@ -11,7 +11,7 @@ Two **pilot** profiles ship as constants in [`src/params.rs`](src/params.rs):
 - **256-bit wire (`U256`):** 255-bit safe prime \(p=2q+1\), \(q\) prime.
 - **512-bit wire (`U512`):** 511-bit safe prime.
 
-Each modulus documents **provenance** (OpenSSL `prime -generate -safe`, SymPy `isprime` cross-check, bit length, big-endian hex). CI loads [`tests/reference_vectors.txt`](tests/reference_vectors.txt), including `SHA256_P*_LE` digests of the little-endian modulus encodings, so accidental edits to `p` are detected.
+Each modulus documents **provenance** (OpenSSL `prime -generate -safe`, SymPy `isprime` cross-check, bit length, big-endian hex). CI loads [`tests/reference_vectors.txt`](tests/reference_vectors.txt), including `SHA3_256_P*_LE` digests of the little-endian modulus encodings, so accidental edits to `p` are detected.
 
 **Gold exponent:** for these safe primes, \(p-1=2q\) with odd \(q\), so the pilot sets \(g=q=(p-1)/2\), an odd divisor of \(p-1\) suitable for the power-residue construction.
 

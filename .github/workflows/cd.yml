@@ -6,12 +6,18 @@ on:
       - 'v*'
   workflow_dispatch:
 
+# Publishing uses Trusted Publishing (OIDC) only: there is no crates.io or npm token in this
+# repository. One human approval gates a release: the `approve-release` job runs in the GitHub
+# environment `release` (v* tags only, required reviewer) right after `release-ref-guard`, and
+# every job that publishes lists it in `needs:` directly. The publish jobs run in the environment
+# `release-publish` (v* tags only, no reviewer) and are the only jobs granted `id-token: write`;
+# the crates.io and npm trusted-publisher entries name this repository, this workflow file and
+# `release-publish`. id-token is deliberately absent from the workflow-level permissions below.
 permissions:
   contents: write
   pull-requests: write
   issues: write
   packages: write
-  id-token: write
 
 env:
   CARGO_TERM_COLOR: always
@@ -36,6 +42,22 @@ jobs:
             refs/tags/v*|refs/heads/main) echo "release ref: $REF" ;;
             *) echo "::error::refusing to publish from $REF: only v* tags and main may run this workflow"; exit 1 ;;
           esac
+
+  # The single human approval for a release. `release` admits v* tags only and requires a reviewer,
+  # so this job waits for that approval; every publish job needs it directly. It runs after
+  # release-ref-guard and holds no checkout, no secrets and no token permissions.
+  approve-release:
+    needs: release-ref-guard
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+    name: Approve release
+    runs-on: ubuntu-latest
+    environment: release
+    permissions: {}
+    steps:
+      - name: Release approved
+        env:
+          REF: ${{ github.ref }}
+        run: echo "release approved for $REF"
 
   # Pre-release validation
   pre-release-validation:
@@ -200,6 +222,11 @@ jobs:
           echo "runner output: $out"
           test "$out" = "aarch64"
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp16
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -207,7 +234,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-aarch64-qemu-native-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-aarch64-qemu-native-${{ steps.lockfp16.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-aarch64-qemu-native-
 
@@ -236,16 +263,18 @@ jobs:
   publish-rust-fn-dsa-comm:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-fn-dsa-comm
-    needs: [pre-release-validation, aarch64-qemu-execution]
+    needs: [approve-release, pre-release-validation, aarch64-qemu-execution]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -260,16 +289,18 @@ jobs:
     # if either fails, NOTHING publishes (every tier below chains off this job's needs:).
     # Also needs fn-dsa-comm: lib-q-types derives FN-DSA sizes from it, so it must be on
     # crates.io first.
-    needs: [pre-release-validation, aarch64-qemu-execution, publish-rust-fn-dsa-comm]
+    needs: [approve-release, pre-release-validation, aarch64-qemu-execution, publish-rust-fn-dsa-comm]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -279,8 +310,12 @@ jobs:
   publish-rust-tier-0:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 0)
-    needs: [publish-rust-lib-q-types]
+    needs: [approve-release, publish-rust-lib-q-types]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -292,8 +327,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -305,16 +338,18 @@ jobs:
   publish-rust-lib-q-sha3:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-sha3
-    needs: [publish-rust-tier-0]
+    needs: [approve-release, publish-rust-tier-0]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -324,8 +359,12 @@ jobs:
   publish-rust-tier-1:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 1)
-    needs: [publish-rust-lib-q-sha3]
+    needs: [approve-release, publish-rust-lib-q-sha3]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -346,8 +385,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -358,8 +395,12 @@ jobs:
   publish-rust-tier-2-early:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 2 — k12, intrinsics)
-    needs: [publish-rust-tier-1]
+    needs: [approve-release, publish-rust-tier-1]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -371,8 +412,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -384,16 +423,18 @@ jobs:
   publish-rust-lib-q-hash:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-hash
-    needs: [publish-rust-tier-2-early]
+    needs: [approve-release, publish-rust-tier-2-early]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -403,16 +444,18 @@ jobs:
   publish-rust-lib-q-random:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-random
-    needs: [publish-rust-lib-q-hash]
+    needs: [approve-release, publish-rust-lib-q-hash]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -422,8 +465,12 @@ jobs:
   publish-rust-fn-dsa-kgen-sign:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish FN-DSA (kgen, sign)
-    needs: [publish-rust-fn-dsa-comm]
+    needs: [approve-release, publish-rust-fn-dsa-comm]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -437,8 +484,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -449,16 +494,18 @@ jobs:
   publish-rust-fn-dsa-vrfy:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-fn-dsa-vrfy
-    needs: [publish-rust-fn-dsa-kgen-sign]
+    needs: [approve-release, publish-rust-fn-dsa-kgen-sign]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -469,16 +516,18 @@ jobs:
   publish-rust-fn-dsa-alg:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-fn-dsa-alg
-    needs: [publish-rust-fn-dsa-vrfy]
+    needs: [approve-release, publish-rust-fn-dsa-vrfy]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -496,16 +545,18 @@ jobs:
     # lib-q-random and died with `failed to select a version for the requirement
     # lib-q-random = "^0.0.11" / candidate versions found which didn't match: 0.0.10`, skipping
     # tier 2 onward. File order in this YAML is NOT execution order -- only `needs:` is.
-    needs: [publish-rust-fn-dsa-alg, publish-rust-lib-q-random, publish-rust-tier-0]
+    needs: [approve-release, publish-rust-fn-dsa-alg, publish-rust-lib-q-random, publish-rust-tier-0]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -515,8 +566,12 @@ jobs:
   publish-rust-tier-2:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 2 — algorithms)
-    needs: [publish-rust-lib-q-fn-dsa, publish-rust-lib-q-random]
+    needs: [approve-release, publish-rust-lib-q-fn-dsa, publish-rust-lib-q-random]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -533,8 +588,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -545,16 +598,18 @@ jobs:
   publish-rust-lib-q-cb-kem:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-cb-kem
-    needs: [publish-rust-tier-2]
+    needs: [approve-release, publish-rust-tier-2]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -565,16 +620,18 @@ jobs:
   publish-rust-lib-q-ml-dsa:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-ml-dsa
-    needs: [publish-rust-tier-2]
+    needs: [approve-release, publish-rust-tier-2]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -584,8 +641,12 @@ jobs:
   publish-rust-tier-3:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 3)
-    needs: [publish-rust-lib-q-ml-dsa, publish-rust-lib-q-cb-kem]
+    needs: [approve-release, publish-rust-lib-q-ml-dsa, publish-rust-lib-q-cb-kem]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -599,8 +660,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -610,8 +669,12 @@ jobs:
   publish-rust-tier-4:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 4)
-    needs: [publish-rust-tier-3]
+    needs: [approve-release, publish-rust-tier-3]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -623,8 +686,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -634,8 +695,12 @@ jobs:
   publish-rust-tier-4b-new-primitives:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 4b — new primitives)
-    needs: [publish-rust-tier-4]
+    needs: [approve-release, publish-rust-tier-4]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -659,8 +724,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -673,8 +736,12 @@ jobs:
   publish-rust-tier-4b-raccoon:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-threshold-raccoon
-    needs: [publish-rust-tier-4b-new-primitives]
+    needs: [approve-release, publish-rust-tier-4b-new-primitives]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     # One-entry matrix on purpose: the `- package: "..."` form is the only one that satisfies BOTH
     # cd.yml guards — publish-readiness-pr.sh wants it quoted (`package:\s*"(lib-q...)"`) while
@@ -689,8 +756,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -703,8 +768,12 @@ jobs:
   publish-rust-tier-4b-kem-lattice:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish lib-q-threshold-kem-lattice
-    needs: [publish-rust-tier-4b-new-primitives]
+    needs: [approve-release, publish-rust-tier-4b-new-primitives]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     # One-entry matrix on purpose: the `- package: "..."` form is the only one that satisfies BOTH
     # cd.yml guards — publish-readiness-pr.sh wants it quoted (`package:\s*"(lib-q...)"`) while
@@ -719,8 +788,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -731,8 +798,12 @@ jobs:
   publish-rust-tier-5:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 5)
-    needs: [publish-rust-tier-4b-raccoon, publish-rust-tier-4b-kem-lattice]
+    needs: [approve-release, publish-rust-tier-4b-raccoon, publish-rust-tier-4b-kem-lattice]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -744,8 +815,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -755,16 +824,18 @@ jobs:
   publish-rust-tier-6:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 6 — stark-field)
-    needs: [publish-rust-tier-5]
+    needs: [approve-release, publish-rust-tier-5]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -774,16 +845,18 @@ jobs:
   publish-rust-tier-6-symmetric:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 6 — stark-symmetric)
-    needs: [publish-rust-tier-6]
+    needs: [approve-release, publish-rust-tier-6]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -793,16 +866,18 @@ jobs:
   publish-rust-tier-7-matrix:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 7 — stark-matrix)
-    needs: [publish-rust-tier-6-symmetric]
+    needs: [approve-release, publish-rust-tier-6-symmetric]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -812,8 +887,12 @@ jobs:
   publish-rust-tier-7:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 7 — stark-dft, commit)
-    needs: [publish-rust-tier-7-matrix]
+    needs: [approve-release, publish-rust-tier-7-matrix]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -825,8 +904,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -836,8 +913,12 @@ jobs:
   publish-rust-tier-8-hashes:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 8 — stark SHAKE/SHA3 adapters)
-    needs: [publish-rust-tier-7]
+    needs: [approve-release, publish-rust-tier-7]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -850,8 +931,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -861,8 +940,12 @@ jobs:
   publish-rust-tier-8:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 8 — stark-mds, field-testing)
-    needs: [publish-rust-tier-7]
+    needs: [approve-release, publish-rust-tier-7]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -874,8 +957,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -885,8 +966,12 @@ jobs:
   publish-rust-tier-9:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 9)
-    needs: [publish-rust-tier-8, publish-rust-tier-8-hashes]
+    needs: [approve-release, publish-rust-tier-8, publish-rust-tier-8-hashes]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -898,8 +983,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -909,8 +992,12 @@ jobs:
   publish-rust-tier-10:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 10)
-    needs: [publish-rust-tier-9]
+    needs: [approve-release, publish-rust-tier-9]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -925,8 +1012,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -936,8 +1021,12 @@ jobs:
   publish-rust-tier-11:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 11)
-    needs: [publish-rust-tier-10]
+    needs: [approve-release, publish-rust-tier-10]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -949,8 +1038,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -960,16 +1047,18 @@ jobs:
   publish-rust-tier-11-merkle:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 11 — stark-merkle)
-    needs: [publish-rust-tier-11]
+    needs: [approve-release, publish-rust-tier-11]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -979,16 +1068,18 @@ jobs:
   publish-rust-tier-11-fri:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 11 — stark-fri)
-    needs: [publish-rust-tier-11-merkle]
+    needs: [approve-release, publish-rust-tier-11-merkle]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -998,8 +1089,12 @@ jobs:
   publish-rust-tier-12:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 12)
-    needs: [publish-rust-tier-11-fri]
+    needs: [approve-release, publish-rust-tier-11-fri]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -1010,8 +1105,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1021,8 +1114,12 @@ jobs:
   publish-rust-tier-13:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 13 — plonky multilinear, lookup)
-    needs: [publish-rust-tier-12]
+    needs: [approve-release, publish-rust-tier-12]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -1034,8 +1131,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1045,16 +1140,18 @@ jobs:
   publish-rust-tier-14:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 14 — plonky-uni-stark)
-    needs: [publish-rust-tier-13]
+    needs: [approve-release, publish-rust-tier-13]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1064,16 +1161,18 @@ jobs:
   publish-rust-tier-14-keccak:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 14 — plonky-keccak-air)
-    needs: [publish-rust-tier-14]
+    needs: [approve-release, publish-rust-tier-14]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1083,16 +1182,18 @@ jobs:
   publish-rust-tier-15:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 15 — plonky-batch-stark)
-    needs: [publish-rust-tier-14]
+    needs: [approve-release, publish-rust-tier-14]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1102,16 +1203,18 @@ jobs:
   publish-rust-tier-15-plonky:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 15 — lib-q-plonky)
-    needs: [publish-rust-tier-15, publish-rust-tier-14-keccak]
+    needs: [approve-release, publish-rust-tier-15, publish-rust-tier-14-keccak]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1121,8 +1224,12 @@ jobs:
   publish-rust-tier-16:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 16)
-    needs: [publish-rust-tier-15-plonky]
+    needs: [approve-release, publish-rust-tier-15-plonky]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -1133,8 +1240,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1147,8 +1252,12 @@ jobs:
   publish-rust-tier-16b:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 16b — mve, transcript, zk-encryption-proof)
-    needs: [publish-rust-tier-16]
+    needs: [approve-release, publish-rust-tier-16]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     strategy:
       matrix:
@@ -1161,8 +1270,6 @@ jobs:
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1172,16 +1279,18 @@ jobs:
   publish-rust-tier-17:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish Rust (tier 17 — lib-q umbrella)
-    needs: [publish-rust-tier-16b]
+    needs: [approve-release, publish-rust-tier-16b]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
-        with:
-          registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
@@ -1191,8 +1300,12 @@ jobs:
   publish-wasm-packages:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish WASM Packages
-    needs: [pre-release-validation, publish-rust-tier-17]
+    needs: [approve-release, pre-release-validation, publish-rust-tier-17]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -1381,15 +1494,18 @@ jobs:
           package-keywords: ${{ matrix.package-keywords }}
           working-directory: ${{ format('{0}/{1}', matrix.working-directory, matrix.out-dir || 'pkg') }}
           crate-root: ${{ matrix.working-directory }}
-          token: ${{ secrets.NPM_TOKEN }}
           version: ${{ needs.pre-release-validation.outputs.version }}
 
   # TypeScript-only package: publish after WASM tarballs so a types failure does not cancel wasm matrix jobs.
   publish-npm-types:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish @lib-q/types
-    needs: [pre-release-validation, publish-rust-tier-17]
+    needs: [approve-release, pre-release-validation, publish-rust-tier-17]
     runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -1400,14 +1516,36 @@ jobs:
           package-description: "TypeScript typings for @lib-q WASM packages"
           package-keywords: "typescript,lib-q,wasm,types"
           working-directory: "npm/lib-q-types"
-          token: ${{ secrets.NPM_TOKEN }}
+          version: ${{ needs.pre-release-validation.outputs.version }}
+
+  # Pure-JS package. Its dependency on @lib-q/sig is pinned to the exact workspace version, so
+  # it publishes only after the WASM matrix (which includes @lib-q/sig) has succeeded.
+  publish-npm-jose:
+    if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
+    name: Publish @lib-q/jose
+    needs: [approve-release, pre-release-validation, publish-wasm-packages]
+    runs-on: ubuntu-latest
+    environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
+    permissions:
+      contents: read
+      id-token: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Publish NPM package
+        uses: ./.github/actions/npm-publish
+        with:
+          package-name: "@lib-q/jose"
+          package-description: "Node ML-DSA-65 compact JWS and OpenID Connect ID token verification"
+          package-keywords: "cryptography,post-quantum,ml-dsa,jose,jws,oidc"
+          working-directory: "npm/lib-q-jose"
           version: ${{ needs.pre-release-validation.outputs.version }}
 
   # Post-release tasks - run after publishing
   post-release:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Post-Release Tasks
-    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, publish-npm-types]
+    needs: [pre-release-validation, publish-rust-tier-17, publish-wasm-packages, publish-npm-types, publish-npm-jose]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:

@@ -36,9 +36,6 @@ use lib_q_slh_dsa::signature::{
 };
 use lib_q_slh_dsa::{
     ParameterSet,
-    Sha2_128f,
-    Sha2_192f,
-    Sha2_256f,
     Shake128f,
     Shake192f,
     Shake256f,
@@ -191,9 +188,6 @@ fn test_signature_serialization() {
 /// Test all SLH-DSA parameter sets with type conversions
 #[test]
 fn test_all_parameter_sets_type_conversions() {
-    test_parameter_set_type_conversions::<Sha2_128f>("SHA2-128f");
-    test_parameter_set_type_conversions::<Sha2_192f>("SHA2-192f");
-    test_parameter_set_type_conversions::<Sha2_256f>("SHA2-256f");
     test_parameter_set_type_conversions::<Shake128f>("SHAKE128f");
     test_parameter_set_type_conversions::<Shake192f>("SHAKE192f");
     test_parameter_set_type_conversions::<Shake256f>("SHAKE256f");
@@ -297,9 +291,6 @@ fn test_slh_dsa_signature_default() {
 /// Test that SlhDsaSignature works with all parameter sets
 #[test]
 fn test_slh_dsa_signature_all_parameter_sets() {
-    let _slh_dsa_sha2_128f = SlhDsaSignature::<Sha2_128f>::new();
-    let _slh_dsa_sha2_192f = SlhDsaSignature::<Sha2_192f>::new();
-    let _slh_dsa_sha2_256f = SlhDsaSignature::<Sha2_256f>::new();
     let _slh_dsa_shake128f = SlhDsaSignature::<Shake128f>::new();
     let _slh_dsa_shake192f = SlhDsaSignature::<Shake192f>::new();
     let _slh_dsa_shake256f = SlhDsaSignature::<Shake256f>::new();

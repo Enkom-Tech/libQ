@@ -18,9 +18,6 @@ use lib_q_random::{
 };
 use lib_q_slh_dsa::{
     ParameterSet,
-    Sha2_128f,
-    Sha2_192f,
-    Sha2_256f,
     Shake128f,
     Shake192f,
     Shake256f,
@@ -50,9 +47,6 @@ fn benchmark_key_generation(c: &mut Criterion) {
     }
 
     let parameter_sets = [
-        ("SHA2-128f", Sha2_128f::NAME),
-        ("SHA2-192f", Sha2_192f::NAME),
-        ("SHA2-256f", Sha2_256f::NAME),
         ("SHAKE128f", Shake128f::NAME),
         ("SHAKE192f", Shake192f::NAME),
         ("SHAKE256f", Shake256f::NAME),
@@ -62,7 +56,7 @@ fn benchmark_key_generation(c: &mut Criterion) {
         group.bench_function(name, |b| {
             b.iter(|| {
                 let mut rng = create_benchmark_rng(&seed);
-                let signing_key = SigningKey::<Sha2_128f>::new(&mut rng);
+                let signing_key = SigningKey::<Shake128f>::new(&mut rng);
                 let verifying_key = signing_key.verifying_key();
                 black_box((signing_key, verifying_key))
             })
@@ -266,10 +260,10 @@ fn benchmark_parameter_set_comparison(c: &mut Criterion) {
 
     let message = b"Parameter set comparison benchmark";
 
-    // Benchmark SHA2-128f
+    // Benchmark SHAKE128f
     let mut key_rng_128f = create_benchmark_rng(&key_seed);
-    let signing_key_128f = SigningKey::<Sha2_128f>::new(&mut key_rng_128f);
-    group.bench_function("SHA2-128f_full_workflow", |b| {
+    let signing_key_128f = SigningKey::<Shake128f>::new(&mut key_rng_128f);
+    group.bench_function("SHAKE128f_full_workflow", |b| {
         b.iter(|| {
             let mut signing_rng = create_benchmark_rng(&signing_seed_16);
             let signature = signing_key_128f
@@ -279,10 +273,10 @@ fn benchmark_parameter_set_comparison(c: &mut Criterion) {
         })
     });
 
-    // Benchmark SHA2-192f
+    // Benchmark SHAKE192f
     let mut key_rng_192f = create_benchmark_rng(&key_seed);
-    let signing_key_192f = SigningKey::<Sha2_192f>::new(&mut key_rng_192f);
-    group.bench_function("SHA2-192f_full_workflow", |b| {
+    let signing_key_192f = SigningKey::<Shake192f>::new(&mut key_rng_192f);
+    group.bench_function("SHAKE192f_full_workflow", |b| {
         b.iter(|| {
             let mut signing_rng = create_benchmark_rng(&signing_seed_24);
             let signature = signing_key_192f
@@ -292,10 +286,10 @@ fn benchmark_parameter_set_comparison(c: &mut Criterion) {
         })
     });
 
-    // Benchmark SHA2-256f
+    // Benchmark SHAKE256f
     let mut key_rng_256f = create_benchmark_rng(&key_seed);
-    let signing_key_256f = SigningKey::<Sha2_256f>::new(&mut key_rng_256f);
-    group.bench_function("SHA2-256f_full_workflow", |b| {
+    let signing_key_256f = SigningKey::<Shake256f>::new(&mut key_rng_256f);
+    group.bench_function("SHAKE256f_full_workflow", |b| {
         b.iter(|| {
             let mut signing_rng = create_benchmark_rng(&signing_seed_32);
             let signature = signing_key_256f

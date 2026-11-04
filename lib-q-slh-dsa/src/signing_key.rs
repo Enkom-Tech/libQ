@@ -56,8 +56,6 @@ use crate::verifying_key::VerifyingKey;
 use crate::{
     ParameterSet,
     PkSeed,
-    Sha2L1,
-    Sha2L35,
     Shake,
     VerifyingKeyLen,
 };
@@ -528,17 +526,6 @@ impl<P: ParameterSet> SignatureAlgorithmIdentifier for SigningKey<P> {
 
     const SIGNATURE_ALGORITHM_IDENTIFIER: AlgorithmIdentifier<Self::Params> =
         Signature::<P>::ALGORITHM_IDENTIFIER;
-}
-
-impl<M> SigningKeyLen for Sha2L1<U16, M> {
-    type SkLen = U<{ 4 * 16 }>;
-}
-
-impl<M> SigningKeyLen for Sha2L35<U24, M> {
-    type SkLen = U<{ 4 * 24 }>;
-}
-impl<M> SigningKeyLen for Sha2L35<U32, M> {
-    type SkLen = U<{ 4 * 32 }>;
 }
 
 impl<M> SigningKeyLen for Shake<U16, M> {

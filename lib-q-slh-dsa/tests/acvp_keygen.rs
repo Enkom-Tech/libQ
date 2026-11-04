@@ -67,6 +67,11 @@ fn test_keygen_cvp() {
     let test_file: TestFile = serde_json::from_str(KEYGEN_KAT_JSON).unwrap();
     for test_group in test_file.testGroups {
         let p = test_group.parameterSet;
+        // The upstream ACVP files also carry the FIPS 205 SHA2 parameter sets. lib-Q ships no
+        // SHA-2, so those groups are skipped; the files stay byte-identical to upstream.
+        if p.starts_with("SLH-DSA-SHA2-") {
+            continue;
+        }
         if skip_slow_parameter_set_without_all_sets(&p) {
             continue;
         }
@@ -78,16 +83,14 @@ fn test_keygen_cvp() {
                 Shake192s::NAME => parameter_case!(Shake192s, test_case),
                 Shake256f::NAME => parameter_case!(Shake256f, test_case),
                 Shake256s::NAME => parameter_case!(Shake256s, test_case),
-                Sha2_128f::NAME => parameter_case!(Sha2_128f, test_case),
-                Sha2_128s::NAME => parameter_case!(Sha2_128s, test_case),
-                Sha2_192f::NAME => parameter_case!(Sha2_192f, test_case),
-                Sha2_192s::NAME => parameter_case!(Sha2_192s, test_case),
-                Sha2_256f::NAME => parameter_case!(Sha2_256f, test_case),
-                Sha2_256s::NAME => parameter_case!(Sha2_256s, test_case),
                 _ => panic!("Unknown parameter set: {}", p),
             }
             i += 1;
         }
     }
     print!("Number of test cases: {}", i);
+    assert!(
+        i > 0,
+        "no SHAKE keyGen case ran: the ACVP file has no matching parameterSet"
+    );
 }

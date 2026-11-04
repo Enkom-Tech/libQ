@@ -23,12 +23,6 @@ use zeroize::Zeroizing;
 
 use crate::{
     ParameterSet,
-    Sha2_128f,
-    Sha2_128s,
-    Sha2_192f,
-    Sha2_192s,
-    Sha2_256f,
-    Sha2_256s,
     Shake128f,
     Shake128s,
     Shake192f,
@@ -79,7 +73,7 @@ fn keygen_for<P: ParameterSet + VerifyingKeyLen>(
 
 /// Generate a signing key and verifying key for the given FIPS 205 parameter set id.
 ///
-/// `algorithm` is case-insensitive; hyphens/underscores are ignored, e.g. `SHAKE128f`, `sha2-128f`.
+/// `algorithm` is case-insensitive; hyphens/underscores are ignored, e.g. `SHAKE128f`, `shake-128f`.
 #[wasm_bindgen(js_name = slhDsaKeygen)]
 pub fn slh_dsa_keygen(algorithm: &str) -> Result<JsValue, JsValue> {
     let mut rng = rng()?;
@@ -91,12 +85,6 @@ pub fn slh_dsa_keygen(algorithm: &str) -> Result<JsValue, JsValue> {
         "shake192s" => keygen_for::<Shake192s>(&mut rng, "shake192s"),
         "shake256f" => keygen_for::<Shake256f>(&mut rng, "shake256f"),
         "shake256s" => keygen_for::<Shake256s>(&mut rng, "shake256s"),
-        "sha2128f" => keygen_for::<Sha2_128f>(&mut rng, "sha2_128f"),
-        "sha2128s" => keygen_for::<Sha2_128s>(&mut rng, "sha2_128s"),
-        "sha2192f" => keygen_for::<Sha2_192f>(&mut rng, "sha2_192f"),
-        "sha2192s" => keygen_for::<Sha2_192s>(&mut rng, "sha2_192s"),
-        "sha2256f" => keygen_for::<Sha2_256f>(&mut rng, "sha2_256f"),
-        "sha2256s" => keygen_for::<Sha2_256s>(&mut rng, "sha2_256s"),
         _ => Err(js_err(format!(
             "unknown SLH-DSA parameter set: {algorithm}"
         ))),
@@ -128,12 +116,6 @@ pub fn slh_dsa_sign(
         "shake192s" => sign_for::<Shake192s>(signing_key_hex, message),
         "shake256f" => sign_for::<Shake256f>(signing_key_hex, message),
         "shake256s" => sign_for::<Shake256s>(signing_key_hex, message),
-        "sha2128f" => sign_for::<Sha2_128f>(signing_key_hex, message),
-        "sha2128s" => sign_for::<Sha2_128s>(signing_key_hex, message),
-        "sha2192f" => sign_for::<Sha2_192f>(signing_key_hex, message),
-        "sha2192s" => sign_for::<Sha2_192s>(signing_key_hex, message),
-        "sha2256f" => sign_for::<Sha2_256f>(signing_key_hex, message),
-        "sha2256s" => sign_for::<Sha2_256s>(signing_key_hex, message),
         _ => Err(js_err(format!(
             "unknown SLH-DSA parameter set: {algorithm}"
         ))),
@@ -170,12 +152,6 @@ pub fn slh_dsa_verify(
         "shake192s" => verify_for::<Shake192s>(verifying_key_hex, message, signature_hex),
         "shake256f" => verify_for::<Shake256f>(verifying_key_hex, message, signature_hex),
         "shake256s" => verify_for::<Shake256s>(verifying_key_hex, message, signature_hex),
-        "sha2128f" => verify_for::<Sha2_128f>(verifying_key_hex, message, signature_hex),
-        "sha2128s" => verify_for::<Sha2_128s>(verifying_key_hex, message, signature_hex),
-        "sha2192f" => verify_for::<Sha2_192f>(verifying_key_hex, message, signature_hex),
-        "sha2192s" => verify_for::<Sha2_192s>(verifying_key_hex, message, signature_hex),
-        "sha2256f" => verify_for::<Sha2_256f>(verifying_key_hex, message, signature_hex),
-        "sha2256s" => verify_for::<Sha2_256s>(verifying_key_hex, message, signature_hex),
         _ => Err(js_err(format!(
             "unknown SLH-DSA parameter set: {algorithm}"
         ))),

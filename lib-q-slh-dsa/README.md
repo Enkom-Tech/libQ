@@ -15,31 +15,26 @@ For provider-style integration, see [`lib-q-sig`](../lib-q-sig) (features `slh-d
 
 ## Supported Parameter Sets
 
-All 12 FIPS 205 parameter sets are implemented. FIPS 205 standardized only the **simple** instances —
-the "robust" variants from the SPHINCS+ submission were **not** standardized and are **not** provided
-here. `s` = small signature / slower signing, `f` = fast signing / larger signature.
+The six FIPS 205 SHAKE parameter sets are implemented. The six SHA2 parameter sets are not: lib-Q is
+post-quantum only and ships no SHA-2. FIPS 205 standardized only the **simple** instances; the "robust"
+variants from the SPHINCS+ submission were **not** standardized and are **not** provided here.
+`s` = small signature / slower signing, `f` = fast signing / larger signature.
 
-### SHA2-based (`lib-q-slh-dsa` type in parentheses)
-- **SLH-DSA-SHA2-128s** (`Sha2_128s`) / **SLH-DSA-SHA2-128f** (`Sha2_128f`): Level 1 security (128-bit)
-- **SLH-DSA-SHA2-192s** (`Sha2_192s`) / **SLH-DSA-SHA2-192f** (`Sha2_192f`): Level 3 security (192-bit)
-- **SLH-DSA-SHA2-256s** (`Sha2_256s`) / **SLH-DSA-SHA2-256f** (`Sha2_256f`): Level 5 security (256-bit)
-
-### SHAKE-based
+### SHAKE-based (`lib-q-slh-dsa` type in parentheses)
 - **SLH-DSA-SHAKE-128s** (`Shake128s`) / **SLH-DSA-SHAKE-128f** (`Shake128f`): Level 1 security (128-bit)
 - **SLH-DSA-SHAKE-192s** (`Shake192s`) / **SLH-DSA-SHAKE-192f** (`Shake192f`): Level 3 security (192-bit)
 - **SLH-DSA-SHAKE-256s** (`Shake256s`) / **SLH-DSA-SHAKE-256f** (`Shake256f`): Level 5 security (256-bit)
 
-The default test suite exercises `Shake128f` + `Sha2_128f`; enable the `all-parameter-set-tests`
-feature to run all 12 (slow).
+The default test suite exercises `Shake128f`; enable the `all-parameter-set-tests` feature to run all
+six (slow).
 
-> **Reachable surface differs by entry point.** All 12 are available when you use this crate directly
-> (`SigningKey::<Sha2_192s>::new(..)`). The workspace-wide `lib_q_types::Algorithm` enum — the path
+> **Reachable surface differs by entry point.** All six are available when you use this crate directly
+> (`SigningKey::<Shake192s>::new(..)`). The workspace-wide `lib_q_types::Algorithm` enum — the path
 > used by `lib-q-core`, [`lib-q-sig`](../lib-q-sig), and the WASM/npm bindings — currently exposes
-> only **six** SLH-DSA rows (`SlhDsaSha256{128,192,256}fRobust`,
-> `SlhDsaShake256{128,192,256}fRobust`): the `f` variants only, under **legacy SPHINCS+ `Robust`
-> names that FIPS 205 does not define**. Those enum names are historical and do not describe what is
-> computed — the underlying `ParameterSet::NAME` values are the correct FIPS 205 designations
-> (`SLH-DSA-SHA2-128f`, `SLH-DSA-SHAKE-192f`, …). Renaming the enum variants is a breaking change and
+> only **three** SLH-DSA rows (`SlhDsaShake256{128,192,256}fRobust`): the `f` variants only, under
+> **legacy SPHINCS+ `Robust` names that FIPS 205 does not define**. Those enum names are historical
+> and do not describe what is computed — the underlying `ParameterSet::NAME` values are the correct
+> FIPS 205 designations (`SLH-DSA-SHAKE-128f`, `SLH-DSA-SHAKE-192f`, …). Renaming the enum variants is a breaking change and
 > is tracked separately; until then, do not read a `-Robust` enum name as a claim that a "robust"
 > instance is implemented.
 
@@ -170,7 +165,7 @@ cargo bench --package lib-q-slh-dsa
 ### Cryptographic Security
 - **Post-Quantum Security**: SLH-DSA provides security against both classical and quantum attacks
 - **NIST Standardization**: All parameter sets are NIST-approved and follow FIPS-205 specification
-- **Hash Function Security**: Uses SHA-256 and SHAKE-256, both cryptographically secure hash functions
+- **Hash Function Security**: Uses SHAKE256 (FIPS 202) only
 
 ### Implementation Security
 - **Memory Safety**: Automatic zeroization of sensitive data when keys are dropped
@@ -274,9 +269,9 @@ if !is_valid {
 
 | Parameter Set | Security Level | Signature Size | Performance | Use Case |
 |---------------|----------------|----------------|-------------|----------|
-| SHA256-128f   | 128-bit        | ~7KB           | Fast        | General purpose |
-| SHA256-192f   | 192-bit        | ~11KB          | Medium      | High security |
-| SHA256-256f   | 256-bit        | ~15KB          | Slower      | Maximum security |
+| SHAKE-128f    | 128-bit        | ~17KB          | Fast        | General purpose |
+| SHAKE-192f    | 192-bit        | ~35KB          | Medium      | High security |
+| SHAKE-256f    | 256-bit        | ~49KB          | Slower      | Maximum security |
 
 ### Common Security Pitfalls
 

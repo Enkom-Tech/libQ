@@ -224,120 +224,6 @@ mod slh_dsa_crypto_tests {
     use super::*;
 
     #[test]
-    fn test_slh_dsa_sha256_128f_robust_end_to_end() {
-        let slh_dsa = SlhDsa::new();
-        let test_messages = generate_test_messages();
-
-        for message in test_messages {
-            // Generate keypair
-            let keypair = slh_dsa
-                .generate_keypair_for_algorithm(Algorithm::SlhDsaSha256128fRobust, None)
-                .expect("Key generation should succeed");
-
-            // Sign message
-            let signature = slh_dsa
-                .sign_for_algorithm(
-                    Algorithm::SlhDsaSha256128fRobust,
-                    keypair.secret_key(),
-                    &message,
-                    None,
-                )
-                .expect("Signing should succeed");
-
-            // Verify signature
-            let is_valid = slh_dsa
-                .verify_for_algorithm(
-                    Algorithm::SlhDsaSha256128fRobust,
-                    keypair.public_key(),
-                    &message,
-                    &signature,
-                )
-                .expect("Verification should succeed");
-            assert!(
-                is_valid,
-                "Signature should be valid for message: {:?}",
-                message
-            );
-        }
-    }
-
-    #[test]
-    fn test_slh_dsa_sha256_192f_robust_end_to_end() {
-        let slh_dsa = SlhDsa::new();
-        let test_messages = generate_test_messages();
-
-        for message in test_messages {
-            // Generate keypair
-            let keypair = slh_dsa
-                .generate_keypair_for_algorithm(Algorithm::SlhDsaSha256192fRobust, None)
-                .expect("Key generation should succeed");
-
-            // Sign message
-            let signature = slh_dsa
-                .sign_for_algorithm(
-                    Algorithm::SlhDsaSha256192fRobust,
-                    keypair.secret_key(),
-                    &message,
-                    None,
-                )
-                .expect("Signing should succeed");
-
-            // Verify signature
-            let is_valid = slh_dsa
-                .verify_for_algorithm(
-                    Algorithm::SlhDsaSha256192fRobust,
-                    keypair.public_key(),
-                    &message,
-                    &signature,
-                )
-                .expect("Verification should succeed");
-            assert!(
-                is_valid,
-                "Signature should be valid for message: {:?}",
-                message
-            );
-        }
-    }
-
-    #[test]
-    fn test_slh_dsa_sha256_256f_robust_end_to_end() {
-        let slh_dsa = SlhDsa::new();
-        let test_messages = generate_test_messages();
-
-        for message in test_messages {
-            // Generate keypair
-            let keypair = slh_dsa
-                .generate_keypair_for_algorithm(Algorithm::SlhDsaSha256256fRobust, None)
-                .expect("Key generation should succeed");
-
-            // Sign message
-            let signature = slh_dsa
-                .sign_for_algorithm(
-                    Algorithm::SlhDsaSha256256fRobust,
-                    keypair.secret_key(),
-                    &message,
-                    None,
-                )
-                .expect("Signing should succeed");
-
-            // Verify signature
-            let is_valid = slh_dsa
-                .verify_for_algorithm(
-                    Algorithm::SlhDsaSha256256fRobust,
-                    keypair.public_key(),
-                    &message,
-                    &signature,
-                )
-                .expect("Verification should succeed");
-            assert!(
-                is_valid,
-                "Signature should be valid for message: {:?}",
-                message
-            );
-        }
-    }
-
-    #[test]
     fn test_slh_dsa_shake256_128f_robust_end_to_end() {
         let slh_dsa = SlhDsa::new();
         let test_messages = generate_test_messages();
@@ -459,7 +345,7 @@ mod slh_dsa_crypto_tests {
         let mut keypairs = Vec::new();
         for _ in 0..10 {
             let keypair = slh_dsa
-                .generate_keypair_for_algorithm(Algorithm::SlhDsaSha256192fRobust, None)
+                .generate_keypair_for_algorithm(Algorithm::SlhDsaShake256192fRobust, None)
                 .expect("Key generation should succeed");
             keypairs.push(keypair);
         }
@@ -485,7 +371,7 @@ mod slh_dsa_crypto_tests {
     fn test_slh_dsa_signature_uniqueness() {
         let slh_dsa = SlhDsa::new();
         let keypair = slh_dsa
-            .generate_keypair_for_algorithm(Algorithm::SlhDsaSha256192fRobust, None)
+            .generate_keypair_for_algorithm(Algorithm::SlhDsaShake256192fRobust, None)
             .expect("Key generation should succeed");
         let message = b"Test message for signature uniqueness";
 
@@ -494,7 +380,7 @@ mod slh_dsa_crypto_tests {
         for _ in 0..10 {
             let signature = slh_dsa
                 .sign_for_algorithm(
-                    Algorithm::SlhDsaSha256192fRobust,
+                    Algorithm::SlhDsaShake256192fRobust,
                     keypair.secret_key(),
                     message,
                     None,
@@ -517,7 +403,7 @@ mod slh_dsa_crypto_tests {
         for signature in &signatures {
             let is_valid = slh_dsa
                 .verify_for_algorithm(
-                    Algorithm::SlhDsaSha256192fRobust,
+                    Algorithm::SlhDsaShake256192fRobust,
                     keypair.public_key(),
                     message,
                     signature,

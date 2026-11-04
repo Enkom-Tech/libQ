@@ -18,9 +18,6 @@ use lib_q_random::{
 };
 use lib_q_slh_dsa::{
     ParameterSet,
-    Sha2_128f,
-    Sha2_192f,
-    Sha2_256f,
     Shake128f,
     Shake192f,
     Shake256f,
@@ -114,9 +111,6 @@ fn test_slh_dsa_signing_and_verification() {
 /// Test all SLH-DSA parameter sets
 #[test]
 fn test_all_slh_dsa_parameter_sets() {
-    test_parameter_set::<Sha2_128f>("SHA2-128f");
-    test_parameter_set::<Sha2_192f>("SHA2-192f");
-    test_parameter_set::<Sha2_256f>("SHA2-256f");
     test_parameter_set::<Shake128f>("SHAKE128f");
     test_parameter_set::<Shake192f>("SHAKE192f");
     test_parameter_set::<Shake256f>("SHAKE256f");
@@ -136,9 +130,9 @@ fn test_parameter_set<P: ParameterSet>(name: &str) {
     let message = b"Test message for parameter set";
     // Use appropriate randomness size for each parameter set
     let signing_randomness_size = match name {
-        "SHA2-128f" | "SHAKE128f" => 16,
-        "SHA2-192f" | "SHAKE192f" => 24,
-        "SHA2-256f" | "SHAKE256f" => 32,
+        "SHAKE128f" => 16,
+        "SHAKE192f" => 24,
+        "SHAKE256f" => 32,
         _ => 16,
     };
     let mut signing_randomness = vec![0u8; signing_randomness_size];
@@ -245,9 +239,9 @@ fn test_slh_dsa_signature_sizes() {
     let message = b"Test message for signature size verification";
     let signing_randomness = [0u8; 16];
 
-    // Test SHA2-128f signature size
+    // Test SHAKE128f signature size
     let mut rng_128f = test_rng_from_material(&randomness);
-    let signing_key_128f = SigningKey::<Sha2_128f>::new(&mut rng_128f);
+    let signing_key_128f = SigningKey::<Shake128f>::new(&mut rng_128f);
     let mut signing_rng_128f = test_rng_from_material(&signing_randomness);
     let signature_128f = signing_key_128f
         .try_sign_with_rng(&mut signing_rng_128f, message)
@@ -255,12 +249,12 @@ fn test_slh_dsa_signature_sizes() {
     assert_eq!(
         signature_128f.to_bytes().len(),
         17088,
-        "SHA2-128f signature size should be 17088 bytes"
+        "SHAKE128f signature size should be 17088 bytes"
     );
 
-    // Test SHA2-192f signature size
+    // Test SHAKE192f signature size
     let mut rng_192f = test_rng_from_material(&randomness);
-    let signing_key_192f = SigningKey::<Sha2_192f>::new(&mut rng_192f);
+    let signing_key_192f = SigningKey::<Shake192f>::new(&mut rng_192f);
     let mut signing_rng_192f = test_rng_from_material(&signing_randomness);
     let signature_192f = signing_key_192f
         .try_sign_with_rng(&mut signing_rng_192f, message)
@@ -268,12 +262,12 @@ fn test_slh_dsa_signature_sizes() {
     assert_eq!(
         signature_192f.to_bytes().len(),
         35664,
-        "SHA2-192f signature size should be 35664 bytes"
+        "SHAKE192f signature size should be 35664 bytes"
     );
 
-    // Test SHA2-256f signature size
+    // Test SHAKE256f signature size
     let mut rng_256f = test_rng_from_material(&randomness);
-    let signing_key_256f = SigningKey::<Sha2_256f>::new(&mut rng_256f);
+    let signing_key_256f = SigningKey::<Shake256f>::new(&mut rng_256f);
     let mut signing_rng_256f = test_rng_from_material(&signing_randomness);
     let signature_256f = signing_key_256f
         .try_sign_with_rng(&mut signing_rng_256f, message)
@@ -281,6 +275,6 @@ fn test_slh_dsa_signature_sizes() {
     assert_eq!(
         signature_256f.to_bytes().len(),
         49856,
-        "SHA2-256f signature size should be 49856 bytes"
+        "SHAKE256f signature size should be 49856 bytes"
     );
 }

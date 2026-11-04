@@ -73,13 +73,10 @@ pub use fn_dsa_comm::{
     HASH_ID_SHA3_256,
     HASH_ID_SHA3_384,
     HASH_ID_SHA3_512,
-    HASH_ID_SHA256,
-    HASH_ID_SHA384,
-    HASH_ID_SHA512,
-    HASH_ID_SHA512_256,
     HASH_ID_SHAKE128,
     HASH_ID_SHAKE256,
     HashIdentifier,
+    UnsupportedHashIdentifier,
     signature_size,
     vrfy_key_size,
 };
@@ -113,7 +110,9 @@ pub trait VerifyingKey: Sized {
     ///
     /// Return value is `true` if the signature is valid, `false` otherwise.
     /// Signature decoding errors and degree mismatch with the verifying key
-    /// also lead to `false` being returned.
+    /// also lead to `false` being returned, and so does a SHA-2 pre-hash
+    /// identifier (see `HashIdentifier::is_sha2`): lib-Q ships no SHA-2, so it
+    /// does not accept HashFN-DSA signatures over a SHA-2 pre-hash either.
     fn verify(&self, sig: &[u8], ctx: &DomainContext, id: &HashIdentifier, hv: &[u8]) -> bool;
 }
 
@@ -181,6 +180,9 @@ macro_rules! vrfy_key_impl {
                 id: &HashIdentifier,
                 hv: &[u8],
             ) -> bool {
+                if id.is_sha2() {
+                    return false;
+                }
                 let logn = self.logn;
                 let n = 1usize << logn;
                 let mut tmp_i16 = [0i16; 1 << ($logn_max)];
@@ -514,13 +516,15 @@ mod tests {
                 let mut kg = KeyPairGenerator512::default();
                 kg.keygen(logn, &mut rng, sk_sl, vk_sl);
                 let mut sk = SigningKey512::decode(sk_sl).unwrap();
-                sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_SHA3_256, &hv, sig);
+                sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_SHA3_256, &hv, sig)
+                    .unwrap();
             }
             10 => {
                 let mut kg = KeyPairGenerator1024::default();
                 kg.keygen(logn, &mut rng, sk_sl, vk_sl);
                 let mut sk = SigningKey1024::decode(sk_sl).unwrap();
-                sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_SHA3_256, &hv, sig);
+                sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_SHA3_256, &hv, sig)
+                    .unwrap();
             }
             _ => unreachable!(),
         }

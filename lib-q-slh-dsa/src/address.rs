@@ -16,9 +16,6 @@
 //! Rather than implementing a generic `setTypeAndClear` as specified in FIPS-205, we define specific transitions for those
 //! address conversions which are actually used.
 
-use hybrid_array::Array;
-use typenum::U22;
-
 /// A single 32-bit FIPS-205 ADRS word stored as four **big-endian** bytes on the stack.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -68,19 +65,6 @@ impl From<u64> for AdrsWord64 {
 /// `Address` represents a hash address as defined by FIPS-205 section 4.2
 pub trait Address: AsRef<[u8]> {
     const TYPE_CONST: u32;
-
-    #[allow(clippy::doc_markdown)] // False positive
-    /// Returns the address as a compressed 22-byte array
-    /// ADRSc = ADRS[3] ∥ ADRS[8 : 16] ∥ ADRS[19] ∥ ADRS[20 : 32]
-    fn compressed(&self) -> Array<u8, U22> {
-        let bytes = self.as_ref();
-        let mut compressed = Array::<u8, U22>::default();
-        compressed[0] = bytes[3];
-        compressed[1..9].copy_from_slice(&bytes[8..16]);
-        compressed[9] = bytes[19];
-        compressed[10..22].copy_from_slice(&bytes[20..32]);
-        compressed
-    }
 }
 
 #[inline]

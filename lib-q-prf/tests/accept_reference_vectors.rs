@@ -1,4 +1,4 @@
-//! KAT acceptance against `reference_vectors.txt` and SHA-256 fingerprints of moduli.
+//! KAT acceptance against `reference_vectors.txt` and SHA3-256 fingerprints of moduli.
 
 use crypto_bigint::U256;
 use lib_q_prf::{
@@ -18,10 +18,7 @@ use lib_q_prf::{
     u256_from_le_bytes,
     u512_from_le_bytes,
 };
-use sha2::{
-    Digest,
-    Sha256,
-};
+use lib_q_sha3::sha3_256;
 
 fn line_value<'a>(text: &'a str, key: &str) -> &'a str {
     for line in text.lines() {
@@ -39,14 +36,14 @@ fn line_value<'a>(text: &'a str, key: &str) -> &'a str {
 }
 
 #[test]
-fn sha256_of_moduli_matches_reference() {
+fn sha3_256_of_moduli_matches_reference() {
     let raw = include_str!("reference_vectors.txt");
     let leg256 = LegendrePrfParams256::pilot();
     let leg512 = LegendrePrfParams512::pilot();
-    let h256 = hex::encode(Sha256::digest(leg256.p.get().to_le_bytes()));
-    let h512 = hex::encode(Sha256::digest(leg512.p.to_le_bytes()));
-    assert_eq!(h256, line_value(raw, "SHA256_P256_LE"));
-    assert_eq!(h512, line_value(raw, "SHA256_P512_LE"));
+    let h256 = hex::encode(sha3_256(&leg256.p.get().to_le_bytes()));
+    let h512 = hex::encode(sha3_256(&leg512.p.to_le_bytes()));
+    assert_eq!(h256, line_value(raw, "SHA3_256_P256_LE"));
+    assert_eq!(h512, line_value(raw, "SHA3_256_P512_LE"));
 }
 
 #[test]

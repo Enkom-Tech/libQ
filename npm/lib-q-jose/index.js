@@ -34,7 +34,12 @@ function decodeObject(bytes) {
   return value;
 }
 
-/** Import a public RFC 9964 AKP and compute its RFC 7638 SHA-256 thumbprint. */
+/**
+ * Import a public RFC 9964 AKP and compute its RFC 7638 thumbprint.
+ *
+ * RFC 7638 leaves the hash to the application; lib-Q ships no SHA-2, so this is SHA3-256
+ * (`sha3-256` in the IANA Named Information registry, the name an RFC 9278 thumbprint URI uses).
+ */
 export function importAkpJwk(jwk) {
   requireValue(isObject(jwk) && jwk.kty === 'AKP' && jwk.alg === ALGORITHM, 'Expected an ML-DSA-65 AKP');
   requireValue(!('priv' in jwk), 'Private JWK material is not accepted');
@@ -47,7 +52,7 @@ export function importAkpJwk(jwk) {
   requireValue(publicKey.length === 1952, 'Invalid ML-DSA-65 public key length');
   // Only required members, in lexicographic order (RFC 9964 section 6).
   const canonical = JSON.stringify({ alg: ALGORITHM, kty: 'AKP', pub: jwk.pub });
-  const thumbprint = createHash('sha256').update(canonical).digest('base64url');
+  const thumbprint = createHash('sha3-256').update(canonical).digest('base64url');
   return { publicKey, thumbprint, kid: jwk.kid ?? thumbprint };
 }
 

@@ -31,10 +31,6 @@ fn umbrella_hash_kem_sig_helpers() {
         .hash(Algorithm::Sha3_256, b"surface-test")
         .expect("umbrella hash context must use lib-q-hash");
     assert_eq!(digest.len(), 32);
-    let s2 = hash
-        .hash(Algorithm::Sha256, b"surface-test")
-        .expect("SHA-256 via umbrella hash provider");
-    assert_eq!(s2.len(), 32);
     let _kem = create_kem_context();
     let _sig = create_signature_context();
 }
@@ -89,12 +85,16 @@ fn umbrella_create_signature_ml_dsa() {
 #[test]
 fn umbrella_create_signature_slh_dsa_aliases() {
     for name in [
-        "SLH-DSA-SHA256-128f-Robust",
+        "SLH-DSA-SHAKE256-128f-Robust",
         "SLH-DSA-SHAKE256-256f-Robust",
         "slh-dsa-shake256-192f-robust",
     ] {
         let _ =
             create_signature(name).unwrap_or_else(|e| panic!("create_signature({name}): {e:?}"));
+    }
+    // The SLH-DSA SHA2 parameter sets are not offered: lib-Q ships no SHA-2.
+    for name in ["SLH-DSA-SHA256-128f-Robust", "slh-dsa-sha256-256f-robust"] {
+        assert!(create_signature(name).is_err(), "{name} must be refused");
     }
 }
 

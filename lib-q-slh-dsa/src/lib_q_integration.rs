@@ -20,6 +20,12 @@ use lib_q_core::{
     SigSecretKey,
     Signature,
 };
+#[cfg(feature = "alloc")]
+use lib_q_sha3::{
+    ExtendableOutput,
+    Shake256,
+    Update,
+};
 #[cfg(all(feature = "alloc", feature = "std"))]
 use rand_core::Rng;
 #[cfg(feature = "alloc")]
@@ -27,8 +33,6 @@ use rand_core::{
     TryCryptoRng,
     TryRng,
 };
-#[cfg(feature = "alloc")]
-use sha2::Digest;
 #[cfg(feature = "alloc")]
 use signature::Keypair;
 #[cfg(feature = "alloc")]
@@ -345,11 +349,11 @@ pub fn bytes_to_slh_signature<P: ParameterSet>(bytes: &[u8]) -> Result<SlhSignat
 
 /// Deterministic RNG for testing and deterministic key generation
 ///
-/// This RNG uses SHA-256 to generate deterministic randomness from a seed.
+/// This RNG uses SHAKE256 to generate deterministic randomness from a seed.
 /// It's suitable for testing and scenarios where deterministic behavior is required.
 #[cfg(feature = "alloc")]
 struct DeterministicRng {
-    seed: Vec<u8>,
+    seed: Zeroizing<Vec<u8>>,
     counter: u64,
 }
 
@@ -358,7 +362,7 @@ impl DeterministicRng {
     /// Create a new deterministic RNG from a seed
     fn new(seed: &[u8]) -> Self {
         Self {
-            seed: seed.to_vec(),
+            seed: Zeroizing::new(seed.to_vec()),
             counter: 0,
         }
     }
@@ -374,14 +378,13 @@ impl TryRng for DeterministicRng {
     }
 
     fn try_next_u64(&mut self) -> core::result::Result<u64, Self::Error> {
-        let mut hasher = sha2::Sha256::new();
+        let mut hasher = Shake256::default();
         hasher.update(&self.seed);
-        hasher.update(self.counter.to_be_bytes());
-        let hash = hasher.finalize();
+        hasher.update(&self.counter.to_be_bytes());
         self.counter = self.counter.wrapping_add(1);
 
         let mut bytes = [0u8; 8];
-        bytes.copy_from_slice(&hash[..8]);
+        hasher.finalize_xof_into(&mut bytes);
         Ok(u64::from_be_bytes(bytes))
     }
 

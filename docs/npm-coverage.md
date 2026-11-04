@@ -3,7 +3,7 @@
 lib-Q ships **two release surfaces**:
 
 1. **crates.io** — full workspace (50+ crates), including `lib-q-stark-*`, `lib-q-plonky-*`, research crates, and infrastructure.
-2. **npm (`@lib-q/*`)** — **27** scoped packages: **26** built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers, plus the TypeScript-only `@lib-q/types`.
+2. **npm (`@lib-q/*`)** — **29** scoped packages: **27** built with [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) for Node.js and browsers, plus the hand-written `@lib-q/types` (TypeScript only) and `@lib-q/jose` (Node JOSE verifier).
 
 npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate name.
 
@@ -30,6 +30,7 @@ npm is the **JavaScript product boundary**, not a 1:1 mirror of every Rust crate
 | `@lib-q/ring-sig` | `lib-q-ring-sig` | DualRing-LB pilot (uses `lib-q-lattice-zkp`) |
 | `@lib-q/prf` | `lib-q-prf` | Legendre / Gold PRF pilots |
 | `@lib-q/types` | `npm/lib-q-types` | TypeScript-only shared shapes |
+| `@lib-q/jose` | `npm/lib-q-jose` | Node ML-DSA-65 JWS / OIDC ID token verifier (depends on `@lib-q/sig`) |
 
 ### STARK / lattice stack (5, wired in repo; publish on next npm release)
 

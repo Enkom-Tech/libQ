@@ -76,7 +76,7 @@
 //! // Sign a message with the signing key.
 //! let mut sk = SigningKeyStandard::decode(encoded_signing_key)?;
 //! let mut sig = vec![0u8; signature_size(sk.get_logn())];
-//! sk.sign(&mut OsRng, &DOMAIN_NONE, &HASH_ID_RAW, b"message", &mut sig);
+//! sk.sign(&mut OsRng, &DOMAIN_NONE, &HASH_ID_RAW, b"message", &mut sig)?;
 //!
 //! // Verify a signature with the verifying key.
 //! match VerifyingKeyStandard::decode(encoded_verifying_key) {
@@ -120,15 +120,12 @@ pub use fn_dsa_comm::{
     HASH_ID_SHA3_256,
     HASH_ID_SHA3_384,
     HASH_ID_SHA3_512,
-    HASH_ID_SHA256,
-    HASH_ID_SHA384,
-    HASH_ID_SHA512,
-    HASH_ID_SHA512_256,
     HASH_ID_SHAKE128,
     HASH_ID_SHAKE256,
     HashIdentifier,
     Rng,
     RngError,
+    UnsupportedHashIdentifier,
     sign_key_size,
     signature_size,
     vrfy_key_size,
@@ -282,7 +279,8 @@ mod tests {
             assert!(vk_e == vk2_e);
 
             // Sign a test message.
-            sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, &b"test1"[..], sig);
+            sk.sign(&mut rng, &DOMAIN_NONE, &HASH_ID_RAW, &b"test1"[..], sig)
+                .unwrap();
 
             // Verify the signature. Check that modifying the context,
             // message or signature results in a verification failure.
@@ -292,6 +290,96 @@ mod tests {
             assert!(!vk.verify(sig, &DomainContext(b"other"), &HASH_ID_RAW, &b"test1"[..]));
             sig[sig.len() >> 1] ^= 0x40;
             assert!(!vk.verify(sig, &DOMAIN_NONE, &HASH_ID_RAW, &b"test1"[..]));
+        }
+    }
+
+    #[test]
+    fn sign_and_verify_reject_sha2_prehash_identifiers() {
+        // DER OIDs 2.16.840.1.101.3.4.2.{1..6}: SHA-256, SHA-384, SHA-512, SHA-224,
+        // SHA-512/224, SHA-512/256. Written out here, not taken from the crate.
+        let sha2_ids: [[u8; 11]; 6] = core::array::from_fn(|i| {
+            [
+                0x06,
+                0x09,
+                0x60,
+                0x86,
+                0x48,
+                0x01,
+                0x65,
+                0x03,
+                0x04,
+                0x02,
+                (i + 1) as u8,
+            ]
+        });
+        let logn = 9;
+        let mut kg = KeyPairGeneratorStandard::default();
+        let mut sk_buf = [0u8; sign_key_size(9)];
+        let mut vk_buf = [0u8; vrfy_key_size(9)];
+        let mut rng = FakeRng1::new(&[0x5A]);
+        kg.keygen(logn, &mut rng, &mut sk_buf, &mut vk_buf);
+        let mut sk = SigningKeyStandard::decode(&sk_buf).unwrap();
+        let hv = [0x11u8; 32];
+        for id in &sha2_ids {
+            let hid = HashIdentifier(id);
+            assert!(hid.is_sha2());
+            let mut sig = [0u8; signature_size(9)];
+            assert_eq!(
+                sk.sign(&mut rng, &DOMAIN_NONE, &hid, &hv, &mut sig),
+                Err(UnsupportedHashIdentifier)
+            );
+            assert!(
+                sig.iter().all(|&b| b == 0),
+                "a refused signature must not be written"
+            );
+        }
+        // Verification refuses SHA-2 identifiers too. SIG_SHA256 is a signature that IS valid for
+        // this key under the SHA-256 identifier: it was made once with the signing-side check
+        // bypassed (same key, rng FakeRng1([0xa5]), hv = [0x11; 32]) and pinned here, so the
+        // refusal below is the check and not a bad signature.
+        let vk = VerifyingKeyStandard::decode(&vk_buf).unwrap();
+        const SIG_SHA256: &[&str] = &[
+            "39bef0aa8b23899f9d9e43533d165ea0e196a0319b8df593e120d8ca5da26cb3",
+            "e564e0c144ae813d742b4790d5e517a5c361a4745c11573a3f3e842474562300",
+            "c315e40f0ad4e55ab61f808ddbb36c8f1c8bc1fd44749c302dedd084676679b4",
+            "608613279eeaf7212f4667b6424a45e7cdb6601b636a87624dc9b644b863099b",
+            "bc21b7bdcb5f3e9cb3d55ef9aa87339c3b522b115e11eaec8089c75508ddb180",
+            "3e685ea9df24f12973547274f1491f4c963149ae0a4a66201cf9544aec5be17a",
+            "83e4d8b34ac295af86169bfa0953d62c3c6d571d3c319144f98e60b068b64d30",
+            "9fc80d0109dd483c51d2e7d398c038e68d16455afbec1f85e09298b5e4e6f0e4",
+            "72f7b98658bef2988dddc777fd5e25a2269ef25194994c833f125d579ed8f7c1",
+            "f10e59387bb253da25a273f4f4a5f6b562425fdc4fd60aa1b39c6f7a31e52a63",
+            "5cd37addbde972549e0ee6beddf8ea7019d54b19da44da34cd8dfc2886c772c9",
+            "527ff8e6d59bf5ebf3d9b574c824fad76ab8aa64b5d368d72177e4d8a40baae1",
+            "97e776325dd753bcb67a94fc9d6152624baf17658dc3d7863366ea2788e95f41",
+            "6872fb48c9329e44dda5c63d908559959b79dba24c75f10f0e4b16d334959a0a",
+            "43ded3b4af23ebda61529709c7c10d9e62aa5e1c8f91cbdee83addb7f1368a4c",
+            "aca9f6f93d762979f786c68b28d3e40465f787ba273730ba9dcbc980544730db",
+            "685db4dddb9528fd02cc7e59365cf39a425644f20a0215d9c7bc38554f7c4ad5",
+            "1db28cec38b7486daf1b041d04aa05854c3b579fba80f0573b080f479d22b1fd",
+            "24e8ce7fb6b0a3284a1ae82a91425734d991c2f5148b227a0139e46afebd0885",
+            "b2e14bcd30de37bb9647eebdbe75c2bf4546a102231869ee6bcc2ecd389f2e16",
+            "0d5b7779d6ad546982d9cfbbd0f673a400000000000000000000",
+        ];
+        let sig_sha256 = hex::decode(SIG_SHA256.concat()).unwrap();
+        assert!(
+            !vk.verify(
+                &sig_sha256,
+                &DOMAIN_NONE,
+                &HashIdentifier(&sha2_ids[0]),
+                &hv
+            ),
+            "verify must refuse a SHA-2 pre-hash identifier"
+        );
+        for id in &sha2_ids {
+            assert!(!vk.verify(&sig_sha256, &DOMAIN_NONE, &HashIdentifier(id), &hv));
+        }
+        // SHA3 / SHAKE identifiers and raw messages still sign and verify.
+        for id in [&HASH_ID_SHA3_256, &HASH_ID_SHAKE256, &HASH_ID_RAW] {
+            assert!(!id.is_sha2());
+            let mut sig = [0u8; signature_size(9)];
+            sk.sign(&mut rng, &DOMAIN_NONE, id, &hv, &mut sig).unwrap();
+            assert!(vk.verify(&sig, &DOMAIN_NONE, id, &hv));
         }
     }
 
@@ -614,13 +702,15 @@ mod tests {
         let v = VK::decode(vk).unwrap();
         let dom = DomainContext(b"domain");
         if (num & 1) == 0 {
-            s.sign(&mut rng2, &dom, &HASH_ID_RAW, b"message", sig);
+            s.sign(&mut rng2, &dom, &HASH_ID_RAW, b"message", sig)
+                .unwrap();
             assert!(v.verify(sig, &dom, &HASH_ID_RAW, b"message"));
         } else {
             let mut sh = SHA3_256::new();
             sh.update(&b"message"[..]);
             let hv = sh.digest();
-            s.sign(&mut rng2, &dom, &HASH_ID_SHA3_256, &hv, sig);
+            s.sign(&mut rng2, &dom, &HASH_ID_SHA3_256, &hv, sig)
+                .unwrap();
             assert!(v.verify(sig, &dom, &HASH_ID_SHA3_256, &hv));
         }
         let mut sh = SHA3_256::new();

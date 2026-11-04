@@ -49,8 +49,8 @@ pkcs8 = ["dep:der"]
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
 rand_core = { workspace = true }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.11" }
-lib-q-random = { path = "../lib-q-random", version = "0.0.11", optional = true, default-features = false }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.12" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.12", optional = true, default-features = false }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, default-features = false }
 getrandom = { workspace = true, optional = true, default-features = false }
@@ -81,11 +81,11 @@ wasm-opt = ["-Oz", "--enable-bulk-memory"]
 [target.'cfg(not(target_os = "none"))'.dev-dependencies]
 # Conformance test only: `lib-q-types` holds the sizes `lib-q-core::SecurityConstants` reads;
 # this crate asserts its own real computed sizes match, so drift fails CI on either side.
-lib-q-types = { path = "../lib-q-types", version = "0.0.11", default-features = false }
+lib-q-types = { path = "../lib-q-types", version = "0.0.12", default-features = false }
 hex = { workspace = true, features = ["serde"] }
 hex-literal = { workspace = true }
 num-rational = { version = "0.4.2", default-features = false, features = ["num-bigint"] }
-lib-q-random = { path = "../lib-q-random", version = "0.0.11", features = ["std"] }
+lib-q-random = { path = "../lib-q-random", version = "0.0.12", features = ["std"] }
 crypto-common = { version = "0.2.2", features = ["rand_core"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -103,7 +103,7 @@ required-features = ["hardened"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.11", default-features = false }
+lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.12", default-features = false }
 
 [[bench]]
 name = "mlkem"

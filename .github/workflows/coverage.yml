@@ -106,12 +106,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if command -v sha256sum >/dev/null 2>&1; then
-            echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-          else
-            echo "hash=$(rustc -vV | shasum -a 256 | awk '{print $1}')" >> "$GITHUB_OUTPUT"
-          fi
+          # SHA3-256: lib-Q uses no SHA-2, not even for CI cache keys.
+          echo "hash=$(rustc -vV | python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())')" >> "$GITHUB_OUTPUT"
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp30
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat rust-toolchain.toml /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -119,7 +121,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-coverage-${{ matrix.rust }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          key: ${{ runner.os }}-cargo-coverage-${{ matrix.rust }}-${{ steps.toolchain-fp.outputs.hash }}-${{ steps.lockfp30.outputs.hash }}
           
       - name: Install tarpaulin (stable, prebuilt pinned binary)
         if: matrix.rust == 'stable'
@@ -345,8 +347,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          echo "hash=$(rustc -vV | sha256sum | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "hash=$(rustc -vV | python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())')" >> "$GITHUB_OUTPUT"
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp31
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat rust-toolchain.toml /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -356,7 +363,7 @@ jobs:
             target
           # Shard-scoped: the shards build disjoint crate sets in parallel, and a shared key
           # would have them racing to save mutually incomplete caches under one name.
-          key: ${{ runner.os }}-cargo-extcov-${{ matrix.shard }}-${{ steps.toolchain-fp.outputs.hash }}-${{ hashFiles('**/Cargo.lock', 'rust-toolchain.toml') }}
+          key: ${{ runner.os }}-cargo-extcov-${{ matrix.shard }}-${{ steps.toolchain-fp.outputs.hash }}-${{ steps.lockfp31.outputs.hash }}
 
       - name: Install tarpaulin
         uses: taiki-e/install-action@9534c84618278caac52cb373bb164ed464dbd8af # v2.87.11

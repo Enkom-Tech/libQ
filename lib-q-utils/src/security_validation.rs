@@ -18,9 +18,9 @@
 //! Two of the checks (`unsafe_code_usage`'s crate allowlist, `classical_crypto_detection`'s
 //! primitive allowlist) exist because a naive "zero unsafe" or "zero classical-crypto-dependency"
 //! rule would hard-fail this repo: SIMD intrinsics are load-bearing (1000+ `unsafe` sites across
-//! 20+ crates), and `sha2`/`aes` are NIST-mandated building blocks inside SLH-DSA (FIPS 205), HQC's
-//! AES-CTR DRBG, and MAYO. A policy check must therefore be an allowlist with a recorded rationale,
-//! not a bare count.
+//! 20+ crates), and `aes` is a NIST-mandated building block inside HQC's AES-CTR DRBG and MAYO.
+//! A policy check must therefore be an allowlist with a recorded rationale, not a bare count.
+//! `sha2` is denied outright: lib-Q ships no SHA-2.
 
 #[cfg(feature = "std")]
 #[allow(clippy::disallowed_types)]
@@ -157,7 +157,8 @@ impl SecurityCheck {
         match self {
             SecurityCheck::ClassicalCrypto => {
                 "every classical/legacy crypto crate dependency must be on the NIST-mandated \
-                 allowlist (sha2, aes are allowed: SLH-DSA/HQC/MAYO mandate them); anything else fails"
+                 allowlist (only aes is allowed: HQC/MAYO mandate it); anything else, sha2 \
+                 included, fails"
             }
             SecurityCheck::Sha3Compliance => {
                 "no crate may depend on an external `sha3`/`tiny-keccak` implementation; the \
@@ -407,18 +408,11 @@ const ALLOWED_UNSAFE_CRATES: &[UnsafeAllowlistEntry] = &[
 /// Classical/legacy crypto crate names that are permitted, with the NIST mandate that requires
 /// them. Anything else matching [`CLASSICAL_CRYPTO_DENYLIST`] fails the check.
 #[cfg(feature = "std")]
-const CLASSICAL_CRYPTO_ALLOWLIST: &[(&str, &str)] = &[
-    (
-        "sha2",
-        "NIST-mandated: SLH-DSA (FIPS 205) SHA2 parameter sets and FN-DSA keygen specify SHA-2 \
-         directly in their standards",
-    ),
-    (
-        "aes",
-        "NIST-mandated: HQC's FIPS-approved AES-256-CTR DRBG, MAYO, and SLH-DSA's SHA2 parameter \
-         sets specify AES directly in their standards",
-    ),
-];
+const CLASSICAL_CRYPTO_ALLOWLIST: &[(&str, &str)] = &[(
+    "aes",
+    "NIST-mandated: HQC's FIPS-approved AES-256-CTR DRBG and MAYO specify AES directly in \
+         their standards; the NIST KAT harnesses reproduce vectors made with an AES-CTR-DRBG",
+)];
 
 /// Classical/legacy primitive crate names that are never allowed as a dependency.
 #[cfg(feature = "std")]
@@ -428,6 +422,7 @@ const CLASSICAL_CRYPTO_DENYLIST: &[&str] = &[
     "md-5", // crates.io package name of the RustCrypto MD5 crate
     "sha1",
     "sha-1", // former crates.io package name of the RustCrypto SHA-1 crate
+    "sha2",  // lib-Q is post-quantum only and ships no SHA-2
     "des",
     "3des",
     "rc4",
@@ -1399,11 +1394,11 @@ mod tests {
     }
 
     #[test]
-    fn classical_crypto_detection_allows_nist_mandated_sha2_and_aes() {
+    fn classical_crypto_detection_allows_nist_mandated_aes() {
         let ws = TempWorkspace::new();
         let ok = ws.crate_dir(
             "lib-q-fake-ok",
-            "[package]\nname = \"lib-q-fake-ok\"\n[dependencies]\nsha2 = \"0.11\"\naes = \"0.9\"\n",
+            "[package]\nname = \"lib-q-fake-ok\"\n[dependencies]\naes = \"0.9\"\n",
             "pub fn f() {}\n",
         );
         let validator = SecurityValidator::new().with_source_paths(vec![ws.path_string(&ok)]);
@@ -1411,6 +1406,25 @@ mod tests {
         assert_eq!(
             report.results[SecurityCheck::ClassicalCrypto.name()],
             SecurityValidationResult::Pass
+        );
+    }
+
+    #[test]
+    fn classical_crypto_detection_rejects_sha2() {
+        let ws = TempWorkspace::new();
+        let bad = ws.crate_dir(
+            "lib-q-fake-sha2",
+            "[package]\nname = \"lib-q-fake-sha2\"\n[dependencies]\nsha2 = \"0.11\"\n",
+            "pub fn f() {}\n",
+        );
+        let validator = SecurityValidator::new().with_source_paths(vec![ws.path_string(&bad)]);
+        let report = validator.validate_only(&[SecurityCheck::ClassicalCrypto]);
+        assert!(
+            matches!(
+                report.results[SecurityCheck::ClassicalCrypto.name()],
+                SecurityValidationResult::Fail(_)
+            ),
+            "a `sha2` dependency must be rejected"
         );
     }
 

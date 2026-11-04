@@ -49,7 +49,7 @@ Builds WebAssembly targets (web, nodejs) via wasm-pack. Supports `out-dir` (defa
 
 ### `crate-publish`
 
-Publishes Rust crates to crates.io. The CD workflow uses `rust-lang/crates-io-auth-action` (Trusted Publishing) and passes its token output to this action. Configure Trusted Publishing on each crate (Settings tab; see https://crates.io/docs/trusted-publishing) for `Enkom-Tech/libQ` and workflow `cd.yml` before releasing.
+Publishes Rust crates to crates.io. The CD workflow uses `rust-lang/crates-io-auth-action` (Trusted Publishing) and passes its token output to this action. Configure Trusted Publishing on each crate (Settings tab; see https://crates.io/docs/trusted-publishing) for `Enkom-Tech/libQ`, workflow `cd.yml` and environment `release-publish` before releasing. There is no API-token fallback.
 
 ### `run-bench-shard`
 

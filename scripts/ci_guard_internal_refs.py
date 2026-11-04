@@ -29,14 +29,16 @@ The names in check 5 are not in this repository, in plain text or as plain hashe
 a short word is recovered by trying candidate words, so a published hash list is a published list.
 Instead, CI supplies the environment variable `INTERNAL_REFS_KEY`:
 
-    v1:<key as 64 hex chars>:<entry>,<entry>,...
-    entry = <mode><HMAC-SHA256(key, token) as 64 hex chars>
+    v2:<key as 64 hex chars>:<entry>,<entry>,...
+    entry = <mode><KMAC256(key, token, 256 bits, S="lib-q ci_guard_internal_refs v2") as 64 hex chars>
     mode  = "i" (token is compared lower-cased) or "s" (exact spelling only, for a name that is also
             an ordinary upper-case abbreviation)
 
 Every word of a line is tested, together with its dot-suffixes ("a.b.c" -> "b.c", "c") and its
 hyphen/underscore n-grams ("a-b_c" -> "a-b", "b_c", "a", ...), so a name inside a longer label is
-still found. Without the variable (for example on the public mirror's CI) check 5 is skipped with a
+still found. The format is `v2` since the MAC moved from HMAC-SHA256 to KMAC256 (lib-Q ships no
+SHA-2); a `v1` value fails the run with a request to regenerate it, rather than silently matching
+nothing. Without the variable (for example on the public mirror's CI) check 5 is skipped with a
 notice and checks 1-4 still run. A variable that is set but malformed fails the run.
 `--make-key-entry` builds the value from names on stdin without writing them anywhere.
 
@@ -63,8 +65,6 @@ Usage:
 
 from __future__ import annotations
 
-import hashlib
-import hmac
 import os
 import pathlib
 import re
@@ -103,6 +103,113 @@ WORD = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
 # ---------------------------------------------------------------------------------------------
+# KMAC256 (NIST SP 800-185), pure Python on Keccak-f[1600].
+#
+# lib-Q ships no SHA-2, so the keyed name list uses KMAC256 instead of HMAC-SHA256. hashlib has
+# SHAKE but not cSHAKE/KMAC, so the permutation is implemented here. The self-test checks it
+# against the three KMAC256 samples published by NIST (SP 800-185 examples, samples 4-6).
+
+_RC = [
+    0x0000000000000001, 0x0000000000008082, 0x800000000000808A, 0x8000000080008000,
+    0x000000000000808B, 0x0000000080000001, 0x8000000080008081, 0x8000000000008009,
+    0x000000000000008A, 0x0000000000000088, 0x0000000080008009, 0x000000008000000A,
+    0x000000008000808B, 0x800000000000008B, 0x8000000000008089, 0x8000000000008003,
+    0x8000000000008002, 0x8000000000000080, 0x000000000000800A, 0x800000008000000A,
+    0x8000000080008081, 0x8000000000008080, 0x0000000080000001, 0x8000000080008008,
+]
+_ROT = [
+    [0, 36, 3, 41, 18], [1, 44, 10, 45, 2], [62, 6, 43, 15, 61],
+    [28, 55, 25, 21, 56], [27, 20, 39, 8, 14],
+]
+_M64 = (1 << 64) - 1
+
+
+def _keccak_f(a: list[list[int]]) -> None:
+    for rc in _RC:
+        c = [a[x][0] ^ a[x][1] ^ a[x][2] ^ a[x][3] ^ a[x][4] for x in range(5)]
+        d = [c[(x - 1) % 5] ^ (((c[(x + 1) % 5] << 1) | (c[(x + 1) % 5] >> 63)) & _M64) for x in range(5)]
+        for x in range(5):
+            for y in range(5):
+                a[x][y] ^= d[x]
+        b = [[0] * 5 for _ in range(5)]
+        for x in range(5):
+            for y in range(5):
+                r = _ROT[x][y]
+                v = a[x][y]
+                b[y][(2 * x + 3 * y) % 5] = ((v << r) | (v >> (64 - r))) & _M64 if r else v
+        for x in range(5):
+            for y in range(5):
+                a[x][y] = b[x][y] ^ ((~b[(x + 1) % 5][y] & _M64) & b[(x + 2) % 5][y])
+        a[0][0] ^= rc
+
+
+def _left_encode(x: int) -> bytes:
+    n = max(1, (x.bit_length() + 7) // 8)
+    return bytes([n]) + x.to_bytes(n, "big")
+
+
+def _right_encode(x: int) -> bytes:
+    n = max(1, (x.bit_length() + 7) // 8)
+    return x.to_bytes(n, "big") + bytes([n])
+
+
+def _encode_string(s: bytes) -> bytes:
+    return _left_encode(len(s) * 8) + s
+
+
+def _bytepad(x: bytes, w: int) -> bytes:
+    z = _left_encode(w) + x
+    return z + b"\x00" * ((-len(z)) % w)
+
+
+def _cshake256(data: bytes, out_len: int, n: bytes, s: bytes) -> bytes:
+    rate = 136
+    msg = _bytepad(_encode_string(n) + _encode_string(s), rate) + data
+    msg += b"\x04"  # cSHAKE domain bits 00, then pad10*1
+    msg += b"\x00" * ((-len(msg)) % rate)
+    msg = msg[:-1] + bytes([msg[-1] | 0x80])
+    a = [[0] * 5 for _ in range(5)]
+    for off in range(0, len(msg), rate):
+        block = msg[off:off + rate]
+        for i in range(rate // 8):
+            a[i % 5][i // 5] ^= int.from_bytes(block[8 * i:8 * i + 8], "little")
+        _keccak_f(a)
+    out = b""
+    while len(out) < out_len:
+        out += b"".join(a[i % 5][i // 5].to_bytes(8, "little") for i in range(rate // 8))
+        if len(out) < out_len:
+            _keccak_f(a)
+    return out[:out_len]
+
+
+def kmac256(key: bytes, data: bytes, out_len: int, custom: bytes = b"") -> bytes:
+    """KMAC256(K, X, L, S) per NIST SP 800-185 section 4.3, L = 8 * out_len bits."""
+    x = _bytepad(_encode_string(key), 136) + data + _right_encode(out_len * 8)
+    return _cshake256(x, out_len, b"KMAC", custom)
+
+
+def _kmac_known_answers() -> list[str]:
+    """NIST SP 800-185 KMAC256 samples 4-6; returns the samples that did NOT match."""
+    key = bytes(range(0x40, 0x60))
+    short = bytes(range(4))
+    long_ = bytes(range(0xC8))
+    tag = b"My Tagged Application"
+    samples = [
+        (4, short, tag, "20C570C31346F703C9AC36C61C03CB64C3970D0CFC787E9B79599D273A68D2F7"
+                        "F69D4CC3DE9D104A351689F27CF6F5951F0103F33F4F24871024D9C27773A8DD"),
+        (5, long_, b"", "75358CF39E41494E949707927CEE0AF20A3FF553904C86B08F21CC414BCFD691"
+                        "589D27CF5E15369CBBFF8B9A4C2EB17800855D0235FF635DA82533EC6B759B69"),
+        (6, long_, tag, "B58618F71F92E1D56C1B8C55DDD7CD188B97B4CA4D99831EB2699A837DA2E4D9"
+                        "70FBACFDE50033AEA585F1A2708510C32D07880801BD182898FE476876FC8965"),
+    ]
+    return [f"sample {n}" for n, data, custom, exp in samples
+            if kmac256(key, data, 64, custom).hex().upper() != exp]
+
+
+_MAC_CUSTOM = b"lib-q ci_guard_internal_refs v2"
+
+
+# ---------------------------------------------------------------------------------------------
 # keyed name list
 
 
@@ -115,8 +222,13 @@ def parse_key(value: str | None):
     if value is None or not value.strip():
         return None
     parts = value.strip().split(":", 2)
-    if len(parts) != 3 or parts[0] != "v1":
-        raise KeyConfigError(f"{KEY_ENV} must look like v1:<key hex>:<entries>")
+    if len(parts) == 3 and parts[0] == "v1":
+        raise KeyConfigError(
+            f"{KEY_ENV} is a v1 (HMAC-SHA256) value; the guard now uses KMAC256 (v2). Regenerate it: "
+            f"set {KEY_ENV}=v2:<key hex>:<placeholder> and pipe the names into --make-key-entry"
+        )
+    if len(parts) != 3 or parts[0] != "v2":
+        raise KeyConfigError(f"{KEY_ENV} must look like v2:<key hex>:<entries>")
     try:
         key = bytes.fromhex(parts[1])
     except ValueError as e:
@@ -138,7 +250,7 @@ def parse_key(value: str | None):
 
 
 def _mac(key: bytes, token: str) -> str:
-    return hmac.new(key, token.encode("utf-8"), hashlib.sha256).hexdigest()
+    return kmac256(key, token.encode("utf-8"), 32, _MAC_CUSTOM).hex()
 
 
 def _candidates(word: str) -> set[str]:
@@ -272,8 +384,10 @@ def self_test() -> bool:
             ok = False
 
     canary = "internal-ref-guard-" + "canary"
+    bad_kmac = _kmac_known_answers()
+    expect(not bad_kmac, f"KMAC256 does not match the NIST SP 800-185 samples: {bad_kmac}")
     key = secrets.token_bytes(32)
-    keyed_value = f"v1:{key.hex()}:i{_mac(key, canary)}"
+    keyed_value = f"v2:{key.hex()}:i{_mac(key, canary)}"
     keyed = parse_key(keyed_value)
 
     planted = {
@@ -328,12 +442,13 @@ def self_test() -> bool:
                  "x_" + canary + "_y", "host." + canary + ".example"):
         f, _ = check_line(line, keyed)
         expect("internal host or tool name" in f, f"keyed canary not detected: {line!r}")
-    f, _ = check_line("ssh " + canary, parse_key(f"v1:{secrets.token_hex(32)}:i{'0' * 64}"))
+    f, _ = check_line("ssh " + canary, parse_key(f"v2:{secrets.token_hex(32)}:i{'0' * 64}"))
     expect(not f, "a different key must not match the canary")
-    s_value = f"v1:{key.hex()}:s{_mac(key, 'Canary')}"
+    s_value = f"v2:{key.hex()}:s{_mac(key, 'Canary')}"
     expect(bool(check_line("the Canary host", parse_key(s_value))[0]), "exact-case entry not detected")
     expect(not check_line("the canary host", parse_key(s_value))[0], "exact-case entry matched other case")
-    for bad in ("v2:00:i00", "v1:zz:i" + "0" * 64, f"v1:{key.hex()}:x" + "0" * 64, f"v1:{'00' * 8}:i" + "0" * 64):
+    for bad in ("v3:00:i00", "v2:zz:i" + "0" * 64, f"v2:{key.hex()}:x" + "0" * 64, f"v2:{'00' * 8}:i" + "0" * 64,
+                f"v1:{key.hex()}:i" + "0" * 64):
         try:
             parse_key(bad)
             expect(False, f"malformed {KEY_ENV} accepted: {bad[:12]}...")
@@ -364,7 +479,7 @@ def main(argv: list[str]) -> int:
     if argv[1:2] == ["--make-key-entry"]:
         keyed = parse_key(os.environ.get(KEY_ENV))
         if keyed is None:
-            print(f"set {KEY_ENV}=v1:<key hex>:<existing entries or a placeholder> first", file=sys.stderr)
+            print(f"set {KEY_ENV}=v2:<key hex>:<existing entries or a placeholder> first", file=sys.stderr)
             return 1
         key, _ = keyed
         out = []

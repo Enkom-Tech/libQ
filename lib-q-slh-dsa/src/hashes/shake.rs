@@ -43,9 +43,7 @@ use crate::{
 ///
 /// Follows section 10.1 of FIPS-205.
 ///
-/// SHAKE256 has no SHA-2-style block midstate to cache, so the suite simply stores the
-/// pre-built `Shake256` absorbing `pk_seed` and clones it per call. This keeps parity with
-/// the SHA-2 suites' instance-method API at negligible cost.
+/// The suite stores a pre-built `Shake256` that has absorbed `pk_seed` and clones it per call.
 #[derive(Debug, Clone)]
 pub struct Shake<N: ArraySize, M> {
     /// `Shake256` pre-updated with `pk_seed`; cloned by `f`/`h`/`t`/`prf_sk`.
@@ -253,8 +251,6 @@ impl<N: ArraySize, M> Shake<N, M> {
         outs
     }
 }
-
-// TODO: Consolidate parameters between Shake and SHA2 instances
 
 /// SHAKE256 at L1 security with small signatures
 pub type Shake128s = Shake<U16, U30>;

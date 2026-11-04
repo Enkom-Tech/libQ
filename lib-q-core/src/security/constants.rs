@@ -230,21 +230,21 @@ impl SecurityConstants {
             }
 
             // SLH-DSA algorithms — sizes from `lib_q_types::slhdsa`.
-            Algorithm::SlhDsaSha256128fRobust | Algorithm::SlhDsaShake256128fRobust => {
+            Algorithm::SlhDsaShake256128fRobust => {
                 if is_secret {
                     slhdsa::SLHDSA_128F_SECRET_KEY_BYTES
                 } else {
                     slhdsa::SLHDSA_128F_PUBLIC_KEY_BYTES
                 }
             }
-            Algorithm::SlhDsaSha256192fRobust | Algorithm::SlhDsaShake256192fRobust => {
+            Algorithm::SlhDsaShake256192fRobust => {
                 if is_secret {
                     slhdsa::SLHDSA_192F_SECRET_KEY_BYTES
                 } else {
                     slhdsa::SLHDSA_192F_PUBLIC_KEY_BYTES
                 }
             }
-            Algorithm::SlhDsaSha256256fRobust | Algorithm::SlhDsaShake256256fRobust => {
+            Algorithm::SlhDsaShake256256fRobust => {
                 if is_secret {
                     slhdsa::SLHDSA_256F_SECRET_KEY_BYTES
                 } else {
@@ -319,15 +319,9 @@ impl SecurityConstants {
             Algorithm::FnDsa1024 => fndsa::FNDSA1024_SIGNATURE_BYTES,
 
             // SLH-DSA signature sizes — from `lib_q_types::slhdsa`.
-            Algorithm::SlhDsaSha256128fRobust | Algorithm::SlhDsaShake256128fRobust => {
-                slhdsa::SLHDSA_128F_SIGNATURE_BYTES
-            }
-            Algorithm::SlhDsaSha256192fRobust | Algorithm::SlhDsaShake256192fRobust => {
-                slhdsa::SLHDSA_192F_SIGNATURE_BYTES
-            }
-            Algorithm::SlhDsaSha256256fRobust | Algorithm::SlhDsaShake256256fRobust => {
-                slhdsa::SLHDSA_256F_SIGNATURE_BYTES
-            }
+            Algorithm::SlhDsaShake256128fRobust => slhdsa::SLHDSA_128F_SIGNATURE_BYTES,
+            Algorithm::SlhDsaShake256192fRobust => slhdsa::SLHDSA_192F_SIGNATURE_BYTES,
+            Algorithm::SlhDsaShake256256fRobust => slhdsa::SLHDSA_256F_SIGNATURE_BYTES,
 
             _ => {
                 return Err(crate::error::Error::InvalidAlgorithm {

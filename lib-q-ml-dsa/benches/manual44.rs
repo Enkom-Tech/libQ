@@ -34,6 +34,4 @@ fn main() {
         MLDSA44KeyPair,
         MLDSA44Signature
     );
-
-    bench_group_fips204!("44", fips204::ml_dsa_44, 2420);
 }

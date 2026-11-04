@@ -215,7 +215,7 @@ jobs:
       # not be able to sit at a path called `official`/`nist`/`rfc`. lib-q-hqc shipped 9 KAT tests
       # reading `kats/official/*.rsp` whose every response value was written by the code under
       # test (formerly nist_kem_kat.rs:89-121); the module doc called the tree "authoritative".
-      # Static and stdlib-only: a repo walk, a TOML read and a SHA-256 per file. No cargo, no
+      # Static and stdlib-only: a repo walk, a TOML read and a SHA3-256 per file. No cargo, no
       # network. See kats-manifest.toml and scripts/ci_guard_kat_provenance.py for what is (and,
       # deliberately, is not yet) in scope.
       - name: Guard KAT vector provenance
@@ -606,6 +606,11 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy, rust-src
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp17
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -613,7 +618,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-zkp-recursive-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-zkp-recursive-${{ steps.lockfp17.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-zkp-recursive-
 
@@ -769,6 +774,11 @@ jobs:
 
       # Same cache shape as the wasm-build action; without it this job cold-compiles the whole
       # workspace for wasm32 every run (the largest single compile in CI).
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp18
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -776,7 +786,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-wasm-workspace-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-wasm-workspace-${{ steps.lockfp18.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-wasm-workspace-
 
@@ -854,6 +864,11 @@ jobs:
           toolchain: ${{ steps.toolchain.outputs.channel }}
           targets: wasm32-wasip1
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp19
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -861,7 +876,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-fn-dsa-wasip1-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-fn-dsa-wasip1-${{ steps.lockfp19.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-fn-dsa-wasip1-
 
@@ -957,6 +972,11 @@ jobs:
 
       # One shared cache blob across the matrix (first shard to finish saves it; the rest restore).
       # Mostly recovers the registry + shared lower-tier deps; without it every shard cold-builds.
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp20
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache cargo
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -964,7 +984,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-wasm-smoke-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-wasm-smoke-${{ steps.lockfp20.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-wasm-smoke-
 
@@ -1347,6 +1367,11 @@ jobs:
       - name: Add target
         run: rustup target add ${{ matrix.target }}
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp21
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -1354,7 +1379,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-${{ matrix.target }}-${{ steps.lockfp21.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.target }}-
 
@@ -1542,6 +1567,11 @@ jobs:
           echo "runner output: $out"
           test "$out" = "aarch64"
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp22
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
@@ -1549,7 +1579,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-aarch64-qemu-native-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-aarch64-qemu-native-${{ steps.lockfp22.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-aarch64-qemu-native-
 
@@ -1603,6 +1633,11 @@ jobs:
           toolchain: stable
           components: rust-src
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp23
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Restore cache
         id: bench-cache
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -1611,7 +1646,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-bench-${{ steps.lockfp23.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-bench-
 
@@ -1697,6 +1732,11 @@ jobs:
           toolchain: stable
           components: rust-src
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp24
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -1704,7 +1744,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-docs-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-docs-${{ steps.lockfp24.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-docs-
       
@@ -1821,7 +1861,7 @@ jobs:
             run-benchmarks: "false"
             run-security-tests: "true"
             run-constant-time: "true"
-            test-algorithms: "sha2-128f,sha2-192f,sha2-256f,shake128f,shake192f,shake256f"
+            test-algorithms: "shake128f,shake192f,shake256f"
           - name: "HPKE"
             action: test-hpke
             working-directory: lib-q-hpke
@@ -2069,6 +2109,11 @@ jobs:
           toolchain: stable
           components: rust-src
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp25
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -2076,7 +2121,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-fndsa-no-avx2-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-fndsa-no-avx2-${{ steps.lockfp25.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-fndsa-no-avx2-
 
@@ -2112,6 +2157,11 @@ jobs:
         with:
           toolchain: stable
         
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp26
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -2119,7 +2169,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-simd-debug-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-simd-debug-${{ steps.lockfp26.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-simd-debug-
       
@@ -2162,6 +2212,11 @@ jobs:
           toolchain: stable
           components: rust-src
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp27
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -2169,7 +2224,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-mldsa-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mldsa-${{ steps.lockfp27.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-mldsa-
 
@@ -2219,6 +2274,11 @@ jobs:
           toolchain: stable
           components: rust-src
 
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp28
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -2226,7 +2286,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-mlkem-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-mlkem-${{ steps.lockfp28.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-mlkem-
       
@@ -2347,6 +2407,11 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       
+      - name: Cargo.lock fingerprint (SHA3-256)
+        id: lockfp29
+        shell: bash
+        # SHA3-256 instead of hashFiles(), which is SHA-256: lib-Q uses no SHA-2.
+        run: echo "hash=$({ git ls-files -z -- '*Cargo.lock' | sort -z | xargs -0 cat; cat /dev/null; } | { if command -v python3 >/dev/null 2>&1; then python3 -c 'import hashlib,sys; print(hashlib.sha3_256(sys.stdin.buffer.read()).hexdigest())'; else openssl dgst -sha3-256 -r | cut -d' ' -f1; fi; })" >> "$GITHUB_OUTPUT"
       - name: Cache dependencies
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
@@ -2354,7 +2419,7 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-integration-${{ hashFiles('**/Cargo.lock') }}
+          key: ${{ runner.os }}-integration-${{ steps.lockfp29.outputs.hash }}
           restore-keys: |
             ${{ runner.os }}-integration-
       

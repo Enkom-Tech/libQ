@@ -20,12 +20,9 @@ repoint would have produced a gate that fails on correct code. OBSERVED: 21 trac
 files import a classical primitive, and the great majority are required rather than
 accidental:
 
-  * FIPS 205 specifies SLH-DSA parameter sets built on SHA-2. Implementing SLH-DSA-SHA2
-    means using SHA-2.
   * MAYO expands its matrices with AES-128-CTR, per its specification.
   * NIST's KAT harnesses are defined in terms of an AES-CTR-DRBG. Reproducing published
     vectors byte for byte means running that DRBG.
-  * `lib-q-hash` deliberately exports SHA-2 wrappers for interoperability.
 
 A gate banning all of it would be wrong. What is worth preventing is *new, unexamined*
 classical crypto appearing -- so this is a ratchet over a reviewed allowlist rather than a

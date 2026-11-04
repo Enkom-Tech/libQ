@@ -139,9 +139,6 @@ mod slh_dsa_no_std_tests {
     fn test_all_slh_dsa_parameter_sets_no_std() {
         let slh_dsa = SlhDsa::new();
         let algorithms = [
-            Algorithm::SlhDsaSha256128fRobust,
-            Algorithm::SlhDsaSha256192fRobust,
-            Algorithm::SlhDsaSha256256fRobust,
             Algorithm::SlhDsaShake256128fRobust,
             Algorithm::SlhDsaShake256192fRobust,
             Algorithm::SlhDsaShake256256fRobust,
@@ -162,9 +159,9 @@ mod slh_dsa_no_std_tests {
             let message = b"Test message for no_std";
             // Use appropriate randomness size for each parameter set
             let signing_randomness_size = match algorithm {
-                Algorithm::SlhDsaSha256128fRobust | Algorithm::SlhDsaShake256128fRobust => 16,
-                Algorithm::SlhDsaSha256192fRobust | Algorithm::SlhDsaShake256192fRobust => 24,
-                Algorithm::SlhDsaSha256256fRobust | Algorithm::SlhDsaShake256256fRobust => 32,
+                Algorithm::SlhDsaShake256128fRobust => 16,
+                Algorithm::SlhDsaShake256192fRobust => 24,
+                Algorithm::SlhDsaShake256256fRobust => 32,
                 _ => 16,
             };
             let mut signing_randomness = [0u8; 32]; // Use fixed size array

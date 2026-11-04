@@ -3,11 +3,13 @@
 //! with PQCgenKAT_sign.c modified on line 59 to reduce iterations from 100 to 10
 //!
 //! These tests call the `slh_*_internal` functions directly, bypassing context processing.
-//! By default only two KATs run (Shake128f, Sha2_128f). Enable `--features all-parameter-set-tests` for the full set.
+//! By default only the Shake128f KAT is built. Enable `--features all-parameter-set-tests` for the full set.
+//!
+//! The FIPS 205 SHA2 parameter sets are not implemented (lib-Q ships no SHA-2), so their KATs are gone.
 //!
 //! The `*s` (small signature) parameter sets do heavy signing work; in a **debug** build, each KAT can exceed
 //! Rust's 60s "still running" notice and total runtime grows quickly when tests run in parallel. For the full
-//! twelve KATs locally or in CI, use the workspace `release-ci` profile, for example:
+//! six KATs locally or in CI, use the workspace `release-ci` profile, for example:
 //! `cargo test -p lib-q-slh-dsa --profile release-ci --features all-parameter-set-tests --test known_answer_tests`.
 //! The default Shake128f KAT is additionally `#[ignore]` in dev builds only (see `test_kat_shake_128f`).
 #![cfg(feature = "alloc")]
@@ -33,7 +35,6 @@ use rand_core::{
     UnwrapErr,
     utils,
 };
-use sha2::Digest;
 use signature::{
     Keypair,
     SignatureEncoding,
@@ -185,32 +186,26 @@ where
         .unwrap();
     }
 
-    let shasum = sha2::Sha256::digest(resp.as_bytes());
-    assert_eq!(hex::encode(shasum.as_slice()), expected);
+    let digest = lib_q_sha3::sha3_256(resp.as_bytes());
+    assert_eq!(hex::encode(digest), expected);
 }
 
 /*
 KATs generated via https://github.com/sphincs/sphincsplus on branch consistent_basew (eccdc43a99e194f52d5ef0e4030ef4dd1e31828b)
-with PQCgenKAT_sign.c modified on line 59 to reduce iterations from 100 to 10
+with PQCgenKAT_sign.c modified on line 59 to reduce iterations from 100 to 10.
 
-056ee235f9a8ff3fb3f3799807d82690ffe3ff5681f0c6e3809ddca4fb539b29 sphincs-shake-128f-simple
-0d17bdb1d3e7d7f06e88d79f3b65fbeae70694914ec088a3d1c081e65c35a928 sphincs-sha2-192s-simple
-1930c23fb13b4f95ec11343d9a68d270879bfbb8821c1cfb59b37cd0b5e4665e sphincs-shake-128s-simple
-5e501f7c91fa189dff618dda9cca0511140fb85e133bab986c9ef89ed220389e sphincs-sha2-128s-simple
-73519c7365ac46695ea96dae3283f05a2ddcb1e8f9e0ba800544ba737b746206 sphincs-sha2-192f-simple
-7c8f16c7b9645df58518b1c0aa7a26f7a2e1b9ee860819f25305cf97aecce1f3 sphincs-shake-256s-simple
-7d35e89f91116f0869d7a7591df026c4033f8ca3e33d795f03b25905277175cd sphincs-shake-192s-simple
-be37b5222c98b3a1f0d2d3d69bc32205ed17e93c6a4da684c76ee1ca29ec28ef sphincs-shake-256f-simple
-c8fcb441611200b19349f2e7fda07c4547bef22f35af6e47a2b8c824e0c2e0be sphincs-sha2-128f-simple
-d83825fb99bc22a3eb4ae388a9e88716b5cae0622682a210bd11f7b8ffbd47ee sphincs-shake-192f-simple
-e58442029ff40d3f61d5a7d3495fae38500ad4be4db9db1ef4f42a365077b070 sphincs-sha2-256f-simple
-f935d6af17fa16f290421c5112c4c2cee445ba7c332a74fe3d88a7a219c2176b sphincs-sha2-256s-simple
+Upstream publishes SHA-256 digests of the response files. lib-Q ships no SHA-2, so the tests pin the
+SHA3-256 digest of the same response file instead. The pins were derived in one run that rebuilt each
+response file, asserted that its SHA-256 equals the upstream digest, and printed its SHA3-256.
+
+columns: SHA3-256 pin, upstream SHA-256, parameter set
+7864641734c6a81e515f1cad3d35de2879d76bd964e60e93beee1356e13e743f 056ee235f9a8ff3fb3f3799807d82690ffe3ff5681f0c6e3809ddca4fb539b29 sphincs-shake-128f-simple
+0fd079303d013c2367e1eeba3f70916aa26e64c3fcd0c0b711f2b2435d2c9a83 d83825fb99bc22a3eb4ae388a9e88716b5cae0622682a210bd11f7b8ffbd47ee sphincs-shake-192f-simple
+d7c39afe5078362f19b193de564f79c29183c5a5085de9c5f93fedcf4d1ea5fb be37b5222c98b3a1f0d2d3d69bc32205ed17e93c6a4da684c76ee1ca29ec28ef sphincs-shake-256f-simple
+a8f42c3b16de8dd2bea8fe4d8b9736a2b98b328d2ffbc67ce02f0c51bb9cf1dd 1930c23fb13b4f95ec11343d9a68d270879bfbb8821c1cfb59b37cd0b5e4665e sphincs-shake-128s-simple
+0903d0232893313590e9c7f54924fdb1aa4589b9cc5e73b2d483468e181a8d13 7d35e89f91116f0869d7a7591df026c4033f8ca3e33d795f03b25905277175cd sphincs-shake-192s-simple
+e643980cf4e38562e90ede2302fb387ba4ee2e29f2395e4430c2bd6cb18ceb89 7c8f16c7b9645df58518b1c0aa7a26f7a2e1b9ee860819f25305cf97aecce1f3 sphincs-shake-256s-simple
 */
-
-#[test]
-fn test_kat_sha2_128f() {
-    test_kat::<Sha2_128f>("c8fcb441611200b19349f2e7fda07c4547bef22f35af6e47a2b8c824e0c2e0be");
-}
 
 // SHAKE-128f KAT does enough signing that a dev (unoptimized) build often exceeds Rust's 60s
 // "still running" notice; CI already re-runs this suite under `--profile release-ci`.
@@ -220,65 +215,35 @@ fn test_kat_sha2_128f() {
 )]
 #[test]
 fn test_kat_shake_128f() {
-    test_kat::<Shake128f>("056ee235f9a8ff3fb3f3799807d82690ffe3ff5681f0c6e3809ddca4fb539b29");
-}
-
-#[cfg(feature = "all-parameter-set-tests")]
-#[test]
-fn test_kat_sha2_128s() {
-    test_kat::<Sha2_128s>("5e501f7c91fa189dff618dda9cca0511140fb85e133bab986c9ef89ed220389e");
-}
-
-#[cfg(feature = "all-parameter-set-tests")]
-#[test]
-fn test_kat_sha2_192s() {
-    test_kat::<Sha2_192s>("0d17bdb1d3e7d7f06e88d79f3b65fbeae70694914ec088a3d1c081e65c35a928");
-}
-
-#[cfg(feature = "all-parameter-set-tests")]
-#[test]
-fn test_kat_sha2_192f() {
-    test_kat::<Sha2_192f>("73519c7365ac46695ea96dae3283f05a2ddcb1e8f9e0ba800544ba737b746206");
-}
-
-#[cfg(feature = "all-parameter-set-tests")]
-#[test]
-fn test_kat_sha2_256s() {
-    test_kat::<Sha2_256s>("f935d6af17fa16f290421c5112c4c2cee445ba7c332a74fe3d88a7a219c2176b");
-}
-
-#[cfg(feature = "all-parameter-set-tests")]
-#[test]
-fn test_kat_sha2_256f() {
-    test_kat::<Sha2_256f>("e58442029ff40d3f61d5a7d3495fae38500ad4be4db9db1ef4f42a365077b070");
+    test_kat::<Shake128f>("7864641734c6a81e515f1cad3d35de2879d76bd964e60e93beee1356e13e743f");
 }
 
 #[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_128s() {
-    test_kat::<Shake128s>("1930c23fb13b4f95ec11343d9a68d270879bfbb8821c1cfb59b37cd0b5e4665e");
+    test_kat::<Shake128s>("a8f42c3b16de8dd2bea8fe4d8b9736a2b98b328d2ffbc67ce02f0c51bb9cf1dd");
 }
 
 #[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_192s() {
-    test_kat::<Shake192s>("7d35e89f91116f0869d7a7591df026c4033f8ca3e33d795f03b25905277175cd");
+    test_kat::<Shake192s>("0903d0232893313590e9c7f54924fdb1aa4589b9cc5e73b2d483468e181a8d13");
 }
 
 #[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_192f() {
-    test_kat::<Shake192f>("d83825fb99bc22a3eb4ae388a9e88716b5cae0622682a210bd11f7b8ffbd47ee");
+    test_kat::<Shake192f>("0fd079303d013c2367e1eeba3f70916aa26e64c3fcd0c0b711f2b2435d2c9a83");
 }
 
 #[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_256s() {
-    test_kat::<Shake256s>("7c8f16c7b9645df58518b1c0aa7a26f7a2e1b9ee860819f25305cf97aecce1f3");
+    test_kat::<Shake256s>("e643980cf4e38562e90ede2302fb387ba4ee2e29f2395e4430c2bd6cb18ceb89");
 }
 
 #[cfg(feature = "all-parameter-set-tests")]
 #[test]
 fn test_kat_shake_256f() {
-    test_kat::<Shake256f>("be37b5222c98b3a1f0d2d3d69bc32205ed17e93c6a4da684c76ee1ca29ec28ef");
+    test_kat::<Shake256f>("d7c39afe5078362f19b193de564f79c29183c5a5085de9c5f93fedcf4d1ea5fb");
 }

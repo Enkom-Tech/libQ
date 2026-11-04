@@ -146,6 +146,17 @@ function Invoke-WasmBuild {
     }
 }
 
+# SHA3-256 of a file as lowercase hex. Needs PowerShell 7.4+ (.NET 8) on a platform with SHA-3;
+# Get-FileHash offers no SHA-3 algorithm.
+function Get-Sha3FileHex {
+    param([string]$Path)
+    if (-not [System.Security.Cryptography.SHA3_256]::IsSupported) {
+        throw "SHA3-256 is not available here (needs PowerShell 7.4+ on a platform with SHA-3)"
+    }
+    $bytes = [System.IO.File]::ReadAllBytes($Path)
+    return ([System.Convert]::ToHexString([System.Security.Cryptography.SHA3_256]::HashData($bytes))).ToLower()
+}
+
 # Function to generate checksums
 function New-Checksums {
     Write-Status "INFO" "Generating checksums..."
@@ -163,19 +174,13 @@ function New-Checksums {
         foreach ($wasmFile in $wasmFiles) {
             Write-Status "INFO" "Generating checksum for $($wasmFile.Name)..."
             
-            # Generate SHA-256 checksum
-            $hash = Get-FileHash -Path $wasmFile.FullName -Algorithm SHA256
-            $checksumHex = $hash.Hash.ToLower()
+            # SHA3-256 checksum (lib-Q uses no SHA-2)
+            $checksumHex = Get-Sha3FileHex $wasmFile.FullName
             
             # Save checksum file
-            "$checksumHex  $($wasmFile.Name)" | Out-File -FilePath "$($wasmFile.Name).sha256" -Encoding ascii
+            "$checksumHex  $($wasmFile.Name)" | Out-File -FilePath "$($wasmFile.Name).sha3-256" -Encoding ascii
             
-            # Convert to base64 for configuration (simplified approach)
-            $base64Checksum = [System.Convert]::ToBase64String([System.Text.Encoding]::UTF8.GetBytes($checksumHex))
-            
-            "sha256-$base64Checksum" | Out-File -FilePath "$($wasmFile.Name).config.checksum" -Encoding ascii
-            
-            Write-Status "PASS" "$($wasmFile.Name) checksum: sha256-$base64Checksum"
+            Write-Status "PASS" "$($wasmFile.Name) SHA3-256: $checksumHex"
         }
         
         if ($wasmFiles.Count -eq 0) {
@@ -201,7 +206,7 @@ function Test-Checksums {
     Push-Location $WASM_OUTPUT_DIR
     
     try {
-        $checksumFiles = Get-ChildItem -Filter "*.wasm.sha256" -ErrorAction SilentlyContinue
+        $checksumFiles = Get-ChildItem -Filter "*.wasm.sha3-256" -ErrorAction SilentlyContinue
         
         foreach ($checksumFile in $checksumFiles) {
             Write-Status "INFO" "Verifying $($checksumFile.Name)..."
@@ -211,7 +216,7 @@ function Test-Checksums {
             $fileName = $content.Split(' ')[1]
             
             if (Test-Path $fileName) {
-                $actualHash = (Get-FileHash -Path $fileName -Algorithm SHA256).Hash.ToLower()
+                $actualHash = Get-Sha3FileHex (Join-Path (Get-Location) $fileName)
                 
                 if ($actualHash -eq $expectedHash) {
                     Write-Status "PASS" "$($checksumFile.Name) verified"
@@ -257,7 +262,7 @@ function Show-BuildSummary {
         
         Write-Host ""
         Write-Host "  Output directory: $WASM_OUTPUT_DIR" -ForegroundColor Gray
-        Write-Host "  Checksum files: $WASM_OUTPUT_DIR\*.sha256" -ForegroundColor Gray
+        Write-Host "  Checksum files: $WASM_OUTPUT_DIR\*.sha3-256" -ForegroundColor Gray
     } else {
         Write-Status "WARN" "No build artifacts found"
     }

@@ -203,9 +203,6 @@ fn every_parameter_set_binds_the_context() {
     let slh_dsa = SlhDsa::new();
 
     for (alg, key_randomness_len) in [
-        (Algorithm::SlhDsaSha256128fRobust, 48),
-        (Algorithm::SlhDsaSha256192fRobust, 72),
-        (Algorithm::SlhDsaSha256256fRobust, 96),
         (Algorithm::SlhDsaShake256128fRobust, 48),
         (Algorithm::SlhDsaShake256192fRobust, 72),
         (Algorithm::SlhDsaShake256256fRobust, 96),

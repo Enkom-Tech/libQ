@@ -163,9 +163,6 @@ mod slh_dsa_wasm_tests {
     fn test_all_slh_dsa_parameter_sets_wasm() {
         let slh_dsa = SlhDsa::new();
         let algorithms = [
-            "SlhDsaSha256128fRobust",
-            "SlhDsaSha256192fRobust",
-            "SlhDsaSha256256fRobust",
             "SlhDsaShake256128fRobust",
             "SlhDsaShake256192fRobust",
             "SlhDsaShake256256fRobust",

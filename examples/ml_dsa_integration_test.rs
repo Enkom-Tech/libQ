@@ -21,9 +21,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(signature_algorithms.contains(&Algorithm::MlDsa87));
 
     // SLH-DSA (FIPS 205) — hash-based signatures in the same registry category
-    assert!(signature_algorithms.contains(&Algorithm::SlhDsaSha256128fRobust));
-    assert!(signature_algorithms.contains(&Algorithm::SlhDsaSha256192fRobust));
-    assert!(signature_algorithms.contains(&Algorithm::SlhDsaSha256256fRobust));
     assert!(signature_algorithms.contains(&Algorithm::SlhDsaShake256128fRobust));
     assert!(signature_algorithms.contains(&Algorithm::SlhDsaShake256192fRobust));
     assert!(signature_algorithms.contains(&Algorithm::SlhDsaShake256256fRobust));

@@ -16,7 +16,10 @@ export interface Jwks {
 
 export interface ImportedAkpJwk {
   publicKey: Uint8Array;
-  /** RFC 7638 SHA-256 thumbprint over alg, kty, pub (RFC 9964 section 6). */
+  /**
+   * RFC 7638 thumbprint over alg, kty, pub (RFC 9964 section 6), hashed with SHA3-256
+   * (`sha3-256`; as an RFC 9278 URI: `urn:ietf:params:oauth:jwk-thumbprint:sha3-256:<value>`).
+   */
   thumbprint: string;
   /** Supplied kid, or the thumbprint when absent. */
   kid: string;

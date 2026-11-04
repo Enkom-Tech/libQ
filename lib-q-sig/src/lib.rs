@@ -27,9 +27,6 @@
 //!   - FN-DSA-512: Level 1 security (128-bit)
 //!   - FN-DSA-1024: Level 5 security (256-bit)
 //! - **SLH-DSA**: SPHINCS+ (Levels 1, 3, 5) — **NIST-approved**, published as FIPS 205.
-//!   - SLH-DSA-SHA256-128f-Robust: Level 1 security (128-bit)
-//!   - SLH-DSA-SHA256-192f-Robust: Level 3 security (192-bit)
-//!   - SLH-DSA-SHA256-256f-Robust: Level 5 security (256-bit)
 //!   - SLH-DSA-SHAKE256-128f-Robust: Level 1 security (128-bit)
 //!   - SLH-DSA-SHAKE256-192f-Robust: Level 3 security (192-bit)
 //!   - SLH-DSA-SHAKE256-256f-Robust: Level 5 security (256-bit)
@@ -284,9 +281,6 @@ pub fn available_algorithms() -> Vec<&'static str> {
     #[cfg(feature = "slh-dsa")]
     {
         algorithms.extend([
-            "SLH-DSA-SHA256-128f-Robust",
-            "SLH-DSA-SHA256-192f-Robust",
-            "SLH-DSA-SHA256-256f-Robust",
             "SLH-DSA-SHAKE256-128f-Robust",
             "SLH-DSA-SHAKE256-192f-Robust",
             "SLH-DSA-SHAKE256-256f-Robust",
@@ -312,12 +306,6 @@ pub fn available_algorithms() -> &'static [&'static str] {
         "FN-DSA-512",
         #[cfg(feature = "fn-dsa")]
         "FN-DSA-1024",
-        #[cfg(feature = "slh-dsa")]
-        "SLH-DSA-SHA256-128f-Robust",
-        #[cfg(feature = "slh-dsa")]
-        "SLH-DSA-SHA256-192f-Robust",
-        #[cfg(feature = "slh-dsa")]
-        "SLH-DSA-SHA256-256f-Robust",
         #[cfg(feature = "slh-dsa")]
         "SLH-DSA-SHAKE256-128f-Robust",
         #[cfg(feature = "slh-dsa")]
@@ -347,12 +335,6 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
 
         #[cfg(feature = "slh-dsa")]
         "slh-dsa" |
-        "SLH-DSA-SHA256-128f-Robust" |
-        "slh-dsa-sha256-128f-robust" |
-        "SLH-DSA-SHA256-192f-Robust" |
-        "slh-dsa-sha256-192f-robust" |
-        "SLH-DSA-SHA256-256f-Robust" |
-        "slh-dsa-sha256-256f-robust" |
         "SLH-DSA-SHAKE256-128f-Robust" |
         "slh-dsa-shake256-128f-robust" |
         "SLH-DSA-SHAKE256-192f-Robust" |

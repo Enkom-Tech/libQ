@@ -46,7 +46,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-lib-q-fn-dsa = "0.0.11"
+lib-q-fn-dsa = "0.0.12"
 ```
 
 ### Node.js

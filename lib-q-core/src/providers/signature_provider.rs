@@ -80,9 +80,6 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
@@ -133,9 +130,6 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
@@ -185,9 +179,6 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
-            Algorithm::SlhDsaSha256128fRobust |
-            Algorithm::SlhDsaSha256192fRobust |
-            Algorithm::SlhDsaSha256256fRobust |
             Algorithm::SlhDsaShake256128fRobust |
             Algorithm::SlhDsaShake256192fRobust |
             Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {

@@ -64,8 +64,9 @@ The script skips packages that are already published at the target version (npm 
 | `@lib-q/threshold-raccoon` | `lib-q-threshold-raccoon` | `wasm`, `std`, `random`; PROVISIONAL |
 | `@lib-q/threshold-kem-lattice` | `lib-q-threshold-kem-lattice` | `wasm`, `std`, `random`; PROVISIONAL |
 | `@lib-q/ml-dsa` | `lib-q-ml-dsa` | `wasm`; ML-DSA-65 |
+| `@lib-q/jose` | `npm/lib-q-jose` | JavaScript only; exact dependency on `@lib-q/sig` at the same version; publishes after the WASM matrix |
 
-**Total: 28 packages** (indices 0–27 in `publish-npm-ordered.sh`). See [npm-coverage.md](npm-coverage.md).
+**Total: 29 packages** (indices 0–28 in `publish-npm-ordered.sh`). See [npm-coverage.md](npm-coverage.md).
 `@lib-q/fhe` and `@lib-q/threshold-kem` were withdrawn and removed in 0.0.10 — see
 [Removed crates](npm-coverage.md#removed-crates).
 
@@ -75,7 +76,7 @@ Dual-target layout (`pkg/web` + `pkg/nodejs`) and `integrity-manifest.json` are 
 
 ## CI / secrets
 
-- GitHub CD uses `secrets.NPM_TOKEN` and `npm publish --access public --provenance`.
+- GitHub CD uses npm **Trusted Publishing** (OIDC) only: `npm publish --access public --provenance` from jobs in the `release-publish` environment, after the single `approve-release` approval. There is no `NPM_TOKEN` secret.
 - Local runs use your npm user or `NODE_AUTH_TOKEN` (automation token with publish rights on `@lib-q/*`).
 
 | `NPM_OTP` | One-time password for `npm publish --otp` (required when 2FA is enabled) |

@@ -51,9 +51,10 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 
-# working-directory|npm name|description|keywords|features|out-dir|skip-build(1=types only)
+# working-directory|npm name|description|keywords|features|out-dir|skip-build(1=hand-written npm/ package)
 #
-# This table MIRRORS cd.yml's `publish-wasm-packages` matrix plus `publish-npm-types`; it does not
+# This table MIRRORS cd.yml's `publish-wasm-packages` matrix plus `publish-npm-types` and
+# `publish-npm-jose`; it does not
 # define the release. It drifts two ways, and neither errors at run time: a MISSING row silently
 # never publishes (at 0.0.10: @lib-q/dkg, @lib-q/threshold-raccoon, @lib-q/threshold-kem-lattice),
 # and a wrong `features` column ships a package built differently from CD's (at 0.0.10 @lib-q/aead
@@ -95,6 +96,7 @@ lib-q-dkg|@lib-q/dkg|PROVISIONAL lattice dealerless DKG (binding BDLOP VSS) for 
 lib-q-threshold-raccoon|@lib-q/threshold-raccoon|PROVISIONAL PQ lattice threshold signature (consumes lib-q-dkg shares) for Node.js|cryptography,post-quantum,threshold,signature,wasm|wasm,std,random|pkg|
 lib-q-threshold-kem-lattice|@lib-q/threshold-kem-lattice|PROVISIONAL PQ lattice threshold KEM (dealerless keygen via lib-q-dkg) for Node.js|cryptography,post-quantum,threshold,kem,wasm|wasm,std,random|pkg|
 lib-q-ml-dsa|@lib-q/ml-dsa|ML-DSA-65 (FIPS 204) post-quantum digital signatures for Node.js|cryptography,post-quantum,ml-dsa,dilithium,signature,wasm,nist|wasm|pkg|
+npm/lib-q-jose|@lib-q/jose|Node ML-DSA-65 compact JWS and OpenID Connect ID token verification|cryptography,post-quantum,ml-dsa,jose,jws,oidc|||1
 EOF
 
 mapfile -t ROWS < <(printf '%s\n' "$PACKAGES")
@@ -185,6 +187,8 @@ prepare_npm_package() {
   local readme_dst="README.md"
   if [[ -n "$crate_root" && -f "$ROOT/$crate_root/README.md" ]]; then
     cp "$ROOT/$crate_root/README.md" "$readme_dst"
+  elif [[ -z "$crate_root" && -f "$readme_dst" ]]; then
+    : # hand-written package (npm/<name>): keep the README it ships
   else
     sed 's/^        //' >"$readme_dst" <<EOF
 # $npm_name

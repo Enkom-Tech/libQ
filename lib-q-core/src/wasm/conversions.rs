@@ -84,15 +84,6 @@ impl WasmConversions {
             "fndsa" | "fn-dsa" => Ok(Algorithm::FnDsa),
 
             // SLH-DSA (hyphenated IDs, NIST-style names, and PascalCase `SlhDsa*` lowercased)
-            "slh-dsa-sha256-128f-robust" |
-            "slh-dsa-sha2-128f-robust" |
-            "slhdsasha256128frobust" => Ok(Algorithm::SlhDsaSha256128fRobust),
-            "slh-dsa-sha256-192f-robust" |
-            "slh-dsa-sha2-192f-robust" |
-            "slhdsasha256192frobust" => Ok(Algorithm::SlhDsaSha256192fRobust),
-            "slh-dsa-sha256-256f-robust" |
-            "slh-dsa-sha2-256f-robust" |
-            "slhdsasha256256frobust" => Ok(Algorithm::SlhDsaSha256256fRobust),
             "slh-dsa-shake256-128f-robust" | "slhdsashake256128frobust" => {
                 Ok(Algorithm::SlhDsaShake256128fRobust)
             }
@@ -110,12 +101,6 @@ impl WasmConversions {
             "sha3_512" | "sha3-512" => Ok(Algorithm::Sha3_512),
             "shake128" => Ok(Algorithm::Shake128),
             "shake256" => Ok(Algorithm::Shake256),
-            "sha224" | "sha-224" => Ok(Algorithm::Sha224),
-            "sha256" | "sha-256" => Ok(Algorithm::Sha256),
-            "sha384" | "sha-384" => Ok(Algorithm::Sha384),
-            "sha512" | "sha-512" => Ok(Algorithm::Sha512),
-            "sha512_224" | "sha512-224" | "sha-512/224" => Ok(Algorithm::Sha512_224),
-            "sha512_256" | "sha512-256" | "sha-512/256" => Ok(Algorithm::Sha512_256),
             "cshake128" | "cshake-128" => Ok(Algorithm::CShake128),
             "cshake256" | "cshake-256" => Ok(Algorithm::CShake256),
             "keccak224" | "keccak-224" => Ok(Algorithm::Keccak224),
@@ -163,9 +148,6 @@ impl WasmConversions {
             Algorithm::MlDsa87 => "ml-dsa-87".to_string(),
             Algorithm::FnDsa => "fn-dsa".to_string(),
 
-            Algorithm::SlhDsaSha256128fRobust => "slh-dsa-sha256-128f-robust".to_string(),
-            Algorithm::SlhDsaSha256192fRobust => "slh-dsa-sha256-192f-robust".to_string(),
-            Algorithm::SlhDsaSha256256fRobust => "slh-dsa-sha256-256f-robust".to_string(),
             Algorithm::SlhDsaShake256128fRobust => "slh-dsa-shake256-128f-robust".to_string(),
             Algorithm::SlhDsaShake256192fRobust => "slh-dsa-shake256-192f-robust".to_string(),
             Algorithm::SlhDsaShake256256fRobust => "slh-dsa-shake256-256f-robust".to_string(),
@@ -177,12 +159,6 @@ impl WasmConversions {
             Algorithm::Sha3_512 => "sha3-512".to_string(),
             Algorithm::Shake128 => "shake128".to_string(),
             Algorithm::Shake256 => "shake256".to_string(),
-            Algorithm::Sha224 => "sha-224".to_string(),
-            Algorithm::Sha256 => "sha-256".to_string(),
-            Algorithm::Sha384 => "sha-384".to_string(),
-            Algorithm::Sha512 => "sha-512".to_string(),
-            Algorithm::Sha512_224 => "sha-512/224".to_string(),
-            Algorithm::Sha512_256 => "sha-512/256".to_string(),
             Algorithm::CShake128 => "cshake128".to_string(),
             Algorithm::CShake256 => "cshake256".to_string(),
             Algorithm::Keccak224 => "keccak-224".to_string(),
@@ -295,9 +271,6 @@ pub const WASM_SIGNATURE_ALGORITHM_IDS: &[&str] = &[
     "ml-dsa-65",
     "ml-dsa-87",
     "fn-dsa",
-    "slh-dsa-sha256-128f-robust",
-    "slh-dsa-sha256-192f-robust",
-    "slh-dsa-sha256-256f-robust",
     "slh-dsa-shake256-128f-robust",
     "slh-dsa-shake256-192f-robust",
     "slh-dsa-shake256-256f-robust",
@@ -326,6 +299,29 @@ mod tests {
         // Test unsupported algorithm
         assert!(WasmConversions::string_to_algorithm("unsupported").is_err());
 
+        // SHA-2 is not offered: lib-Q is post-quantum only.
+        for name in [
+            "sha-224",
+            "sha224",
+            "sha-256",
+            "sha256",
+            "sha-384",
+            "sha384",
+            "sha-512",
+            "sha512",
+            "sha-512/224",
+            "sha512_224",
+            "sha512-224",
+            "sha-512/256",
+            "sha512_256",
+            "sha512-256",
+        ] {
+            assert!(
+                WasmConversions::string_to_algorithm(name).is_err(),
+                "{name}"
+            );
+        }
+
         // Test algorithm to string conversion
         assert_eq!(
             WasmConversions::algorithm_to_string(Algorithm::MlKem512),
@@ -348,10 +344,17 @@ mod tests {
             WasmConversions::string_to_algorithm("SlhDsaShake256128fRobust").unwrap(),
             Algorithm::SlhDsaShake256128fRobust
         );
-        assert_eq!(
-            WasmConversions::string_to_algorithm("slh-dsa-sha256-128f-robust").unwrap(),
-            Algorithm::SlhDsaSha256128fRobust
-        );
+        // The SLH-DSA SHA2 parameter sets are not offered (lib-Q ships no SHA-2).
+        for name in [
+            "slh-dsa-sha256-128f-robust",
+            "slh-dsa-sha2-128f-robust",
+            "SlhDsaSha256128fRobust",
+        ] {
+            assert!(
+                WasmConversions::string_to_algorithm(name).is_err(),
+                "{name}"
+            );
+        }
         assert_eq!(
             WasmConversions::algorithm_to_string(Algorithm::SlhDsaShake256128fRobust),
             "slh-dsa-shake256-128f-robust"

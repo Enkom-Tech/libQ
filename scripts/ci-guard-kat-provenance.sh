@@ -41,7 +41,7 @@
 #   * Discovery is scoped to `[scan].roots` in kats-manifest.toml, not the whole repository.
 #     Widening that scope requires the same per-file provenance investigation this lane did for
 #     lib-q-hqc -- see the manifest's own comment before adding a root.
-#   * It is static: a repo walk, a small TOML read, and a SHA-256 per file. No cargo, no network.
+#   * It is static: a repo walk, a small TOML read, and a SHA3-256 per file. No cargo, no network.
 #     It never runs the code under test and so cannot itself detect a *value* divergence from a
 #     real upstream reference (that is `tests/nist_kem_kat.rs` / a future upstream-conformance
 #     test's job) -- only whether the file's claimed origin is declared, consistent, and not

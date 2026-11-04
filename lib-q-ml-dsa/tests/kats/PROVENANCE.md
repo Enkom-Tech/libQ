@@ -8,7 +8,7 @@ something. Lines here that name no registered file fail the guard too, so this d
 quietly rot. Do not hand-edit a line without updating the manifest entry in the same review.
 
 Why a sidecar rather than a header: adding a `_provenance` key to these files would change their
-bytes and therefore the SHA-256 the manifest pins — and it would destroy their byte-for-byte
+bytes and therefore the SHA3-256 the manifest pins — and it would destroy their byte-for-byte
 equality with the upstream distribution, which *is* their provenance evidence.
 
 **What "machine-checked" does and does not mean here** (measured in review, 2026-08-07; the guard's
@@ -16,7 +16,7 @@ own docstring carries the same disclosure under CHECK 5's RESIDUAL). The guard c
 *exists*, is *internally consistent* with `kats-manifest.toml`, and that the file's bytes still hash
 to the pinned value. It cannot check that a claim is *true*: it has no network and no ground truth,
 so a committer who writes `origin=upstream` here and in the manifest, with a fabricated URL and the
-file's own hash copied into `upstream_sha256`, passes. That was verified by planting exactly that
+file's own hash copied into `upstream_sha3_256`, passes. That was verified by planting exactly that
 input and observing exit 0. The `origin=upstream` claims below are believable because someone
 re-fetched and re-hashed the sources — twice, independently, on 2026-08-07 — not because CI proved
 them. Anyone re-verifying should re-fetch the URLs in `kats-manifest.toml`, not re-run the guard.

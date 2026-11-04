@@ -4936,9 +4936,9 @@ pub(crate) const GM_TAB: [Fxc; 1024] = [
 #[cfg(test)]
 mod tests {
 
-    use sha2::{
+    use lib_q_sha3::{
         Digest,
-        Sha256,
+        Sha3_256,
     };
 
     use super::GM_TAB;
@@ -4947,14 +4947,14 @@ mod tests {
     fn check_gmtab() {
         // We check the table against a precomputed hash value, to ensure
         // that all the constants have been correctly generated.
-        let mut sh = Sha256::new();
+        let mut sh = Sha3_256::new();
         for z in GM_TAB.iter() {
             sh.update(z.re.0.to_le_bytes());
             sh.update(z.im.0.to_le_bytes());
         }
         assert!(
             sh.finalize()[..] ==
-                hex::decode("e0746da83816f05bd5a3bbe0867bba11ee2bab9cd781780ce4d205d6c51b03d9")
+                hex::decode("da028cc21a6634bbc49d9d7043d27926cb739a0c781afb41d2b7171d3b82a45d")
                     .unwrap()
         );
     }

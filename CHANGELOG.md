@@ -2,7 +2,36 @@
 
 All notable changes to this workspace are documented here. Versions follow the shared `[workspace.package]` version in the root `Cargo.toml`.
 
-## Unreleased
+## 0.0.12
+
+> **Upgrade priority: high for `lib-q-ml-dsa` verifiers.** Verification in 0.0.11 did not enforce
+> the FIPS 204 signer-response bound (see Security below). This release is also a hard cutover:
+> lib-Q no longer ships SHA-2 in any form, with no compatibility feature (see "Changed — BREAKING").
+
+### Release
+
+- **Lockstep version 0.0.12** for every crate and every `@lib-q/*` npm package.
+- **First publication** of the crates `lib-q-aegis` and `lib-q-hiae` and the npm packages
+  `@lib-q/ml-dsa` and `@lib-q/jose`.
+- **Trusted publishing only.** crates.io and npm releases authenticate with short-lived OIDC
+  credentials (crates.io trusted publishing, npm trusted publishing with provenance). The
+  repository holds no registry token, and the token code paths are removed from the publish
+  workflows. One approval in the `release` environment gates a release; the publish jobs run in
+  the `release-publish` environment, are the only jobs granted `id-token: write`, and still run
+  only from a `v*` tag or `main`.
+
+### Dependencies
+
+- Every dependency is at its latest compatible release (`cargo update`; no semver-major upgrade
+  is available). `crypto-bigint` 0.7.10 and `ctutils` 0.4.8 fix RUSTSEC-2026-0387 and
+  RUSTSEC-2026-0385.
+- `sha2`, `hmac` and the `fips204` dev-dependency are gone, and with them the last copies of
+  `digest` 0.10, `generic-array` 0.14 and `sha3` 0.10 in `Cargo.lock`. Dropping `fips204`
+  removes the benchmark comparison against it and the AVX2 diagnostic that verified one
+  ML-DSA-44 signature with it; the AVX2 path stays covered byte for byte by the NIST ACVP
+  sigGen vectors.
+- One dependency is held below its latest release: `minicov` stays at 0.3.8 because
+  `wasm-bindgen-test` 0.3.80 requires exactly `=0.3.8`.
 
 ### Added
 
@@ -16,8 +45,66 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **`lib-q-intrinsics`: `aes_round` module (features `aes-round`, `aes-round-hw`).** The shared AES
   round for those crates: runtime-selected AES-NI / ARMv8 AES backends and a constant-time
   bitsliced portable round (Boyar-Peralta S-box circuit, no tables).
+- **`@lib-q/jose` Node adapter:** RFC 9964 ML-DSA-65 compact JWS
+  verification with empty context, AKP import and RFC 7638 thumbprints, OIDC ID
+  token claims and HTTPS JWKS rotation handling, and TypeScript declarations.
+  `@lib-q/sig` now exports the `MlDsa.ml_dsa_65()` WASM factory, which
+  `@lib-q/sig@0.0.11` lacked. `@lib-q/jose` depends on `@lib-q/sig` at exactly the
+  same version and is published after it.
 
 ### Changed — BREAKING (API)
+
+- **SHA-2 is removed from lib-Q entirely.** lib-Q is post-quantum only and ships no SHA-2, not
+  even as an interoperability helper, a FIPS 205 parameter-set family, or a test-vector checksum.
+  The `sha2` dependency is gone from every crate and from `[workspace.dependencies]`.
+  - **`lib-q-hash`:** removed `Sha224Hash`, `Sha256Hash`, `Sha384Hash`, `Sha512Hash`,
+    `Sha512_224Hash` and `Sha512_256Hash`, the matching `HashAlgorithm` variants, and the
+    `sha-224` ... `sha-512/256` names from `available_algorithms()`.
+  - **`lib-q-types` / `lib-q-core`:** removed `Algorithm::{Sha224, Sha256, Sha384, Sha512,
+    Sha512_224, Sha512_256}` and `Algorithm::{SlhDsaSha256128fRobust, SlhDsaSha256192fRobust,
+    SlhDsaSha256256fRobust}`, with every registry entry, match arm, security-constant row and WASM
+    name for them. `algorithms_by_category(Hash)` now lists the SHA-3/Keccak family it really
+    provides, where before it listed only SHA-2. The WASM bindings refuse `sha-256`,
+    `slh-dsa-sha256-128f-robust` and the other SHA-2 names as unknown algorithms. The numeric
+    discriminants of later `Algorithm` variants shift.
+  - **`lib-q-slh-dsa`:** removed the six FIPS 205 SHA2 parameter sets (`Sha2_128s`, `Sha2_128f`,
+    `Sha2_192s`, `Sha2_192f`, `Sha2_256s`, `Sha2_256f`) and the `Sha2L1` / `Sha2L35` suites, with
+    their WASM names (`sha2-128f` ...), benches, KATs and tests. The `sha2` and `hmac` dependencies
+    are gone. The six SHAKE parameter sets are unchanged and still pass the NIST ACVP keyGen,
+    sigGen and sigVer vectors; the vendored ACVP files stay byte-identical to upstream and their
+    SHA2 groups are skipped. The SPHINCS+ reference KATs are now pinned by the SHA3-256 of each
+    response file instead of upstream's SHA-256; each pin was taken in a run that also confirmed the
+    upstream SHA-256. The PKCS#8 test checks the SHAKE-128s encoding structurally, because the LAMPS
+    draft publishes vectors only for SHA2-128s.
+  - **`lib-q-slh-dsa`: `SlhDsaSignature::generate_keypair_with_randomness` and
+    `sign_with_randomness[_and_context]` change output.** They expand the caller's randomness with
+    SHAKE256 instead of SHA-256, so the same randomness gives a different (still valid) key pair or
+    signature than before.
+  - **`lib-q-sig`:** removed the SLH-DSA SHA2 rows (`SLH-DSA-SHA256-{128,192,256}f-Robust` and the
+    `SlhDsaSha256*` WASM names) and the optional `sha2` dependency of the `slh-dsa` feature.
+  - **`lib-q-fn-dsa`:** removed the `HASH_ID_SHA256`, `HASH_ID_SHA384`, `HASH_ID_SHA512` and
+    `HASH_ID_SHA512_256` pre-hash identifiers. The SHA3 and SHAKE identifiers remain.
+    `SigningKey::sign` now returns `Result<(), UnsupportedHashIdentifier>` and refuses any SHA-2
+    identifier (`hashAlgs` arcs 1 to 6, see `HashIdentifier::is_sha2`) without writing a signature,
+    so a caller-built SHA-2 OID cannot get around the removal. `VerifyingKey::verify` returns
+    `false` for a SHA-2 identifier, so HashFN-DSA signatures over a SHA-2 pre-hash are not
+    accepted either. The keygen
+    test pins (FFT table, small primes, ntrugen key pairs) are now SHA3-256 digests, taken in a run
+    that also confirmed the previous SHA-256 values.
+  - **`lib-q-prf`:** the modulus fingerprints in `tests/reference_vectors.txt` are SHA3-256
+    (`SHA3_256_P256_LE`, `SHA3_256_P512_LE`), produced by `scripts/gen_prf_kat.py` with Python's
+    `hashlib` and checked against lib-q-sha3.
+  - **`lib-q-utils`:** the security validator now denies a `sha2` dependency instead of allowlisting
+    it, and the classical-crypto allowlist has no `sha2` entries.
+  - **`@lib-q/jose` (interop change):** the RFC 7638 JWK thumbprint returned by `importAkpJwk`,
+    and used as the default `kid`, is now SHA3-256 instead of SHA-256. RFC 7638 leaves the hash to
+    the application. A thumbprint or `kid` computed elsewhere with SHA-256 no longer matches; peers
+    must compute SHA3-256 too. In RFC 9278 URI form the hash name is `sha3-256`
+    (`urn:ietf:params:oauth:jwk-thumbprint:sha3-256:<thumbprint>`).
+
+  Migration: use `Sha3_256Hash` / `Sha3_512Hash`, SHAKE, or `Kmac256` for keyed use, and the SHAKE
+  SLH-DSA parameter sets (`Shake128f` ... / `Algorithm::SlhDsaShake256*`). There is no
+  compatibility feature.
 
 - **`lib-q-ml-dsa`: the by-value seed key-generation functions are removed.** The seed is a
   `[u8; 32]`, which is `Copy`, so passing it by value left the caller's copy of the key-generation
@@ -42,19 +129,14 @@ All notable changes to this workspace are documented here. Versions follow the s
   `MlDsa::generate_keypair_with_randomness` keeps its signature and now moves the seed into a
   `Zeroizing` buffer before key generation.
 
-### Added
-
-- **`@lib-q/jose` Node adapter:** RFC 9964 ML-DSA-65 compact JWS
-  verification with empty context, AKP import and RFC 7638 thumbprints, OIDC ID
-  token claims and HTTPS JWKS rotation handling, and TypeScript declarations.
-  Exports the existing `MlDsa.ml_dsa_65()` WASM factory, absent from published
-  `@lib-q/sig@0.0.11`. Uses distinct companion `0.0.11-jose.0` tarballs pending
-  release. Rust WASM build and `npm test` verified locally against the local
-  companion build (see `npm/lib-q-jose/README.md` for the exact reproduction
-  commands); no npm publication or downstream rollout claimed.
-
 ### CI
 
+- Every CI cache key is built from SHA3-256 fingerprints (toolchain, feature strings and the
+  tracked `Cargo.lock` files) instead of `sha256sum` and GitHub's SHA-256 `hashFiles()`.
+  `scripts/build-wasm.ps1` writes `.wasm.sha3-256` checksum files, and the HQC KAT comparison
+  script hashes with SHA3-256. The only SHA-2 the repository computes itself is the
+  browser-mandated SHA-384 Subresource Integrity manifest of the npm packages; cargo's own
+  `Cargo.lock` checksums are noted in `docs/security.md`.
 - Run libQ CI on GitHub-hosted runners only; retire duplicate Forgejo workflow
   discovery with a tracked empty workflow directory. The merge-check cutover is
   documented in `CI_CD_SETUP.md`.

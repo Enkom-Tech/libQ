@@ -33,14 +33,6 @@ mod no_std_rng;
 
 use fors::ForsParams;
 pub use hashes::{
-    Sha2_128f,
-    Sha2_128s,
-    Sha2_192f,
-    Sha2_192s,
-    Sha2_256f,
-    Sha2_256s,
-    Sha2L1,
-    Sha2L35,
     Shake,
     Shake128f,
     Shake128s,
@@ -68,7 +60,7 @@ pub use verifying_key::{
     VerifyingKeyLen,
 };
 
-/// Specific parameters for each of the 12 FIPS parameter sets
+/// Specific parameters for each of the six FIPS 205 SHAKE parameter sets
 ///
 /// This trait defines the interface for SLH-DSA parameter sets as specified in
 /// NIST FIPS-205. Each parameter set provides different security levels and
@@ -76,9 +68,12 @@ pub use verifying_key::{
 ///
 /// # Security Levels
 ///
-/// - **Level 1 (128-bit)**: SHA256-128f, SHA256-128s, SHAKE256-128f, SHAKE256-128s
-/// - **Level 3 (192-bit)**: SHA256-192f, SHA256-192s, SHAKE256-192f, SHAKE256-192s  
-/// - **Level 5 (256-bit)**: SHA256-256f, SHA256-256s, SHAKE256-256f, SHAKE256-256s
+/// - **Level 1 (128-bit)**: SHAKE-128f, SHAKE-128s
+/// - **Level 3 (192-bit)**: SHAKE-192f, SHAKE-192s
+/// - **Level 5 (256-bit)**: SHAKE-256f, SHAKE-256s
+///
+/// The FIPS 205 SHA2 parameter sets are not implemented: lib-Q is post-quantum only and ships
+/// no SHA-2.
 ///
 /// # Example Usage
 ///
@@ -110,9 +105,9 @@ pub trait ParameterSet: ForsParams + SigningKeyLen + VerifyingKeyLen + Signature
     ///
     /// # Examples
     ///
-    /// - `"SLH-DSA-SHA2-128f"`
+    /// - `"SLH-DSA-SHAKE-128f"`
     /// - `"SLH-DSA-SHAKE-192f"`
-    /// - `"SLH-DSA-SHA2-256s"`
+    /// - `"SLH-DSA-SHAKE-256s"`
     const NAME: &'static str;
 
     /// Associated OID with the Parameter
@@ -347,30 +342,15 @@ mod tests {
             SLHDSA_256F_SIGNATURE_BYTES,
         };
 
-        check::<Sha2_128f>(
-            SLHDSA_128F_PUBLIC_KEY_BYTES,
-            SLHDSA_128F_SECRET_KEY_BYTES,
-            SLHDSA_128F_SIGNATURE_BYTES,
-        );
         check::<Shake128f>(
             SLHDSA_128F_PUBLIC_KEY_BYTES,
             SLHDSA_128F_SECRET_KEY_BYTES,
             SLHDSA_128F_SIGNATURE_BYTES,
         );
-        check::<Sha2_192f>(
-            SLHDSA_192F_PUBLIC_KEY_BYTES,
-            SLHDSA_192F_SECRET_KEY_BYTES,
-            SLHDSA_192F_SIGNATURE_BYTES,
-        );
         check::<Shake192f>(
             SLHDSA_192F_PUBLIC_KEY_BYTES,
             SLHDSA_192F_SECRET_KEY_BYTES,
             SLHDSA_192F_SIGNATURE_BYTES,
-        );
-        check::<Sha2_256f>(
-            SLHDSA_256F_PUBLIC_KEY_BYTES,
-            SLHDSA_256F_SECRET_KEY_BYTES,
-            SLHDSA_256F_SIGNATURE_BYTES,
         );
         check::<Shake256f>(
             SLHDSA_256F_PUBLIC_KEY_BYTES,

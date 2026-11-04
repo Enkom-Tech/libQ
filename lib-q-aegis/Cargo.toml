@@ -12,8 +12,8 @@ categories = ["cryptography"]
 readme = "README.md"
 
 [dependencies]
-lib-q-core = { path = "../lib-q-core", version = "0.0.11", default-features = false }
-lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.11", default-features = false, features = ["aes-round"] }
+lib-q-core = { path = "../lib-q-core", version = "0.0.12", default-features = false }
+lib-q-intrinsics = { path = "../lib-q-intrinsics", version = "0.0.12", default-features = false, features = ["aes-round"] }
 zeroize = { workspace = true, default-features = false, features = ["derive"] }
 subtle = { workspace = true, default-features = false }
 

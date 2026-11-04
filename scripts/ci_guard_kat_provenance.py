@@ -11,7 +11,7 @@ each fails CLOSED (an unparseable or missing input is an error, not a pass):
            an empty directory while the real files go unchecked.
   CHECK 2  manifest coverage, both directions: every discovered file has exactly one [[kat]]
            entry, and every [[kat]] entry names a file that still exists.
-  CHECK 3  content hash: each entry's `sha256` matches the file's current SHA-256. This is what
+  CHECK 3  content hash: each entry's `sha3_256` matches the file's current SHA3-256. This is what
            makes a silent regeneration of a "self-generated" pin -- or a silent edit of an
            "upstream" extract -- visible in code review instead of invisible.
   CHECK 4  naming: an entry whose `origin` is not "upstream" may not sit at a path or carry a
@@ -46,16 +46,16 @@ each fails CLOSED (an unparseable or missing input is an error, not a pass):
                  directory is the natural thing to write, and those lines are not stale -- but if
                  it does, their declared origin must still agree with the manifest.
 
-           `origin = "upstream"` entries must also carry `upstream_url` and `upstream_sha256`.
+           `origin = "upstream"` entries must also carry `upstream_url` and `upstream_sha3_256`.
 
            EXEMPTION (added 2026-08-06, KAT-provenance audit second pass; NARROWED 2026-08-07): an
-           `origin = "upstream"` entry whose manifest `sha256` equals its own `upstream_sha256` is
+           `origin = "upstream"` entry whose manifest `sha3_256` equals its own `upstream_sha3_256` is
            exempt from the (a) header-comment requirement. Vector files vendored byte-for-byte from
            a designers'/NIST's own distribution get their evidentiary value FROM being byte-
            identical to that distribution; splicing in a header comment would edit their bytes and
            falsify the very equality that is the evidence. The exemption cannot be reached by a
            non-upstream entry no matter what fields it also carries (e.g. a copied
-           `upstream_sha256`), because it is lexically nested inside the `origin == "upstream"`
+           `upstream_sha3_256`), because it is lexically nested inside the `origin == "upstream"`
            branch in `check_headers` below -- see that function's comment for the full reasoning
            and a pointer to the abuse-attempt test that exercises this. The exemption is ALSO
            refused (added in review, 2026-08-06) for any path CHECK 4's naming ban would otherwise
@@ -76,13 +76,13 @@ each fails CLOSED (an unparseable or missing input is an error, not a pass):
            through this check closes, a committer who simply LIES about `origin`:
 
              * TEXT route (a): a `#`-comment-capable file at a naming-innocuous path that declares
-               `origin = "upstream"` and copies its own hash into `upstream_sha256` reaches the
+               `origin = "upstream"` and copies its own hash into `upstream_sha3_256` reaches the
                exemption and passes with no header at all.
              * SIDECAR route (b): the identical lie on a JSON/binary file passes too. It costs the
                liar one extra fabricated markdown line, because the sidecar is committer-written
                free text that this script compares only against the committer-written manifest.
                MEASURED 2026-08-07 in review (verifier's harness, scenario v1): a fabricated JSON
-               with `origin = "upstream"`, `sha256 == upstream_sha256`, a `https://example.invalid`
+               with `origin = "upstream"`, `sha3_256 == upstream_sha3_256`, a `https://example.invalid`
                URL and a matching sidecar line -> `kat-provenance guard: OK`, exit 0.
 
            So route (b) is NOT stronger than route (a) against a lie; both are "we trust the
@@ -120,7 +120,7 @@ WHAT THIS GUARD DOES NOT COVER
   * It never inspects the DATA inside a vector file, only its bytes-as-a-whole (CHECK 3) and its
     header comment (CHECK 5). It cannot tell you whether a file's claimed origin is TRUE, only
     whether a claim is present, internally consistent, and not wearing a name it has not earned.
-  * It is static: a repo walk, a small TOML read, a SHA-256 per file. No cargo, no network, no
+  * It is static: a repo walk, a small TOML read, a SHA3-256 per file. No cargo, no network, no
     code-under-test execution -- detecting an actual VALUE divergence from a real reference
     implementation is a different job (`tests/nist_kem_kat.rs`, or a future upstream-conformance
     test).
@@ -368,8 +368,8 @@ def is_binary_ext(rel: str) -> bool:
     return suffix in BINARY_EXTENSIONS
 
 
-def sha256_of(path: pathlib.Path, *, binary: bool = False) -> str:
-    """SHA-256 of the file, normalising CRLF line endings to LF for text formats only.
+def sha3_256_of(path: pathlib.Path, *, binary: bool = False) -> str:
+    """SHA3-256 of the file, normalising CRLF line endings to LF for text formats only.
 
     KAT vectors are mostly text. Hashing the raw bytes of a text file makes this check
     depend on the checkout's line-ending policy rather than on the content: a Windows
@@ -391,7 +391,7 @@ def sha256_of(path: pathlib.Path, *, binary: bool = False) -> str:
     data = path.read_bytes()
     if not binary:
         data = data.replace(b"\r\n", b"\n")
-    return hashlib.sha256(data).hexdigest()
+    return hashlib.sha3_256(data).hexdigest()
 
 
 def check_hashes(by_path: dict[str, dict]) -> None:
@@ -400,17 +400,17 @@ def check_hashes(by_path: dict[str, dict]) -> None:
         p = ROOT / rel
         if not p.is_file():
             continue  # already reported by CHECK 2
-        expected = str(e.get("sha256", ""))
+        expected = str(e.get("sha3_256", ""))
         if not expected:
-            fail("CHECK 3", f"{rel}: manifest entry has no 'sha256'")
+            fail("CHECK 3", f"{rel}: manifest entry has no 'sha3_256'")
             continue
-        actual = sha256_of(p, binary=is_binary_ext(rel))
+        actual = sha3_256_of(p, binary=is_binary_ext(rel))
         checked += 1
         if actual.lower() != expected.lower():
             fail(
                 "CHECK 3",
-                f"{rel}: content hash changed. manifest sha256={expected} actual={actual}. If "
-                "this is a deliberate regeneration, update the manifest entry's sha256 as part "
+                f"{rel}: content hash changed. manifest sha3_256={expected} actual={actual}. If "
+                "this is a deliberate regeneration, update the manifest entry's sha3_256 as part "
                 "of the SAME review that changed the file -- a hash left stale is exactly the "
                 "silent-drift case this check exists to catch.",
             )
@@ -484,7 +484,7 @@ HEADER_LINES_SCANNED = 20
 # could perfectly well carry for a sidecar line. The format decides, not the committer.
 #
 # JSON is absent deliberately: the grammar has no comment production, so `#` on line 1 is a parse
-# error, and a `_provenance` key would change the bytes and therefore the `sha256` this manifest
+# error, and a `_provenance` key would change the bytes and therefore the `sha3_256` this manifest
 # pins. Binary containers (`.blb` blobby archives, `.bin`) likewise. Before 2026-08-07 that made a
 # self-generated JSON/binary vector file IMPOSSIBLE to register -- CHECK 5 could never pass for it
 # -- which is why ~31 KAT-shaped files in this repo sat outside the guard entirely.
@@ -608,11 +608,11 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
 
         if origin == "upstream":
             upstream_url = e.get("upstream_url")
-            upstream_sha256 = e.get("upstream_sha256")
-            if not upstream_url or not upstream_sha256:
+            upstream_sha3_256 = e.get("upstream_sha3_256")
+            if not upstream_url or not upstream_sha3_256:
                 fail(
                     "CHECK 5",
-                    f"{rel}: origin=upstream requires both 'upstream_url' and 'upstream_sha256' "
+                    f"{rel}: origin=upstream requires both 'upstream_url' and 'upstream_sha3_256' "
                     "in the manifest entry",
                 )
                 continue
@@ -684,17 +684,17 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
         if origin == "upstream":
             # EXEMPTION -- a file vendored byte-for-byte from upstream cannot ALSO carry a
             # header comment declaring that fact: adding one would edit its bytes and falsify
-            # the very equality (recorded `sha256` == claimed `upstream_sha256`) that makes the
+            # the very equality (recorded `sha3_256` == claimed `upstream_sha3_256`) that makes the
             # claim checkable in the first place. An entry that satisfies this equality already
             # carries STRONGER, machine-verified provenance than a free-text header comment ever
-            # could: CHECK 3 re-derives `sha256` from the file's actual bytes on every run (so it
-            # cannot silently drift), and `upstream_sha256` is a citable, reviewable claim tied to
+            # could: CHECK 3 re-derives `sha3_256` from the file's actual bytes on every run (so it
+            # cannot silently drift), and `upstream_sha3_256` is a citable, reviewable claim tied to
             # `upstream_url` that any reader can independently re-fetch and re-hash.
             #
             # This branch is reachable ONLY when `origin == "upstream"` literally. It cannot be
             # reached by a "self-generated" or "third-party" entry regardless of what other
-            # fields such an entry also carries (e.g. a copied `upstream_sha256` equal to its own
-            # `sha256`, attempting to mimic this condition) -- for those origins `token` is
+            # fields such an entry also carries (e.g. a copied `upstream_sha3_256` equal to its own
+            # `sha3_256`, attempting to mimic this condition) -- for those origins `token` is
             # "self-generated" / "third-party", not "upstream", so control never enters this `if
             # origin == "upstream":` block at all and falls straight through to the ordinary
             # header check below, which still demands the matching token in the file's own
@@ -703,7 +703,7 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
             #
             # SECOND GUARD (added in review, 2026-08-06): `origin` itself is a self-declared
             # manifest field this script cannot verify (no network, no ground truth -- see the
-            # module docstring). `sha256 == upstream_sha256` alone is NOT independent evidence of
+            # module docstring). `sha3_256 == upstream_sha3_256` alone is NOT independent evidence of
             # genuine upstream provenance: for a self-generated file, both fields are just "the
             # hash of my own file", copied twice by whoever writes the entry. Nothing before this
             # line stops a contributor from mislabelling a self-generated file `origin =
@@ -729,11 +729,11 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
             # THIRD GUARD (added 2026-08-07): the exemption is now unreachable for any file that is
             # not `#`-comment-capable -- such files are diverted to the sidecar rule above before
             # control ever gets here. See that branch's comment.
-            recorded_sha256 = str(e.get("sha256", "")).strip().lower()
-            claimed_upstream_sha256 = str(e.get("upstream_sha256", "")).strip().lower()
+            recorded_sha3_256 = str(e.get("sha3_256", "")).strip().lower()
+            claimed_upstream_sha3_256 = str(e.get("upstream_sha3_256", "")).strip().lower()
             if (
-                recorded_sha256
-                and recorded_sha256 == claimed_upstream_sha256
+                recorded_sha3_256
+                and recorded_sha3_256 == claimed_upstream_sha3_256
                 and not name_is_banned(rel)
             ):
                 exempted += 1
@@ -801,7 +801,7 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
         f"CHECK 5: {checked} file(s) carry a provenance statement agreeing with their manifest "
         f"origin -- {checked - exempted - via_sidecar} via their own leading '#'-comment header, "
         f"{via_sidecar} via a {SIDECAR_NAME} sidecar (formats that cannot carry a '#' comment: "
-        f"JSON, binary), {exempted} exempted (origin=upstream with sha256 == upstream_sha256, i.e. "
+        f"JSON, binary), {exempted} exempted (origin=upstream with sha3_256 == upstream_sha3_256, i.e. "
         "byte-for-byte vendored TEXT files that adding a header comment would falsify)"
     )
 
