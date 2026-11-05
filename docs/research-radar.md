@@ -1,7 +1,7 @@
 # Research radar triage log
 
-Durable conclusions for cryptography papers routed to libQ from the IACR eprint
-radar (`iacr-radar`). One entry per triaged paper. The triage records that a
+Durable conclusions for cryptography papers routed to libQ from the IACR ePrint
+feed. One entry per triaged paper. The triage records that a
 paper was assessed and by whom; **this file is the durable record of the verdict**,
 per the repo convention of keeping the durable conclusion in the tree, not only
 on the tracking issue.
@@ -169,7 +169,7 @@ code.
 
 ### Recommendation
 
-- Correct the card's tag: drop "post-quantum"; this is a classical
+- Not post-quantum: this is a classical
   (discrete-log/pairing) construction.
 - No code action. No libQ crate is affected.
 - If a future Plonkish-with-linear-time-prover primitive is ever wanted over a

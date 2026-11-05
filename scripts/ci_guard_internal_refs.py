@@ -21,26 +21,42 @@ WHAT IT CHECKS (every tracked text file, and every tracked file name)
      loopback/localhost address with a port. A dotted number that follows a section reference
      ("NIST 10.2.1.2", "SP 800-90A 10.1.1.2", "section 10.1.2.3", "§10.1.2.3") is a section number,
      not an address, and a number with a fifth component ("10.2.1.3.1") never matches.
-  5. internal host and tool names -- only when a key is configured (see KEYED NAME LIST).
+  5. internal product, host and tool names, from the committed keyed list and, when configured,
+     the INTERNAL_REFS_KEY secret (see KEYED NAME LIST).
 
 KEYED NAME LIST
 ===============
-The names in check 5 are not in this repository, in plain text or as plain hashes: a plain hash of
-a short word is recovered by trying candidate words, so a published hash list is a published list.
-Instead, CI supplies the environment variable `INTERNAL_REFS_KEY`:
+The names in check 5 are not in this repository in plain text. They come from two keyed lists in
+the same format, and a token is reported when either list matches it:
 
-    v2:<key as 64 hex chars>:<entry>,<entry>,...
-    entry = <mode><KMAC256(key, token, 256 bits, S="lib-q ci_guard_internal_refs v2") as 64 hex chars>
+  * `scripts/internal-refs-names.txt` (committed). Every non-comment line is a separate list and
+    all of them are checked. Its key is published with it, so it keeps the
+    names out of the text of the tree but does not make them secret: anyone can test a guessed
+    word against it. It exists so that check 5 runs on every CI run, including pre-merge runs,
+    which never receive secrets.
+  * the environment variable `INTERNAL_REFS_KEY` (optional, a CI secret), for names that must not
+    be guessable from the repository at all.
+
+Both use this format:
+
+    v3:<key as 64 hex chars>:<entry>,<entry>,...
+    entry = <mode><SHA3-256(key || 0x00 || token) as 64 hex chars>
+
+(`v2`, with entry = KMAC256(key, token, 256 bits, S="lib-q ci_guard_internal_refs v2"), is still
+accepted. v3 exists because the pure-Python KMAC256 is too slow to run over the whole tree on every
+CI run; SHA3-256 has no length extension, so a key-prefixed SHA3-256 is a sound keyed hash.)
     mode  = "i" (token is compared lower-cased) or "s" (exact spelling only, for a name that is also
             an ordinary upper-case abbreviation)
 
 Every word of a line is tested, together with its dot-suffixes ("a.b.c" -> "b.c", "c") and its
 hyphen/underscore n-grams ("a-b_c" -> "a-b", "b_c", "a", ...), so a name inside a longer label is
-still found. The format is `v2` since the MAC moved from HMAC-SHA256 to KMAC256 (lib-Q ships no
+still found, however long the word is. Candidates longer than 40 characters, hex runs of 12 or more
+characters and plain numbers are never tested (no listed name has those shapes), and
+`--make-key-entry` refuses names of those shapes rather than emit an entry that can never match. The format is `v2` since the MAC moved from HMAC-SHA256 to KMAC256 (lib-Q ships no
 SHA-2); a `v1` value fails the run with a request to regenerate it, rather than silently matching
-nothing. Without the variable (for example on the public mirror's CI) check 5 is skipped with a
-notice and checks 1-4 still run. A variable that is set but malformed fails the run.
-`--make-key-entry` builds the value from names on stdin without writing them anywhere.
+nothing. Without the variable, check 5 uses the committed list alone. A variable or committed list
+that is present but malformed fails the run. `--make-key-entry` builds entries from names on stdin
+without writing the names anywhere; it uses `INTERNAL_REFS_KEY` if set, else the committed key.
 
 EXEMPTIONS
 ==========
@@ -65,6 +81,7 @@ Usage:
 
 from __future__ import annotations
 
+import hashlib
 import os
 import pathlib
 import re
@@ -74,6 +91,7 @@ import sys
 import tempfile
 
 KEY_ENV = "INTERNAL_REFS_KEY"
+NAMES_FILE = "scripts/internal-refs-names.txt"
 ALLOW_MARKER = "internal-refs: allow-address"
 CEILING_FILE = "scripts/internal-refs-exemptions-max.txt"
 
@@ -218,7 +236,7 @@ class KeyConfigError(ValueError):
 
 
 def parse_key(value: str | None):
-    """Return (key_bytes, {digest_hex: mode}) or None when no key is configured."""
+    """Return (key_bytes, {digest_hex: mode}, version) or None when no key is configured."""
     if value is None or not value.strip():
         return None
     parts = value.strip().split(":", 2)
@@ -227,8 +245,9 @@ def parse_key(value: str | None):
             f"{KEY_ENV} is a v1 (HMAC-SHA256) value; the guard now uses KMAC256 (v2). Regenerate it: "
             f"set {KEY_ENV}=v2:<key hex>:<placeholder> and pipe the names into --make-key-entry"
         )
-    if len(parts) != 3 or parts[0] != "v2":
-        raise KeyConfigError(f"{KEY_ENV} must look like v2:<key hex>:<entries>")
+    if len(parts) != 3 or parts[0] not in ("v2", "v3"):
+        raise KeyConfigError(f"{KEY_ENV} must look like v3:<key hex>:<entries> (or v2)")
+    ver = int(parts[0][1])
     try:
         key = bytes.fromhex(parts[1])
     except ValueError as e:
@@ -246,11 +265,29 @@ def parse_key(value: str | None):
         entries[digest] = mode
     if not entries:
         raise KeyConfigError(f"{KEY_ENV}: no entries")
-    return key, entries
+    return key, entries, ver
 
 
-def _mac(key: bytes, token: str) -> str:
-    return kmac256(key, token.encode("utf-8"), 32, _MAC_CUSTOM).hex()
+_MAC_CACHE: dict[tuple[bytes, str, int], str] = {}
+_MAX_NAME_LEN = 40
+_NOT_A_NAME = re.compile(r"[0-9a-fA-F]{12,}|[0-9]+")
+
+
+def _mac(key: bytes, token: str, ver: int = 3) -> str:
+    """v3: SHA3-256(key || 0x00 || token). v2: KMAC256(key, token, 256 bits, S=_MAC_CUSTOM)."""
+    hit = _MAC_CACHE.get((key, token, ver))
+    if hit is None:
+        if ver == 3:
+            hit = hashlib.sha3_256(key + b"\x00" + token.encode("utf-8")).hexdigest()
+        else:
+            hit = kmac256(key, token.encode("utf-8"), 32, _MAC_CUSTOM).hex()
+        _MAC_CACHE[(key, token, ver)] = hit
+    return hit
+
+
+def _could_be_name(token: str) -> bool:
+    """Internal names are short words: skip long tokens, hex blobs and plain numbers unhashed."""
+    return len(token) <= _MAX_NAME_LEN and not _NOT_A_NAME.fullmatch(token)
 
 
 def _candidates(word: str) -> set[str]:
@@ -267,19 +304,25 @@ def _candidates(word: str) -> set[str]:
             out.add(acc)
             for j in range(i + 1, len(toks)):
                 acc = acc + seps[j - 1] + toks[j]
+                if len(acc) > _MAX_NAME_LEN:
+                    break  # only ever grows, and _could_be_name rejects it
                 out.add(acc)
     return {c for c in out if c}
 
 
 def name_hit(line: str, keyed) -> bool:
+    if isinstance(keyed, list):
+        return any(name_hit(line, k) for k in keyed)
     if keyed is None:
         return False
-    key, entries = keyed
+    key, entries, ver = keyed
     for m in WORD.finditer(line):
         for cand in _candidates(m.group(0)):
-            if entries.get(_mac(key, cand)) == "s":
+            if not _could_be_name(cand):
+                continue
+            if entries.get(_mac(key, cand, ver)) == "s":
                 return True
-            if entries.get(_mac(key, cand.lower())) == "i":
+            if entries.get(_mac(key, cand.lower(), ver)) == "i":
                 return True
     return False
 
@@ -387,7 +430,7 @@ def self_test() -> bool:
     bad_kmac = _kmac_known_answers()
     expect(not bad_kmac, f"KMAC256 does not match the NIST SP 800-185 samples: {bad_kmac}")
     key = secrets.token_bytes(32)
-    keyed_value = f"v2:{key.hex()}:i{_mac(key, canary)}"
+    keyed_value = f"v2:{key.hex()}:i{_mac(key, canary, 2)}"
     keyed = parse_key(keyed_value)
 
     planted = {
@@ -442,9 +485,17 @@ def self_test() -> bool:
                  "x_" + canary + "_y", "host." + canary + ".example"):
         f, _ = check_line(line, keyed)
         expect("internal host or tool name" in f, f"keyed canary not detected: {line!r}")
-    f, _ = check_line("ssh " + canary, parse_key(f"v2:{secrets.token_hex(32)}:i{'0' * 64}"))
+    v3 = parse_key(f"v3:{key.hex()}:i{_mac(key, canary, 3)}")
+    expect("internal host or tool name" in check_line("ssh " + canary, v3)[0], "v3 canary not detected")
+    expect(not check_line("ssh " + canary, parse_key(f"v3:{secrets.token_hex(32)}:i{_mac(key, canary, 3)}"))[0],
+           "a v3 entry matched under a different key")
+    expect(_mac(key, canary, 2) != _mac(key, canary, 3), "v2 and v3 digests coincide")
+    other = parse_key(f"v2:{secrets.token_hex(32)}:i{'0' * 64}")
+    f, _ = check_line("ssh " + canary, [other, keyed])
+    expect("internal host or tool name" in f, "a canary in the second of two keyed lists was not detected")
+    f, _ = check_line("ssh " + canary, other)
     expect(not f, "a different key must not match the canary")
-    s_value = f"v2:{key.hex()}:s{_mac(key, 'Canary')}"
+    s_value = f"v2:{key.hex()}:s{_mac(key, 'Canary', 2)}"
     expect(bool(check_line("the Canary host", parse_key(s_value))[0]), "exact-case entry not detected")
     expect(not check_line("the canary host", parse_key(s_value))[0], "exact-case entry matched other case")
     for bad in ("v3:00:i00", "v2:zz:i" + "0" * 64, f"v2:{key.hex()}:x" + "0" * 64, f"v2:{'00' * 8}:i" + "0" * 64,
@@ -455,6 +506,28 @@ def self_test() -> bool:
         except KeyConfigError:
             pass
     expect(parse_key("") is None and parse_key(None) is None, "an empty key must mean 'not configured'")
+
+    # Committed-style list file: every non-comment line is read, not only the first.
+    with tempfile.TemporaryDirectory() as tmp:
+        root = pathlib.Path(tmp)
+        (root / NAMES_FILE).parent.mkdir(parents=True)
+        (root / NAMES_FILE).write_text(
+            "# comment\n"
+            f"v3:{secrets.token_hex(32)}:i{'0' * 64}\n"
+            f"v3:{key.hex()}:i{_mac(key, canary, 3)}\n",
+            encoding="utf-8",
+        )
+        lists = read_names_file(root)
+        expect(len(lists) == 2, f"read_names_file returned {len(lists)} list(s) for a two-line file")
+        f, _ = check_line("ssh " + canary, lists)
+        expect("internal host or tool name" in f,
+               "a canary only in the second line of the list file was not detected")
+
+    # A name at the end of a long hyphenated word is still found.
+    long_word = "-".join(["segment"] * 25) + "-" + canary
+    expect(len(long_word) > 160, "the long-word fixture is not longer than 160 characters")
+    f, _ = check_line("label " + long_word, v3)
+    expect("internal host or tool name" in f, "a canary at the end of a long hyphenated word was not detected")
 
     # File-level path: planted file reported, clean file not, exemption listed.
     with tempfile.TemporaryDirectory() as tmp:
@@ -475,20 +548,44 @@ def self_test() -> bool:
 # ---------------------------------------------------------------------------------------------
 
 
+def read_names_file(root: pathlib.Path) -> list:
+    """The committed keyed lists: every non-comment, non-blank line of NAMES_FILE, each parsed."""
+    path = root / NAMES_FILE
+    if not path.is_file():
+        raise KeyConfigError(f"{NAMES_FILE} is missing")
+    lists = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            lists.append(parse_key(line))
+    if not lists:
+        raise KeyConfigError(f"{NAMES_FILE} holds no entries")
+    return lists
+
+
 def main(argv: list[str]) -> int:
     if argv[1:2] == ["--make-key-entry"]:
         keyed = parse_key(os.environ.get(KEY_ENV))
         if keyed is None:
-            print(f"set {KEY_ENV}=v2:<key hex>:<existing entries or a placeholder> first", file=sys.stderr)
-            return 1
-        key, _ = keyed
+            here = pathlib.Path(__file__).resolve().parent.parent
+            try:
+                keyed = read_names_file(here)[0]
+            except KeyConfigError as e:
+                print(f"set {KEY_ENV}=v2:<key hex>:<a placeholder entry> first ({e})", file=sys.stderr)
+                return 1
+        key, _, ver = keyed
         out = []
-        for line in sys.stdin.read().splitlines():
+        for lineno, line in enumerate(sys.stdin.read().splitlines(), 1):
             line = line.strip()
             if not line:
                 continue
             mode, _, token = line.partition(" ") if line[:2] in ("i ", "s ") else ("i", "", line)
-            out.append(mode + _mac(key, token.lower() if mode == "i" else token))
+            if not _could_be_name(token):
+                print(f"--make-key-entry: warning: skipped input line {lineno}: the scan never tests a "
+                      f"name over {_MAX_NAME_LEN} characters, a hex run of 12+ characters or a plain "
+                      "number, so its entry could never match", file=sys.stderr)
+                continue
+            out.append(mode + _mac(key, token.lower() if mode == "i" else token, ver))
         print(",".join(out))
         return 0
 
@@ -499,20 +596,22 @@ def main(argv: list[str]) -> int:
         print("ci-guard-internal-refs: self-test OK")
         return 0
 
-    try:
-        keyed = parse_key(os.environ.get(KEY_ENV))
-    except KeyConfigError as e:
-        print(f"ci-guard-internal-refs: {e}")
-        return 1
-    if keyed is None:
-        print(f"ci-guard-internal-refs: notice: {KEY_ENV} is not set, so the internal-name check is "
-              "skipped; all other checks run.")
-
     root = pathlib.Path(argv[1]) if len(argv) > 1 else pathlib.Path(
         subprocess.run(
             ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True
         ).stdout.strip()
     )
+    try:
+        keyed = read_names_file(root)
+        from_env = parse_key(os.environ.get(KEY_ENV))
+    except KeyConfigError as e:
+        print(f"ci-guard-internal-refs: {e}")
+        return 1
+    if from_env is None:
+        print(f"ci-guard-internal-refs: notice: {KEY_ENV} is not set; the internal-name check uses "
+              f"the committed list in {NAMES_FILE} only.")
+    else:
+        keyed.append(from_env)
     files = tracked_files(root)
     if not files:
         print("ci-guard-internal-refs: no tracked files found -- refusing to report a clean tree")
@@ -533,8 +632,7 @@ def main(argv: list[str]) -> int:
               "reference was for in plain words instead; see this script's header.")
         rc = 1
     if rc == 0:
-        print(f"ci-guard-internal-refs: OK -- {len(files)} tracked file(s), no internal references"
-              + ("" if keyed else " (internal-name check skipped)"))
+        print(f"ci-guard-internal-refs: OK -- {len(files)} tracked file(s), no internal references")
     return rc
 
 

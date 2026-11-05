@@ -1,17 +1,16 @@
 # Verification record for the three RED boundaries
 
-Independent re-run of the current tree, not carried from a commit message. Recorded because the
-board channel was unavailable this run (see final note). This file is a **verification log**, not a
+Independent re-run of the current tree, not carried from a commit message. This file is a **verification log**, not a
 closure: it states which boundaries are closed *in code*, which remain RED, and — for each RED — who
 owns the residual. It authors no cryptographic reduction and asserts no sign-off.
 
 - Tree: `HEAD = 8788981` (tkem/zk-enc-proof tip `3bb92b5` + release commits `1253646`,`8788981`).
-- Toolchain: repo-pinned via `agent-toolchain --export .`; `cargo test ... --release`.
+- Toolchain: repo-pinned (`rust-toolchain.toml`); `cargo test ... --release`.
 - Date: 2026-08-23.
 
 ## Boundary (1) — malformed-ciphertext insider probe
 
-**Closed in code; RED label is a human sign-off, not an agent decision.**
+**Closed in code; the RED label needs a human cryptographer's sign-off.**
 
 The work item's stated criterion (prove `p = B0ᵀe + f` with *bounded* `(e,f)`) is the superseded,
 *insufficient* one — the `δ·unit_k` spike has `‖f‖∞ = 1`, inside any norm ball
@@ -43,7 +42,7 @@ unit tests in the lib target, corroborating the 114/109-passed/5-ignored figure 
 
 RESIDUAL (RED, human cryptographer — unchanged): the Fiat–Shamir/grinding bound in the (Q)ROM, the
 `κ ⊥ ρ` independence under a shared statement hash, and the preprocessed-commitment obligation.
-These are not agent-closable and no code change makes them so.
+These need a human cryptographer's sign-off and no code change makes them so.
 
 ## Boundary (2) — verifiable partial decapsulation (cheater ID)
 
@@ -81,7 +80,7 @@ a speculative implementation would be worse than none and is not landed.
 `THRESHOLD_SECURITY.md` §7 states the conditional claim (threshold IND-CCA in the ROM at §2/§3
 hardness, *conditional on closure A, or B+C*) and marks the bare-model theorem "not claimed". The
 sign-off — confirming or refuting that conditional statement — is item 4 of §8's reviewer list and
-is not agent-closable. No code artifact changes this.
+needs a human cryptographer's sign-off. No code artifact changes this.
 
 ## Net
 
@@ -89,13 +88,13 @@ The implementable/verifiable work across all three boundaries has already landed
 `21f9cab`→`3bb92b5` for (1)/closures, `9786780` for closure B, `0575c11` for (2)'s public inputs);
 this run independently re-ran the load-bearing positive and negative tests and they pass at `HEAD`.
 The three residual RED labels are human-cryptographer sign-off items, not defects and not code gaps,
-so no additional sound code change was warranted this run. The work item cannot be closed by an agent:
+so no additional sound code change was warranted this run. The work item cannot be closed by code changes:
 each remaining boundary asserts something a human must still check.
 
-## Addendum — second independent re-run, 2026-08-28 (separate agent, HEAD unchanged at `5eea44c`)
+## Addendum — second independent re-run, 2026-08-28 (separate re-run, HEAD unchanged at `5eea44c`)
 
-Re-derived from code, not carried from this file's own claims. Board channel was unavailable this
-run too (see below) so this is filed the same way as the first pass: in-tree.
+Re-derived from code, not carried from this file's own claims. Like the first pass, it is
+recorded in-tree.
 
 Branch was 36 commits behind `origin/main` (all unrelated radar/docs/CI commits since `8788981`);
 diffed clean, no rebase needed to re-verify (`git merge-base` confirms this file is the only

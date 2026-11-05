@@ -137,9 +137,8 @@ All notable changes to this workspace are documented here. Versions follow the s
   script hashes with SHA3-256. The only SHA-2 the repository computes itself is the
   browser-mandated SHA-384 Subresource Integrity manifest of the npm packages; cargo's own
   `Cargo.lock` checksums are noted in `docs/security.md`.
-- Run libQ CI on GitHub-hosted runners only; retire duplicate Forgejo workflow
-  discovery with a tracked empty workflow directory. The merge-check cutover is
-  documented in `CI_CD_SETUP.md`.
+- Run libQ CI on GitHub-hosted runners only. The setup is documented in
+  `CI_CD_SETUP.md`.
 - Pin external workflow and composite actions to immutable commits, migrate
   legacy artifact uploads to the GitHub-supported backend, and remove internal
   tracking references from public workflow/action YAML. Downstream Rust source
@@ -149,7 +148,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 - **Radar disposition for IACR ePrint 2025/1220 (RoK and Roll — verifier-efficient random
   projection for `Õ(λ)`-size lattice SNARKs).** Documentation only; no code,
-  wire-format, dependency, or test change. The `iacr-radar` classifier flagged the paper "medium
+  wire-format, dependency, or test change. The IACR ePrint feed's classifier flagged the paper "medium
   relevance — Zero-knowledge & credentials", which is topically right (same Module-SIS bounded-
   norm-linear-relation family `lib-q-lattice-zkp` already proves) but not an adopt candidate now:
   the paper's `Õ(λ)` structured/unstructured random-projection RoK chain only pays for its
@@ -162,7 +161,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 - **Radar disposition for IACR ePrint 2026/1444 (compressed post-quantum silent OT from
   isogenies).** Documentation only; no code, wire-format, dependency, or test
-  change. The `iacr-radar` classifier flagged it "medium relevance — Post-Quantum OT", which is
+  change. The IACR ePrint feed's classifier flagged it "medium relevance — Post-Quantum OT", which is
   accurate: unlike ePrint 2023/1435 below, this construction is genuinely post-quantum (isogeny
   group action with a QROM proof), so it is **not** rejected on threat-model grounds. It is
   dispositioned **out of scope / not adopted** because `lib-q` ships no oblivious-transfer / PCF /
@@ -176,7 +175,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 - **Radar disposition for IACR ePrint 2023/1435 (identity-based matchmaking
   encryption).** Documentation only; no code, wire-format, dependency, or test change.
-  The `iacr-radar` classifier flagged the paper "high relevance (identity-based
+  The IACR ePrint feed's classifier flagged the paper "high relevance (identity-based
   encryption)", but it is out of scope: `lib-q` ships no IBE/IB-ME or pairing arithmetic, and
   the paper's concrete scheme rests on the Bilinear Diffie–Hellman assumption (pairing/DL,
   broken by Shor), contradicting the post-quantum threat model. Recorded the rationale in a
@@ -186,7 +185,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 
 - **Radar disposition for IACR ePrint 2026/1003 (blockchain access control with hidden
   attributes and policies).** Documentation only; no code, wire-format,
-  dependency, or test change. The `iacr-radar` classifier flagged the paper "medium relevance
+  dependency, or test change. The IACR ePrint feed's classifier flagged the paper "medium relevance
   (zero-knowledge & credentials)". It is topically on-radar (hidden attributes + hidden policy
   + a publicly verifiable inner-product satisfaction proof is the `lib-q-lattice-zkp` anon-cred
   domain), but out of scope: its entire asymmetric/ZK stack is classical discrete log —
@@ -656,8 +655,8 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **`lib-q-sig` / `lib-q-slh-dsa`:** SLH-DSA (FIPS 205) gains signing-context support —
   `sign_with_randomness_and_context` / `verify_with_context`, `SLH_DSA_CONTEXT_MAX_LEN` (255) —
   and the WASM bindings now thread the ML-DSA (FIPS 204) signing context through instead of
-  hardcoding an empty one, so a domain-separated signature produced under a GIP context (e.g.
-  `wapp.sh/entitlement-v0`) is verifiable from a browser. Both algorithms reject an over-long
+  hardcoding an empty one, so a domain-separated signature produced under an application-specific context is
+  verifiable from a browser. Both algorithms reject an over-long
   context as a hard error rather than truncating it silently. Context-free entry points are
   unchanged — they delegate with `&[]` and are byte-identical to the prior output, KAT-pinned.
 
@@ -695,7 +694,7 @@ All notable changes to this workspace are documented here. Versions follow the s
 - **CI:** `cargo-tarpaulin` installed from a prebuilt binary instead of built from source (saved
   ~3 min/job); PR coverage cap raised 45 → 60 min. Whole-workspace **debug** test rows no longer
   re-run the slow lattice keygen/proof crates already covered by their own release-ci rows (their
-  release-mode coverage is unchanged). `.mcp.json` (Enkom-internal agent config) untracked from
+  release-mode coverage is unchanged). A local tool configuration file was untracked from
   the public repo.
 - **Dependencies:** serde 1.0.228 → 1.0.229, serde_json 1.0.150 → 1.0.151; thiserror 2.0.18 →
   2.0.19; portable-atomic 1.13.1 → 1.14.0; aes 0.9.1 → 0.9.2; `actions/setup-node` 5 → 7.
@@ -793,7 +792,7 @@ known defect; all are things this release did **not** verify.
 - **`lib-q-zkp` — unlinkable set-membership proof** (Fiat–Shamir domain `libq.zkfri.membership.v0`), in two arms:
   - **Arm A:** value field `Complex<Mersenne31> = GF(p^2)`, FRI challenge field a degree-3 extension `GF(p^6)` (~186 bits). Reaches **128-bit post-quantum** *only at the PCS/commitment layer* (binding on the SHAKE256 Merkle commitment); the Poseidon-over-`GF(p^2)` round-count soundness obligation (O1) is **still unverified**, so this is not a complete soundness proof.
   - **Arm B:** BabyBear base field + Poseidon2, with a **quintic `F_{p^5}` challenge field** (≈155 bits). Reaches **128-bit post-quantum** *at the PCS/commitment layer* (binding on the SHAKE256 Merkle commitment; conjectured and provable-Johnson query bounds both clear 128) — upgraded from the original degree-4 config, which capped at ~116-bit conjectured / ~99-bit provable. The AIR/Poseidon2 round-count soundness obligations (O1/O4) remain **unverified**, so this is not a complete soundness proof.
-  - **STATUS for BOTH arms: RED / NOT signed off** — pending human cryptographer review (ADR-113 freeze gate). Not peer-reviewed: an IACR ePrint submission was desk-rejected; a self-published preprint + open-source reproduction artifact accompany it for review.
+  - **STATUS for BOTH arms: RED / NOT signed off** — pending human cryptographer review (membership freeze gate). Not peer-reviewed: an IACR ePrint submission was desk-rejected; a self-published preprint + open-source reproduction artifact accompany it for review.
 
 ### Changed
 

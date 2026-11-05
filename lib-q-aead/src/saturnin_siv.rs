@@ -73,7 +73,7 @@
 //! so `"…kdf.mac"` and `"…kdf.enc"` cannot collide by concatenation. (The repo's "label = leading
 //! message prefix, empty customization" rule is a **K12/TurboSHAKE** rule, adopted because K12's
 //! customization argument is not domain-separated the same way; KMAC is the documented exception
-//! to it. See `gip-k12-label-discipline`.)
+//! to it.)
 //!
 //! **2. Unambiguous encoding.** The MAC input length-prefixes every variable-length field with a
 //! big-endian 64-bit length: `be64(|AD|) || AD || be64(|N|) || N || be64(|P|) || P`. This makes

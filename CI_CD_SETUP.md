@@ -11,22 +11,14 @@ External actions, including those called by local composite actions, are pinned
 to full commit SHAs. Version comments identify the upstream release line; update
 the SHA and comment together after reviewing the upstream change.
 
-Duplicate CI on Forgejo is retired. The tracked
-`.forgejo/workflows/.gitkeep` intentionally creates a workflow directory with no
-YAML files. Forgejo selects the first existing directory in this order:
-`.forgejo/workflows`, `.gitea/workflows`, `.github/workflows`; it does not fall
-through when the first directory is empty. Do not delete the marker or add build
-workflows there: either would undo the retirement.
+CI is configured in `.github/workflows/` and runs on GitHub Actions. Heavy jobs
+carry `if: github.server_url == 'https://github.com'`, so a self-hosted mirror that
+also runs these workflows executes only the fast gate; `cross-platform-macos.yml`
+targets a self-hosted macOS runner. A merge needs the GitHub review and check gates for the revision
+being merged; a green run for a different revision is not evidence for the
+proposed change.
 
-**Merge-check cutover:** before merging this retirement, the repository owner
-must remove requirements for the retired Forgejo job contexts and establish the
-GitHub review/check gate for the synchronized libQ revision. An empty Forgejo
-workflow directory is not a successful test result, and a green run for a
-different revision is not evidence for the proposed change. Commit identities
-may differ after synchronization rewrites; verify the corresponding source tree
-and the GitHub run, not just an identically named branch.
-
-This changes libQ's own CI only. It does **not** stop downstream Cargo consumers
+This covers libQ's own CI only. It does **not** stop downstream Cargo consumers
 from compiling libQ Rust path dependencies. A released JS/WASM package or native
 shared library is not a replacement for those Rust dependencies. Prebuilt Rust
 outputs require a consumer-compatible compiler, target, dependency resolution,

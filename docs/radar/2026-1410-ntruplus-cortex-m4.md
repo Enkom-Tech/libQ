@@ -1,11 +1,11 @@
 # Radar triage — ePrint 2026/1410: "A Memory-Efficient and Assembly-Optimized Implementation of NTRU+"
 
-- **Source:** IACR eprint radar (`iacr-radar`)
+- **Source:** IACR ePrint feed
 - **Paper:** <https://eprint.iacr.org/2026/1410>
 - **Authors:** SuBeen Cho, Jiwon Bang, Minjoo Sim, Hwajeong Seo
 - **Keywords (from ePrint):** Memory Optimization, KpqC, NTRU+, Lattice-based KEM, Assembly Optimization, Cortex-M4
 - **Relevance call on import:** medium (conf 0.75), "Post-quantum KEMs"
-- **Triage verdict:** **No code action. Low direct applicability to libQ / GIP today.** Keep as
+- **Triage verdict:** **No code action. Low direct applicability to libQ today.** Keep as
   a reference for a future embedded / `no_std` KEM effort.
 
 Status legend: **[V]** verified by running/grepping this checkout, **[I]** inferred / from the
@@ -30,15 +30,13 @@ reproduced here (no Cortex-M4 target, toolchain, or NTRU+ code in this repo).
 
 ### 1. NTRU+ is not present anywhere
 
-**[V]** Grep across both `libQ` and `GIP` (`ntru`, `ntru+`, `ntruplus`, `kpqc`, case-insensitive):
+**[V]** Grep across `libQ` (`ntru`, `ntru+`, `ntruplus`, `kpqc`, case-insensitive):
 
 - No NTRU+ / KpqC KEM implementation, registry entry, wire suite, or roadmap item.
 - libQ KEM set (`lib-q-core/src/algorithm_registry.rs`): **ML-KEM** {512, 768, 1024},
   **CB-KEM / Classic McEliece** {348864, 460896, 6688128, 6960119, 8192128}, **HQC** {128, 192,
   256}. See `ROADMAP.md` §"Key encapsulation mechanisms (KEMs)".
-- GIP cipher suites (`sdk/gip-core/src/suite.rs`): only ML-KEM (512/768/1024), HQC (128/192/256),
-  and Classic McEliece 6960119 appear as KEMs.
-- The only `NTRU` token in either tree is the **NTRU-lattice basis inside FN-DSA / Falcon**
+- The only `NTRU` token in the tree is the **NTRU-lattice basis inside FN-DSA / Falcon**
   signatures (`lib-q-fn-dsa/fn-dsa-kgen/src/ntru*.rs`) — a *different* object from the NTRU+ KEM —
   plus substring false positives (`unTRUsted`, `senTRUx`).
 
@@ -84,9 +82,8 @@ libQ's *own* KEMs (ML-KEM in particular), not to NTRU+.
 ## Commands run (evidence)
 
 ```
-grep -riE 'ntru\+|ntruplus|ntru_plus|kpqc'  libQ GIP      # -> none
+grep -riE 'ntru\+|ntruplus|ntru_plus|kpqc'  libQ          # -> none
 grep -riE 'cortex-m4|thumbv7'               libQ          # -> none (only doc/false hits)
 # libQ KEM registry: lib-q-core/src/algorithm_registry.rs  -> ML-KEM, CB-KEM, HQC
-# GIP suites:        sdk/gip-core/src/suite.rs             -> ML-KEM, HQC, Classic McEliece
 # ROADMAP.md: KEMs = ML-KEM/CB-KEM/HQC; Embedded systems = unchecked
 ```

@@ -1,7 +1,7 @@
 # Compressed Post-Quantum Silent OT from Isogenies (ePrint 2026/1444) — radar disposition
 
 Status: **radar / out of scope — not adopted (tracked).** This note dispositions IACR
-ePrint 2026/1444 for the `iacr-radar` import. It is a triage record,
+ePrint 2026/1444 from the IACR ePrint feed. It is a triage record,
 not a finding against any shipped primitive: the paper builds a primitive family (silent
 oblivious transfer via pseudorandom correlation functions) that `lib-q` does **not**
 implement and, today, has no surface to plug into.
@@ -53,7 +53,7 @@ Reasons (1) and (2) alone are dispositive today: even setting the assumption asi
 construction is a green-field addition (new backend + new protocol layer), not an
 improvement, attack, or interop target for anything `lib-q` currently ships. Recorded here so
 the triage ends on a documented rationale rather than being silently dropped, matching how the
-other `iacr-radar` triages were folded into the tree.
+other IACR ePrint feed triages were folded into the tree.
 
 ## What the paper actually contains (from the abstract)
 

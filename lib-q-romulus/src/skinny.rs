@@ -131,7 +131,7 @@ fn bitplanes_to_cells(planes: &[u16; 8], state: &mut [[u8; 4]; 4]) {
 /// position) at once via its Algebraic Normal Form.
 ///
 /// Derived mechanically from `SBOX_8` by the standard Zhegalkin/Mobius transform
-/// (see `scratchpad/audit-triage/derive_sbox.py`): the ANF is a bijective
+/// (derivation script: audit notes; not published): the ANF is a bijective
 /// representation of the same 8-bit-to-8-bit Boolean function, so this reproduces
 /// `SBOX_8` exactly (checked exhaustively for all 256 inputs by
 /// `tests::sbox_bitslice_matches_table_exhaustively`), while using only `&`/`^` — no

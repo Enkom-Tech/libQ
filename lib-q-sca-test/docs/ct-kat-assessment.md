@@ -1,6 +1,6 @@
 # CT-KAT coverage assessment (ePrint 2026/1418)
 
-Triage record from the `iacr-radar` eprint feed (`iacr-eprint-2026-1418`).
+Triage record from the IACR ePrint feed (ePrint 2026/1418).
 Assessed against libQ `main` at commit `47080f6` (2026-09-08).
 
 ## What the paper is
@@ -166,6 +166,6 @@ Enkom-Tech/libQ PR #44.
   conflate two different questions in one statistic).
 - Whether `lib-q-sig`'s SLH-DSA facade (`lib-q-sig/src/slh_dsa.rs`) has any
   timing coverage distinct from the `lib-q-slh-dsa` crate's own — not read.
-- Whether GIP's `sdk/.libq-revision` pin tracks this assessment's commit —
-  not diffed; this assessment used latest `origin/main`
-  (`47080f6`), not the pin.
+- Whether any downstream consumer's pinned libQ revision tracks this
+  assessment's commit — not checked; this assessment used latest `origin/main`
+  (`47080f6`).

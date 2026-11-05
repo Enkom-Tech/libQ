@@ -18,8 +18,8 @@ permissions:
 jobs:
   fuzz:
     name: cargo-fuzz (lib-q-zkp)
-    # GitHub-only: fuzzing runs on GitHub's weekly schedule / workflow_dispatch, not the
-    # shared Forgejo runner.
+    # GitHub-only: fuzzing runs on GitHub's weekly schedule / workflow_dispatch, not a
+    # shared self-hosted runner.
     if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     timeout-minutes: 45

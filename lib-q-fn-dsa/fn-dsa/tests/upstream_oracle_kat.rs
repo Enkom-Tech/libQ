@@ -33,8 +33,7 @@
 //! testing and carry no security claim — a minority of vectors diverge. Those cases are listed in
 //! [`KNOWN_WEAK_DIVERGENCES`] and are asserted to *still* diverge, so the list cannot silently rot:
 //! if a future change makes one of them agree with upstream, this test fails and the entry must be
-//! removed. The divergence is characterised in the crate docs and in
-//! `scratchpad/audit-triage/fix-fndsa-hqc-kats.md`.
+//! removed. The divergence is characterised in the crate docs.
 
 use fn_dsa::{
     DomainContext,

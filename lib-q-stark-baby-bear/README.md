@@ -13,7 +13,7 @@ This field is the **base field for the Arm B membership STARK** (BabyBear + Pose
 [`lib-q-zkp`](../lib-q-zkp).
 
 > **Status: RED / experimental.** The Arm B membership construction is **not** proven sound, not
-> audited, and not production-ready — it is pending human cryptographer sign-off (ADR-113 freeze
+> audited, and not production-ready — it is pending human cryptographer sign-off (membership freeze
 > gate). It is **not peer-reviewed**: an IACR ePrint submission was desk-rejected; a self-published
 > preprint + open-source reproduction artifact accompany it. With the **quintic `F_{p⁵}` challenge
 > field** (this crate's `BinomialExtensionData<5>`), Arm B reaches **128-bit post-quantum at the

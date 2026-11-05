@@ -1,4 +1,4 @@
-//! In-circuit Poseidon-256 wide sponge (M2/M3, RED — ADR 113 freeze-gate).
+//! In-circuit Poseidon-256 wide sponge (M2/M3, RED — membership freeze-gate).
 //!
 //! ONE in-circuit implementation of the truncated-output Poseidon-256 sponge, matching the
 //! value-level reference [`crate::air::wide_hash::poseidon256_wide_hash`] for **arbitrary

@@ -1,7 +1,7 @@
 # IB-ME with enhanced CCA privacy (ePrint 2023/1435) — radar disposition
 
 Status: **radar / out of scope — not adopted.** This note dispositions IACR ePrint
-2023/1435 for the `iacr-radar` import. It is a triage record, not a
+2023/1435 from the IACR ePrint feed. It is a triage record, not a
 finding against any shipped primitive: the paper describes constructions that `lib-q` does
 **not** implement and, for its concrete scheme, cannot implement without contradicting the
 workspace threat model.
@@ -30,7 +30,7 @@ independent reasons:
    regress, not extend, the library's stated guarantee.
 
 Either reason alone is dispositive. Recorded here so the triage is closed on a documented
-rationale rather than silently dropped, matching how the other `iacr-radar`
+rationale rather than silently dropped, matching how the other IACR ePrint feed
 triages were folded into the tree.
 
 ## What the paper actually contains (from the abstract)

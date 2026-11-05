@@ -39,7 +39,7 @@
 # WHAT THIS GUARD DOES NOT COVER
 # --------------------------------
 #   * Discovery is scoped to `[scan].roots` in kats-manifest.toml, not the whole repository.
-#     Widening that scope requires the same per-file provenance investigation this lane did for
+#     Widening that scope requires the same per-file provenance investigation that was done for
 #     lib-q-hqc -- see the manifest's own comment before adding a root.
 #   * It is static: a repo walk, a small TOML read, and a SHA3-256 per file. No cargo, no network.
 #     It never runs the code under test and so cannot itself detect a *value* divergence from a

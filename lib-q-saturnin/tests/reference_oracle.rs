@@ -11,8 +11,7 @@
 //! 1. The round-constant tables `RC_10_1..RC_10_5`, `RC_16_7`, `RC_16_8`, copied verbatim from the
 //!    designers' portable reference implementation,
 //!    `reference/saturnin/Implementations/extra/saturnin_portable.c` (lines 308-354 as read on
-//!    2026-08). That file is the authoritative oracle for this repo (see the lane's task
-//!    description) but lives in a **gitignored** directory — see "Fixture provenance" below for
+//!    2026-08). That file is the authoritative oracle for this repo but lives in a **gitignored** directory — see "Fixture provenance" below for
 //!    how that tension is resolved.
 //! 2. The official KAT vectors for Saturnin-Hash and Saturnin-CTR-Cascade AEAD, vendored (by a
 //!    sibling lane, for `tests/kat_tests.rs`) under `tests/fixtures/`, which this file re-reads
@@ -256,8 +255,8 @@ fn parse_hash_kat(data: &str) -> Vec<HashKatCase> {
         // (trailing space, nothing after); trimming strips that trailing space too and
         // `strip_prefix("Msg = ")` then silently fails to match, dropping the whole record
         // (OBSERVED: this parser originally used `.trim()` and silently dropped KAT Count=1,
-        // the empty-message case, giving 1024 records instead of 1025 with no error — see the
-        // lane's progress log). `str::lines()` already strips the line terminator (including a
+        // the empty-message case, giving 1024 records instead of 1025 with no error).
+        // `str::lines()` already strips the line terminator (including a
         // trailing `\r`), so the raw line is safe to match against directly.
         if line.is_empty() {
             if have_block {
@@ -357,8 +356,7 @@ fn scalar_hash_matches_all_official_kat_vectors() -> Result<()> {
 fn avx2_hash_kernel_matches_all_official_kat_vectors() -> Result<()> {
     if !runtime::has_avx2() {
         // Honest skip: AVX2 genuinely unavailable on this host. On the host this test was
-        // developed on, `runtime::has_avx2()` was OBSERVED true, so this branch was not taken —
-        // see the lane's progress log for the actual pass/fail counts.
+        // developed on, `runtime::has_avx2()` was OBSERVED true, so this branch was not taken.
         return Ok(());
     }
 
@@ -448,9 +446,8 @@ fn avx2_hash_kernel_batched_8_lanes_matches_official_kat() -> Result<()> {
 
 /// NEON counterpart of `avx2_hash_kernel_matches_all_official_kat_vectors`. Only compiles (and
 /// only runs) on `aarch64` with `simd-neon` enabled; cross-compile-checked against
-/// `aarch64-unknown-linux-gnu` from this (x86_64) development host — see the lane's progress log
-/// for the exact command and its "Finished" output, and for the honest statement that it was not
-/// *executed* here for lack of aarch64 hardware.
+/// `aarch64-unknown-linux-gnu` from this (x86_64) development host (the check
+/// finished cleanly), but it was not *executed* here for lack of aarch64 hardware.
 #[cfg(all(feature = "simd-neon", target_arch = "aarch64"))]
 #[test]
 fn neon_hash_kernel_matches_all_official_kat_vectors() -> Result<()> {
@@ -599,7 +596,7 @@ fn avx2_aead_dispatch_matches_all_official_kat_vectors() -> Result<()> {
 }
 
 // ===========================================================================================
-// Part D — the specific regression this lane fixed: AVX2/NEON's bs32 kernel at (rounds, domain)
+// Part D — the specific regression this change fixed: AVX2/NEON's bs32 kernel at (rounds, domain)
 // pairs OTHER than the two the crate's old ROM-table shortcut covered.
 //
 // Every test above that exercises the bs32 kernel (Part B) does so only at `(16, 7)`/`(16, 8)` —
@@ -761,13 +758,13 @@ fn neon_bs32_kernel_matches_designers_c_for_non_hash_domains() -> Result<()> {
 /// coverage evaporated" indistinguishable, in CI's pass/fail signal, from "AVX2 coverage ran and
 /// passed". (Demonstrated, not just argued: with the `has_avx2()` check below temporarily
 /// inverted to simulate a non-AVX2 host, `cargo test` PANICs with the message below rather than
-/// silently passing — see the lane's progress log for the exact quoted output on both branches.)
+/// silently passing, on both branches.)
 ///
 /// `SATURNIN_ALLOW_MISSING_AVX2=1` is the deliberate escape hatch for the one case where a hard
 /// failure would be wrong: a genuinely new non-AVX2 x86_64 CI runner. `.github/workflows/ci.yml`'s
 /// "Saturnin" `algorithm-tests` matrix entry runs on `ubuntu-latest`, which GitHub-hosted runners
 /// have provided AVX2 on since long before this crate existed (SUSPECTED, not directly observed
-/// from this lane — this lane did not run anything on that runner; what IS OBSERVED is
+/// by the author, who did not run anything on that runner; what IS OBSERVED is
 /// `has_avx2()` returning true on this development host, and the work item's stated baseline of this
 /// test passing in CI, "130 passed with simd-avx2", which is only possible if AVX2 was in fact
 /// present there too). Either way the var is unset everywhere today, so this stays a hard failure
@@ -815,7 +812,7 @@ fn avx2_is_actually_available_on_this_development_host() {
 //
 // Provenance: compiled with the same toolchain Part D's provenance comment cites (MinGW-W64 gcc
 // 15.2.0, `-O2`, OBSERVED via `gcc --version` on the authoring host) via a small driver — outside
-// this repo, in the lane's scratch directory, never committed — that declares
+// this repo, in a local scratch directory, never committed — that declares
 // `saturnin_block_encrypt` `extern` and links it directly against the unmodified reference file;
 // no libQ code was consulted to produce `FULL_RD_GRID_CT` below. For every `(R, D)` in
 // `0..=31 x 0..=15` the driver encrypts `block[i] = (i * 7 + D) & 0xFF` under `key = [0x5A; 32]` —
@@ -1460,8 +1457,8 @@ fn avx2_bs32_kernel_matches_designers_reference_for_full_rd_grid() -> Result<()>
 /// script needs an `aarch64-linux-gnu-gcc` this host does not have (OBSERVED: "failed to find
 /// tool \"aarch64-linux-gnu-gcc\": program not found"). The existing test above's doc comment
 /// says that check was done by temporarily dropping the `criterion` dev-dependency from
-/// `Cargo.toml` — that edit is outside this lane's file ownership (another agent owns
-/// `Cargo.toml` concurrently), so it was not repeated here. Treat this test as source-reviewed
+/// `Cargo.toml` — that edit was out of scope for this change (`Cargo.toml` was being edited
+/// separately at the time), so it was not repeated here. Treat this test as source-reviewed
 /// only (it mirrors an already-existing, presumably-checked test) until someone with Cargo.toml
 /// access or aarch64 hardware verifies it for real.
 #[cfg(all(feature = "simd-neon", target_arch = "aarch64"))]

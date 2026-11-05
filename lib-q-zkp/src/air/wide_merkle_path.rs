@@ -1,4 +1,4 @@
-//! Wide-digest Merkle PATH AIR (M2, RED — ADR 113 freeze-gate).
+//! Wide-digest Merkle PATH AIR (M2, RED — membership freeze-gate).
 //!
 //! Proves a leaf digit `L` (5 field elements) is included under a public `root` (5 field
 //! elements) of a [`crate::merkle::WidePoseidonMerkleTree`], via a private authentication

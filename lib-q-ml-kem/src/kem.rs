@@ -496,8 +496,7 @@ mod test {
     //
     // These prove the CODE SHAPE (the type implements `ConstantTimeEq` and `PartialEq` is
     // defined in terms of it), not timing: wall-clock timing is not reliably measurable in a
-    // unit test. See scratchpad/audit-triage/fix-ct-partialeq.md for why a timing-based test was
-    // deliberately not written here.
+    // unit test, which is why a timing-based test was deliberately not written here.
 
     /// Compile-time assertion that `T` implements `subtle::ConstantTimeEq`. Fails to compile
     /// (not a runtime failure) if the bound is not satisfied.

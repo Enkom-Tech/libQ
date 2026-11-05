@@ -1,6 +1,6 @@
 name: CI
 
-# Two tiers. The fast gate runs everywhere, including Forgejo PRs: core checks, tier-1 build
+# Two tiers. The fast gate runs everywhere, including self-hosted runners: core checks, tier-1 build
 # checks (x86_64, wasm32 workspace, no_std/thumb smoke, hqc arch gate), algorithm crates and their
 # KATs, ML-KEM, ML-DSA compliance, integration, FN-DSA portable and emulated-float paths, the
 # hardened/FIPS test-matrix rows (test-matrix-pr-crypto), and the bench manifest checks. Jobs
@@ -13,8 +13,8 @@ name: CI
 
 on:
   push:
-    # ci/**: pre-merge CI snapshots of forge PR heads, pushed by `hive publish github --pr`
-    # and deleted once judged. They run the full push set, not the lighter pull_request one.
+    # ci/**: pre-merge CI snapshots, pushed by the maintainers' publishing tool and deleted once
+    # judged. They run the full push set, not the lighter pull_request one.
     branches: [ main, develop, 'ci/**' ]
   pull_request:
     branches: [ main, develop ]
@@ -184,9 +184,9 @@ jobs:
       # ML-KEM-768 decapsulation key on the wire; a decrypt that never reads the key), and both
       # still exist on two branches that cannot simply be deleted -- see the withdrawn-crate branch cleanup.
       #
-      # OBSERVED 2026-08-08: an agent hit GIP's stale path deps on these crates, which break the
-      # whole GIP workspace at manifest load, and fixed it by grafting the directories back out of
-      # a spike branch. Nothing linked against them so no result was corrupted, but that reflex is
+      # OBSERVED 2026-08-08: a downstream workspace still declared path deps on these crates, which
+      # broke that whole workspace at manifest load, and a contributor fixed it by grafting the
+      # directories back out of a spike branch. Nothing linked against them so no result was corrupted, but that reflex is
       # what this catches -- including the untracked case, which a `git ls-files` check misses.
       - name: Guard against withdrawn crates reappearing
         run: bash ./scripts/ci-guard-withdrawn-crates.sh
@@ -232,17 +232,16 @@ jobs:
         run: python scripts/selftest_kat_provenance_guard.py
 
       # This repository is published, and tracker identifiers, internal task numbers, workstation
-      # paths, private addresses and names of private hosts and tools mean nothing to its readers.
-      # They were removed in one sweep; this keeps them out. The internal-name check needs the
-      # INTERNAL_REFS_KEY secret (a keyed list; the names are not in this repository). Where the
-      # secret is not configured the guard prints a notice, skips only that check and runs the
-      # rest. Address exemptions are printed on every run and capped by
-      # scripts/internal-refs-exemptions-max.txt. The guard re-runs its own self-test before every
-      # scan. Static and stdlib-only, no network.
-      - name: Guard against internal tracker references and infrastructure names
+      # paths, private addresses and the names of private products, hosts and tools mean nothing to
+      # its readers. This keeps them out. The internal-name check reads the committed keyed list
+      # scripts/internal-refs-names.txt (the names are not in this repository in plain text) and,
+      # where configured, the INTERNAL_REFS_KEY secret as a second list. Address exemptions are
+      # printed on every run and capped by scripts/internal-refs-exemptions-max.txt. The guard
+      # re-runs its own self-test before every scan. Static and stdlib-only, no network.
+      - name: Guard against internal references and infrastructure names
         env:
-          # Withheld on ci/** (pre-merge snapshots of forge PR heads): the script that reads it
-          # comes from the snapshot. The publisher scans for internal names before it pushes.
+          # Withheld on ci/** (pre-merge CI snapshots): the script that reads it comes from the
+          # snapshot. The committed list still runs there.
           INTERNAL_REFS_KEY: ${{ !startsWith(github.ref, 'refs/heads/ci/') && secrets.INTERNAL_REFS_KEY || '' }}
         run: bash ./scripts/ci-guard-internal-refs.sh
 
@@ -344,7 +343,7 @@ jobs:
   # Parallel test matrix - runs after core validation
   publish-readiness:
     name: Publish readiness (${{ matrix.package }})
-    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # Heavy job: GitHub-only. Self-hosted runners get a fast gate; the full matrix runs
     # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
     if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
@@ -381,7 +380,7 @@ jobs:
   # Parallel test matrix - runs after core validation
   test-matrix:
     name: Test Matrix
-    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # Heavy job: GitHub-only. Self-hosted runners get a fast gate; the full matrix runs
     # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
     if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
@@ -555,7 +554,7 @@ jobs:
   # merge: the MAYO and all-parameter-set ML-DSA dudect smoke tests run nowhere else, and the
   # ML-DSA fips_mode_tests need `random`+`fips-mode`+`acvp` together, which no other job enables.
   # Keep these rows identical to their test-matrix counterparts (they run twice on GitHub, once
-  # on Forgejo).
+  # on other hosts).
   test-matrix-pr-crypto:
     name: Test Matrix (PR crypto rows)
     needs: core-validation
@@ -650,7 +649,7 @@ jobs:
   # WASM validation - parallel with test matrix
   wasm-validation:
     name: WASM Validation
-    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # Heavy job: GitHub-only. Self-hosted runners get a fast gate; the full matrix runs
     # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
     if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
@@ -927,7 +926,7 @@ jobs:
   # Execute wasm-bindgen smoke tests added for research/zkp crates.
   wasm-bindgen-smoke:
     name: WASM bindgen smoke tests
-    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # Heavy job: GitHub-only. Self-hosted runners get a fast gate; the full matrix runs
     # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
     if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
@@ -1196,7 +1195,7 @@ jobs:
   # list, so a new or removed harness cannot silently drop out of coverage.
   fuzz-harnesses-build:
     name: Fuzz harnesses build (cargo check, no fuzzing)
-    # Heavy job: GitHub-only. Forgejo PRs/pushes get a fast gate; the full matrix runs
+    # Heavy job: GitHub-only. Self-hosted runners get a fast gate; the full matrix runs
     # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
     if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
@@ -1818,7 +1817,7 @@ jobs:
             #                   removed from the crate's default features on 2026-08-06.
             #   alloc+aead   -> tests/aead_kat_pin.rs, the SaturninAead wire-format freeze guard
             #                   that stands between a refactor and undecryptable stored data
-            #                   (My-Grid vault, GIP bitlink-wrapkey).
+            #                   (downstream stored ciphertext).
             #   +hash        -> tests/cascade_ctx_spec.rs, the CTX-on-CTR-Cascade layout gate.
             # After editing this line, confirm the targets still RUN — `cargo test ... 2>&1 |
             # grep "Running tests/<name>.rs"` — do not assume they did.

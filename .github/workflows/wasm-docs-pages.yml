@@ -51,9 +51,9 @@ jobs:
             '</html>' \
             > target/wasm32-unknown-unknown/doc/index.html
 
-      # Pages exists only on GitHub. The forge runs this workflow too (same .github/ directory)
-      # and its Pages API answers 404, which turned every forge push to main red on a step that
-      # has nothing to check there. The doc build above still runs on both; publishing does not.
+      # Pages exists only on GitHub. Other hosts can run this workflow too (same .github/
+      # directory) and their Pages API answers 404, which turned every push to main there red on
+      # a step that has nothing to check. The doc build above still runs on both; publishing does not.
       - if: github.server_url == 'https://github.com'
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
 

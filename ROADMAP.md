@@ -178,7 +178,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
 
 > **All items in this subsection are RED / research-grade.** The code is implemented and tested, but
 > the underlying constructions, domain-separation labels, and soundness arguments are **pending human
-> cryptographer sign-off** (ADR-113 freeze gate). The membership construction is **not peer-reviewed**
+> cryptographer sign-off** (membership freeze gate). The membership construction is **not peer-reviewed**
 > — an IACR ePrint submission was desk-rejected (review-soliciting note); a self-published preprint and
 > open-source reproduction artifact accompany it for review. Implementation completeness here does
 > **not** imply proven soundness;
@@ -197,7 +197,7 @@ This document sequences engineering and assurance work for lib-Q: a Rust workspa
     provable-Johnson query bounds both clear 128) — upgraded from the original degree-4 config that
     capped at ~116-bit conjectured / ~99-bit provable. The Poseidon2 round-count soundness (obligations
     **O1/O4**) is **STILL UNVERIFIED** — this is **not** a complete soundness proof.
-  - [ ] Human cryptographer sign-off (ADR-113 freeze gate; not peer-reviewed — ePrint submission desk-rejected, self-published preprint instead)
+  - [ ] Human cryptographer sign-off (membership freeze gate; not peer-reviewed — ePrint submission desk-rejected, self-published preprint instead)
 - [ ] **Verifiable rekey / multi-recipient verifiable encryption** (`lib-q-mve`, crates.io-only)
   - [x] mVE-v0 construction implemented: a producer distributes a fresh group key `K` to many
     recipients (each wrapped under that recipient's ML-KEM update key) with a **single proof** that
@@ -299,7 +299,7 @@ Engineering trackers for Phase 7 “deferred” items. Implementations are **not
 - [ ] Advanced cryptographic protocols
 - [ ] Quantum-resistant protocols
 
-Research-radar paper triage (durable verdicts for `iacr-radar` triages) is logged in
+Research-radar paper triage (durable verdicts for IACR ePrint feed triages) is logged in
 [`docs/research-radar.md`](docs/research-radar.md). Assessed so far: k-Anonymous Group
 Signatures (eprint 2025/2007) — tracked, not actionable; the paper's efficient
 instantiation is classical pairing/DL, not post-quantum.

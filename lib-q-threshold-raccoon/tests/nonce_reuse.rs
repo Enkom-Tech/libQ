@@ -6,7 +6,7 @@
 //! `z_s,i = y_s,i + c·λ_i·value_i` broadcasts the uniform mask `y_s,i` **unmasked**, differencing two
 //! such broadcasts cancels `y_s,i` and yields `(c_1 - c_2)·λ_i·value_i` — a relaxed opening of the
 //! party's secret share. That recovery was executed and confirmed real against the pre-fix API
-//! (`round1_state_reuse_recovers_share`, since removed — see the M0 progress log): two `sign_round2`
+//! (`round1_state_reuse_recovers_share`, since removed): two `sign_round2`
 //! calls on one `Round1State` with different messages exactly recovered `value_1`.
 //!
 //! `sign_round2` now **consumes** `Round1State` by value, so reuse is a compile error rather than a

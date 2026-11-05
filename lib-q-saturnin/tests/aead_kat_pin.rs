@@ -2,8 +2,8 @@
 //!
 //! # Why this exists
 //!
-//! `SaturninAead` encrypts data already stored in shipped products (My-Grid vault
-//! `mygrid_vault_v1`, My-Grid recovery, GIP `bitlink-wrapkey-argon2id-v1`). The CTX committing
+//! `SaturninAead` encrypts data already stored in shipped products (downstream
+//! stored ciphertext). The CTX committing
 //! transform landing on a *new*, separate type (`SaturninAeadCtx`, see `src/aead_ctx.rs`) must
 //! not perturb `SaturninAead`'s existing wire format by even one bit — any in-place change would
 //! make every one of those blobs permanently undecryptable. This test is the tripwire: it pins
@@ -98,8 +98,7 @@ fn plain_saturnin_aead_wire_format_is_frozen() {
             ct,
             from_hex(ct_hex),
             "SaturninAead ciphertext changed for pt={pt_hex} ad={ad_hex} — this is a wire-format \
-             break that would make stored ciphertext (My-Grid vault, GIP wrapkey, ...) \
-             undecryptable"
+             break that would make stored downstream ciphertext undecryptable"
         );
         let dec = aead.decrypt(&key(), &nonce(), &ct, ad_opt).unwrap();
         assert_eq!(dec, pt, "round-trip mismatch for pt={pt_hex} ad={ad_hex}");

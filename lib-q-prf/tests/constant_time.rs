@@ -50,8 +50,8 @@ fn in_range_key_accepted() {
 /// covers every 32-bit word position and is exactly the shape of check that a word-truncated
 /// zero-comparison (checking only a subset of words) would get wrong for whichever word it
 /// skips -- confirmed below: constraining the check to `as_words()[0]` alone made this test
-/// fail for the word holding byte index 28..31 of the little-endian encoding (see the red-demo
-/// evidence recorded in `scratchpad/audit-triage/fix-ct-tests.md`).
+/// fail for the word holding byte index 28..31 of the little-endian encoding (red-demo
+/// evidence: audit notes; not published).
 #[test]
 fn nonzero_key_with_a_single_set_word_at_any_position_is_accepted() {
     let p = modulus();

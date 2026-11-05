@@ -84,13 +84,13 @@ fn reshare_and_assemble_both_vk_sets() -> (Vec<u8>, Vec<u8>) {
 /// and samples **fresh** randomness for every resharing coefficient, so the reassembled group
 /// commitment changes even though the underlying secret is preserved.
 ///
-/// This test is intentionally landed and left RED -- see the M0 progress log
-/// (raccoon-m0-progress.md) for the executed failure output. Do not "fix" this test by weakening the
+/// This test is intentionally landed and left RED; its executed failure output was recorded when it
+/// landed (not published). Do not "fix" this test by weakening the
 /// assertion; the failure IS the finding. It stays `#[ignore]`d so normal `cargo test` runs green;
 /// run it explicitly with `cargo test -p lib-q-dkg --release --test reshare_group_key -- --ignored`
 /// to reproduce the recorded failure.
 #[test]
-#[ignore = "RED by design -- dkg_reshare does not preserve the group key (see M0 progress log); \
+#[ignore = "RED by design -- dkg_reshare does not preserve the group key; \
             kept in the suite as executed evidence, not something to fix here"]
 fn reshare_does_not_preserve_group_key() {
     let (old_group_key, new_group_key) = reshare_and_assemble_both_vk_sets();

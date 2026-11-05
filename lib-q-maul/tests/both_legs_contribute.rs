@@ -570,7 +570,7 @@ fn size_claim_is_measured_against_both_baselines() {
 
 #[test]
 fn shared_secret_equality_is_constant_time() {
-    // Structural, not wall-clock (see scratchpad/audit-triage/fix-ct-tests.md): assert that the
+    // Structural, not wall-clock: assert that the
     // comparison rejects a difference at EVERY byte position, which a truncated-prefix
     // comparator -- the realistic short-circuit regression -- would not.
     use subtle::ConstantTimeEq;

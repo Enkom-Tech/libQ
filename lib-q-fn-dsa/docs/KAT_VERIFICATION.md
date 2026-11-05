@@ -24,8 +24,8 @@ fakes — **not** the official NIST Falcon round-3 `PQCsignKAT_falcon{512,1024}.
 are produced by seeding the NIST AES-256 CTR_DRBG (`lib-q-cb-kem/src/nist_aes_rng.rs` implements
 this DRBG and is conformance-tested against its own KAT) from the `.rsp` file's 48-byte seed. This
 section records why that gap was investigated (2026-08) and found **not closeable by a test-only
-seam**, so it should not be re-opened without new information. Full trace:
-`scratchpad/lane-fndsa-ctrdrbg.md`.
+seam**, so it should not be re-opened without new information. (Full trace: audit notes; not
+published.)
 
 **The reference's chain (OBSERVED against PQClean's `falcon-512/clean/pqclean.c`, which vendors the
 round-3 submission's core untouched):** `crypto_sign_keypair` draws a single 48-byte seed via

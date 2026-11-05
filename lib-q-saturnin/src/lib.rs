@@ -200,8 +200,8 @@ pub mod hash;
 
 // CTX committing-AEAD transform (Chan-Rogaway, ESORICS 2022), instantiated with Saturnin-Hash.
 // Needs `hash` (`ctx_tag` calls `SaturninHash`). Two callers now exist: `qcb` (SaturninQcb) and
-// `aead_ctx` (SaturninAeadCtx, landed 2026-08-06 — CTX on CTR-Cascade, the mode every real
-// consumer, GIP/uGrid/My-Grid/Bitlink, actually uses). Gated on `any(qcb, all(aead, hash))`
+// `aead_ctx` (SaturninAeadCtx, landed 2026-08-06 — CTX on CTR-Cascade, the mode every known
+// downstream consumer uses). Gated on `any(qcb, all(aead, hash))`
 // rather than plain `hash` so a `hash`-only build (no `aead_ctx`, since that additionally needs
 // `aead`) does not compile `ctx_tag` with nothing calling it — that would be a dead-code warning.
 // NOTE: `any(feature = "qcb", feature = "aead")` (an earlier version of this comment's stated
@@ -286,8 +286,8 @@ pub fn available_modes() -> Vec<&'static str> {
 /// the mode from a runtime string re-introduces, at the call site, exactly the format-flip footgun
 /// that `SaturninAeadCtx` is a distinct *type* in order to avoid (see `crate::aead_ctx` module
 /// docs): switching `"aead"` to `"aead-ctx"` in a config makes previously stored ciphertext
-/// undecryptable, and `SaturninAead` is the mode holding shipped data at rest (My-Grid vault,
-/// GIP `bitlink-wrapkey-argon2id-v1`). Prefer naming the concrete type at the call site; if you
+/// undecryptable, and `SaturninAead` is the mode holding shipped data at rest (downstream
+/// stored ciphertext). Prefer naming the concrete type at the call site; if you
 /// must dispatch on a string, bind that string to the stored record's own format tag rather than
 /// to a mutable setting, and note that `"aead"` and `"aead-ctx"` additionally share a keystream
 /// for a given `(key, nonce)` — never re-encrypt a record under the other mode with its old nonce.

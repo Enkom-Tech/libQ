@@ -67,7 +67,7 @@ Threaded acceleration (`rayon` / `parallel` features in the STARK stack and `par
 
 Components using the **Fiat–Shamir transform** for non-interactive proofs (`lib-q-lattice-zkp` sigma opening proofs with `fs_w_digest`, and `lib-q-ring-sig` DualRing-LB–oriented pilot ring verification) state security as follows:
 
-- **`lib-q-lattice-zkp` opening / PVTN / blind attestation paths:** committed-first-message Fiat–Shamir (`QROM_FS_W_DIGEST_DOMAIN`); analyzed in the **Quantum Random Oracle Model (QROM)** for the transform in ADR 058 / `lattice-fs-security-model-v0`.
+- **`lib-q-lattice-zkp` opening / PVTN / blind attestation paths:** committed-first-message Fiat–Shamir (`QROM_FS_W_DIGEST_DOMAIN`); analyzed in the **Quantum Random Oracle Model (QROM)** for that transform.
 - **`lib-q-ring-sig` DualRing-LB pilot:** security proofs remain in the **Random Oracle Model (ROM)**, not QROM, until a uniform upgrade lands.
 
 - Classical adversaries must treat the hash function (SHAKE256) as a black box, which is standard for Fiat–Shamir.

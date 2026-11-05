@@ -4,9 +4,10 @@
 # This repository is published; tracker identifiers, internal task numbers, workstation paths,
 # private addresses and names of private hosts and tools mean nothing to its readers. The check
 # lives in scripts/ci_guard_internal_refs.py (stdlib-only Python, no network); its header documents
-# every check, the optional INTERNAL_REFS_KEY variable that enables the internal-name check (the
-# names are not stored in this repository), and the address-only exemption with its committed
-# ceiling in scripts/internal-refs-exemptions-max.txt. The guard re-runs its self-test before every
+# every check, the internal-name check (always run, from the committed keyed list in
+# scripts/internal-refs-names.txt; the optional INTERNAL_REFS_KEY variable adds a second list),
+# and the address-only exemption with its committed ceiling in
+# scripts/internal-refs-exemptions-max.txt. The guard re-runs its self-test before every
 # scan, so a guard that has stopped detecting anything fails instead of reporting a clean tree.
 #
 # Usage:

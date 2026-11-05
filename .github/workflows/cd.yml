@@ -26,7 +26,7 @@ env:
 
 jobs:
   # Publish runs only from a release ref. workflow_dispatch can name ANY ref, and a dispatch on a
-  # ci/** branch (a pre-merge snapshot of a forge PR head) would otherwise run these publish jobs,
+  # ci/** branch (a pre-merge CI snapshot) would otherwise run these publish jobs,
   # with the publish credentials, over that PR's code. This job fails such a run before any job
   # that can reach a secret starts: it has no checkout, no secrets and no token permissions.
   release-ref-guard:
@@ -581,18 +581,38 @@ jobs:
           - package: "lib-q-slh-dsa"
           - package: "lib-q-lattice-zkp"
           - package: "lib-q-mayo"  # deps: lib-q-sha3 + external aes only
-          - package: "lib-q-aegis"  # deps: lib-q-core + lib-q-intrinsics (aes_round)
-          - package: "lib-q-hiae"  # deps: lib-q-core + lib-q-intrinsics (aes_round)
+          # deps: lib-q-core + lib-q-intrinsics (aes_round). first-publish: see the probe step.
+          - package: "lib-q-aegis"
+            first-publish: true
+          - package: "lib-q-hiae"
+            first-publish: true
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Authenticate with crates.io
         id: crates-io-auth
         uses: ./.github/actions/crates-io-auth
+      # first-publish: a registry cannot attach a trusted publisher to a package that does not exist
+      # yet. The probe treats only an HTTP 404 as absent. Absent: the publish action runs as a dry
+      # run (all its checks still fail the job), and a maintainer publishes once by hand, then adds
+      # the trusted publisher. Present: the normal OIDC publish runs, so the flag can stay.
+      - name: Is the crate on crates.io yet? (first-publish only)
+        id: probe
+        if: ${{ matrix.first-publish == true }}
+        env:
+          PKG: ${{ matrix.package }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -A 'lib-q-ci (+https://github.com/Enkom-Tech/libQ)' "https://crates.io/api/v1/crates/$PKG")
+          echo "crates.io answered $code for $PKG"
+          if [ "$code" = 404 ]; then echo "absent=true" >> "$GITHUB_OUTPUT"; else echo "absent=false" >> "$GITHUB_OUTPUT"; fi
       - name: Publish crate
         uses: ./.github/actions/crate-publish
         with:
           package: ${{ matrix.package }}
           token: ${{ steps.crates-io-auth.outputs.token }}
+          dry-run: ${{ steps.probe.outputs.absent == 'true' }}
+      - name: First publish pending
+        if: ${{ steps.probe.outputs.absent == 'true' }}
+        run: echo "::warning::${{ matrix.package }} is not on crates.io yet. Verified by a dry run; publish it once by hand from this tag, then add its trusted publisher."
 
   # lib-q-kem lists optional cb-kem/ml-dsa in Cargo.toml; publish them before lib-q-kem.
   publish-rust-lib-q-cb-kem:
@@ -1392,6 +1412,7 @@ jobs:
             package-keywords: "cryptography,post-quantum,ml-dsa,dilithium,signature,wasm,nist"
             features: "wasm"
             out-dir: "pkg"
+            first-publish: true
           - working-directory: "lib-q-cb-kem"
             package-name: "@lib-q/cb-kem"
             package-description: "Classical McEliece CB-KEM for Node.js (single compile-time parameter set)"
@@ -1486,6 +1507,19 @@ jobs:
           out-dir: ${{ matrix.out-dir || 'pkg' }}
           dev-profile: "false"
       
+      # first-publish: a registry cannot attach a trusted publisher to a package that does not exist
+      # yet. The probe treats only an HTTP 404 as absent. Absent: the publish action runs as a dry
+      # run (all its checks still fail the job), and a maintainer publishes once by hand, then adds
+      # the trusted publisher. Present: the normal OIDC publish runs, so the flag can stay.
+      - name: Is the package on npm yet? (first-publish only)
+        id: probe
+        if: ${{ matrix.first-publish == true }}
+        env:
+          PKG: ${{ matrix.package-name }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG/\//%2f}")
+          echo "registry.npmjs.org answered $code for $PKG"
+          if [ "$code" = 404 ]; then echo "absent=true" >> "$GITHUB_OUTPUT"; else echo "absent=false" >> "$GITHUB_OUTPUT"; fi
       - name: Publish NPM package
         uses: ./.github/actions/npm-publish
         with:
@@ -1495,6 +1529,20 @@ jobs:
           working-directory: ${{ format('{0}/{1}', matrix.working-directory, matrix.out-dir || 'pkg') }}
           crate-root: ${{ matrix.working-directory }}
           version: ${{ needs.pre-release-validation.outputs.version }}
+          dry-run: ${{ steps.probe.outputs.absent == 'true' }}
+      - name: Pack and upload the first-publish tarball
+        if: ${{ steps.probe.outputs.absent == 'true' }}
+        working-directory: ${{ format('{0}/{1}', matrix.working-directory, matrix.out-dir || 'pkg') }}
+        run: |
+          npm pack --ignore-scripts
+          echo "::warning::${{ matrix.package-name }} is not on npm yet. Verified by a dry run; publish the uploaded tarball once by hand, then add its trusted publisher."
+      - name: Upload the first-publish tarball
+        if: ${{ steps.probe.outputs.absent == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: first-publish-${{ matrix.working-directory }}
+          path: ${{ format('{0}/{1}', matrix.working-directory, matrix.out-dir || 'pkg') }}/*.tgz
+          if-no-files-found: error
 
   # TypeScript-only package: publish after WASM tarballs so a types failure does not cancel wasm matrix jobs.
   publish-npm-types:
@@ -1532,6 +1580,19 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # first-publish: a registry cannot attach a trusted publisher to a package that does not exist
+      # yet. The probe treats only an HTTP 404 as absent. Absent: the publish action runs as a dry
+      # run (all its checks still fail the job), and a maintainer publishes once by hand, then adds
+      # the trusted publisher. Present: the normal OIDC publish runs, so the flag can stay.
+      - name: Is the package on npm yet? (first-publish only)
+        id: probe
+        if: ${{ true }}
+        env:
+          PKG: '@lib-q/jose'
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' "https://registry.npmjs.org/${PKG/\//%2f}")
+          echo "registry.npmjs.org answered $code for $PKG"
+          if [ "$code" = 404 ]; then echo "absent=true" >> "$GITHUB_OUTPUT"; else echo "absent=false" >> "$GITHUB_OUTPUT"; fi
       - name: Publish NPM package
         uses: ./.github/actions/npm-publish
         with:
@@ -1540,6 +1601,20 @@ jobs:
           package-keywords: "cryptography,post-quantum,ml-dsa,jose,jws,oidc"
           working-directory: "npm/lib-q-jose"
           version: ${{ needs.pre-release-validation.outputs.version }}
+          dry-run: ${{ steps.probe.outputs.absent == 'true' }}
+      - name: Pack and upload the first-publish tarball
+        if: ${{ steps.probe.outputs.absent == 'true' }}
+        working-directory: npm/lib-q-jose
+        run: |
+          npm pack --ignore-scripts
+          echo "::warning::@lib-q/jose is not on npm yet. Verified by a dry run; publish the uploaded tarball once by hand, then add its trusted publisher."
+      - name: Upload the first-publish tarball
+        if: ${{ steps.probe.outputs.absent == 'true' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: first-publish-lib-q-jose
+          path: npm/lib-q-jose/*.tgz
+          if-no-files-found: error
 
   # Post-release tasks - run after publishing
   post-release:

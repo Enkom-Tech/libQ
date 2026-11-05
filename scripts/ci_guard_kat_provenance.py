@@ -698,8 +698,8 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
             # "self-generated" / "third-party", not "upstream", so control never enters this `if
             # origin == "upstream":` block at all and falls straight through to the ordinary
             # header check below, which still demands the matching token in the file's own
-            # comment. See the sandbox test in the lane's verification notes
-            # that plants exactly this abuse attempt and confirms it still fails.
+            # comment. A sandbox test that plants exactly this abuse attempt confirmed it still
+            # fails.
             #
             # SECOND GUARD (added in review, 2026-08-06): `origin` itself is a self-declared
             # manifest field this script cannot verify (no network, no ground truth -- see the
@@ -715,8 +715,8 @@ def check_headers(by_path: dict[str, dict], roots: list[str]) -> None:
             # the header requirement with nothing but two copy-pasted hex strings and a fabricated
             # `upstream_url`, landing exactly the failure mode this guard exists to prevent
             # (self-generated content at a `kats/official/`-shaped path, presented as
-            # authoritative) -- reproduced and confirmed exploitable in review before this fix
-            # (see the lane's progress notes for the exact reproduction). Refusing the exemption
+            # authoritative) -- reproduced and confirmed exploitable in review before this fix.
+            # Refusing the exemption
             # whenever the path itself is still naming-banned closes that specific compounding: an
             # entry at such a path must fall through to the ordinary header check below and
             # physically say "upstream" in its own text, restoring the one text-based speed bump

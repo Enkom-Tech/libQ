@@ -23,7 +23,7 @@
 //! so this is transparent and does not change soundness or unlinkability.
 //!
 //! RED: Poseidon-256 round counts are NOT verified for GF(p²) (`crate::air::wide_hash`); the
-//! whole tier is gated behind the ADR-113 freeze review and is NOT proven sound / ZK yet.
+//! whole tier is gated behind the membership freeze review and is NOT proven sound / ZK yet.
 
 extern crate alloc;
 

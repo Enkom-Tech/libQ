@@ -21,7 +21,7 @@ This section is the single source of truth for where ZKP/STARK/Plonky functional
 ## Unlinkable set-membership proof — RED / research (NOT signed off)
 
 > **RED — experimental research, pending human cryptographer sign-off.** Everything in this
-> section is gated behind the **ADR-113 freeze review**. The construction is **not peer-reviewed** —
+> section is gated behind the **membership freeze review**. The construction is **not peer-reviewed** —
 > an IACR ePrint submission was desk-rejected, and it is now self-published as a preprint with an
 > open-source reproduction artifact. It is **NOT proven sound, NOT audited, NOT
 > production-ready**, and carries residual implementation risk. Do not deploy it as a

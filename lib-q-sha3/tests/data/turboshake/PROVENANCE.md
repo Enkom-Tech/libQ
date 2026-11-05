@@ -93,7 +93,6 @@ carry a `#`-comment header, so this file is the sidecar route).
 
 ## What was in these paths before, and where it went
 
-The old (broken, 1-byte-short) copies were backed up before being overwritten, at
-`scratchpad/audit-triage/blb-backup/` in the session that made this fix (not committed — that
-scratchpad is throwaway). No test ever read them (confirmed: `tests/turboshake.rs`, now deleted,
+The old (broken, 1-byte-short) copies were backed up locally before being overwritten (not
+committed; that backup was throwaway). No test ever read them (confirmed: `tests/turboshake.rs`, now deleted,
 contained only property tests with no `include_bytes!`), so nothing regresses by their replacement.

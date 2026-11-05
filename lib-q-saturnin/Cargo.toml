@@ -25,8 +25,7 @@ zeroize = { workspace = true, default-features = false, features = ["alloc", "de
 # distinct-nonce negative control and a CTR-Cascade contrast control in the same file. (The
 # similarly-named lib-q-aead/tests/nonce_misuse.rs is a different file in a different crate —
 # it measures keystream-leak magnitude across the AEAD registry, not QCB, and contains no
-# forgery.) As of 2026-08-06 QCB also has zero consumers: every product (GIP, uGrid, My-Grid,
-# Bitlink) reaches
+# forgery.) As of 2026-08-06 QCB also has zero known consumers: downstream products reach
 # Saturnin through `SaturninAead` (CTR-Cascade), which degrades gracefully instead. A
 # default-on mode with that failure mode and no callers is liability, so it is opt-in.
 # The mode is kept, not deprecated: its rate-1 structure (one TBC call per block, and

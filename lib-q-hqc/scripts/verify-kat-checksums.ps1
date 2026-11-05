@@ -42,7 +42,7 @@ function Get-FileChecksum {
     # pristine NIST submission files do not have; hashing raw bytes would therefore report
     # "Differ" forever regardless of whether the actual seed chain matches. NIST PQCgenKAT `.req`
     # files contain no '#' lines, so stripping comments on BOTH sides compares exactly the record
-    # data. (Fixed in review, lane e-kat-provenance 2026-08-05: the header addition had silently
+    # data. (Fixed in review, 2026-08-05: the header addition had silently
     # turned this comparison into one that could never pass.)
     $lines = Get-Content $FilePath -Encoding UTF8 | Where-Object { -not $_.TrimStart().StartsWith('#') }
     $content = ($lines -join "`n")

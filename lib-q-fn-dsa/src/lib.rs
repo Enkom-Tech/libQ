@@ -35,7 +35,7 @@
 //! - **Memory Handling**: The wrapper denies unsafe code; optimized backends use unsafe
 //!   intrinsics. Key owners wipe their buffers, but transient seed/PRNG erasure is not complete.
 //! - **Side-Channel Status**: Timing-aware implementation, not an approved constant-time or
-//!   physical side-channel audit. No power/EM masking. GIP ADR 225 admission remains blocked
+//!   physical side-channel audit. No power/EM masking. Downstream admission remains blocked
 //!   by open audit findings; see the crate's `SECURITY.md` for findings and approval prerequisites.
 //!
 //! # Security Levels

@@ -11,10 +11,10 @@ An implementation of FN-DSA (the Falcon-based signature scheme NIST intends to p
 > [docs/fn-dsa-nist-gate.md](../docs/fn-dsa-nist-gate.md) for the steps required before claiming NIST
 > alignment for production use.
 
-> **ADR 225 audit gate: NOT PASSED.** FN-DSA must remain excluded from
-> GIP's default signing allow-list, key issuance, and verification under ADR 225.
+> **FN-DSA audit gate: NOT PASSED.** FN-DSA must remain excluded from a
+> downstream consumer's default signing allow-list, key issuance, and verification.
 > Open findings, measured evidence, and approval prerequisites are recorded in
-> [SECURITY.md](SECURITY.md#adr-225-audit-gate).
+> [SECURITY.md](SECURITY.md#fn-dsa-audit-gate).
 
 ## Overview
 

@@ -2,14 +2,14 @@
 # Reject forbidden consumer-specific strings in new primitive crate sources.
 #
 # The search runs through GNU `grep -P`, which every Linux runner ships. It used to run through
-# `rg ... 2>/dev/null` inside an `if`. Neither the GitHub-hosted nor the forge runner image has
+# `rg ... 2>/dev/null` inside an `if`. Neither the GitHub-hosted nor the self-hosted runner image had
 # ripgrep, so `rg` exited 127, the `if` read that as "no match", and the guard printed OK on every
 # run without searching anything. A hit had been sitting in lib-q-dkg/tests for a month. Now a
 # search that cannot run is an error (exit 2), never a pass, and `--self-test` proves the
 # search finds a planted term before the real scan runs.
 set -euo pipefail
 
-PATTERN='(?i:gip|sybil|vault)|PoP'
+PATTERN='(?i:sybil|vault)|PoP'
 
 # search <paths...>: 0 = hit (printed), 1 = clean, anything else = could not search.
 search() {

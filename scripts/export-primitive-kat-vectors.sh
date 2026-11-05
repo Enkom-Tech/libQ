@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copy KAT JSON fixtures to export/ for handoff to the downstream SDK vectors/security/.
+# Copy KAT JSON fixtures to export/ for use by downstream consumers.
 set -euo pipefail
 
 ROOT="${1:-$(git rev-parse --show-toplevel)}"
@@ -11,4 +11,4 @@ mkdir -p "$DEST"
 cp lib-q-mac/tests/vectors/qcw-mac-v1.json "$DEST/qcw-mac-v1.json"
 
 echo "Exported KAT vectors to $DEST"
-echo "Copy into the consumer repo: sdk/vectors/security/"
+echo "Copy into a consumer repository."

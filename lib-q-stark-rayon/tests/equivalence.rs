@@ -1,6 +1,6 @@
 //! Serial-vs-parallel behavioural equivalence for the `lib-q-stark-rayon` shim.
 //!
-//! This single source file is compiled TWICE by CI/the reporting agent: once with the default
+//! This single source file is compiled TWICE by CI: once with the default
 //! (serial, `core`-backed) configuration and once with `--features parallel` (real `rayon`
 //! backend). Because the shim's whole purpose is to present one API over two backends, every test
 //! here is written purely against `lib_q_stark_rayon::prelude::*` / `lib_q_stark_rayon::iter` and

@@ -1,6 +1,6 @@
 # Radar triage: ePrint 2025/2099 — Lattice-based Designated-Verifier zkSNARK from Standard Assumptions
 
-Triage record from the `iacr-radar` eprint feed. Paper: *A Lattice-based Designated Verifier
+Triage record from the IACR ePrint feed. Paper: *A Lattice-based Designated Verifier
 zkSNARK from Standard Assumptions*, Ahmadi, Eghlidos, Abdolmaleki, Nguyen, IACR ePrint
 2025/2099 (<https://eprint.iacr.org/2025/2099>). Radar relevance tag: "zero-knowledge
 credentials" (high, conf 0.95).

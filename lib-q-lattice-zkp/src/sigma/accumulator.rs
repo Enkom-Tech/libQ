@@ -1,5 +1,5 @@
 //! SIS/Ajtai Merkle **accumulator** — the algebraic replacement for the SHAKE-Merkle tree, so that a
-//! path can later be proven in zero knowledge (PVTN V2, audit #65 / ADR 095).
+//! path can later be proven in zero knowledge (PVTN V2).
 //!
 //! See the design doc [`docs/pvtn-v2-unlinkable-membership.md`](../../docs/pvtn-v2-unlinkable-membership.md)
 //! §5. This module implements **only the public, deterministic relation**: the SIS hash node/leaf

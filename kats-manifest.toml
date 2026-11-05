@@ -84,7 +84,7 @@
 #   lib-q-random/tests/data, lib-q-hpke/tests/fixtures, lib-q-blind-pcs/tests/vectors,
 #   lib-q-blind-token/tests/vectors, lib-q-dkg/tests/vectors, lib-q-lattice-zkp/tests/vectors,
 #   lib-q-mac/tests/vectors, lib-q-zkp/tests/vectors, lib-q-prf/tests, export/kat-vectors
-# See scratchpad/audit-triage/fix-kat-registration.md for the full per-corpus investigation notes.
+# (The full per-corpus investigation notes are audit notes; not published.)
 #
 #
 # 2026-08-09: `lib-q-aead/tests/vectors` added for the new Saturnin-SIV mode.

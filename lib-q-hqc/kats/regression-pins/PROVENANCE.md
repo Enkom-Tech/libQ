@@ -114,7 +114,7 @@ than `hqc-3/PQCkemKAT_4602.req` and `hqc-5/PQCkemKAT_7333.req`, which share one 
 `9EF877FDDBE8891C...` — this is also the official reference's chain). This asymmetry is inherited
 from how these `.req` files were vendored; it is not a defect in the response data (each `.rsp` is
 still self-consistent with its own `.req`), but it means hqc-1 cannot be directly diffed against
-the other two sets using a shared seed. Not investigated further by this lane.
+the other two sets using a shared seed. Not investigated further here.
 
 ## SHA-256
 
@@ -168,7 +168,7 @@ The gated tests were mutation-checked, not merely observed green: swapping the `
 `test result: FAILED. 1 passed; 3 failed` — so the layout assertions can in fact fail. The
 mutation was reverted.
 
-**To flip the default** once GIP's migration lands: add `hqc-sk-v5-layout` to the
+**To flip the default** once downstream consumers have migrated: add `hqc-sk-v5-layout` to the
 crate's `default` feature list in `lib-q-hqc/Cargo.toml`. This is a BREAKING wire change for any
 consumer that persisted secret keys via `to_nist_bytes` — the encoding both reorders fields and
 grows by 32 bytes, so stored keys must be migrated, not merely re-parsed.

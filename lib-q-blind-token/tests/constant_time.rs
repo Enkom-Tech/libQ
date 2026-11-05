@@ -6,8 +6,8 @@
 //! observed from a unit test, and this repo explicitly rejects wall-clock timing tests (see
 //! the constant-time test-scope decision). The property that actually breaks under a short-circuiting comparator is
 //! "rejects at every position"; that's what's pinned here, and it's demonstrated red against a
-//! representative prefix-only comparator in the accompanying scratchpad log
-//! (`scratchpad/audit-triage/fix-ct-tests-2.md`), matching the methodology used for lib-q-mac et
+//! representative prefix-only comparator (audit notes; not published), matching the
+//! methodology used for lib-q-mac et
 //! al. in commit f756fbc.
 
 #[allow(dead_code)]

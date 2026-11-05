@@ -2,13 +2,13 @@
 
 > **⚠ SUPERSEDED FOR THE MEMBERSHIP WIRE (2026-07-17) — read this before §6/§12/§13.**
 > Two findings post-dating this draft change what is buildable here:
-> 1. **The membership *wire* pivoted off lattice onto FRI/STARK** (ADR 113): the deployed private-
+> 1. **The membership *wire* pivoted off lattice onto FRI/STARK**: the deployed private-
 >    membership proof is now the Plonky3 STARK + Poseidon argument in `lib-q-zkp` (Arm A `Complex<M31>` /
 >    Arm B `BabyBear`, both ≈128-bit PQ, binding on SHAKE256; merged to main). That path — not this
->    Stern design — carries the anonymity-set membership claim on the wire. The lattice lane below
+>    Stern design — carries the anonymity-set membership claim on the wire. The lattice track below
 >    remains load-bearing only for the **BLNS/JRS issuer anonymous-credential** work.
-> 2. **The §6 Stern core is infeasible at secure params.** A quantitative follow-up (memory
->    `stern-infeasible-pvtn-v1`) shows LLNW/Stern over this SIS-Merkle accumulator is **GB-scale** at
+> 2. **The §6 Stern core is infeasible at secure params.** A quantitative follow-up shows
+>    LLNW/Stern over this SIS-Merkle accumulator is **GB-scale** at
 >    `k_acc≈4`, `t≈171` rounds — the §13 "kilobytes→tens of KB" claim is wrong by ~4 orders. Exact-
 >    binary Stern membership is not viable here; a **modern *relaxed* algebraic argument (LNP22/ABDLOP,
 >    with the three selectable layers BLOOM / JRS-AGJ24 / BLNS on one shared engine)** is the required
@@ -20,11 +20,12 @@
 >
 > **Status: DRAFT — RED / research-grade. NO CODE MERGES from this design without a written,
 > cryptographer-reviewed soundness/ZK argument and a RED sign-off recorded in the PR.** This document
-> is the design-first deliverable that ADR 095 (pvtn-unlinkable-presentation)
-> and HANDOFF-65 (pvtn-unlinkable-membership) call for
+> is the design-first deliverable that the unlinkable-presentation and unlinkable-membership
+> plans call for
 > *before* implementation. It is authored as a starting draft for the `lib-q-lattice-zkp` cryptographer
-> to review, correct, and complete — not as a finished, self-attested construction. Audit 2026-06-17
-> finding **#65**. Until landed and reviewed, #65 stays **descoped (trusted-realm-only)**.
+> to review, correct, and complete — not as a finished, self-attested construction. It answers an
+> unlinkable-membership finding of the 2026-06-17 audit; until landed and reviewed, that
+> finding stays **descoped (trusted-realm-only)**.
 >
 > Authored against the crate at commit `9ed65ed` (worktree `feat/pvtn-v2-unlinkable`). Every
 > file:line and API reference below was read from source, not assumed.
@@ -37,7 +38,7 @@
 4. §4–§9 — the V2 construction.
 5. §10 — wire + Fiat–Shamir transcript.
 6. §11 — security-argument skeleton (the review gate).
-7. §12 — answers to the four ADR-095 open questions.
+7. §12 — answers to the four open design questions.
 8. §13 — parameters/performance; §14 — what is drafted vs review-gated; §15 — acceptance criteria.
 
 ---
@@ -69,7 +70,7 @@ is **not** zero-knowledge. [`norm.rs:9`](../src/sigma/norm.rs) defines it as
 and `verify_clearance_margin_public` ([`hierarchical.rs:392`](../src/sigma/hierarchical.rs)) reads the
 witness polynomial's `coeffs[0]` directly. So the current "margin proof" *reveals* `delta` exactly. The
 V2 clearance proof **cannot reuse `CrtPackedNormProof`** — it needs a genuine ZK range argument (§7).
-This settles ADR-095 open-question Q2: the answer is "no, it must be re-built for the hidden-attribute
+This settles open question Q2: the answer is "no, it must be re-built for the hidden-attribute
 setting."
 
 ---
@@ -191,10 +192,10 @@ the companion `accumulator.rs` scaffold (§14).
 
 > **Supersession note (2026-07-17).** This Stern-type core is **retired as the wire membership proof**,
 > for two independent reasons: (i) it is **infeasible at secure params** — LLNW/Stern over this SIS-
-> Merkle accumulator runs to **GB-scale** proofs at `k_acc≈4`, `t≈171` (memory `stern-infeasible-pvtn-v1`),
+> Merkle accumulator runs to **GB-scale** proofs at `k_acc≈4`, `t≈171`,
 > so the §13 "tens of KB" projection below is wrong by ~4 orders; and (ii) the deployed membership wire
-> now uses the **FRI/STARK argument in `lib-q-zkp`** (ADR 113), not this protocol. The correct lattice
-> replacement — should the anon-cred lane need one — is a **relaxed algebraic argument (LNP22/ABDLOP)**
+> now uses the **FRI/STARK argument in `lib-q-zkp`**, not this protocol. The correct lattice
+> replacement — should the anon-cred work need one — is a **relaxed algebraic argument (LNP22/ABDLOP)**
 > rather than exact-binary Stern (the "v2.1" track sketched at the end of this section is the right
 > direction; the exactness was the mistake). The specification is kept below as prior-art design only.
 > Do **not** implement it as the membership wire.
@@ -233,8 +234,8 @@ only ever sees permuted, masked openings.
 would shrink proofs from ~171 rounds to a constant-round rejection-sampled argument, à la later LLNW /
 Yang-et-al. work — but it requires extending this crate's linear protocol from "public `t`" to
 "committed-to-committed" relations and re-deriving soundness/abort bounds. **Recommend Stern first**
-(well-understood, 3-special-sound, reuses only SHAKE + ring ops), optimise later. This is ADR-095
-open-question Q1's answer: *SIS-Merkle with a ZK Stern path for the first sound version; a direct
+(well-understood, 3-special-sound, reuses only SHAKE + ring ops), optimise later. This is open
+question Q1's answer: *SIS-Merkle with a ZK Stern path for the first sound version; a direct
 shorter-witness accumulator is the optimisation track.*
 
 ---
@@ -277,7 +278,7 @@ by §6 (membership of `u_leaf = AccLeaf(x_attr)`), §7 (range over the clearance
 and §8/§9 (the credential opening `m` is constrained equal to / derived from `x_attr` via a linear
 relation). Because one extractor (§11) pulls a *single* consistent `W`, the attributes cannot be
 mix-and-matched across credentials: the leaf proven in-tree, the clearance proven in-range, and the
-opened commitment all reference the same `x_attr`. This is ADR-095 open-question Q4's resolution: bind
+opened commitment all reference the same `x_attr`. This is open question Q4's resolution: bind
 by **shared witness in one argument**, not by separate proofs glued post-hoc.
 
 ---
@@ -341,13 +342,13 @@ lifting a proof to another root/threshold/context.
 
 ---
 
-## 12. Answers to ADR-095 open questions
+## 12. Answers to the open design questions
 
 - **Q1 (accumulator choice).** ~~SIS-Merkle with a ZK Stern path (LLNW) for the first sound version~~
   **— REVISED 2026-07-17 (see §6 supersession note).** The Stern path is infeasible (GB-scale) at
-  secure params, and the deployed membership wire is now the FRI/STARK argument in `lib-q-zkp` (ADR
-  113). The SIS-Merkle *accumulator* (`accumulator.rs`) remains a sound public relation and fits the
-  existing `ExpandA`/`ModuleMatrix`/`Poly` machinery, but the ZK layer over it — if the anon-cred lane
+  secure params, and the deployed membership wire is now the FRI/STARK argument in `lib-q-zkp`.
+  The SIS-Merkle *accumulator* (`accumulator.rs`) remains a sound public relation and fits the
+  existing `ExpandA`/`ModuleMatrix`/`Poly` machinery, but the ZK layer over it — if the anon-cred work
   needs a lattice one — must be the **relaxed algebraic argument (LNP22/ABDLOP), not exact Stern**. The
   "shorter-witness constant-round" variant that §6 filed as a v2.1 optimisation is in fact the *only*
   viable direction, not an optional one.
@@ -373,8 +374,8 @@ lifting a proof to another root/threshold/context.
   commitments + one opened permuted witness of length `O(d·m)`). **⚠ CORRECTION (2026-07-17): the
   original "kilobytes→tens of KB" estimate here was wrong by ~4 orders of magnitude.** At secure
   accumulator params (`k_acc≈4` ⇒ node bit-length `m = 256·k_acc·23 ≈ 24 000` bits, depth `d≤16`,
-  `t≈171`), the opened permuted witness alone is `O(t·d·m)` ⇒ **GB-scale**, not KB-scale (memory
-  `stern-infeasible-pvtn-v1`). This is the concrete reason §6 is retired: Stern's per-round full-witness
+  `t≈171`), the opened permuted witness alone is `O(t·d·m)` ⇒ **GB-scale**, not KB-scale.
+  This is the concrete reason §6 is retired: Stern's per-round full-witness
   opening does not amortise. A relaxed LNP22/ABDLOP argument (short committed openings, constant round)
   is required to reach a deployable wire size.
 - Verify is `O(t·d·m)` ring/SHAKE ops — slower than v0's cleartext path, acceptable at credential-
@@ -393,17 +394,17 @@ Companion scaffold on this branch (`feat/pvtn-v2-unlinkable`):
   "it verifies" claim.
 - ⛔ **`SternMembershipProof` prove/verify (§6)** — specified here but **RETIRED, not to be implemented**
   (2026-07-17): infeasible at secure params (GB-scale, §13) and superseded on the wire by the FRI/STARK
-  membership argument in `lib-q-zkp` (ADR 113). Kept as prior-art design. A lattice ZK layer for the
-  anon-cred lane, if needed, is a *new* effort (relaxed LNP22/ABDLOP), not this scaffold.
+  membership argument in `lib-q-zkp`. Kept as prior-art design. A lattice ZK layer for the
+  anon-cred work, if needed, is a *new* effort (relaxed LNP22/ABDLOP), not this scaffold.
 - 🟡 **range leg (§7)** — reuses `prove_linear`; was gated on §6's witness layout, now moot for the wire
   path (the STARK argument carries the clearance predicate). Relevant only to a future lattice anon-cred
   argument.
 
-Sequencing follows HANDOFF-65 §9 (pvtn-unlinkable-membership):
+Sequencing (from the unlinkable-membership plan):
 finish §11 argument → review gate → implement §6 → wire+KATs → swap SDK consumers
-(the consumer crates' PVTN and interop-test call sites) → flip #65.
+(the consumer crates' PVTN and interop-test call sites) → close the audit finding.
 
-## 15. Acceptance criteria (from the handoff)
+## 15. Acceptance criteria (from the unlinkable-membership plan)
 
 - [ ] §11 completeness+soundness+ZK/unlinkability argument written and **cryptographer-reviewed** (RED).
 - [ ] `prove/verify_private_membership_v2` + `PrivateMembershipProofV2`; SHAKE-Merkle retired from the
@@ -412,7 +413,7 @@ finish §11 argument → review gate → implement §6 → wire+KATs → swap SD
 - [ ] KATs: round-trip; **unlinkability** (two presentations share no wire field but `credential_com'`,
       itself fresh); **soundness** (non-member / under-clearance / spliced-attribute rejected).
 - [ ] bench Stern rounds over a `d`-deep tree before pinning params.
-- [ ] consumers swapped + `sdk/vectors/security/` regenerated; RED sign-off recorded.
+- [ ] consumers swapped + vectors in a consumer repository regenerated; RED sign-off recorded.
 
 ---
 

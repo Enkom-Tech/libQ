@@ -5,18 +5,18 @@ overall claim: "Side channels — implementation is written with timing and cach
 awareness; we do not claim completed independent side-channel evaluation for all
 targets." This file narrows that claim to `lib-q-fn-dsa`.
 
-## ADR 225 audit gate
+## FN-DSA audit gate
 
 **2026-09-23 verdict: NOT PASSED. No allow-list flip is authorized.** This is a
 source/compiled-code audit with focused software checks, not certification or a
 completed physical side-channel evaluation. FN-DSA-512 and FN-DSA-1024 must remain
-excluded from ADR 225 key issuance, signing, and verification until the open
+excluded from downstream key issuance, signing, and verification until the open
 findings below are resolved and the target-specific evidence is reviewed.
 
 ### Revision, threat model, and scope
 
 - libQ report base: `a3d219d597b66c031c43efead37c2ef652bd7fa7`.
-- Downstream consumer: a GIP revision applying ADR 225 D1.4/D15, which pins libQ
+- Downstream consumer: a downstream consumer's signing policy (its own audit gate), which pins libQ
   `c96add671fc70802ac0917af8025eb0cf262fbc7`. The FN-DSA subtree differs between
   that pin and the report base only by the addition of this security document; the
   algorithm source is identical. Executed results below are from the report base,
@@ -27,7 +27,7 @@ findings below are resolved and the target-specific evidence is reviewed.
   sampler centre/width, signing randomness, expanded key and working buffers.
   Public inputs include degree, message length, public key, and signature bytes.
 - Attack surfaces considered: remote timing, local cache/instruction observations,
-  post-operation memory exposure, and physical power/EM on Vault/mobile devices.
+  post-operation memory exposure, and physical power/EM on mobile devices.
   Only software functional/timing screens and x86_64 compiler output were run.
 - Source review followed wrapper keygen/sign/decode into the portable and AVX2
   signer, floating-point backend selection, LDL decomposition, Gaussian rejection,
@@ -103,12 +103,12 @@ necessary countermeasures. This guest had neither a physical trace setup nor
 `valgrind`/`perf`; no such evaluation is claimed.
 
 **F4 — OPEN integration acceptance: enforce the audit gate independently of
-provisional-standardization opt-in. Consumer: GIP's ADR 225 signing policy.**
+provisional-standardization opt-in. Consumer: a downstream consumer's signing policy.**
 
-At the inspected GIP revision, the ADR 225 signing types and default allow-list
-are design-only; no end-to-end ADR 225 rejection can be demonstrated yet.
-GIP's existing provisional-algorithm opt-in is a different control. A throwaway
-Rust executable importing GIP's actual provisional-algorithm and wire-id modules
+At the inspected downstream revision, the consumer's signing types and default
+allow-list are design-only; no end-to-end rejection can be demonstrated yet.
+The consumer's existing provisional-algorithm opt-in is a different control. A throwaway
+Rust executable importing the consumer's actual provisional-algorithm and wire-id modules
 produced, in separate processes (the opt-in is an environment variable):
 
 ```text
@@ -124,12 +124,12 @@ ML-DSA control: Ok(())
 ```
 
 Thus legacy provisional negotiation rejects FN-DSA by default, but cannot serve
-as the non-overridable ADR 225 audit gate. Registration is not admission. A
+as the non-overridable FN-DSA audit gate. Registration is not admission. A
 downstream consumer's admission policy must not depend on a provisional opt-in
-flag: the ADR 225 policy must exclude both FN-DSA variants even with that opt-in or compiled
+flag: the signing policy must exclude both FN-DSA variants even with that opt-in or compiled
 `falcon` support, including issuer, signer, and verifier paths. Demonstrate real
 rejection and an allowed-algorithm positive control when those paths exist.
-No GIP registry, policy, or algorithm implementation was changed by this audit.
+No downstream registry, policy, or algorithm implementation was changed by this audit.
 
 ### Executed checks and limits
 
@@ -167,10 +167,10 @@ was detected in these runs. A virtualized, unpinned wall-clock screen cannot
 establish absence of exploitable leakage. No deliberate leakage was injected
 into these measured signing paths during this audit.
 
-GIP's own provisional-policy unit tests did **not** run:
+The consumer's own provisional-policy unit tests did **not** run:
 the lockfile required updating. Retrying without `--locked` failed because
-`hax-lib v0.4.1` was not cached. The original GIP lockfile was restored. The
-direct-source policy smoke above does not substitute for a successful GIP
+`hax-lib v0.4.1` was not cached. The consumer's original lockfile was restored. The
+direct-source policy smoke above does not substitute for a successful downstream
 workspace build or an end-to-end signer/verifier test.
 
 ### Approval boundary
@@ -179,14 +179,14 @@ Keep this audit open. Close the remediation findings only with reviewed changes
 and reproduction evidence; then record the exact admitted revision, compiler,
 features, degree, hardware, threat model, and target-specific leakage results.
 Review the rejection-sampling argument and physical deployment scope. Finally
-exercise the actual GIP issuance/signing/verification gate. Human RED review is
+exercise the actual downstream issuance/signing/verification gate. Human RED review is
 required before any allow-list flip; this report, its merge, or passing KATs
 does not grant it.
 
 ## Physical side-channel scope: no masking countermeasure exists (informational — ePrint 2026/1534, 2025/628)
 
 **This crate uses timing-oriented `Flr` operations (the `binary64` real-number
-type used in signing), but has not passed the ADR 225 audit above. It has no
+type used in signing), but has not passed the FN-DSA audit above. It has no
 masking countermeasure against power/EM analysis, and none is claimed.**
 
 ### What the paper says
@@ -266,7 +266,7 @@ fn-dsa-sign/src fn-dsa-kgen/src` → no matches. Both call sites above run on pl
 
 At the time of this paper assessment, the README stated "Constant-Time Operations:
 All cryptographic operations are constant-time to prevent timing attacks." The
-ADR 225 audit above replaces that blanket claim with a bounded status.
+FN-DSA audit above replaces that blanket claim with a bounded status.
 `flr.rs:72–74` states the intent: "operations are over secret values and thus should
 take care not to leak information through side-channels, in particular timing."
 The `div_emu`/`sqrt_emu` Cargo features are timing-oriented scalar countermeasures,
@@ -288,7 +288,7 @@ and the timing-only model above does not.
 **Verdict: OUT-OF-MODEL.** Masking is absent, but masking was never claimed for FN-DSA
 signing in the first place; this is not a regression against a stated guarantee. It is
 recorded here so a future embedded/IoT integration decision does not have to
-rediscover it, and so the next agent who reads 2026/1534 or 2025/628 does not re-walk
+rediscover it, and so the next reviewer who reads 2026/1534 or 2025/628 does not re-walk
 this call-graph from scratch.
 
 ### Follow-up

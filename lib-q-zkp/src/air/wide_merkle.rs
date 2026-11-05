@@ -1,4 +1,4 @@
-//! Wide-digest Merkle AIR (M2, RED — ADR 113 freeze-gate).
+//! Wide-digest Merkle AIR (M2, RED — membership freeze-gate).
 //!
 //! A wide-digest Merkle node compresses two 5-element children (10 input field elements)
 //! into a 5-element parent. Over Poseidon-256 (width 7, rate 2, capacity 5) that is a
@@ -17,7 +17,7 @@
 //! atom and is the next sub-step of M2.
 //!
 //! RED: Poseidon-256 round counts are NOT verified for GF(p²) (see `super::wide_hash`);
-//! gated behind the ADR-113 review.
+//! gated behind the membership freeze review.
 
 extern crate alloc;
 

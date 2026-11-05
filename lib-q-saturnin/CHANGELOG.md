@@ -89,7 +89,7 @@ supersedes them where they conflict.
 removed from this crate's `default` feature set. **Reason:** a single repeated nonce under
 `SaturninQcb` is a universal forgery — catastrophic integrity loss, not merely a keystream leak
 (see `src/qcb.rs` module docs and `lib-q-romulus/SECURITY.md`'s nonce-reuse table) — and as of
-this change it has zero call sites in any consumer crate (GIP, uGrid, My-Grid, Bitlink all reach
+this change it has zero call sites in any known consumer crate (downstream products reach
 Saturnin through `SaturninAead`/CTR-Cascade, which degrades to a keystream leak on nonce reuse
 instead). A default-on mode with that failure mode and no callers was assessed as a liability, so
 it is now opt-in. The mode itself is unchanged and not deprecated — it remains the rate-1,
@@ -255,13 +255,13 @@ will ship as a breaking change in the next release that includes it.
 
 - **`SaturninAeadCtx`: CTX committing-AEAD transform on `SaturninAead` (CTR-Cascade).** A
   2026-08-06 consumer survey found `SaturninQcb` (the only mode CTX had been wired to) has zero
-  real consumers, while every product (GIP, uGrid, My-Grid, Bitlink) reaches Saturnin through
+  real consumers, while downstream products reach Saturnin through
   `SaturninAead`. This adds the same CTX transform (Chan-Rogaway, ESORICS 2022; IACR ePrint
   2022/1260) to CTR-Cascade, instantiated with `SaturninHash`, as a **new, separate, opt-in type**
   — not a change to `SaturninAead`. `SaturninAead`'s wire output is byte-for-byte **unchanged**
   (pinned by the new `tests/aead_kat_pin.rs`, generated from the pre-change tree); it is data
-  loss to change that format in place, since it already encrypts stored data (My-Grid vault,
-  My-Grid recovery, GIP's `bitlink-wrapkey-argon2id-v1`). `SaturninAeadCtx` ciphertext is a
+  loss to change that format in place, since it already encrypts downstream stored
+  ciphertext. `SaturninAeadCtx` ciphertext is a
   wire-incompatible new format at the same layout offsets (`C ‖ T'`, `T'` at the same 32-byte tag
   position `T` occupied) — never interchangeable with plain `SaturninAead`'s output (see
   `tests/cascade_ctx_spec.rs::cross_mode_ciphertexts_rejected`).

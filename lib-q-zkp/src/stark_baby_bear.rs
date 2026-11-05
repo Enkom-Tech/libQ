@@ -255,7 +255,7 @@ pub fn verify_membership_bb_zk(
 // little-endian `u32` (4 bytes). The 1-byte instantiation tag (`0x02`; Arm A = `0x01`) lives in
 // the CONSUMING envelope, not here — this module exposes the statement bytes + a byte-decoding
 // verify entry (the FFI surface). Decode is **canonical-checked** (rejects any limb ≥ p), so the
-// 36‖16‖36-byte fields are injective — avoiding the non-canonical `from_int` hazard the ADR-113
+// 36‖16‖36-byte fields are injective — avoiding the non-canonical `from_int` hazard the membership freeze
 // review flagged in Arm A's legacy single-element decoder.
 
 /// BabyBear cell byte width (canonical LE `u32`).

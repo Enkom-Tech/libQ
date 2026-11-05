@@ -6,7 +6,7 @@
 //! and the wire serialization — all through the crate's public surface, as an external
 //! consumer would. Uses [`fast_proof_config`] so the real STARK prover stays fast.
 //!
-//! RED: the membership tier is gated behind the ADR-113 freeze review (Poseidon-256 round
+//! RED: the membership tier is gated behind the membership freeze review (Poseidon-256 round
 //! counts unverified for GF(p²)); these tests pin behaviour, not a soundness sign-off.
 
 use lib_q_stark_field::extension::Complex;

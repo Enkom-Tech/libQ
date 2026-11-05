@@ -88,7 +88,7 @@ jobs:
   # For full coverage analysis, see coverage.yml workflow
   test-coverage:
     name: Test Coverage
-    # Heavy job: GitHub-only. Forgejo PRs get a fast gate; this workflow only triggers on
+    # Heavy job: GitHub-only. Other hosts get a fast gate; this workflow only triggers on
     # pull_request, so main-branch coverage on GitHub comes from coverage.yml.
     if: github.server_url == 'https://github.com'
     needs: core-validation
@@ -292,7 +292,7 @@ jobs:
           echo "" >> pr-summary.md
           
           # Determine overall status
-          # test-coverage is GitHub-only (see its `if:` in this file); on Forgejo it reports
+          # test-coverage is GitHub-only (see its `if:` in this file); on other hosts it reports
           # "skipped", which must not read as a failure here.
           if [[ "${{ needs.core-validation.result }}" == "success" ]] && \
              [[ "${{ needs.security-validation.result }}" == "success" ]] && \
@@ -338,7 +338,7 @@ jobs:
                 'security-validation',
                 'test-coverage'
               ];
-              // test-coverage is GitHub-only; on Forgejo it reports "skipped", not a failure.
+              // test-coverage is GitHub-only; on other hosts it reports "skipped", not a failure.
               const okResults = { 'core-validation': ['success'], 'security-validation': ['success'], 'test-coverage': ['success', 'skipped'] };
 
               let shouldApprove = true;

@@ -39,7 +39,7 @@ There may be a `reference/hqc/` tree on your machine. It is a **local checkout, 
 (`.gitignore:236 /reference`), at **whatever revision happened to be fetched**. It is not
 authoritative and must never be used to decide whether this crate is correct.
 
-This is not hypothetical. On 2026-08-10 an agent compared against
+This is not hypothetical. On 2026-08-10 a contributor compared against
 `reference/hqc/kats/ref/hqc-*/intermediates_values`, concluded the fixed-weight sampler had three
 bugs, "fixed" them, regenerated the pins to match, and pushed a wire-breaking change to a
 published crate. The implementation had been byte-exact all along. The local checkout was a

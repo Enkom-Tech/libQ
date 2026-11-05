@@ -1,15 +1,15 @@
 name: Cross-Platform Builds (macOS)
 
-# The two macOS legs of ci.yml's `cross-platform` matrix, for the self-hosted Forgejo macOS runner
+# The two macOS legs of ci.yml's `cross-platform` matrix, for a self-hosted macOS runner
 # (Apple Silicon, labels macos-latest / macos-arm64). That runner is ephemeral: every job gets a fresh
 # VM cloned from a read-only golden image and discarded afterwards, so no state, credential or build
 # output carries between jobs or repositories. ci.yml's `cross-platform` job stays
-# GitHub-only because its Windows leg has no runner on the forge: a leg no runner accepts is never
+# GitHub-only because its Windows leg has no self-hosted runner: a leg no runner accepts is never
 # dispatched, sits `waiting`, and holds the whole run pending.
 #
 # Triggers match that job's own gate: push to main/develop, the weekly schedule and
 # workflow_dispatch. Not on pull requests, same as on GitHub. Gating is done by trigger, not by a
-# job-level `if:`, because Forgejo evaluates a job-level `if:` on the runner after dispatch, so a
+# job-level `if:`, because the self-hosted CI service evaluates a job-level `if:` on the runner after dispatch, so a
 # skipped job would still queue for the single macOS slot.
 
 on:
@@ -64,7 +64,7 @@ jobs:
 
       # Dependency sources only, keyed by repository: never `target/`, so no build output is ever
       # restored from another run or repository. The macOS runner is ephemeral (one fresh VM per job)
-      # and its cache server is off, so on the forge this is a restore miss by design.
+      # and its cache server is off, so on that runner this is a restore miss by design.
       - name: Cargo.lock fingerprint (SHA3-256)
         id: lockfp32
         shell: bash

@@ -1,4 +1,4 @@
-//! Unlinkable set-membership AIR (M3/M4, RED — ADR 113 freeze-gate).
+//! Unlinkable set-membership AIR (M3/M4, RED — membership freeze-gate).
 //!
 //! Proves the unlinkable membership statement (Semaphore/Tornado nullifier shape, for
 //! Sybil / domain admission):
@@ -45,7 +45,7 @@
 //! (Gating the sponge itself would raise its degree to 6 and overflow `quotient_degree`.)
 //!
 //! RED: Poseidon-256 round counts are NOT verified for GF(p²) (`super::wide_hash`); the whole
-//! tier is gated behind the ADR-113 review and is NOT proven zero-knowledge / sound yet.
+//! tier is gated behind the membership freeze review and is NOT proven zero-knowledge / sound yet.
 
 extern crate alloc;
 

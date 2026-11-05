@@ -143,7 +143,7 @@ measurements.
 
 ## 5. Do not conflate with PVTN Construction-7
 
-`lib-q-lattice-zkp`'s Construction-7 spike work (see memory `pvtn-v1-impl-status.md`) separately
+`lib-q-lattice-zkp`'s Construction-7 spike work separately
 arrived at ~600 KB–1.4 MB, depending on ZK-hiding/param choices, for its own exact-binary +
 Gaussian-masked one-out-of-many relation. That is a **different relation** (PVTN membership +
 range-clearance, not a signature-on-committed-attributes credential presentation) measured with a

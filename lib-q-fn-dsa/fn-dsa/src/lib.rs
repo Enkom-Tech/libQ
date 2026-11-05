@@ -425,8 +425,8 @@ mod tests {
     // exist only for testing and carry no security claim. There is NO difference at logn 7..10,
     // which includes both real parameter sets (logn 9 = N512, logn 10 = N1024).
     //
-    // Localised further (see `tests/upstream_oracle_kat.rs` and
-    // `scratchpad/audit-triage/fix-fndsa-hqc-kats.md`): sk and vk are byte-exact against upstream
+    // Localised further (see `tests/upstream_oracle_kat.rs`): sk and vk are byte-exact against
+    // upstream
     // on 90/90 vectors in both configurations, i.e. key pair generation does not diverge at all.
     // Every divergence is in the signature, and specifically in the accept/reject verdict at the
     // end of the FIRST iteration of the signing rejection loop at those toy degrees: this

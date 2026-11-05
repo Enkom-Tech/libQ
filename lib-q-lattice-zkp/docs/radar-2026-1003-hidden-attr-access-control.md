@@ -1,6 +1,6 @@
 # Radar triage: ePrint 2026/1003 — Blockchain Access Control with Hidden Attributes and Policies
 
-Triage record from the `iacr-radar` eprint feed. Paper: *A Blockchain-Based Access Control
+Triage record from the IACR ePrint feed. Paper: *A Blockchain-Based Access Control
 Scheme with Hidden Attributes and Policies Using Commitments and Zero-Knowledge Proofs*,
 Yuanshao Liang, Hui Li, Wenhui Hu, Wu Zhou, Baocheng Yan, Kedan Li, Naixing Wu, Kaili Shao,
 IACR ePrint 2026/1003 (<https://eprint.iacr.org/2026/1003>). Radar relevance tag:

@@ -339,7 +339,7 @@ mod tests {
     }
 
     /// **Content-carrying assertion 1:** a rejected proof leaves the budget uncharged. Modeled on
-    /// `gate_refuses_unverified_ciphertext`. Behavioral-red verified (see progress log): temporarily
+    /// `gate_refuses_unverified_ciphertext`. Behavioral-red verified: temporarily
     /// swapping the check order (charge-then-check) makes `budget.used() == 0` fail with a real
     /// `assertion failed` line, not a compile error.
     #[test]
@@ -373,7 +373,7 @@ mod tests {
 
     /// **Content-carrying assertion 2:** an exhausted budget short-circuits BEFORE the verifier
     /// closure runs. Uses a `Cell<bool>` flag to observe whether `proof_verifies` was ever invoked.
-    /// Behavioral-red verified (see progress log): temporarily swapping the check order (verify-then-
+    /// Behavioral-red verified: temporarily swapping the check order (verify-then-
     /// budget) makes the "closure must not run" assertion fail with a real `assertion failed` line.
     #[test]
     fn budgeted_gate_exhausted_budget_short_circuits_before_verifier_runs() {

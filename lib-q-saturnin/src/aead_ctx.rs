@@ -23,9 +23,8 @@
 //!
 //! # Why a distinct type, not a flag on `SaturninAead`
 //!
-//! `SaturninAead` ciphertexts are already stored in shipped products: the My-Grid vault (VMK
-//! wraps, `mygrid_vault_v1`), My-Grid recovery (mnemonic-derived), and GIP's wrapkey
-//! (Argon2id-sealed secret key, `bitlink-wrapkey-argon2id-v1`). Changing `SaturninAead`'s tag
+//! `SaturninAead` ciphertexts are already stored at rest by shipped downstream products (for
+//! example password- and mnemonic-derived key wraps). Changing `SaturninAead`'s tag
 //! construction in place would make every one of those blobs permanently undecryptable — that is
 //! data loss in shipped products, not a version bump.
 //!
@@ -41,8 +40,8 @@
 //!   format is visible in its type, not a config value one misrouted call away from writing one
 //!   format and reading it back as the other.
 //!
-//! **Migration guidance:** existing stored formats (`mygrid_vault_v1`, My-Grid recovery,
-//! `bitlink-wrapkey-argon2id-v1`) MUST keep decrypting via `SaturninAead`. Adopting
+//! **Migration guidance:** existing downstream stored formats MUST keep
+//! decrypting via `SaturninAead`. Adopting
 //! `SaturninAeadCtx` for one of them means minting a **new** format tag and re-encrypting / dual
 //! reading during a migration window — never switching the AEAD under an existing tag. New
 //! designs that want key-commitment-shaped properties should start from `SaturninAeadCtx`

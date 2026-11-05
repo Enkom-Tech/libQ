@@ -46,7 +46,7 @@ jobs:
   coverage:
     name: Test Coverage
     # GitHub-only: coverage analysis runs on GitHub (push to main after sync, the weekly
-    # schedule, or a matching PR path there), never on Forgejo.
+    # schedule, or a matching PR path there), never on other hosts.
     if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     # Backstop so a pathologically slow run can't hold a runner for the default 6h. Now just the

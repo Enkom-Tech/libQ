@@ -357,11 +357,11 @@ distributed path for those**. None of this changes the wire format or protocol. 
 a production build: a 128-bit fixed-point CDT, a constant-time large-σ mask sampler, and the
 bare-metal re-run of this campaign (plus optional `ctgrind`/valgrind instrumentation).
 
-## 9. ADR-109 amendment — done consumer-side
+## 9. Downstream signer designation — done consumer-side
 
-The ADR-109 amendment naming `lib-q-threshold-raccoon` as the PQ production signer (and demoting the
+The downstream decision naming `lib-q-threshold-raccoon` as the PQ production signer (and demoting the
 GF(256) `lib-q-threshold-sig` to a classical placeholder off the PQ root/recovery path) has been
-**applied consumer-side** (the dealerless-dkg-v0 spec §1/§9, spec-main `8a8c414`) and is not repeated
+**applied consumer-side** (in the consumer's DKG specification) and is not repeated
 here. Load-bearing use remains gated on: the external lattice-estimator sign-off (§6, **done —
 169-bit quantum at `KAPPA=9`**), the per-key signature counter enforced for the flooding path (§4),
 the production CT items (§8), and promotion of the §7.2 reduction past its two flagged heuristic steps.

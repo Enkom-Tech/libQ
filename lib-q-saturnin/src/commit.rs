@@ -9,8 +9,8 @@
 //!   and RK-1, which is specific to QCB's key-tweak-insertion TBC) is documented on `crate::qcb`
 //!   and below.
 //! - **`SaturninAeadCtx`** (`crate::aead_ctx`) — CTX applied to CTR-Cascade (`SaturninAead`,
-//!   `src/aead.rs`), the mode every real libQ consumer (GIP, uGrid, My-Grid, Bitlink) actually
-//!   uses. Its mode-specific security posture, including why S-2 does **not** apply to this
+//!   `src/aead.rs`), the mode every known downstream
+//!   consumer uses. Its mode-specific security posture, including why S-2 does **not** apply to this
 //!   instantiation, is documented on `crate::aead_ctx`.
 //!
 //! The rest of this module's docs describe the shared construction, byte layout, and injectivity

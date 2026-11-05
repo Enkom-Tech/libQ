@@ -4,7 +4,7 @@
 or *embarrassing* in the paper before it ships. Tier for both arms remains **RED**. Where something
 is fragile, it is said plainly. This pass is adversarial reading + the evidence already built (KATs,
 corruption tests, measurements); it is **not** a substitute for the human cryptographer obligations
-(`membership-arm-b-obligation-packet.md`, ADR-113 freeze review).
+(`membership-arm-b-obligation-packet.md`, membership freeze review).
 
 ---
 
@@ -49,7 +49,7 @@ gaps a reviewer should still press on:
 - A naïve **capacity-5** base-field sponge would give `5·30.9/2 = 77.3 bits` — **insufficient**; the
   paper must not claim 128-bit security for any capacity-5-over-base-field variant. Arm B's capacity-9
   is the fix and the reason its row is wider than a minimal hash.
-- **Injective encoding / canonical decode (carry-over hazard).** The ADR-113 review flagged that Arm
+- **Injective encoding / canonical decode (carry-over hazard).** The membership freeze review flagged that Arm
   A's byte→field decode used a *reducing* `from_int` (non-injective) rather than `from_canonical_checked`
   in `merkle_root_from_bytes`/`ctx_from_bytes`. **Arm B's membership AIR operates on field elements
   directly** (the public statement is field cells, serialized canonical LE per cell), so the in-circuit

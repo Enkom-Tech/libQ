@@ -1,4 +1,4 @@
-//! Wide-digest Poseidon-256 hashing primitive (M1, RED — ADR 113 freeze-gate).
+//! Wide-digest Poseidon-256 hashing primitive (M1, RED — membership freeze-gate).
 //!
 //! The unlinkable membership proof (`unlinkable-membership-v0`) pins **≥128-bit
 //! collision resistance NOW** for every digest (leaf `L`, every Merkle node, nullifier
@@ -32,7 +32,7 @@
 //!
 //! RED: the Poseidon-256 round counts are **not** independently verified for the GF(p²)
 //! extension field (see `lib_q_poseidon::params`); the ~155-bit figure is a
-//! capacity-based target only. The whole membership tier is gated behind the ADR-113
+//! capacity-based target only. The whole membership tier is gated behind the membership
 //! freeze review.
 
 extern crate alloc;

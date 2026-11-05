@@ -208,8 +208,7 @@ pub fn create_aes_ctr_drbg_rng(entropy: [u8; 48]) -> Aes256CtrDrbg {
 
 // There used to be a `#[cfg(not(feature = "aes-drbg"))]` "placeholder" `Aes256CtrDrbg` here whose
 // every method (`instantiate`, `TryRng::{try_next_u32,try_next_u64,try_fill_bytes}`,
-// `create_aes_ctr_drbg_rng`) unconditionally panicked (lead 11 in
-// `scratchpad/audit-triage/leads-10-15.md`).
+// `create_aes_ctr_drbg_rng`) unconditionally panicked (audit notes; not published).
 //
 // That block was dead code, not reachable API surface: this whole module is declared
 // `#[cfg(feature = "aes-drbg")] pub mod aes_ctr_drbg;` in `lib.rs`, so the module is only ever

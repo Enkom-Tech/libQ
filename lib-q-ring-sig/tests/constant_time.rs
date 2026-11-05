@@ -11,13 +11,13 @@
 //! seven `PartialEq` impls elsewhere in this repo, and the pattern the whole-word `ct_eq` here
 //! is meant to prevent).
 //!
-//! SUSPECTED (not fixed here, out of scope for this lane): the two `ct_eq` outcomes at lines
+//! SUSPECTED (not fixed here, out of scope for this change): the two `ct_eq` outcomes at lines
 //! 159-160 are combined with `bool::from(A) || bool::from(B)`, which short-circuits in Rust --
 //! if the Legendre-key comparison already mismatches, the Gold-key `ct_eq` is never evaluated.
 //! Both individual `ct_eq` calls are still whole-word constant-time comparisons (each one
 //! resists a partial/prefix leak on its own operand, which is what the tests below pin), but the
 //! two-key combination is not evaluated with equal work across both operands in every input
-//! case. This is a finding for follow-up, not something this lane changes.
+//! case. This is a finding for follow-up, not something this change makes.
 
 use lib_q_prf::{
     GoldKey256,

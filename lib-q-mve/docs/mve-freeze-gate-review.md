@@ -77,7 +77,7 @@ the accepted v0 robustness model. **PENDING HUMAN SIGN-OFF — tier stays RED.**
 mVE's in-circuit hash is the **same** truncated Poseidon-256 wide sponge as the membership AIR
 (`hash_suite_id = 5`, `x⁵`, `t = 7`, `R_F = 8`, `R_P = 60`, over `GF(p²)`). The round-count /
 algebraic-degree analysis is therefore **identical** to membership obligation **O1**
-([`../../lib-q-zkp/docs/membership-adr113-freeze-gate-review.md`](../../lib-q-zkp/docs/membership-adr113-freeze-gate-review.md)
+([`../../lib-q-zkp/docs/membership-freeze-gate-review.md`](../../lib-q-zkp/docs/membership-freeze-gate-review.md)
 §7 O1): 8+60 clears the published bounds (USENIX 2021 §5.5 + ePrint 2023/537) by ≈2× at `n = 62`
 and still clears the pessimistic `n = 31` subfield case; round constants are generic `GF(p²)`
 (nonzero imaginary parts), closing subfield invariance. **No parameter change.**

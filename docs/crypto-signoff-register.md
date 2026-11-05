@@ -14,7 +14,7 @@
 | # | Gate | Crate(s) | Detail docs | State |
 |---|------|----------|-------------|-------|
 | A | Anon-cred one-out-of-many membership | `lib-q-lattice-zkp` | `lib-q-lattice-zkp/docs/anon-cred-oom-signoff-brief.md` (+ 7 companions) | design + test-only oracles |
-| B | Membership AIR soundness/ZK (Arm A + Arm B) | `lib-q-zkp` | `lib-q-zkp/docs/membership-adr113-freeze-gate-review.md`, `…-arm-b-obligation-packet.md`, `…-arm-{a,b}-soundness-params.md` | built + wire-frozen v0 |
+| B | Membership AIR soundness/ZK (Arm A + Arm B) | `lib-q-zkp` | `lib-q-zkp/docs/membership-freeze-gate-review.md`, `…-arm-b-obligation-packet.md`, `…-arm-{a,b}-soundness-params.md` | built + wire-frozen v0 |
 | C | Threshold-KEM CCA closure + its ZK encryption proof | `lib-q-threshold-kem-lattice`, `lib-q-zk-encryption-proof` | `lib-q-threshold-kem-lattice/SECURITY-STATUS.md` (shipped summary), those crates' `README.md` / `src/lib.rs`, `dev/conformance/…` design docs | KEM shipped (KAT v1); proof partial |
 | D | Saturnin CTX committing transform (H-1, S-2, Q-1, L-1, RK-1) | `lib-q-saturnin` | `lib-q-saturnin/src/commit.rs`, `src/aead_ctx.rs`, `src/qcb.rs`, `SECURITY.md` | **shipped and reachable** — opt-in `SaturninAeadCtx` / `SaturninQcb`. **Binding signed 2026-09-24 (conditional); H-1, Q-1, L-1, RK-1 open** |
 | E | CTR-Cascade's own IND-qCCA claim (Q-2) | `lib-q-saturnin` | `lib-q-saturnin/src/aead.rs` §"Open obligation Q-2", `README.md`; obligation Q-2 | **shipped, frozen wire, reached by every product**. **Signed 2026-09-24, conditional on SAT-JQPRF (no bit level)** |
@@ -23,7 +23,7 @@
 > recorded only as one clause inside Gate D's S-2 bullet ("A third, **Q-2**, lands on the base
 > CTR-Cascade mode…"), while this table described Gate D as "the only gate on a default-feature code
 > path". Both were wrong in the same direction: Q-2 lands on **`SaturninAead`**, whose wire is frozen
-> and which *every* product decrypts through (GIP, uGrid, My-Grid, Bitlink), whereas Gate D's own
+> and which *every* downstream Saturnin user decrypts through, whereas Gate D's own
 > subjects — `SaturninAeadCtx` and `SaturninQcb` — are opt-in types (and `qcb` was removed from
 > default features in `c1d27a6`). A reviewer triaging by this table would have ranked the most
 > broadly-reachable open item as an aside. Q-2 is also **not** part of Gate D: Gate D is about a
@@ -140,12 +140,12 @@ security and the ZK simulators are **argued or implemented-but-unwritten**, not 
 
 **2026-09-09 addendum — strong-model AI review of the STARK zero-knowledge obligations. Evidence, not a
 sign-off** (this repo's own CONTRIBUTING.md: "The AI passes are evidence, never a second
-signature."). Read the AIR/prover/verifier source directly against the commit GIP is pinned to
+signature."). Read the AIR/prover/verifier source directly against the commit a downstream consumer is pinned to
 (`c96add671fc70802ac0917af8025eb0cf262fbc7`) and ran the real test suites (not simulated):
 `cargo test -p lib-q-zkp --test zero_knowledge_tests --test unlinkable_membership_tests` (16
 passed), `cargo test -p lib-q-zkp membership` (56 passed across `lib.rs`/`air_integration.rs`/
-`ip_soundness_tests.rs`/`security_parameter_tests.rs`), `cargo test -p gip-identity
-group_membership` (41 passed, incl. the byte-locked M0 conformance vectors).
+`ip_soundness_tests.rs`/`security_parameter_tests.rs`), and the downstream consumer's
+group-membership tests (41 passed, incl. the byte-locked M0 conformance vectors).
 - **L1/L2 (the STARK zero-knowledge review's originally-cited ZK-hiding leaks): confirmed FIXED in code, not just
   claimed.** `DeterministicRng` (xorshift64) has zero production call sites left in `lib-q-zkp`;
   every hiding-PCS/MMCS path uses `Kt128Rng` (KT128 XOF, 256-bit seed). `prove_unlinkable_
@@ -154,7 +154,7 @@ group_membership` (41 passed, incl. the byte-locked M0 conformance vectors).
   assumed, `lib-q-zkp`'s own default features already force `lib-q-random/std`⇒`getrandom` on
   transitively via `lib-q-stark-fri`/`lib-q-stark-merkle` (`cargo tree -e features
   -i lib-q-random` against a standalone probe crate outside both workspaces), so this is not a
-  footgun that only works by accident of GIP's own workspace pin.
+  footgun that only works by accident of a downstream workspace's pin.
 - **The STARK zero-knowledge review's original O4 text is stale.** It reads "no blinding/randomized trace" — that was true
   when the STARK zero-knowledge review was imported (2026-08-14) but is no longer true: a hiding prover exists, is wired
   through `Kt128Rng`, and its distinctness/no-raw-witness-leak properties are exercised by green
@@ -298,7 +298,7 @@ is precisely the class fuzzing cannot reach.
 
 **Read this one and Gate E first if you have limited reviewer time.** Gates A–C guard constructions
 that are either branch-only, wire-frozen-but-unwired, or partial. Gates D and E guard code that
-**ships and is used by real products** (GIP, uGrid, My-Grid and Bitlink all reach Saturnin through
+**ships and is used by real products** (downstream products reach Saturnin through
 `SaturninAead`) — the two gates where an unsound assumption is already in someone's hands.
 
 Between them, **Gate E is the more reachable**: its subject is `SaturninAead` itself, which every
@@ -546,7 +546,7 @@ level for commitment, or claiming CTX preserves quantum AE security.
 **Read this one alongside Gate D, and note which is more reachable.** Gate D guards a transform
 *we* added, on opt-in types. Gate E is about `SaturninAead` — the base CTR-Cascade mode, as its
 designers published it — whose wire format is **frozen** and which every product decrypts through
-(GIP `bitlink-wrapkey-argon2id-v1`, My-Grid vault, My-Grid recovery, uGrid). `SaturninAeadCtx`
+(downstream stored ciphertext is already encrypted under it). `SaturninAeadCtx`
 inherits it, since CTX wraps this mode rather than replacing it.
 
 **Nothing here says the mode is broken.** It says the published *argument* for one of its advertised
@@ -794,19 +794,18 @@ but unsigned where noted, and **not** to be advertised as secure. Gate A additio
 ### Amendment 2026-08-19 — the reviewer bar is one human, not two
 
 **This section previously required "two independent human cryptographers" per gate.** It was
-amended to **one** on 2026-08-19, by the operator's decision, to match
-`red-policy-no-second-reviewer`, the fleet's recorded and dated policy: there is **one** human
-cryptographer of record (the operator), so the operative RED bar is *one human cryptographer +
-adversarial AI passes + tests*. Sign-offs already executed in this fleet — including
-`GIP/sdk/adr/146-KEMSPHINX-CONSTANT-SIZE-RED-REVIEW.md` and uGrid's `ugrid.access.v0` — were
-executed under that one-human bar.
+amended to **one** on 2026-08-19, by the maintainer's decision, to match
+the project's recorded and dated review policy: there is **one** human
+cryptographer of record (the maintainer), so the operative RED bar is *one human cryptographer +
+adversarial AI passes + tests*. Sign-offs already executed by the project, including
+those for downstream consumers, were executed under that one-human bar.
 
 **Why this needed fixing, and not by either document quietly:** with a single human cryptographer
-on the fleet, a two-human requirement is not a high bar, it is an unsatisfiable one — under the
+on the project, a two-human requirement is not a high bar, it is an unsatisfiable one — under the
 previous text **no gate in this register could ever be discharged**, which made the register
 describe a process nobody could run rather than the process actually in use. The contradiction was
-recorded in `ops/assessments/red-gate-review-packet.md` (header) and explicitly left for the
-operator to resolve.
+recorded in the review packet's header and explicitly left for the
+maintainer to resolve.
 
 **What this trades away, stated plainly:** a second, independent pair of human eyes on every
 crypto sign-off. That is a real reduction in assurance, not a formality. Independent review is the
@@ -817,11 +816,11 @@ adversarial passes substitute for it. **They are evidence, never a signature.** 
 is what is *achievable* here; it is not equivalent to what two independent cryptographers would
 give, and this register should not be cited as if it were.
 
-**If a second human cryptographer ever joins the fleet, this amendment should be revisited** and
+**If a second human cryptographer ever joins the project, this amendment should be revisited** and
 the two-human bar restored, at minimum for gates covering shipped, universally reachable wire
 (Gates D and E).
 
-**Decision provenance:** operator (Nexlab-One), 2026-08-19. Recorded editorially by an agent; this
+**Decision provenance:** maintainer (Nexlab-One), 2026-08-19. Recorded editorially; this
 amendment changes the stated *bar*, and **signs, ratifies and discharges nothing** — no gate's
 status, verdict, reviewer or date in this register is altered by it.
 
@@ -870,7 +869,7 @@ text; `src/lib.rs` (which does exist on both) carries the design docs for that c
 - All three other crates the register names — `lib-q-lattice-zkp`, `lib-q-zkp`,
   `lib-q-threshold-kem-lattice`, `lib-q-zk-encryption-proof` — exist on `release/0.0.10`
   (`git ls-tree -d release/0.0.10 -- <crate>` non-empty for each).
-- All nine Gate B detail docs (`membership-adr113-freeze-gate-review.md`,
+- All nine Gate B detail docs (`membership-freeze-gate-review.md`,
   `membership-arm-a-soundness-params.md`, `membership-arm-b-babybear-build-spec.md`,
   `membership-arm-b-build-status.md`, `membership-arm-b-measurement.md`,
   `membership-arm-b-obligation-packet.md`, `membership-arm-b-poseidon2-gadget-design.md`,

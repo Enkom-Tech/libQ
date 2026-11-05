@@ -7,7 +7,7 @@
 > encoding and the envelope header below MUST NOT change under wire version `v0`. Freezing the
 > *bytes* is independent of the *security* sign-off — the soundness / zero-knowledge claims of
 > the underlying proof remain **RED** and gated on the O1–O4 obligations in
-> [`membership-adr113-freeze-gate-review.md`](membership-adr113-freeze-gate-review.md). A
+> [`membership-freeze-gate-review.md`](membership-freeze-gate-review.md). A
 > consumer MAY pin these bytes for interop; it MUST NOT treat the privacy/soundness as
 > load-bearing until O1–O4 are signed off by a human cryptographer.
 
@@ -47,7 +47,7 @@ The verifier-visible statement is `root ‖ ctx ‖ N`:
 Built/parsed by `membership::public_statement_bytes` / the byte decoders. This matches the
 freeze-gate review's "Public values = `[root(5) ‖ ctx(2) ‖ N(5)]` (12 elements)".
 
-### 2.1 `ctx` reconciliation with the consumer (HANDOFF ITEM — consumer-side decision)
+### 2.1 `ctx` reconciliation with the consumer (consumer-side decision)
 
 The consumer derives `ctx` as a **32-byte K12 digest** under label `libq.member.ctx.v0`
 (`group_id ‖ epoch ‖ topic`), per unlinkable-membership-v0 §5.1/§9 and the K12 domain-separation
@@ -153,4 +153,4 @@ Provers emit the wire with `prove_unlinkable_membership` (transparent) or
 **RED — PENDING HUMAN CRYPTOGRAPHER SIGN-OFF.** Byte interop may be pinned now; the
 soundness (O1 Poseidon round counts over `GF(p²)`, O2 capacity-5 truncation), domain-separation
 (O3), and zero-knowledge (O4) claims are **not** discharged and remain blocking for GREEN. See
-[`membership-adr113-freeze-gate-review.md`](membership-adr113-freeze-gate-review.md) §5.
+[`membership-freeze-gate-review.md`](membership-freeze-gate-review.md) §5.

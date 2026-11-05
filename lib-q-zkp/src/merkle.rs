@@ -212,7 +212,7 @@ impl core::fmt::Debug for PoseidonMerkleTree {
 }
 
 // ---------------------------------------------------------------------------
-// Wide-digest (Poseidon-256, ≥128-bit) Merkle tree — M2, RED (ADR 113).
+// Wide-digest (Poseidon-256, ≥128-bit) Merkle tree — M2, RED.
 // ---------------------------------------------------------------------------
 
 /// 2-to-1 wide-digest compression: parent = H(left ‖ right) over the 10 child field
@@ -242,7 +242,7 @@ pub fn wide_empty_leaf() -> WideDigest {
 /// membership statement, each leaf is `L = H(t)`); use [`Self::from_leaf_digests`].
 ///
 /// RED: Poseidon-256 round counts are NOT verified for GF(p²) — see the
-/// `air::wide_hash` freeze-gate. Gated behind the ADR-113 review.
+/// `air::wide_hash` freeze-gate. Gated behind the membership freeze review.
 #[derive(Clone)]
 pub struct WidePoseidonMerkleTree {
     /// layers[0] = leaf digests (padded to power of 2), layers[depth] = [root]

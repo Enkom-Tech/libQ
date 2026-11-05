@@ -2,8 +2,8 @@ name: Security Validation
 
 on:
   push:
-    # ci/**: pre-merge CI snapshots of forge PR heads, pushed by `hive publish github --pr`
-    # and deleted once judged. They run the full push set, not the lighter pull_request one.
+    # ci/**: pre-merge CI snapshots, pushed by the maintainers' publishing tool and deleted once
+    # judged. They run the full push set, not the lighter pull_request one.
     branches: [ main, develop, 'ci/**' ]
   pull_request:
     branches: [ main, develop ]

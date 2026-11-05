@@ -13,12 +13,12 @@
 # which cannot simply be deleted -- wip/pvtn-v1-construction7 carries research work that is not on
 # main. See the withdrawn-crate branch cleanup.
 #
-# THIS IS NOT HYPOTHETICAL. On 2026-08-08 an agent hit GIP's stale path dependencies on these two
-# crates -- GIP's sdk/Cargo.toml still declared them, and because cargo resolves every path dep at
-# manifest load, before any feature gating, the ENTIRE GIP workspace failed to load for anyone
-# cloning GIP and libQ at their default branches. The agent made resolution succeed by grafting the
-# directories back out of the spike branch. It checked with `cargo tree` that nothing linked
-# against them, so no result was corrupted -- but "restore the deleted crate until cargo is happy"
+# THIS IS NOT HYPOTHETICAL. On 2026-08-08 a downstream workspace still declared path dependencies
+# on these two crates, and because cargo resolves every path dep at manifest load, before any
+# feature gating, that ENTIRE workspace failed to load for anyone cloning it and libQ at their
+# default branches. A contributor made resolution succeed by grafting the directories back out
+# of the spike branch. `cargo tree` confirmed that nothing linked against them, so no result
+# was corrupted -- but "restore the deleted crate until cargo is happy"
 # is the reflex this guard exists to interrupt. The correct response to a missing dependency that
 # someone deleted on purpose is to read the history, not to reach for a branch that still has it.
 #
@@ -39,8 +39,8 @@
 # above until someone decides how to preserve their unrelated work; failing on that would make the
 # guard unpassable rather than useful. It guards the tree you are building.
 #
-# It also does not check other repositories. GIP declaring a path dep on a withdrawn crate is a GIP
-# problem and cannot be seen from here.
+# It also does not check other repositories. A downstream workspace declaring a path dep on a
+# withdrawn crate is that workspace's problem and cannot be seen from here.
 #
 # Usage:
 #   bash scripts/ci-guard-withdrawn-crates.sh [REPO_ROOT]
