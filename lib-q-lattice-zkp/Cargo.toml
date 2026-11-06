@@ -52,7 +52,7 @@ required-features = ["hardened"]
 hex = { workspace = true }
 criterion = { workspace = true }
 lib-q-random = { path = "../lib-q-random", version = "0.0.12", features = ["std"] }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.12", default-features = false, features = ["privacy"] }
+lib-q-sca-test = { path = "../lib-q-sca-test", default-features = false, features = ["privacy"] }
 proptest = { workspace = true }
 rand_core = { workspace = true }
 

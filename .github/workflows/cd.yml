@@ -465,7 +465,8 @@ jobs:
   publish-rust-fn-dsa-kgen-sign:
     if: ${{ startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/main' }}
     name: Publish FN-DSA (kgen, sign)
-    needs: [approve-release, publish-rust-fn-dsa-comm]
+    # fn-dsa-kgen depends on lib-q-sha3, so lib-q-sha3 must be on crates.io first.
+    needs: [approve-release, publish-rust-fn-dsa-comm, publish-rust-lib-q-sha3]
     runs-on: ubuntu-latest
     environment: release-publish  # Trusted Publishing (OIDC); see the note at the top of this file
     permissions:

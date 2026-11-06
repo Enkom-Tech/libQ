@@ -67,7 +67,7 @@ wasm-bindgen-test = { workspace = true }
 # Benchmarking dependencies (host targets only)
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true, features = ["html_reports"] }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.12", default-features = false }
+lib-q-sca-test = { path = "../lib-q-sca-test", default-features = false }
 
 [[test]]
 name = "compliance"

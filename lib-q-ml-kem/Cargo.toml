@@ -103,7 +103,7 @@ required-features = ["hardened"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
 criterion = { workspace = true }
-lib-q-sca-test = { path = "../lib-q-sca-test", version = "0.0.12", default-features = false }
+lib-q-sca-test = { path = "../lib-q-sca-test", default-features = false }
 
 [[bench]]
 name = "mlkem"
