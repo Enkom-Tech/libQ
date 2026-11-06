@@ -5,23 +5,13 @@
 //! cryptographic security and test reproducibility.
 
 #[cfg(feature = "random")]
-use lib_q_random::{
-    LibQRng,
-    Result,
-    SecureRng,
-};
+use lib_q_random::{LibQRng, Result, SecureRng};
 
 #[cfg(not(feature = "random"))]
 type Result<T> = core::result::Result<T, &'static str>;
 
 #[cfg(not(feature = "random"))]
-use lib_q_sha3::{
-    ExtendableOutput,
-    Shake256,
-    Shake256Reader,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::{ExtendableOutput, Shake256, Shake256Reader, Update, XofReader};
 
 /// ML-DSA Random Number Generator
 ///

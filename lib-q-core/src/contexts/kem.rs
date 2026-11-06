@@ -4,26 +4,14 @@
 //! mechanism operations with proper security validation.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    string::String,
-    vec::Vec,
-};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 use super::BaseContext;
 #[cfg(test)]
 use crate::api::KemOperations;
-use crate::api::{
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-};
+use crate::api::{Algorithm, AlgorithmCategory, CryptoProvider};
 use crate::error::Result;
-use crate::traits::{
-    KemKeypair,
-    KemPublicKey,
-    KemSecretKey,
-};
+use crate::traits::{KemKeypair, KemPublicKey, KemSecretKey};
 
 /// KEM context for key encapsulation operations
 #[cfg(feature = "alloc")]

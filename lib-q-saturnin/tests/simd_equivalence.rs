@@ -3,11 +3,7 @@ use lib_q_saturnin::bs32_core::SaturninBs32Core;
 use lib_q_saturnin::core::SaturninCore;
 #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
 use lib_q_saturnin::simd::{
-    SimdOptimizedCore,
-    encrypt_block_dispatch,
-    encrypt_blocks8_dispatch,
-    runtime,
-    simd_xor,
+    SimdOptimizedCore, encrypt_block_dispatch, encrypt_blocks8_dispatch, runtime, simd_xor,
 };
 
 fn fill_deterministic(seed: u64, out: &mut [u8]) {

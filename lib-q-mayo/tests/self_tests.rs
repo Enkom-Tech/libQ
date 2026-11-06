@@ -2,12 +2,7 @@
 
 //! Roundtrip, wire-format, tamper-rejection, and redaction self tests.
 
-use lib_q_mayo::{
-    Mayo2Signature,
-    Mayo2SigningKey,
-    Mayo2VerificationKey,
-    mayo_2,
-};
+use lib_q_mayo::{Mayo2Signature, Mayo2SigningKey, Mayo2VerificationKey, mayo_2};
 
 #[test]
 fn sizes() {

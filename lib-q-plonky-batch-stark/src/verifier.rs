@@ -6,53 +6,21 @@ use core::fmt::Debug;
 
 use lib_q_plonky_lookup::AirWithLookups;
 use lib_q_plonky_lookup::logup::LogUpGadget;
-use lib_q_plonky_lookup::lookup_traits::{
-    Kind,
-    Lookup,
-    LookupGadget,
-};
+use lib_q_plonky_lookup::lookup_traits::{Kind, Lookup, LookupGadget};
 use lib_q_plonky_uni_stark::{
-    PcsError,
-    SymbolicAirBuilder,
-    Val,
-    VerificationError,
-    VerifierConstraintFolder,
+    PcsError, SymbolicAirBuilder, Val, VerificationError, VerifierConstraintFolder,
     recompose_quotient_from_chunks,
 };
-use lib_q_stark_air::{
-    Air,
-    RowWindow,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-};
-use lib_q_stark_commit::{
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeCharacteristicRing,
-    TwoAdicField,
-};
+use lib_q_stark_air::{Air, RowWindow};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger};
+use lib_q_stark_commit::{Pcs, PolynomialSpace};
+use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing, TwoAdicField};
 use lib_q_stark_matrix::dense::RowMajorMatrixView;
 use lib_q_stark_matrix::stack::VerticalPair;
-use tracing::{
-    info_span,
-    instrument,
-};
+use tracing::{info_span, instrument};
 
-use crate::common::{
-    CommonData,
-    get_perm_challenges,
-};
-use crate::config::{
-    Challenge,
-    Domain,
-    StarkGenericConfig as SGC,
-    observe_instance_binding,
-};
+use crate::common::{CommonData, get_perm_challenges};
+use crate::config::{Challenge, Domain, StarkGenericConfig as SGC, observe_instance_binding};
 use crate::folder::VerifierConstraintFolderWithLookups;
 use crate::proof::BatchProof;
 use crate::symbolic::get_log_num_quotient_chunks;
@@ -114,10 +82,10 @@ where
     let mut challenger = config.initialise_challenger();
 
     let n_instances = airs.len();
-    if n_instances != opened_values.instances.len() ||
-        n_instances != public_values.len() ||
-        n_instances != degree_bits.len() ||
-        n_instances != global_lookup_data.len()
+    if n_instances != opened_values.instances.len()
+        || n_instances != public_values.len()
+        || n_instances != degree_bits.len()
+        || n_instances != global_lookup_data.len()
     {
         return Err(VerificationError::InvalidProofShape);
     }
@@ -125,8 +93,8 @@ where
     if opened_values
         .instances
         .iter()
-        .any(|ov| ov.base_opened_values.random.is_some() != SC::Pcs::ZK) ||
-        commitments.random.is_some() != SC::Pcs::ZK
+        .any(|ov| ov.base_opened_values.random.is_some() != SC::Pcs::ZK)
+        || commitments.random.is_some() != SC::Pcs::ZK
     {
         return Err(VerificationError::RandomizationError);
     }

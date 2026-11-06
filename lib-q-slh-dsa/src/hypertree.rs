@@ -1,17 +1,11 @@
 use core::fmt::Debug;
 
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use hybrid_array::{Array, ArraySize};
 use typenum::Unsigned;
 
 use crate::address::WotsHash;
 use crate::signing_key::SkSeed;
-use crate::xmss::{
-    XmssParams,
-    XmssSig,
-};
+use crate::xmss::{XmssParams, XmssSig};
 
 #[derive(Clone, Debug)]
 pub struct HypertreeSig<P: HypertreeParams>(Array<XmssSig<P>, P::D>);
@@ -149,10 +143,7 @@ mod tests {
 
     use super::*;
     use crate::PkSeed;
-    use crate::hashes::{
-        HashSuite,
-        Shake128f,
-    };
+    use crate::hashes::{HashSuite, Shake128f};
     use crate::util::macros::test_parameter_sets;
 
     fn test_ht_sign_verify<HTMode: HypertreeParams>() {
@@ -165,11 +156,11 @@ mod tests {
         let mut m = Array::<u8, HTMode::N>::default();
         rng.fill(m.as_mut_slice());
 
-        let idx_tree = rng.next_u64() %
-            (1u64
+        let idx_tree = rng.next_u64()
+            % (1u64
                 .wrapping_shl(HTMode::H::U32 - HTMode::HPrime::U32)
-                .wrapping_sub(1) +
-                1);
+                .wrapping_sub(1)
+                + 1);
         let idx_leaf = rng.next_u32() % (1 << (HTMode::HPrime::USIZE));
 
         let mut adrs = WotsHash::default();
@@ -198,11 +189,11 @@ mod tests {
         let mut m = Array::<u8, HTMode::N>::default();
         rng.fill(m.as_mut_slice());
 
-        let idx_tree = rng.next_u64() %
-            (1u64
+        let idx_tree = rng.next_u64()
+            % (1u64
                 .wrapping_shl(HTMode::H::U32 - HTMode::HPrime::U32)
-                .wrapping_sub(1) +
-                1);
+                .wrapping_sub(1)
+                + 1);
         let idx_leaf = rng.next_u32() % (1 << (HTMode::HPrime::USIZE));
 
         let mut adrs = WotsHash::default();

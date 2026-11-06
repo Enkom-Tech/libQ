@@ -22,10 +22,7 @@ pub fn synthetic_fixed_vs_random(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{
-        TvlaConfig,
-        tvla_passes,
-    };
+    use crate::{TvlaConfig, tvla_passes};
 
     #[test]
     fn nearly_identical_groups_pass_tvla() {

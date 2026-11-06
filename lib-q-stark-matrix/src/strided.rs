@@ -1,8 +1,5 @@
 use crate::Matrix;
-use crate::row_index_mapped::{
-    RowIndexMap,
-    RowIndexMappedView,
-};
+use crate::row_index_mapped::{RowIndexMap, RowIndexMappedView};
 
 /// A vertical row-mapping strategy that selects every `stride`-th row from an inner matrix,
 /// starting at a fixed `offset`.
@@ -66,10 +63,7 @@ mod tests {
     use alloc::vec;
 
     use super::*;
-    use crate::{
-        Matrix,
-        RowMajorMatrix,
-    };
+    use crate::{Matrix, RowMajorMatrix};
 
     fn sample_matrix() -> RowMajorMatrix<i32> {
         // A 5x3 matrix:

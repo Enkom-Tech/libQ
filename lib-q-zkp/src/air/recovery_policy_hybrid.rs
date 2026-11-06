@@ -5,31 +5,13 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
-use super::recovery_policy::{
-    RecoveryPolicyKey,
-    VK_COMMITMENT_SIZE,
-    shake256_commit,
-};
-use super::{
-    AirError,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
-};
+use super::recovery_policy::{RecoveryPolicyKey, VK_COMMITMENT_SIZE, shake256_commit};
+use super::{AirError, TraceGenerator, next_power_of_two, validate_trace_dimensions};
 
 /// Maximum ZK-private recovery keys per hybrid proof.
 pub const MAX_RECOVERY_HYBRID_KEYS: usize = 32;
@@ -299,8 +281,8 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
                 reason: "zk_key_count mismatch".into(),
             });
         }
-        if inputs.policy_time_lock < self.public.time_lock_min ||
-            inputs.policy_time_lock > self.public.time_lock_max
+        if inputs.policy_time_lock < self.public.time_lock_min
+            || inputs.policy_time_lock > self.public.time_lock_max
         {
             return Err(AirError::InvalidInput {
                 reason: "policy_time_lock out of bounds".into(),

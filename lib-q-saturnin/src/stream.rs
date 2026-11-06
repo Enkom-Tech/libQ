@@ -57,10 +57,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 use zeroize::Zeroizing;
 
 /// Keystream bytes from [`SaturninStream::generate_keystream`].
@@ -71,10 +68,7 @@ pub type SaturninKeystream = Zeroizing<Vec<u8>>;
 
 use crate::core::SaturninCore;
 #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
-use crate::simd::{
-    encrypt_blocks8_dispatch,
-    simd_xor,
-};
+use crate::simd::{encrypt_blocks8_dispatch, simd_xor};
 
 /// Saturnin stream cipher implementation
 ///

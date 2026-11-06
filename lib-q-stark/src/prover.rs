@@ -2,49 +2,21 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use itertools::Itertools;
-use lib_q_stark_air::{
-    Air,
-    RowWindow,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-};
-use lib_q_stark_commit::{
-    LagrangeSelectors,
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PackedValue,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, RowWindow};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger};
+use lib_q_stark_commit::{LagrangeSelectors, Pcs, PolynomialSpace};
+use lib_q_stark_field::{BasedVectorSpace, PackedValue, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 #[cfg(feature = "parallel")]
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_util::log2_strict_usize;
-use tracing::{
-    debug_span,
-    info_span,
-    instrument,
-};
+use tracing::{debug_span, info_span, instrument};
 
 use crate::{
-    Commitments,
-    Domain,
-    OpenedValues,
-    PackedChallenge,
-    PackedVal,
-    PreprocessedProverData,
-    Proof,
-    ProverConstraintFolder,
-    StarkGenericConfig,
-    SymbolicAirBuilder,
-    Val,
-    get_log_num_quotient_chunks,
-    get_symbolic_constraints,
+    Commitments, Domain, OpenedValues, PackedChallenge, PackedVal, PreprocessedProverData, Proof,
+    ProverConstraintFolder, StarkGenericConfig, SymbolicAirBuilder, Val,
+    get_log_num_quotient_chunks, get_symbolic_constraints,
 };
 
 /// Maximum trace height (2^30) to prevent memory exhaustion attacks.
@@ -584,8 +556,8 @@ where
     let mut sels = debug_span!("Compute Selectors")
         .in_scope(|| input.trace_domain.selectors_on_coset(input.quotient_domain));
 
-    let qdb = log2_strict_usize(input.quotient_domain.size()) -
-        log2_strict_usize(input.trace_domain.size());
+    let qdb = log2_strict_usize(input.quotient_domain.size())
+        - log2_strict_usize(input.trace_domain.size());
     let next_step = 1 << qdb;
 
     // We take PackedVal::<SC>::WIDTH worth of values at a time from a quotient_size slice, so we need to

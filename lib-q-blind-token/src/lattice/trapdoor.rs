@@ -17,24 +17,12 @@
 
 use alloc::vec::Vec;
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
-use super::gadget::{
-    GADGET_LEN,
-    GadgetSampler,
-};
+use super::gadget::{GADGET_LEN, GadgetSampler};
 use super::perturb::PerturbSampler;
 use super::ring::{
-    Rq,
-    const_poly,
-    ring_add,
-    ring_mul,
-    ring_sub,
-    sample_gaussian_poly,
-    sample_uniform_poly,
+    Rq, const_poly, ring_add, ring_mul, ring_sub, sample_gaussian_poly, sample_uniform_poly,
 };
 
 /// Width of the `Ā = [1, a_1, …, a_{m̄-1}]` part. Chosen for statistical trapdoor hiding at
@@ -187,10 +175,7 @@ impl Trapdoor {
     /// `GADGET_LEN`-vector of ring elements (heap-allocated — the digit table is multi-MiB at
     /// `N = 1024`).
     fn gadget_preimage<R: CryptoRng + Rng>(&self, rng: &mut R, v: &Rq) -> Vec<Rq> {
-        use super::ring::{
-            N,
-            poly_from_i64,
-        };
+        use super::ring::{N, poly_from_i64};
 
         // For each ring coefficient position, sample a k-vector; assemble k ring elements.
         let mut digits: Vec<[i64; N]> = alloc::vec![[0i64; N]; GADGET_LEN];

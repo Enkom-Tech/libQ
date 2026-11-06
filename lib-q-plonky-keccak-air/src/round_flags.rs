@@ -1,15 +1,9 @@
 use core::array;
 
-use lib_q_stark_air::{
-    AirBuilder,
-    WindowAccess,
-};
+use lib_q_stark_air::{AirBuilder, WindowAccess};
 
 use crate::columns::KeccakColsRef;
-use crate::{
-    NUM_ROUNDS,
-    NUM_ROUNDS_MIN_1,
-};
+use crate::{NUM_ROUNDS, NUM_ROUNDS_MIN_1};
 
 /// Evaluate and constrain round flags for each row of the Keccak AIR.
 ///

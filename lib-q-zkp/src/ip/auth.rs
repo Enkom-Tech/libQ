@@ -11,18 +11,9 @@ use alloc::vec::Vec;
 use lib_q_core::Result;
 
 use crate::ZkpProof;
-use crate::air::{
-    AnonymousAuthAir,
-    AnonymousAuthInput,
-    MerkleProofInput,
-    TraceGenerator,
-};
+use crate::air::{AnonymousAuthAir, AnonymousAuthInput, MerkleProofInput, TraceGenerator};
 use crate::api::MerklePath;
-use crate::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-};
+use crate::stark::{StarkProver, StarkVerifier, default_config};
 
 /// Merkle root hash (32 bytes)
 pub type MerkleRoot = [u8; 32];
@@ -179,10 +170,7 @@ mod tests {
     use super::*;
     use crate::air::MerkleHash;
     use crate::api::MerklePath;
-    use crate::{
-        ProofMetadata,
-        ProofType,
-    };
+    use crate::{ProofMetadata, ProofType};
 
     #[test]
     fn test_prove_group_membership() {

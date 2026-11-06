@@ -2,22 +2,11 @@
 
 mod common;
 
-use common::{
-    PARTIES,
-    THRESHOLD,
-    det_rng,
-};
+use common::{PARTIES, THRESHOLD, det_rng};
 use lib_q_dkg::{
-    decode_complaint,
-    decode_round1_commitments,
-    decode_share_evaluation,
-    dkg_build_complaint,
-    dkg_eval_share,
-    dkg_round1_commit,
-    encode_complaint,
-    encode_round1_commitments,
-    encode_share_evaluation,
-    setup,
+    decode_complaint, decode_round1_commitments, decode_share_evaluation, dkg_build_complaint,
+    dkg_eval_share, dkg_round1_commit, encode_complaint, encode_round1_commitments,
+    encode_share_evaluation, setup,
 };
 
 #[test]

@@ -2,13 +2,7 @@
 
 use lib_q_random::new_deterministic_rng;
 use lib_q_threshold_raccoon::{
-    RaccoonError,
-    combine_opening,
-    decode_signature,
-    encode_signature,
-    keygen_shares,
-    setup,
-    sign,
+    RaccoonError, combine_opening, decode_signature, encode_signature, keygen_shares, setup, sign,
     verify,
 };
 

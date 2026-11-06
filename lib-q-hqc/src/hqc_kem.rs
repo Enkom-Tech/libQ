@@ -13,19 +13,9 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 #[cfg(feature = "zeroize")]
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-    Zeroizing,
-};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-use crate::hqc_pke::{
-    HqcPke,
-    HqcPkeCiphertext,
-    HqcPkeError,
-    HqcPkePublicKey,
-    HqcPkeSecretKey,
-};
+use crate::hqc_pke::{HqcPke, HqcPkeCiphertext, HqcPkeError, HqcPkePublicKey, HqcPkeSecretKey};
 use crate::internal::shake256::Shake256Xof;
 use crate::params::HqcParams;
 
@@ -339,10 +329,7 @@ impl<P: HqcParams> HqcKem<P> {
     /// Hash function hash_h (SHA3-256 with domain separation)
     /// H(str) = SHA3-256(str || H_DOMAIN_SEPARATOR)
     fn hash_h(&self, output: &mut [u8], input: &[u8]) -> Result<(), HqcKemError> {
-        use lib_q_sha3::{
-            Digest,
-            Sha3_256,
-        };
+        use lib_q_sha3::{Digest, Sha3_256};
 
         let mut hasher = Sha3_256::new();
         hasher.update(input);
@@ -362,10 +349,7 @@ impl<P: HqcParams> HqcKem<P> {
         m: &[u8],
         salt: &[u8],
     ) -> Result<(), HqcKemError> {
-        use lib_q_sha3::{
-            Digest,
-            Sha3_512,
-        };
+        use lib_q_sha3::{Digest, Sha3_512};
 
         let mut hasher = Sha3_512::new();
         // Concatenate inputs: hash_ek_kem || m || salt
@@ -388,10 +372,7 @@ impl<P: HqcParams> HqcKem<P> {
         sigma: &[u8],
         ciphertext: &HqcKemCiphertext<P>,
     ) -> Result<(), HqcKemError> {
-        use lib_q_sha3::{
-            Digest,
-            Sha3_256,
-        };
+        use lib_q_sha3::{Digest, Sha3_256};
 
         // Concatenate inputs: hash_ek_kem || sigma || ciphertext
         let ciphertext_bytes = ciphertext.as_bytes();
@@ -487,10 +468,10 @@ pub struct HqcKemSecretKey<P: HqcParams> {
 /// reveals how many leading bytes of a guessed key were correct.
 impl<P: HqcParams> subtle::ConstantTimeEq for HqcKemSecretKey<P> {
     fn ct_eq(&self, other: &Self) -> subtle::Choice {
-        self.dk_pke.data.ct_eq(&other.dk_pke.data) &
-            self.sigma.ct_eq(&other.sigma) &
-            self.seed_kem.ct_eq(&other.seed_kem) &
-            subtle::Choice::from(u8::from(self.ek_pke == other.ek_pke))
+        self.dk_pke.data.ct_eq(&other.dk_pke.data)
+            & self.sigma.ct_eq(&other.sigma)
+            & self.seed_kem.ct_eq(&other.seed_kem)
+            & subtle::Choice::from(u8::from(self.ek_pke == other.ek_pke))
     }
 }
 
@@ -737,11 +718,7 @@ mod tests {
     use alloc::string::ToString;
 
     use super::*;
-    use crate::params::{
-        Hqc1Params,
-        Hqc3Params,
-        Hqc5Params,
-    };
+    use crate::params::{Hqc1Params, Hqc3Params, Hqc5Params};
 
     #[test]
     fn test_keygen_with_seed_rejects_short_seed() {
@@ -893,10 +870,7 @@ mod tests {
     /// still-open question (`kats/README.md`); this crate's `.rsp` pins are self-generated.
     #[test]
     fn test_nist_bytes_reference_layout_is_wire_stable() {
-        use lib_q_sha3::{
-            Digest,
-            Sha3_256,
-        };
+        use lib_q_sha3::{Digest, Sha3_256};
 
         let kem = HqcKem::<Hqc1Params>::new().unwrap();
         let seed = [0x5Au8; 48];

@@ -8,10 +8,7 @@
 //! against any implementation's own verify(). What remains here is the determinism check.
 #![cfg(all(feature = "simd256", feature = "acvp", feature = "mldsa44"))]
 #![allow(deprecated)]
-use lib_q_ml_dsa::{
-    MLDSASigningKey,
-    ml_dsa_44,
-};
+use lib_q_ml_dsa::{MLDSASigningKey, ml_dsa_44};
 
 fn from_hex(s: &str) -> Vec<u8> {
     hex::decode(s).unwrap()

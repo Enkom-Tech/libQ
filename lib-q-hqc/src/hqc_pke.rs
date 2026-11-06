@@ -17,10 +17,7 @@ use alloc::vec;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use crate::concatenated_code::{
-    ConcatenatedCode,
-    ConcatenatedCodeError,
-};
+use crate::concatenated_code::{ConcatenatedCode, ConcatenatedCodeError};
 use crate::internal::shake256::Shake256Xof;
 use crate::params::HqcParams;
 
@@ -466,10 +463,7 @@ impl<P: HqcParams> HqcPke<P> {
     /// I(str) = SHA3-512(str || I_DOMAIN_SEPARATOR)
     /// Used to derive (seedPKE.dk, seedPKE.ek) from seedPKE
     pub fn hash_i(&self, output: &mut [u8], input: &[u8]) {
-        use lib_q_sha3::{
-            Digest,
-            Sha3_512,
-        };
+        use lib_q_sha3::{Digest, Sha3_512};
 
         const I_DOMAIN_SEPARATOR: u8 = 2; // HQC_I_FCT_DOMAIN = 2 (2025 specification)
 
@@ -522,9 +516,9 @@ impl<P: HqcParams> HqcPke<P> {
                     j = 0;
                 }
 
-                support[i] = ((rand_bytes[j] as u32) << 16) |
-                    ((rand_bytes[j + 1] as u32) << 8) |
-                    (rand_bytes[j + 2] as u32);
+                support[i] = ((rand_bytes[j] as u32) << 16)
+                    | ((rand_bytes[j + 1] as u32) << 8)
+                    | (rand_bytes[j + 2] as u32);
                 j += 3;
 
                 if support[i] < P::UTILS_REJECTION_THRESHOLD {
@@ -772,10 +766,7 @@ impl<P: HqcParams> HqcPke<P> {
             // Check if AVX2 is available at runtime
             if crate::simd::runtime::has_avx2() {
                 // Use Avx2 ZST directly via trait
-                use crate::simd::{
-                    Avx2,
-                    PolynomialOps,
-                };
+                use crate::simd::{Avx2, PolynomialOps};
 
                 // SAFETY: `len <= output.len(), a.len(), b.len()` is checked above, so
                 // reinterpreting the first `len` u64 elements of each slice as `len * 8`

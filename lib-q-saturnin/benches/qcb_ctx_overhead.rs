@@ -38,22 +38,9 @@
 
 use core::time::Duration;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
-use lib_q_saturnin::{
-    SaturninAead,
-    SaturninQcb,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use lib_q_core::{Aead, AeadKey, Nonce};
+use lib_q_saturnin::{SaturninAead, SaturninQcb};
 
 fn data(size: usize) -> Vec<u8> {
     (0..size).map(|i| (i & 0xFF) as u8).collect()

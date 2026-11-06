@@ -1,28 +1,12 @@
 //! Cross-module federation and credential checks.
 
-use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AjtaiParameters,
-    prove_opening,
-};
+use lib_q_lattice_zkp::{AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters, prove_opening};
 use lib_q_random::new_deterministic_rng;
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_ring::{ModuleVec, Poly};
 use lib_q_ring_sig::{
-    CredentialPresentation,
-    FederationRing,
-    MemberIssuerKey,
-    RingSigParams,
-    attribute_message_digest,
-    federation_digest,
-    sign_dualring_lb,
-    sign_federation_message,
-    verify_credential_presentation,
-    verify_dualring_lb,
-    verify_federation_opening_scan,
+    CredentialPresentation, FederationRing, MemberIssuerKey, RingSigParams,
+    attribute_message_digest, federation_digest, sign_dualring_lb, sign_federation_message,
+    verify_credential_presentation, verify_dualring_lb, verify_federation_opening_scan,
 };
 
 #[inline]

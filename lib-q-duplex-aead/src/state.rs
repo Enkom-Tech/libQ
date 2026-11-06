@@ -2,13 +2,7 @@
 
 use lib_q_keccak::f1600;
 
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    PLEN,
-    RATE_BYTES,
-    TAG_BYTES,
-};
+use crate::params::{KEY_BYTES, NONCE_BYTES, PLEN, RATE_BYTES, TAG_BYTES};
 
 /// XOR `data` into the first `data.len()` bytes of the sponge rate (little-endian lanes).
 pub fn xor_into_rate(state: &mut [u64; PLEN], data: &[u8]) {

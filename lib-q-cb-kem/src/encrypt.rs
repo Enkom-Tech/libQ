@@ -1,19 +1,10 @@
 //! Encryption function to compute error vector and syndrome to get ciphertext
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use crate::api::CRYPTO_CIPHERTEXTBYTES;
 use crate::macros::sub;
-use crate::params::{
-    PK_NROWS,
-    PK_ROW_BYTES,
-    SYND_BYTES,
-    SYS_N,
-    SYS_T,
-};
+use crate::params::{PK_NROWS, PK_ROW_BYTES, SYND_BYTES, SYS_N, SYS_T};
 use crate::util::load_gf;
 
 /// Takes two 16-bit integers and determines whether they are equal (u8::MAX) or different (0)

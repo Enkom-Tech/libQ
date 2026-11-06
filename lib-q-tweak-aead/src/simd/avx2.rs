@@ -5,17 +5,8 @@
 use core::arch::x86_64::*;
 
 use crate::block::setup_state_pre_f1600;
-use crate::params::{
-    BLOCK_BYTES,
-    KEY_BYTES,
-    NONCE_BYTES,
-    PLEN,
-};
-use crate::simd::avx2_keccak::{
-    f1600_x4,
-    transpose_from_x4,
-    transpose_to_x4,
-};
+use crate::params::{BLOCK_BYTES, KEY_BYTES, NONCE_BYTES, PLEN};
+use crate::simd::avx2_keccak::{f1600_x4, transpose_from_x4, transpose_to_x4};
 use crate::sponge::first_32_from_state;
 
 /// XOR keystream for plaintext slice using AVX2 batched permutation when possible.

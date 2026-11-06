@@ -17,10 +17,7 @@ use alloc::vec::Vec;
 #[cfg(feature = "std")]
 use std::collections::BTreeMap;
 
-use lib_q_core::{
-    Result,
-    SecurityLevel,
-};
+use lib_q_core::{Result, SecurityLevel};
 use lib_q_fn_dsa::*;
 
 /// Advanced security configuration for FN-DSA
@@ -256,10 +253,7 @@ impl AuditLogger {
     fn get_timestamp(&self) -> u64 {
         #[cfg(feature = "std")]
         {
-            use std::time::{
-                SystemTime,
-                UNIX_EPOCH,
-            };
+            use std::time::{SystemTime, UNIX_EPOCH};
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -346,10 +340,7 @@ impl KeyManager {
     fn get_timestamp(&self) -> u64 {
         #[cfg(feature = "std")]
         {
-            use std::time::{
-                SystemTime,
-                UNIX_EPOCH,
-            };
+            use std::time::{SystemTime, UNIX_EPOCH};
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()
@@ -645,18 +636,18 @@ impl AdvancedSecurityManager {
     /// Validate FIPS 140-2 compliance
     fn validate_fips_140_2(&self) -> bool {
         // Check security policy requirements
-        self.config.security_policy.constant_time_operations &&
-            self.config.security_policy.side_channel_resistance &&
-            self.config.security_policy.key_zeroization &&
-            self.config.security_policy.signature_uniqueness
+        self.config.security_policy.constant_time_operations
+            && self.config.security_policy.side_channel_resistance
+            && self.config.security_policy.key_zeroization
+            && self.config.security_policy.signature_uniqueness
     }
 
     /// Validate NIST SP 800-57 compliance
     fn validate_nist_sp_800_57(&self) -> bool {
         // Check key management requirements
-        self.config.key_management.key_derivation &&
-            self.config.key_management.max_key_versions > 0 &&
-            self.config.security_policy.max_key_lifetime > 0
+        self.config.key_management.key_derivation
+            && self.config.key_management.max_key_versions > 0
+            && self.config.security_policy.max_key_lifetime > 0
     }
 
     /// Generate a unique key ID
@@ -675,10 +666,7 @@ impl AdvancedSecurityManager {
     fn get_timestamp(&self) -> u64 {
         #[cfg(feature = "std")]
         {
-            use std::time::{
-                SystemTime,
-                UNIX_EPOCH,
-            };
+            use std::time::{SystemTime, UNIX_EPOCH};
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()

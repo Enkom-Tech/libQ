@@ -12,22 +12,10 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_core::{
-    Algorithm,
-    Signature,
-    SignatureOperations,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use lib_q_core::{Algorithm, Signature, SignatureOperations};
 #[cfg(feature = "fn-dsa")]
-use lib_q_fn_dsa::{
-    FnDsa512,
-    FnDsa1024,
-};
+use lib_q_fn_dsa::{FnDsa512, FnDsa1024};
 use lib_q_sig::LibQSignatureProvider;
 use lib_q_sig::ml_dsa::MlDsa;
 

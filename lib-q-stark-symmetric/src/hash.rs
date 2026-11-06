@@ -1,10 +1,7 @@
 use core::borrow::Borrow;
 use core::marker::PhantomData;
 
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 /// A wrapper around an array digest, with a phantom type parameter to ensure that the digest is
 /// associated with a particular field.

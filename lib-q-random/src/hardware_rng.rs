@@ -8,10 +8,7 @@
 //! OS stack typically mixes multiple entropy sources, including hardware where
 //! the kernel supports it).
 
-use crate::{
-    Error,
-    Result,
-};
+use crate::{Error, Result};
 
 #[cfg(all(feature = "std", any(target_arch = "x86", target_arch = "x86_64")))]
 type RdrandFillResult = core::result::Result<(), ()>;
@@ -85,10 +82,7 @@ const RDRAND_RETRIES: u32 = 16;
 #[cfg(all(feature = "std", target_arch = "x86_64"))]
 #[target_feature(enable = "rdrand")]
 unsafe fn rdrand_fill(dest: &mut [u8]) -> RdrandFillResult {
-    use core::arch::x86_64::{
-        _rdrand32_step,
-        _rdrand64_step,
-    };
+    use core::arch::x86_64::{_rdrand32_step, _rdrand64_step};
 
     let mut offset = 0usize;
     while offset < dest.len() {

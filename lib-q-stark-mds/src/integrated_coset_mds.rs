@@ -1,22 +1,11 @@
 use alloc::vec::Vec;
 
-use lib_q_stark_field::{
-    Algebra,
-    Field,
-    Powers,
-    TwoAdicField,
-};
+use lib_q_stark_field::{Algebra, Field, Powers, TwoAdicField};
 use lib_q_stark_symmetric::Permutation;
-use lib_q_stark_util::{
-    log2_strict_usize,
-    reverse_slice_index_bits,
-};
+use lib_q_stark_util::{log2_strict_usize, reverse_slice_index_bits};
 
 use crate::MdsPermutation;
-use crate::butterflies::{
-    bowers_g_layer,
-    bowers_g_t_layer_integrated,
-};
+use crate::butterflies::{bowers_g_layer, bowers_g_t_layer_integrated};
 
 /// Like `CosetMds`, with a few differences:
 /// - (Bit reversed, a la Bowers) DIF + DIT rather than DIT + DIF
@@ -81,14 +70,8 @@ impl<F: Field, A: Algebra<F>, const N: usize> MdsPermutation<A, N> for Integrate
 mod tests {
     use lib_q_random::new_deterministic_rng;
     use lib_q_stark_baby_bear::BabyBear;
-    use lib_q_stark_dft::{
-        NaiveDft,
-        TwoAdicSubgroupDft,
-    };
-    use lib_q_stark_field::{
-        Field,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_dft::{NaiveDft, TwoAdicSubgroupDft};
+    use lib_q_stark_field::{Field, PrimeCharacteristicRing};
     use lib_q_stark_symmetric::Permutation;
     use lib_q_stark_util::reverse_slice_index_bits;
     use rand::RngExt;

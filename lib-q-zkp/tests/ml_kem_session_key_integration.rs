@@ -8,28 +8,15 @@
 
 #![cfg(feature = "zkp")]
 
-use lib_q_ml_kem::{
-    Decapsulate,
-    Encapsulate,
-    KemCore,
-    MlKem768,
-};
+use lib_q_ml_kem::{Decapsulate, Encapsulate, KemCore, MlKem768};
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::air::{
-    ArithmeticAir,
-    KdfParams,
-    SessionKeyDerivationAir,
-    SessionKeyInput,
-    TraceGenerator,
+    ArithmeticAir, KdfParams, SessionKeyDerivationAir, SessionKeyInput, TraceGenerator,
     derive_session_keys,
 };
-use lib_q_zkp::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-};
+use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
 type Val = Complex<Mersenne31>;
 

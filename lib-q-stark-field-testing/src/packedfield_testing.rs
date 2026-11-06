@@ -2,21 +2,11 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use lib_q_stark_field::{
-    Field,
-    PackedField,
-    PackedFieldPow2,
-    PackedValue,
-    PrimeCharacteristicRing,
+    Field, PackedField, PackedFieldPow2, PackedValue, PrimeCharacteristicRing,
 };
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 use rand::rngs::SmallRng;
-use rand::{
-    RngExt,
-    SeedableRng,
-};
+use rand::{RngExt, SeedableRng};
 
 fn packed_from_random<PV>(seed: u64) -> PV
 where

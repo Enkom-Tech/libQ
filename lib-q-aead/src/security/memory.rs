@@ -284,10 +284,7 @@ pub fn secure_alloc(size: usize) -> Option<*mut u8> {
 /// Secure memory allocation with custom alignment
 #[cfg(feature = "alloc")]
 pub fn secure_alloc_aligned(size: usize, alignment: usize) -> Option<*mut u8> {
-    use alloc::alloc::{
-        Layout,
-        alloc,
-    };
+    use alloc::alloc::{Layout, alloc};
 
     if size == 0 {
         return None;
@@ -414,10 +411,7 @@ pub unsafe fn secure_dealloc_aligned(ptr: *mut u8, size: usize, alignment: usize
     // Memory barrier to ensure all zeroing completes
     core::sync::atomic::compiler_fence(core::sync::atomic::Ordering::SeqCst);
 
-    use alloc::alloc::{
-        Layout,
-        dealloc,
-    };
+    use alloc::alloc::{Layout, dealloc};
     let layout = Layout::from_size_align(size, alignment).unwrap();
     unsafe {
         dealloc(ptr, layout);

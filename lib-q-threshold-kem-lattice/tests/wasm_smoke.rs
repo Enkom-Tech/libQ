@@ -2,10 +2,7 @@
 
 #![cfg(all(target_arch = "wasm32", feature = "wasm"))]
 
-use lib_q_threshold_kem_lattice::wasm::{
-    tkem_encaps_decaps_demo_wasm,
-    tkem_setup_wasm,
-};
+use lib_q_threshold_kem_lattice::wasm::{tkem_encaps_decaps_demo_wasm, tkem_setup_wasm};
 use serde_wasm_bindgen::from_value;
 use wasm_bindgen_test::*;
 

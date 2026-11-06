@@ -1,8 +1,4 @@
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lib_q_ml_kem::*;
 
 fn criterion_benchmark(c: &mut Criterion) {

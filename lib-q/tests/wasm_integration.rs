@@ -8,12 +8,7 @@ use std::boxed::Box;
 #[cfg(all(target_arch = "wasm32", feature = "wasm", feature = "ml-kem"))]
 use lib_q_core::CryptoProvider;
 #[cfg(all(target_arch = "wasm32", feature = "wasm", feature = "ml-kem"))]
-use libq::{
-    Algorithm,
-    KemContext,
-    LibQKemProvider,
-    wasm::init_wasm,
-};
+use libq::{Algorithm, KemContext, LibQKemProvider, wasm::init_wasm};
 #[cfg(all(target_arch = "wasm32", feature = "wasm", feature = "ml-kem"))]
 use wasm_bindgen_test::*;
 

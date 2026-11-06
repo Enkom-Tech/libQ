@@ -1,36 +1,14 @@
 //! Coefficient (`Poly`) vs NTT (`NttPoly`) newtypes.
 
-use subtle::{
-    Choice,
-    ConditionallySelectable,
-    ConstantTimeGreater,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeGreater};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::coeff::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    Coefficients,
-    FieldElement,
-    SIMD_UNITS_IN_RING_ELEMENT,
+    COEFFICIENTS_IN_SIMD_UNIT, Coefficients, FieldElement, SIMD_UNITS_IN_RING_ELEMENT,
 };
-use crate::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    FIELD_MODULUS,
-};
-use crate::field::{
-    add_coeffs,
-    reduce_element,
-    reduce_poly_simd,
-    subtract_coeffs,
-};
-use crate::ntt::{
-    intt_montgomery,
-    ntt_forward_simd,
-    ntt_multiply_montgomery,
-};
+use crate::constants::{COEFFICIENTS_IN_RING_ELEMENT, FIELD_MODULUS};
+use crate::field::{add_coeffs, reduce_element, reduce_poly_simd, subtract_coeffs};
+use crate::ntt::{intt_montgomery, ntt_forward_simd, ntt_multiply_montgomery};
 
 #[inline]
 fn ct_gt_i32(a: i32, b: i32) -> Choice {

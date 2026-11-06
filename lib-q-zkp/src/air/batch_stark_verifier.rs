@@ -10,29 +10,16 @@ extern crate alloc;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use super::recursive_types::SerializedStarkProof;
 use super::stark_verifier::RecursiveStarkVerificationInput;
-use super::{
-    AirError,
-    StarkVerifierAir,
-    TraceGenerator,
-    validate_trace_dimensions,
-};
+use super::{AirError, StarkVerifierAir, TraceGenerator, validate_trace_dimensions};
 
 /// Input for batch recursive verification: one RecursiveStarkVerificationInput per proof.
 pub type BatchRecursiveStarkVerificationInput<F: Field, Ch: Field> =
@@ -60,11 +47,7 @@ where
     if flattened.is_empty() {
         return vec![F::ZERO];
     }
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
-        PoseidonField,
-    };
+    use lib_q_poseidon::{Poseidon, Poseidon128, PoseidonField};
     let hash_input: Vec<PoseidonField> = flattened.into_iter().map(|f| f.into()).collect();
     let hash_output = Poseidon128.hash(&hash_input);
     vec![hash_output[0].into()]
@@ -208,19 +191,11 @@ mod tests {
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::super::{
-        CommitmentVerificationInput,
-        ConstraintVerificationInput,
-        FriVerificationInput,
-        MerkleHash,
-        MerkleProofInput,
-        OpeningVerificationInput,
-        SerializedFriRound,
+        CommitmentVerificationInput, ConstraintVerificationInput, FriVerificationInput, MerkleHash,
+        MerkleProofInput, OpeningVerificationInput, SerializedFriRound,
     };
     use super::*;
-    use crate::air::{
-        MerkleInclusionAir,
-        merkle_root_to_bytes,
-    };
+    use crate::air::{MerkleInclusionAir, merkle_root_to_bytes};
 
     type TestField = Complex<Mersenne31>;
 

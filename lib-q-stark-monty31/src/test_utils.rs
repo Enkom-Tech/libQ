@@ -22,14 +22,8 @@ use lib_q_stark_field::extension::BinomialExtensionField;
 use lib_q_stark_mds::util::first_row_to_first_col;
 
 use crate::{
-    BarrettParameters,
-    BinomialExtensionData,
-    FieldParameters,
-    MDSUtils,
-    MontyField31,
-    MontyParameters,
-    PackedMontyParameters,
-    TwoAdicData,
+    BarrettParameters, BinomialExtensionData, FieldParameters, MDSUtils, MontyField31,
+    MontyParameters, PackedMontyParameters, TwoAdicData,
 };
 
 /// Parameter marker mirroring `lib-q-stark-baby-bear`'s `BabyBearParameters`, reproduced here so

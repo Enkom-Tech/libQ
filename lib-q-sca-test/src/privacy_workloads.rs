@@ -6,27 +6,13 @@
 //! call rather than to setup work.
 
 use lib_q_lattice_zkp::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    BlindIssuance,
-    BlindSignature,
-    IssuerCommitmentParams,
-    OpeningProof,
-    PrivateMembershipProof,
-    UnblindedBlindSignature,
-    UnblindedIssuance,
-    VerifyError,
-    registry_nullifier,
-    verify_opening,
-    verify_private_membership,
+    AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening, BlindIssuance, BlindSignature,
+    IssuerCommitmentParams, OpeningProof, PrivateMembershipProof, UnblindedBlindSignature,
+    UnblindedIssuance, VerifyError, registry_nullifier, verify_opening, verify_private_membership,
     witness_nullifier,
 };
 use lib_q_ring_sig::{
-    DualRingLbSignature,
-    federation_digest,
-    verify_dualring_lb,
-    verify_federation_opening,
+    DualRingLbSignature, federation_digest, verify_dualring_lb, verify_federation_opening,
 };
 
 /// Opening proof verification (Fiat–Shamir hot path).

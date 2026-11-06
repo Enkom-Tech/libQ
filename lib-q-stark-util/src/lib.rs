@@ -14,14 +14,8 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::any::type_name;
 use core::hint::unreachable_unchecked;
-use core::mem::{
-    ManuallyDrop,
-    MaybeUninit,
-};
-use core::{
-    iter,
-    mem,
-};
+use core::mem::{ManuallyDrop, MaybeUninit};
+use core::{iter, mem};
 
 use crate::transpose::transpose_in_place_square;
 
@@ -123,8 +117,8 @@ where
 
     // If the whole array fits in fast cache, then the trivial algorithm is cache friendly. Also, if
     // `T` is really big, then the trivial algorithm is cache-friendly, no matter the size of the array.
-    if core::mem::size_of::<F>() << log_n <= SMALL_ARR_SIZE ||
-        core::mem::size_of::<F>() >= BIG_T_SIZE
+    if core::mem::size_of::<F>() << log_n <= SMALL_ARR_SIZE
+        || core::mem::size_of::<F>() >= BIG_T_SIZE
     {
         reverse_slice_index_bits_small(vals, log_n);
     } else {
@@ -768,10 +762,7 @@ mod tests {
     use alloc::vec::Vec;
 
     use rand::rngs::SmallRng;
-    use rand::{
-        RngExt,
-        SeedableRng,
-    };
+    use rand::{RngExt, SeedableRng};
 
     use super::*;
 

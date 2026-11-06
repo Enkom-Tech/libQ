@@ -26,10 +26,7 @@
 //! for constant-time. This is a research-grade hardening of the dominant leak, not a certified
 //! constant-time implementation. See `LIBQ_API.md` §7.
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 /// Tail cut for the base sampler support, in units of `σ`. `exp(-13²/2) < 2^-122`, so truncating
 /// `D_{Z⁺,σ}` at `⌈TAIL_SIGMA·σ⌉` loses statistical distance far below any budget we rely on.
@@ -271,10 +268,7 @@ mod tests {
         use core::cell::Cell;
         use core::convert::Infallible;
 
-        use rand_core::{
-            TryCryptoRng,
-            TryRng,
-        };
+        use rand_core::{TryCryptoRng, TryRng};
 
         /// RNG wrapper counting `try_fill_bytes` calls (each sampler word-draw is one such call).
         /// `Rng`/`CryptoRng` follow for free via rand_core's blanket impls over `TryRng`.

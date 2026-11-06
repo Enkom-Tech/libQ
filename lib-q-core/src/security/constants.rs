@@ -3,14 +3,7 @@
 //! This module provides security-related constants used throughout the library
 //! for validation and configuration.
 
-use lib_q_types::{
-    cbkem,
-    fndsa,
-    hqc,
-    mldsa,
-    mlkem,
-    slhdsa,
-};
+use lib_q_types::{cbkem, fndsa, hqc, mldsa, mlkem, slhdsa};
 
 use crate::api::Algorithm;
 use crate::error::Result;

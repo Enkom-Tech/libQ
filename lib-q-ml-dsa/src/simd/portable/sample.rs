@@ -189,8 +189,7 @@ pub fn rejection_sample_less_than_eta_equals_4(randomness: &[u8], out: &mut [i32
 #[cfg(test)]
 mod tests {
     use super::{
-        rejection_sample_less_than_eta_equals_2,
-        rejection_sample_less_than_eta_equals_4,
+        rejection_sample_less_than_eta_equals_2, rejection_sample_less_than_eta_equals_4,
         rejection_sample_less_than_field_modulus,
     };
     use crate::constants::FIELD_MODULUS;

@@ -1,22 +1,10 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeField64,
-};
-use lib_q_stark_symmetric::{
-    CryptographicPermutation,
-    Hash,
-};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeField64};
+use lib_q_stark_symmetric::{CryptographicPermutation, Hash};
 
-use crate::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-};
+use crate::{CanObserve, CanSample, CanSampleBits, FieldChallenger};
 
 /// A generic duplex sponge challenger over a finite field, used for generating deterministic
 /// challenges from absorbed inputs.

@@ -5,12 +5,7 @@
 #![allow(unsafe_code)]
 
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
-use core::arch::x86_64::{
-    __m256i,
-    _mm256_loadu_si256,
-    _mm256_storeu_si256,
-    _mm256_xor_si256,
-};
+use core::arch::x86_64::{__m256i, _mm256_loadu_si256, _mm256_storeu_si256, _mm256_xor_si256};
 
 /// AVX2-optimized vector addition (XOR)
 ///

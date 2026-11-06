@@ -3,14 +3,8 @@
 #![cfg(feature = "std")]
 
 use aead::array::Array;
-use aead::{
-    AeadInOut,
-    KeyInit,
-};
-use lib_q_romulus::{
-    RomulusM,
-    RomulusN,
-};
+use aead::{AeadInOut, KeyInit};
+use lib_q_romulus::{RomulusM, RomulusN};
 
 #[test]
 fn empty_pt_empty_ad_roundtrip_n() {
@@ -106,10 +100,7 @@ fn nonce_reuse_documentation_distinction() {
 }
 
 #[cfg(feature = "alloc")]
-use aead::{
-    Aead,
-    Payload,
-};
+use aead::{Aead, Payload};
 
 #[cfg(feature = "alloc")]
 #[test]

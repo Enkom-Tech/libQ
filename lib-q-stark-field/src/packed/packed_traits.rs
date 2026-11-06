@@ -1,26 +1,11 @@
 use alloc::vec::Vec;
-use core::iter::{
-    Product,
-    Sum,
-};
+use core::iter::{Product, Sum};
 use core::mem::MaybeUninit;
-use core::ops::{
-    Div,
-    DivAssign,
-};
-use core::{
-    array,
-    slice,
-};
+use core::ops::{Div, DivAssign};
+use core::{array, slice};
 
 use crate::field::Field;
-use crate::{
-    Algebra,
-    BasedVectorSpace,
-    ExtensionField,
-    Powers,
-    PrimeCharacteristicRing,
-};
+use crate::{Algebra, BasedVectorSpace, ExtensionField, Powers, PrimeCharacteristicRing};
 
 /// A trait to constrain types that can be packed into a packed value.
 ///
@@ -339,7 +324,6 @@ pub trait PackedFieldExtension<
     ///
     /// This performs the inverse transformation to `from_ext_slice`.
     #[inline]
-    #[must_use]
     fn to_ext_iter(iter: impl IntoIterator<Item = Self>) -> impl Iterator<Item = ExtField> {
         iter.into_iter().flat_map(|x| {
             let packed_coeffs = x.as_basis_coefficients_slice();
@@ -359,7 +343,6 @@ pub trait PackedFieldExtension<
     /// Note that the length of the returned iterator will be `unpacked_len / WIDTH` and
     /// not `len` as the iterator is over packed extension field elements. If `unpacked_len`
     /// is not divisible by `WIDTH`, `unpacked_len` will be rounded up to the next multiple of `WIDTH`.
-    #[must_use]
     fn packed_ext_powers_capped(base: ExtField, unpacked_len: usize) -> impl Iterator<Item = Self> {
         Self::packed_ext_powers(base).take(unpacked_len.div_ceil(BaseField::Packing::WIDTH))
     }

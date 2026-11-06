@@ -5,19 +5,10 @@
 //! With `std`, registrations are thread-local. On `no_std` / WASM, a single process-wide
 //! registry is used (browser WASM and typical firmware are single-threaded).
 
-use core::sync::atomic::{
-    AtomicPtr,
-    Ordering,
-};
-use core::{
-    fmt,
-    ptr,
-};
+use core::sync::atomic::{AtomicPtr, Ordering};
+use core::{fmt, ptr};
 
-use crate::{
-    Error,
-    Result,
-};
+use crate::{Error, Result};
 
 /// Function pointer type for custom entropy sources
 ///

@@ -1,7 +1,4 @@
-use crate::{
-    BoundedPowers,
-    TwoAdicField,
-};
+use crate::{BoundedPowers, TwoAdicField};
 
 /// Coset of a subgroup of the group of units of a finite field of order equal
 /// to a power of two.

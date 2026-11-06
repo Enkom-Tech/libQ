@@ -13,22 +13,13 @@
 //! downstream crate, so no duplication occurs.
 
 use lib_q_stark_baby_bear::BabyBear;
-use lib_q_stark_commit::{
-    BatchOpeningRef,
-    Mmcs,
-};
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_commit::{BatchOpeningRef, Mmcs};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Dimensions;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
 use lib_q_stark_shake128::Shake128Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 
 type Val = BabyBear;
 type MyHash = SerializingHasher<Shake128Hash>;

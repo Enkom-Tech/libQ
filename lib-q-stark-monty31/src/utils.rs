@@ -1,7 +1,4 @@
-use crate::{
-    FieldParameters,
-    MontyParameters,
-};
+use crate::{FieldParameters, MontyParameters};
 
 /// Convert a u32 into MONTY form.
 /// There are no constraints on the input.
@@ -193,17 +190,8 @@ mod tests {
     use crate::MontyParameters;
     use crate::test_utils::TestFP as FP;
     use crate::utils::{
-        add,
-        from_monty,
-        halve_u32,
-        large_monty_reduce,
-        monty_reduce,
-        monty_reduce_u128,
-        sub,
-        to_monty,
-        to_monty_64,
-        to_monty_64_signed,
-        to_monty_signed,
+        add, from_monty, halve_u32, large_monty_reduce, monty_reduce, monty_reduce_u128, sub,
+        to_monty, to_monty_64, to_monty_64_signed, to_monty_signed,
     };
 
     const P: u32 = FP::PRIME;

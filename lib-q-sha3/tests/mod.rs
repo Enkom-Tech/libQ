@@ -15,17 +15,8 @@
 
 mod common;
 
-use common::{
-    kat_blobs,
-    kat_vectors,
-    leak_blob_container,
-    xof_kat_vectors,
-};
-use digest::{
-    Digest,
-    ExtendableOutput,
-    Update,
-};
+use common::{kat_blobs, kat_vectors, leak_blob_container, xof_kat_vectors};
+use digest::{Digest, ExtendableOutput, Update};
 
 /// A fixed-output-size KAT: `$file` holds exactly `$count` `(input, digest)` pairs.
 macro_rules! fixed_kat {

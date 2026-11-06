@@ -1,13 +1,7 @@
-use crate::constants::{
-    Eta,
-    Gamma2,
-};
+use crate::constants::{Eta, Gamma2};
 #[cfg(not(eurydice))]
 use crate::simd::traits::Repr;
-use crate::simd::traits::{
-    Operations,
-    SIMD_UNITS_IN_RING_ELEMENT,
-};
+use crate::simd::traits::{Operations, SIMD_UNITS_IN_RING_ELEMENT};
 
 mod arithmetic;
 mod vector_type;

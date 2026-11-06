@@ -1,10 +1,7 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_stark_field::{ExtensionField, Field};
 use lib_q_stark_matrix::Matrix;
 use thiserror::Error;
 

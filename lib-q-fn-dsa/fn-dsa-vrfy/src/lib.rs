@@ -65,27 +65,11 @@
 
 // Re-export useful types, constants and functions.
 pub use fn_dsa_comm::{
-    DOMAIN_NONE,
-    DomainContext,
-    FN_DSA_LOGN_512,
-    FN_DSA_LOGN_1024,
-    HASH_ID_RAW,
-    HASH_ID_SHA3_256,
-    HASH_ID_SHA3_384,
-    HASH_ID_SHA3_512,
-    HASH_ID_SHAKE128,
-    HASH_ID_SHAKE256,
-    HashIdentifier,
-    UnsupportedHashIdentifier,
-    signature_size,
-    vrfy_key_size,
+    DOMAIN_NONE, DomainContext, FN_DSA_LOGN_512, FN_DSA_LOGN_1024, HASH_ID_RAW, HASH_ID_SHA3_256,
+    HASH_ID_SHA3_384, HASH_ID_SHA3_512, HASH_ID_SHAKE128, HASH_ID_SHAKE256, HashIdentifier,
+    UnsupportedHashIdentifier, signature_size, vrfy_key_size,
 };
-use fn_dsa_comm::{
-    codec,
-    hash_to_point,
-    mq,
-    shake,
-};
+use fn_dsa_comm::{codec, hash_to_point, mq, shake};
 
 /// Verifying key handler.
 pub trait VerifyingKey: Sized {
@@ -432,26 +416,10 @@ unsafe fn verify_avx2_inner(
 #[cfg(test)]
 mod tests {
 
-    use fn_dsa_comm::shake::{
-        SHA3_256,
-        SHAKE256,
-    };
-    use fn_dsa_comm::{
-        Infallible,
-        TryCryptoRng,
-        TryRng,
-        sign_key_size,
-    };
-    use fn_dsa_kgen::{
-        KeyPairGenerator,
-        KeyPairGenerator512,
-        KeyPairGenerator1024,
-    };
-    use fn_dsa_sign::{
-        SigningKey,
-        SigningKey512,
-        SigningKey1024,
-    };
+    use fn_dsa_comm::shake::{SHA3_256, SHAKE256};
+    use fn_dsa_comm::{Infallible, TryCryptoRng, TryRng, sign_key_size};
+    use fn_dsa_kgen::{KeyPairGenerator, KeyPairGenerator512, KeyPairGenerator1024};
+    use fn_dsa_sign::{SigningKey, SigningKey512, SigningKey1024};
 
     use super::*;
 

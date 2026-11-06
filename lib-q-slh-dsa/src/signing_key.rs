@@ -1,64 +1,27 @@
 use ::signature::rand_core::TryCryptoRng;
 use ::signature::{
-    Error,
-    KeypairRef,
-    MultipartSigner,
-    RandomizedMultipartSigner,
-    RandomizedSigner,
-    Signer,
+    Error, KeypairRef, MultipartSigner, RandomizedMultipartSigner, RandomizedSigner, Signer,
 };
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use hybrid_array::{Array, ArraySize};
 use pkcs8::der::AnyRef;
 use pkcs8::spki::{
-    AlgorithmIdentifier,
-    AssociatedAlgorithmIdentifier,
-    SignatureAlgorithmIdentifier,
+    AlgorithmIdentifier, AssociatedAlgorithmIdentifier, SignatureAlgorithmIdentifier,
 };
 #[cfg(feature = "alloc")]
 use pkcs8::{
     EncodePrivateKey,
-    der::{
-        self,
-        asn1::OctetStringRef,
-    },
+    der::{self, asn1::OctetStringRef},
 };
 use rand_core::CryptoRng;
-use subtle::{
-    Choice,
-    ConstantTimeEq,
-};
-use typenum::{
-    U,
-    U16,
-    U24,
-    U32,
-    Unsigned,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-    Zeroizing,
-};
+use subtle::{Choice, ConstantTimeEq};
+use typenum::{U, U16, U24, U32, Unsigned};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-use crate::address::{
-    ForsTree,
-    WotsHash,
-};
+use crate::address::{ForsTree, WotsHash};
 use crate::signature_encoding::Signature;
-use crate::util::{
-    array_u8_try_from_exact,
-    split_digest,
-};
+use crate::util::{array_u8_try_from_exact, split_digest};
 use crate::verifying_key::VerifyingKey;
-use crate::{
-    ParameterSet,
-    PkSeed,
-    Shake,
-    VerifyingKeyLen,
-};
+use crate::{ParameterSet, PkSeed, Shake, VerifyingKeyLen};
 
 // NewTypes for ensuring hash argument order correctness
 /// Secret key seed for SLH-DSA
@@ -543,10 +506,7 @@ mod tests {
     use lib_q_random::new_secure_rng;
 
     use crate::util::macros::test_parameter_sets;
-    use crate::{
-        ParameterSet,
-        SigningKey,
-    };
+    use crate::{ParameterSet, SigningKey};
 
     fn test_serialize_deserialize<P: ParameterSet>() {
         let mut rng = new_secure_rng().expect("Failed to create secure RNG");

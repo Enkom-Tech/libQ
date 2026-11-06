@@ -3,10 +3,7 @@
 use alloc::vec::Vec;
 
 use lib_q_ring::Poly;
-use lib_q_ring::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    FIELD_MODULUS,
-};
+use lib_q_ring::constants::{COEFFICIENTS_IN_RING_ELEMENT, FIELD_MODULUS};
 
 use crate::error::VerifyError;
 

@@ -8,10 +8,7 @@
 // `#![no_std]`. A `no_std` consumer should depend on `lib-q-core` / `lib-q-random` directly.
 
 // Re-export core types for public use
-pub use lib_q_core::{
-    Result,
-    Utils,
-};
+pub use lib_q_core::{Result, Utils};
 
 // Security validation module
 pub mod security_validation;

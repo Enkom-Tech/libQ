@@ -10,20 +10,9 @@
 #![cfg(not(target_arch = "wasm32"))]
 
 use lib_q_core::Utils;
-use lib_q_random::{
-    LibQRng,
-    new_deterministic_rng,
-};
-use lib_q_slh_dsa::{
-    Shake128f,
-    Signature,
-    SigningKey,
-};
-use signature::{
-    Keypair,
-    RandomizedSigner,
-    Verifier,
-};
+use lib_q_random::{LibQRng, new_deterministic_rng};
+use lib_q_slh_dsa::{Shake128f, Signature, SigningKey};
+use signature::{Keypair, RandomizedSigner, Verifier};
 
 #[inline]
 fn test_rng_from_material(seed: &[u8]) -> LibQRng {

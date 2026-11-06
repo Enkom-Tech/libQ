@@ -2,11 +2,7 @@
 use lib_q_hqc::{
     HqcParams,
     hqc_kem::HqcKem,
-    params::{
-        Hqc1Params,
-        Hqc3Params,
-        Hqc5Params,
-    },
+    params::{Hqc1Params, Hqc3Params, Hqc5Params},
 };
 use lib_q_random::LibQRng;
 
@@ -109,8 +105,8 @@ fn analyze_failure_rate<P: HqcParams>(
     let variance = bit_similarities
         .iter()
         .map(|&x| (x - avg_similarity).powi(2))
-        .sum::<f64>() /
-        bit_similarities.len() as f64;
+        .sum::<f64>()
+        / bit_similarities.len() as f64;
     let std_dev = variance.sqrt();
 
     println!("  Results for {} ({} samples):", name, num_tests);
@@ -237,16 +233,16 @@ fn test_consistency_across_parameter_sets() {
 
     // Analyze trends
     println!("\n--- Trend Analysis ---");
-    if hqc1_results.failure_rate > hqc3_results.failure_rate &&
-        hqc3_results.failure_rate > hqc5_results.failure_rate
+    if hqc1_results.failure_rate > hqc3_results.failure_rate
+        && hqc3_results.failure_rate > hqc5_results.failure_rate
     {
         println!("✅ Failure rate decreases with higher security levels (as expected)");
     } else {
         println!("⚠️  Failure rate trend is not as expected");
     }
 
-    if hqc1_results.avg_similarity < hqc3_results.avg_similarity &&
-        hqc3_results.avg_similarity < hqc5_results.avg_similarity
+    if hqc1_results.avg_similarity < hqc3_results.avg_similarity
+        && hqc3_results.avg_similarity < hqc5_results.avg_similarity
     {
         println!("✅ Bit similarity increases with higher security levels (as expected)");
     } else {

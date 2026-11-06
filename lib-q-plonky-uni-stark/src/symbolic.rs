@@ -1,20 +1,9 @@
 use alloc::vec::Vec;
 
 pub use lib_q_stark_air::symbolic::BaseLeaf;
-use lib_q_stark_air::symbolic::{
-    BaseEntry,
-    SymbolicExpression,
-    SymbolicVariable,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_stark_air::symbolic::{BaseEntry, SymbolicExpression, SymbolicVariable};
+use lib_q_stark_air::{Air, AirBuilder, WindowAccess};
+use lib_q_stark_field::{ExtensionField, Field};
 use lib_q_stark_util::log2_ceil_usize;
 use tracing::instrument;
 

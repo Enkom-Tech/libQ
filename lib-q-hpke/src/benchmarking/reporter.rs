@@ -1,17 +1,9 @@
 //! Performance reporting utilities for HPKE operations
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    format,
-    string::String,
-};
+use alloc::{format, string::String};
 
-use crate::benchmarking::{
-    AlgorithmType,
-    MetricsCollector,
-    OperationType,
-    PerformanceMetrics,
-};
+use crate::benchmarking::{AlgorithmType, MetricsCollector, OperationType, PerformanceMetrics};
 
 /// Performance report generator
 pub struct PerformanceReporter {
@@ -294,17 +286,17 @@ impl PerformanceComparator {
 
             if let (Some(baseline), Some(current)) = (baseline_avg, current_avg) {
                 let time_improvement = if baseline.avg_execution_time_ns() > 0.0 {
-                    ((baseline.avg_execution_time_ns() - current.avg_execution_time_ns()) /
-                        baseline.avg_execution_time_ns()) *
-                        100.0
+                    ((baseline.avg_execution_time_ns() - current.avg_execution_time_ns())
+                        / baseline.avg_execution_time_ns())
+                        * 100.0
                 } else {
                     0.0
                 };
 
                 let throughput_improvement = if baseline.throughput_ops_per_sec() > 0.0 {
-                    ((current.throughput_ops_per_sec() - baseline.throughput_ops_per_sec()) /
-                        baseline.throughput_ops_per_sec()) *
-                        100.0
+                    ((current.throughput_ops_per_sec() - baseline.throughput_ops_per_sec())
+                        / baseline.throughput_ops_per_sec())
+                        * 100.0
                 } else {
                     0.0
                 };

@@ -13,11 +13,7 @@ use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 
-use crate::state::{
-    ROUNDS,
-    Z0,
-    Z1,
-};
+use crate::state::{ROUNDS, Z0, Z1};
 
 #[inline(always)]
 unsafe fn ld(b: &[u8]) -> __m128i {

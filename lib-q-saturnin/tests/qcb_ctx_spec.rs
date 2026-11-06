@@ -22,14 +22,7 @@
 
 #![cfg(all(feature = "alloc", feature = "qcb"))]
 
-use lib_q_saturnin::{
-    Aead,
-    AeadKey,
-    Nonce,
-    SaturninHash,
-    SaturninQcb,
-    SaturninTbc,
-};
+use lib_q_saturnin::{Aead, AeadKey, Nonce, SaturninHash, SaturninQcb, SaturninTbc};
 
 const B: usize = 32;
 const D_MSG_FULL: u8 = 9;

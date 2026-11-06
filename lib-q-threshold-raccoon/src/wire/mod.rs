@@ -8,12 +8,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_dkg::lattice::bdlop::KAPPA;
-use lib_q_dkg::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-    rq_from_le_bytes,
-    rq_to_le_bytes,
-};
+use lib_q_dkg::lattice::ring::{RQ_BYTES, Rq, rq_from_le_bytes, rq_to_le_bytes};
 
 use crate::error::RaccoonError;
 use crate::profile::PROFILE_ID_V1;

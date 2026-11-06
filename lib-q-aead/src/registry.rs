@@ -41,12 +41,7 @@ type AlgorithmHashMap = BTreeMap<Algorithm, AeadConstructor>;
 #[cfg(feature = "std")]
 use std::sync::RwLock;
 
-use lib_q_core::{
-    Algorithm,
-    AlgorithmCategory,
-    Error,
-    Result,
-};
+use lib_q_core::{Algorithm, AlgorithmCategory, Error, Result};
 #[cfg(not(feature = "std"))]
 use spin::RwLock;
 
@@ -240,8 +235,8 @@ impl AeadRegistry {
         // Check constructors
         #[cfg(feature = "std")]
         {
-            if let Ok(constructors) = self.constructors.read() &&
-                constructors.contains_key(&algorithm)
+            if let Ok(constructors) = self.constructors.read()
+                && constructors.contains_key(&algorithm)
             {
                 return true;
             }
@@ -301,11 +296,7 @@ impl Default for AeadRegistry {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_core::{
-        Aead,
-        AeadKey,
-        Nonce,
-    };
+    use lib_q_core::{Aead, AeadKey, Nonce};
 
     use super::*;
 

@@ -7,11 +7,7 @@
 //! `hardware_backend_active`).
 
 use lib_q_rocca_s::_internals::{
-    dispatch_decrypt,
-    dispatch_encrypt,
-    hardware_backend_active,
-    scalar_decrypt,
-    scalar_encrypt,
+    dispatch_decrypt, dispatch_encrypt, hardware_backend_active, scalar_decrypt, scalar_encrypt,
 };
 
 // Small xorshift PRNG for deterministic, dependency-free pseudo-random inputs.

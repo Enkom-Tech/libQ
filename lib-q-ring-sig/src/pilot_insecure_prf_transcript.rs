@@ -19,14 +19,8 @@
 //! wiring tests. Production ring-style authentication must use a construction that exposes only
 //! true public material (for example the opening-based federation path elsewhere in this crate).
 
-use lib_q_prf::{
-    GoldKey256,
-    LegendreKey256,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_prf::{GoldKey256, LegendreKey256};
+use rand_core::{CryptoRng, Rng};
 
 pub type PilotPrfTranscriptError = crate::dualring_prf::DualringPrfError;
 pub type PilotPrfTranscriptMemberSecrets256 = crate::dualring_prf::DualringPrfMemberSecrets256;

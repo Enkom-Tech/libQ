@@ -20,17 +20,11 @@
 //! case. This is a finding for follow-up, not something this change makes.
 
 use lib_q_prf::{
-    GoldKey256,
-    GoldPrfParams256,
-    LegendreKey256,
-    LegendrePrfParams256,
-    u256_to_le_bytes,
+    GoldKey256, GoldPrfParams256, LegendreKey256, LegendrePrfParams256, u256_to_le_bytes,
 };
 use lib_q_random::new_deterministic_rng;
 use lib_q_ring_sig::dualring_prf::{
-    DualringPrfError,
-    DualringPrfMemberSecrets256,
-    dualring_prf_sign_u256,
+    DualringPrfError, DualringPrfMemberSecrets256, dualring_prf_sign_u256,
 };
 
 fn member_from_seed(seed: u8) -> (DualringPrfMemberSecrets256, LegendreKey256, GoldKey256) {

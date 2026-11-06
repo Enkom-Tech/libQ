@@ -55,16 +55,8 @@
 //! but is a second, independent obstacle to any transplant attempt.
 
 use lib_q_lattice_zkp::serialize::write_module_vec;
-use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AjtaiParameters,
-    fs_w_digest,
-};
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_lattice_zkp::{AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters, fs_w_digest};
+use lib_q_ring::{ModuleVec, Poly};
 
 fn crs() -> AjtaiCommitmentKey {
     AjtaiCommitmentKey {
@@ -165,11 +157,11 @@ fn byte_identical_ctx_does_not_yield_equal_opening_hash_inputs() {
         dual_hash_input
     );
 
-    let extra_len = OPENING_STATEMENT_FS_DOMAIN.len() +
-        key.seed.len() +
-        8 +
-        4 +
-        write_module_vec(&com_a.value.0).len();
+    let extra_len = OPENING_STATEMENT_FS_DOMAIN.len()
+        + key.seed.len()
+        + 8
+        + 4
+        + write_module_vec(&com_a.value.0).len();
     assert_eq!(
         fed_hash_input.len(),
         dual_hash_input.len() + extra_len,

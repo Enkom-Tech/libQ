@@ -129,10 +129,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 // Import ToString for lib-q-core compatibility (lib-q-core always has alloc enabled)
 #[cfg(not(feature = "alloc"))]
@@ -143,16 +140,8 @@ use alloc::string::ToString;
 #[cfg(feature = "wasm")]
 use js_sys::Uint8Array;
 use lib_q_core::api::Algorithm;
-use lib_q_core::error::{
-    Error,
-    Result,
-};
-use lib_q_core::traits::{
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-    Signature,
-};
+use lib_q_core::error::{Error, Result};
+use lib_q_core::traits::{SigKeypair, SigPublicKey, SigSecretKey, Signature};
 /// Maximum length of a FIPS-205 signing context, in bytes.
 ///
 /// Re-exported so callers do not have to depend on `lib-q-slh-dsa` directly. See
@@ -161,11 +150,7 @@ use lib_q_core::traits::{
 pub use lib_q_slh_dsa::lib_q_integration::SLH_DSA_CONTEXT_MAX_LEN;
 #[cfg(feature = "slh-dsa")]
 use lib_q_slh_dsa::{
-    ParameterSet,
-    Shake128f,
-    Shake192f,
-    Shake256f,
-    lib_q_integration::SlhDsaSignature,
+    ParameterSet, Shake128f, Shake192f, Shake256f, lib_q_integration::SlhDsaSignature,
 };
 #[cfg(feature = "slh-dsa-std")]
 use rand_core::Rng;
@@ -325,9 +310,9 @@ impl SlhDsa {
             // Validate algorithm is SLH-DSA
             if !matches!(
                 algorithm,
-                Algorithm::SlhDsaShake256128fRobust |
-                    Algorithm::SlhDsaShake256192fRobust |
-                    Algorithm::SlhDsaShake256256fRobust
+                Algorithm::SlhDsaShake256128fRobust
+                    | Algorithm::SlhDsaShake256192fRobust
+                    | Algorithm::SlhDsaShake256256fRobust
             ) {
                 return Err(Error::InvalidAlgorithm {
                     algorithm: "Algorithm is not an SLH-DSA algorithm",
@@ -394,9 +379,9 @@ impl SlhDsa {
             // Validate algorithm is SLH-DSA
             if !matches!(
                 algorithm,
-                Algorithm::SlhDsaShake256128fRobust |
-                    Algorithm::SlhDsaShake256192fRobust |
-                    Algorithm::SlhDsaShake256256fRobust
+                Algorithm::SlhDsaShake256128fRobust
+                    | Algorithm::SlhDsaShake256192fRobust
+                    | Algorithm::SlhDsaShake256256fRobust
             ) {
                 return Err(Error::InvalidAlgorithm {
                     algorithm: "Algorithm is not an SLH-DSA algorithm",
@@ -456,9 +441,9 @@ impl SlhDsa {
             // Validate algorithm is SLH-DSA
             if !matches!(
                 algorithm,
-                Algorithm::SlhDsaShake256128fRobust |
-                    Algorithm::SlhDsaShake256192fRobust |
-                    Algorithm::SlhDsaShake256256fRobust
+                Algorithm::SlhDsaShake256128fRobust
+                    | Algorithm::SlhDsaShake256192fRobust
+                    | Algorithm::SlhDsaShake256256fRobust
             ) {
                 return Err(Error::InvalidAlgorithm {
                     algorithm: "Algorithm is not an SLH-DSA algorithm",

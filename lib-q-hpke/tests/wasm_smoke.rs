@@ -4,11 +4,7 @@
 use std::boxed::Box;
 
 #[cfg(target_arch = "wasm32")]
-use lib_q_core::{
-    Algorithm,
-    CryptoProvider,
-    KemContext,
-};
+use lib_q_core::{Algorithm, CryptoProvider, KemContext};
 #[cfg(target_arch = "wasm32")]
 use lib_q_hpke::HpkeContext;
 #[cfg(target_arch = "wasm32")]

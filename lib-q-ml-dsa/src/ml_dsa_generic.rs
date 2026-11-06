@@ -26,46 +26,23 @@ pub(crate) mod multiplexing;
 pub(crate) mod ml_dsa_44 {
     use super::*;
     use crate::arithmetic::{
-        decompose_vector,
-        make_hint,
-        power2round_vector,
-        use_hint,
-        vector_infinity_norm_exceeds,
+        decompose_vector, make_hint, power2round_vector, use_hint, vector_infinity_norm_exceeds,
     };
     use crate::constants::ml_dsa_44::*;
-    use crate::hash_functions::{
-        shake128,
-        shake256,
-    };
+    use crate::hash_functions::{shake128, shake256};
     #[cfg(feature = "hardened")]
     use crate::matrix::merge_masked_ntt_products;
     use crate::matrix::{
-        add_vectors,
-        compute_as1_plus_s2,
-        compute_matrix_x_mask,
-        compute_w_approx,
-        subtract_vectors,
-        vector_times_ring_element,
+        add_vectors, compute_as1_plus_s2, compute_matrix_x_mask, compute_w_approx,
+        subtract_vectors, vector_times_ring_element,
     };
     use crate::ntt::ntt;
     use crate::polynomial::PolynomialRingElement;
-    use crate::pre_hash::{
-        DomainSeparationContext,
-        PreHash,
-    };
-    use crate::sample::{
-        sample_challenge_ring_element,
-        sample_mask_vector,
-    };
-    use crate::samplex4::{
-        self,
-        X4Sampler,
-    };
+    use crate::pre_hash::{DomainSeparationContext, PreHash};
+    use crate::sample::{sample_challenge_ring_element, sample_mask_vector};
+    use crate::samplex4::{self, X4Sampler};
     use crate::simd::traits::Operations;
-    use crate::{
-        MLDSASignature,
-        encoding,
-    };
+    use crate::{MLDSASignature, encoding};
 
     // Derived constants
     const ROW_COLUMN: usize = ROWS_IN_A + COLUMNS_IN_A;
@@ -891,46 +868,23 @@ pub(crate) mod ml_dsa_44 {
 pub(crate) mod ml_dsa_65 {
     use super::*;
     use crate::arithmetic::{
-        decompose_vector,
-        make_hint,
-        power2round_vector,
-        use_hint,
-        vector_infinity_norm_exceeds,
+        decompose_vector, make_hint, power2round_vector, use_hint, vector_infinity_norm_exceeds,
     };
     use crate::constants::ml_dsa_65::*;
-    use crate::hash_functions::{
-        shake128,
-        shake256,
-    };
+    use crate::hash_functions::{shake128, shake256};
     #[cfg(feature = "hardened")]
     use crate::matrix::merge_masked_ntt_products;
     use crate::matrix::{
-        add_vectors,
-        compute_as1_plus_s2,
-        compute_matrix_x_mask,
-        compute_w_approx,
-        subtract_vectors,
-        vector_times_ring_element,
+        add_vectors, compute_as1_plus_s2, compute_matrix_x_mask, compute_w_approx,
+        subtract_vectors, vector_times_ring_element,
     };
     use crate::ntt::ntt;
     use crate::polynomial::PolynomialRingElement;
-    use crate::pre_hash::{
-        DomainSeparationContext,
-        PreHash,
-    };
-    use crate::sample::{
-        sample_challenge_ring_element,
-        sample_mask_vector,
-    };
-    use crate::samplex4::{
-        self,
-        X4Sampler,
-    };
+    use crate::pre_hash::{DomainSeparationContext, PreHash};
+    use crate::sample::{sample_challenge_ring_element, sample_mask_vector};
+    use crate::samplex4::{self, X4Sampler};
     use crate::simd::traits::Operations;
-    use crate::{
-        MLDSASignature,
-        encoding,
-    };
+    use crate::{MLDSASignature, encoding};
 
     // Derived constants
     const ROW_COLUMN: usize = ROWS_IN_A + COLUMNS_IN_A;
@@ -1801,46 +1755,23 @@ fn derive_message_representative<Shake256Xof: shake256::Xof>(
 pub(crate) mod ml_dsa_87 {
     use super::*;
     use crate::arithmetic::{
-        decompose_vector,
-        make_hint,
-        power2round_vector,
-        use_hint,
-        vector_infinity_norm_exceeds,
+        decompose_vector, make_hint, power2round_vector, use_hint, vector_infinity_norm_exceeds,
     };
     use crate::constants::ml_dsa_87::*;
-    use crate::hash_functions::{
-        shake128,
-        shake256,
-    };
+    use crate::hash_functions::{shake128, shake256};
     #[cfg(feature = "hardened")]
     use crate::matrix::merge_masked_ntt_products;
     use crate::matrix::{
-        add_vectors,
-        compute_as1_plus_s2,
-        compute_matrix_x_mask,
-        compute_w_approx,
-        subtract_vectors,
-        vector_times_ring_element,
+        add_vectors, compute_as1_plus_s2, compute_matrix_x_mask, compute_w_approx,
+        subtract_vectors, vector_times_ring_element,
     };
     use crate::ntt::ntt;
     use crate::polynomial::PolynomialRingElement;
-    use crate::pre_hash::{
-        DomainSeparationContext,
-        PreHash,
-    };
-    use crate::sample::{
-        sample_challenge_ring_element,
-        sample_mask_vector,
-    };
-    use crate::samplex4::{
-        self,
-        X4Sampler,
-    };
+    use crate::pre_hash::{DomainSeparationContext, PreHash};
+    use crate::sample::{sample_challenge_ring_element, sample_mask_vector};
+    use crate::samplex4::{self, X4Sampler};
     use crate::simd::traits::Operations;
-    use crate::{
-        MLDSASignature,
-        encoding,
-    };
+    use crate::{MLDSASignature, encoding};
 
     // Derived constants
     const ROW_COLUMN: usize = ROWS_IN_A + COLUMNS_IN_A;

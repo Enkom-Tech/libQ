@@ -4,24 +4,12 @@ pub mod expression;
 mod variable;
 
 use alloc::sync::Arc;
-use core::iter::{
-    Product,
-    Sum,
-};
+use core::iter::{Product, Sum};
 use core::ops;
 
-pub use expression::{
-    BaseLeaf,
-    SymbolicExpression,
-};
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
-pub use variable::{
-    BaseEntry,
-    SymbolicVariable,
-};
+pub use expression::{BaseLeaf, SymbolicExpression};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
+pub use variable::{BaseEntry, SymbolicVariable};
 
 /// Properties that leaf nodes must provide for the generic expression tree.
 pub trait SymLeaf: Clone + core::fmt::Debug {
@@ -68,14 +56,14 @@ impl<A: SymLeaf> SymbolicExpr<A> {
             Self::Leaf(a) => a.degree_multiple(),
             Self::Add {
                 degree_multiple, ..
-            } |
-            Self::Sub {
+            }
+            | Self::Sub {
                 degree_multiple, ..
-            } |
-            Self::Neg {
+            }
+            | Self::Neg {
                 degree_multiple, ..
-            } |
-            Self::Mul {
+            }
+            | Self::Mul {
                 degree_multiple, ..
             } => *degree_multiple,
         }
@@ -139,8 +127,8 @@ impl<A: SymLeaf> SymbolicExpr<A> {
         if let (Some(&a), Some(&b)) = (self.as_const(), rhs.as_const()) {
             return Self::Leaf(A::from_const(a * b));
         }
-        if self.as_const().is_some_and(|c| c.is_zero()) ||
-            rhs.as_const().is_some_and(|c| c.is_zero())
+        if self.as_const().is_some_and(|c| c.is_zero())
+            || rhs.as_const().is_some_and(|c| c.is_zero())
         {
             return Self::Leaf(A::from_const(A::F::ZERO));
         }

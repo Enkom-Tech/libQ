@@ -1,11 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-use super::fxp::{
-    Fxc,
-    Fxr,
-    GM_TAB,
-};
+use super::fxp::{Fxc, Fxr, GM_TAB};
 
 // ========================================================================
 // Fixed-point vector operations
@@ -225,17 +221,9 @@ pub(crate) fn vect_invnorm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[Fxr], e
 #[cfg(test)]
 mod tests {
 
-    use lib_q_sha3::{
-        Digest,
-        Sha3_256,
-    };
+    use lib_q_sha3::{Digest, Sha3_256};
 
-    use super::{
-        Fxr,
-        vect_FFT,
-        vect_iFFT,
-        vect_mul_fft,
-    };
+    use super::{Fxr, vect_FFT, vect_iFFT, vect_mul_fft};
 
     fn rndvect(logn: u32, f: &mut [Fxr], seed: u64) {
         let mut sh = Sha3_256::new();

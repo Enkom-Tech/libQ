@@ -3,11 +3,7 @@
 //! This module provides constant-time implementations of common field operations
 //! to prevent timing-based side-channel attacks.
 
-use subtle::{
-    Choice,
-    ConditionallySelectable,
-    ConstantTimeEq,
-};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 use crate::Field;
 
@@ -114,10 +110,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use subtle::{
-        Choice,
-        ConditionallySelectable,
-    };
+    use subtle::{Choice, ConditionallySelectable};
 
     /// Verify the `subtle` API semantics that our `constant_time_select` fix
     /// relies on: `conditional_select(&b, &a, 1u8)` yields `a` (second arg),

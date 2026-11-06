@@ -18,19 +18,10 @@
 //! semantic (no-error) failure outcome.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
 use zeroize::Zeroizing;
 

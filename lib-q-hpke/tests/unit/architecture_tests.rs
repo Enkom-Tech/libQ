@@ -4,13 +4,7 @@ use lib_q_hpke::error::*;
 use lib_q_hpke::providers::*;
 use lib_q_hpke::security::*;
 use lib_q_hpke::types::*;
-use lib_q_hpke::{
-    aead_err,
-    kdf_err,
-    kem_err,
-    protocol_err,
-    security_err,
-};
+use lib_q_hpke::{aead_err, kdf_err, kem_err, protocol_err, security_err};
 
 #[test]
 fn test_security_policy_creation() {

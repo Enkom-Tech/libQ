@@ -36,29 +36,12 @@
 //! removed. The divergence is characterised in the crate docs.
 
 use fn_dsa::{
-    DomainContext,
-    HASH_ID_RAW,
-    HASH_ID_SHA3_256,
-    KeyPairGenerator,
-    KeyPairGeneratorStandard,
-    KeyPairGeneratorWeak,
-    SHA3_256,
-    SHAKE256,
-    SigningKey,
-    SigningKeyStandard,
-    SigningKeyWeak,
-    VerifyingKey,
-    VerifyingKeyStandard,
-    VerifyingKeyWeak,
-    sign_key_size,
-    signature_size,
+    DomainContext, HASH_ID_RAW, HASH_ID_SHA3_256, KeyPairGenerator, KeyPairGeneratorStandard,
+    KeyPairGeneratorWeak, SHA3_256, SHAKE256, SigningKey, SigningKeyStandard, SigningKeyWeak,
+    VerifyingKey, VerifyingKeyStandard, VerifyingKeyWeak, sign_key_size, signature_size,
     vrfy_key_size,
 };
-use fn_dsa_comm::{
-    Infallible,
-    TryCryptoRng,
-    TryRng,
-};
+use fn_dsa_comm::{Infallible, TryCryptoRng, TryRng};
 
 // ---------------------------------------------------------------------------
 // Upstream's two fake RNGs, reproduced verbatim from fn-dsa 0.3.0's test module.

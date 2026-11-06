@@ -1,76 +1,28 @@
 use alloc::vec;
 use alloc::vec::Vec;
-use core::fmt::{
-    Debug,
-    Display,
-    Formatter,
-};
-use core::hash::{
-    Hash,
-    Hasher,
-};
-use core::iter::{
-    Product,
-    Sum,
-};
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    DivAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
-use core::{
-    array,
-    fmt,
-    iter,
-};
+use core::fmt::{Debug, Display, Formatter};
+use core::hash::{Hash, Hasher};
+use core::iter::{Product, Sum};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::{array, fmt, iter};
 
 use lib_q_stark_field::exponentiation::exp_1717986917;
 use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_field::op_assign_macros::{
-    impl_add_assign,
-    impl_div_methods,
-    impl_mul_methods,
-    impl_sub_assign,
+    impl_add_assign, impl_div_methods, impl_mul_methods, impl_sub_assign,
 };
 use lib_q_stark_field::{
-    Field,
-    InjectiveMonomial,
-    Packable,
-    PermutationMonomial,
-    PrimeCharacteristicRing,
-    PrimeField,
-    PrimeField32,
-    PrimeField64,
-    RawDataSerializable,
-    TwoAdicField,
-    halve_u32,
-    impl_raw_serializable_primefield32,
-    quotient_map_large_iint,
-    quotient_map_large_uint,
+    Field, InjectiveMonomial, Packable, PermutationMonomial, PrimeCharacteristicRing, PrimeField,
+    PrimeField32, PrimeField64, RawDataSerializable, TwoAdicField, halve_u32,
+    impl_raw_serializable_primefield32, quotient_map_large_iint, quotient_map_large_uint,
     quotient_map_small_int,
 };
-use lib_q_stark_util::{
-    flatten_to_base,
-    gcd_inversion_prime_field_32,
-};
+use lib_q_stark_util::{flatten_to_base, gcd_inversion_prime_field_32};
 use num_bigint::BigUint;
 use rand::Rng;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 use serde::de::Error;
-use serde::{
-    Deserialize,
-    Deserializer,
-    Serialize,
-};
+use serde::{Deserialize, Deserializer, Serialize};
 use subtle::ConstantTimeEq;
 
 /// The Mersenne31 prime
@@ -624,17 +576,9 @@ pub(crate) fn from_u62(input: u64) -> Mersenne31 {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_stark_field::{
-        InjectiveMonomial,
-        PermutationMonomial,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_field::{InjectiveMonomial, PermutationMonomial, PrimeCharacteristicRing};
     use lib_q_stark_field_testing::{
-        test_field,
-        test_prime_field,
-        test_prime_field_32,
-        test_prime_field_64,
-        test_two_adic_field,
+        test_field, test_prime_field, test_prime_field_32, test_prime_field_64, test_two_adic_field,
     };
     use num_bigint::BigUint;
 

@@ -56,9 +56,9 @@ fn skip_slow_parameter_set_without_all_sets(parameter_set: &str) -> bool {
     if cfg!(feature = "all-parameter-set-tests") {
         return false;
     }
-    parameter_set.ends_with("128s") ||
-        parameter_set.ends_with("192s") ||
-        parameter_set.ends_with("256s")
+    parameter_set.ends_with("128s")
+        || parameter_set.ends_with("192s")
+        || parameter_set.ends_with("256s")
 }
 
 #[test]

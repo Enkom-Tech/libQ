@@ -2,16 +2,8 @@
 
 use digest::Digest;
 use lib_q_keccak_digest::{
-    Keccak224,
-    Keccak256,
-    Keccak256Full,
-    Keccak384,
-    Keccak512,
-    keccak_224,
-    keccak_256,
-    keccak_256_full,
-    keccak_384,
-    keccak_512,
+    Keccak224, Keccak256, Keccak256Full, Keccak384, Keccak512, keccak_224, keccak_256,
+    keccak_256_full, keccak_384, keccak_512,
 };
 
 #[test]

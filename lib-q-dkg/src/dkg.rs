@@ -22,35 +22,17 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 use zeroize::Zeroizing;
 
 use crate::error::DkgError;
-use crate::lattice::bdlop::{
-    self,
-    Commitment,
-    KAPPA,
-    ShareProof,
-};
+use crate::lattice::bdlop::{self, Commitment, KAPPA, ShareProof};
 use crate::lattice::ring::{
-    Q,
-    Rq,
-    ring_add,
-    rq_from_le_bytes,
-    rq_to_le_bytes,
-    sample_secret_poly,
-    sample_uniform_poly,
+    Q, Rq, ring_add, rq_from_le_bytes, rq_to_le_bytes, sample_secret_poly, sample_uniform_poly,
     scalar_mul,
 };
 use crate::lattice::rngbuf::BufRng;
-use crate::profile::{
-    DkgProfileV1,
-    PROFILE_ID_V1,
-    PROFILE_MAX_PARTIES_V1,
-};
+use crate::profile::{DkgProfileV1, PROFILE_ID_V1, PROFILE_MAX_PARTIES_V1};
 
 /// Gaussian width for the secret constant term `a_0` (the group signing key contribution). Short, so
 /// the reconstructed group secret is a valid lattice signing key for a downstream Raccoon-family
@@ -351,13 +333,13 @@ pub fn dkg_verify_share(
     recipient: u8,
     share: &ShareEvaluation,
 ) -> bool {
-    if commitments.party != dealer ||
-        share.dealer != dealer ||
-        share.recipient != recipient ||
-        recipient == 0 ||
-        commitments.commitments.len() != usize::from(commitments.threshold) ||
-        share.threshold != commitments.threshold ||
-        share.rand.len() != KAPPA
+    if commitments.party != dealer
+        || share.dealer != dealer
+        || share.recipient != recipient
+        || recipient == 0
+        || commitments.commitments.len() != usize::from(commitments.threshold)
+        || share.threshold != commitments.threshold
+        || share.rand.len() != KAPPA
     {
         return false;
     }

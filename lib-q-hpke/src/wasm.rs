@@ -12,10 +12,7 @@ use alloc::sync::Arc;
 use alloc::vec::Vec;
 use core::mem;
 
-use lib_q_core::{
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::{KemPublicKey, KemSecretKey};
 use lib_q_kem::LibQKemProvider;
 use serde::Serialize;
 use spin::Mutex;
@@ -25,14 +22,8 @@ use zeroize::Zeroizing;
 use crate::providers::post_quantum::PostQuantumProvider;
 use crate::providers::traits::HpkeCryptoProvider;
 use crate::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContext,
-    HpkeContextState,
-    HpkeKdf,
-    HpkeKem,
-    HpkeReceiverContext,
-    HpkeSenderContext,
+    HpkeAead, HpkeCipherSuite, HpkeContext, HpkeContextState, HpkeKdf, HpkeKem,
+    HpkeReceiverContext, HpkeSenderContext,
 };
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {

@@ -4,12 +4,7 @@
 //! input validation, error handling, and cryptographic properties.
 
 use digest::Digest;
-use lib_q_sha3::{
-    Sha3_224,
-    Sha3_256,
-    Sha3_384,
-    Sha3_512,
-};
+use lib_q_sha3::{Sha3_224, Sha3_256, Sha3_384, Sha3_512};
 
 /// Test that hash operations are deterministic
 #[test]

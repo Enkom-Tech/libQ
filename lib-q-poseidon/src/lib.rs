@@ -110,33 +110,15 @@ mod sponge;
 // Export constants for AIR constraint generation
 pub use constants::sbox;
 #[cfg(feature = "alloc")]
-pub use constants::{
-    mds_matrix_5x5,
-    mds_matrix_7x7,
-};
+pub use constants::{mds_matrix_5x5, mds_matrix_7x7};
 #[cfg(feature = "alloc")]
-pub use constants::{
-    round_constants_128,
-    round_constants_256,
-};
+pub use constants::{round_constants_128, round_constants_256};
 #[cfg(feature = "alloc")]
-pub use params::{
-    Poseidon128,
-    Poseidon256,
-    PoseidonField,
-    PoseidonParams,
-};
+pub use params::{Poseidon128, Poseidon256, PoseidonField, PoseidonParams};
 #[cfg(feature = "alloc")]
-pub use permutation::{
-    PoseidonPermutation,
-    PoseidonState,
-};
+pub use permutation::{PoseidonPermutation, PoseidonState};
 #[cfg(feature = "alloc")]
-pub use sponge::{
-    Poseidon,
-    PoseidonSponge,
-    PoseidonSpongeSqueeze,
-};
+pub use sponge::{Poseidon, PoseidonSponge, PoseidonSpongeSqueeze};
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

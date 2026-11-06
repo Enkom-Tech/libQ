@@ -101,64 +101,27 @@
 //! [rand_core]: https://crates.io/crates/rand_core
 //! [zeroize]: https://crates.io/crates/zeroize
 
-pub use fn_dsa_comm::shake::{
-    SHA3_224,
-    SHA3_256,
-    SHA3_384,
-    SHA3_512,
-    SHAKE,
-    SHAKE128,
-    SHAKE256,
-};
+pub use fn_dsa_comm::shake::{SHA3_224, SHA3_256, SHA3_384, SHA3_512, SHAKE, SHAKE128, SHAKE256};
 pub use fn_dsa_comm::{
-    CryptoRng,
-    DOMAIN_NONE,
-    DomainContext,
-    FN_DSA_LOGN_512,
-    FN_DSA_LOGN_1024,
-    HASH_ID_RAW,
-    HASH_ID_SHA3_256,
-    HASH_ID_SHA3_384,
-    HASH_ID_SHA3_512,
-    HASH_ID_SHAKE128,
-    HASH_ID_SHAKE256,
-    HashIdentifier,
-    Rng,
-    RngError,
-    UnsupportedHashIdentifier,
-    sign_key_size,
-    signature_size,
+    CryptoRng, DOMAIN_NONE, DomainContext, FN_DSA_LOGN_512, FN_DSA_LOGN_1024, HASH_ID_RAW,
+    HASH_ID_SHA3_256, HASH_ID_SHA3_384, HASH_ID_SHA3_512, HASH_ID_SHAKE128, HASH_ID_SHAKE256,
+    HashIdentifier, Rng, RngError, UnsupportedHashIdentifier, sign_key_size, signature_size,
     vrfy_key_size,
 };
 pub use fn_dsa_kgen::{
-    KeyPairGenerator,
-    KeyPairGenerator512,
-    KeyPairGenerator1024,
-    KeyPairGeneratorStandard,
+    KeyPairGenerator, KeyPairGenerator512, KeyPairGenerator1024, KeyPairGeneratorStandard,
     KeyPairGeneratorWeak,
 };
 pub use fn_dsa_sign::{
-    SigningKey,
-    SigningKey512,
-    SigningKey1024,
-    SigningKeyStandard,
-    SigningKeyWeak,
+    SigningKey, SigningKey512, SigningKey1024, SigningKeyStandard, SigningKeyWeak,
 };
 pub use fn_dsa_vrfy::{
-    VerifyingKey,
-    VerifyingKey512,
-    VerifyingKey1024,
-    VerifyingKeyStandard,
-    VerifyingKeyWeak,
+    VerifyingKey, VerifyingKey512, VerifyingKey1024, VerifyingKeyStandard, VerifyingKeyWeak,
 };
 
 #[cfg(test)]
 mod tests {
-    use fn_dsa_comm::{
-        Infallible,
-        TryCryptoRng,
-        TryRng,
-    };
+    use fn_dsa_comm::{Infallible, TryCryptoRng, TryRng};
 
     use super::*;
 

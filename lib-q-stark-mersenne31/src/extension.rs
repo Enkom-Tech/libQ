@@ -1,15 +1,8 @@
 use lib_q_stark_field::extension::{
-    BinomiallyExtendable,
-    BinomiallyExtendableAlgebra,
-    Complex,
-    HasComplexBinomialExtension,
+    BinomiallyExtendable, BinomiallyExtendableAlgebra, Complex, HasComplexBinomialExtension,
     HasTwoAdicComplexBinomialExtension,
 };
-use lib_q_stark_field::{
-    PrimeCharacteristicRing,
-    TwoAdicField,
-    field_to_array,
-};
+use lib_q_stark_field::{PrimeCharacteristicRing, TwoAdicField, field_to_array};
 
 use crate::Mersenne31;
 
@@ -124,14 +117,9 @@ impl HasTwoAdicComplexBinomialExtension<3> for Mersenne31 {
 #[cfg(test)]
 mod test_cubic_extension {
     use lib_q_stark_field::extension::BinomialExtensionField;
-    use lib_q_stark_field::{
-        ExtensionField,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_field::{ExtensionField, PrimeCharacteristicRing};
     use lib_q_stark_field_testing::{
-        test_extension_field,
-        test_field,
-        test_packed_extension_field,
+        test_extension_field, test_field, test_packed_extension_field,
     };
     use num_bigint::BigUint;
 
@@ -178,14 +166,8 @@ mod test_cubic_extension {
 
 #[cfg(test)]
 mod test_cubic_complex_extension {
-    use lib_q_stark_field::extension::{
-        BinomialExtensionField,
-        Complex,
-    };
-    use lib_q_stark_field::{
-        ExtensionField,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_field::extension::{BinomialExtensionField, Complex};
+    use lib_q_stark_field::{ExtensionField, PrimeCharacteristicRing};
     // Note: lib_q_stark_field_testing crate not available in lib-Q
     // Field property tests are implemented manually or disabled
     use num_bigint::BigUint;
@@ -222,9 +204,7 @@ mod test_cubic_complex_extension {
     }
 
     use lib_q_stark_field_testing::{
-        test_extension_field,
-        test_field,
-        test_packed_extension_field,
+        test_extension_field, test_field, test_packed_extension_field,
         test_two_adic_extension_field,
     };
 
@@ -246,18 +226,10 @@ mod test_cubic_complex_extension {
 #[cfg(test)]
 mod test_quadratic_complex_extension {
 
-    use lib_q_stark_field::extension::{
-        BinomialExtensionField,
-        Complex,
-    };
-    use lib_q_stark_field::{
-        ExtensionField,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_field::extension::{BinomialExtensionField, Complex};
+    use lib_q_stark_field::{ExtensionField, PrimeCharacteristicRing};
     use lib_q_stark_field_testing::{
-        test_extension_field,
-        test_field,
-        test_packed_extension_field,
+        test_extension_field, test_field, test_packed_extension_field,
         test_two_adic_extension_field,
     };
     use num_bigint::BigUint;

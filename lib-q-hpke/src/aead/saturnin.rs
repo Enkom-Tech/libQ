@@ -12,25 +12,14 @@
 #[cfg(all(feature = "alloc", feature = "saturnin"))]
 use alloc::format;
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 #[cfg(feature = "saturnin")]
 use lib_q_saturnin::{
-    Aead as LibQAead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Nonce,
-    SaturninAead,
+    Aead as LibQAead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Nonce, SaturninAead,
 };
 
-use crate::error::{
-    AeadOperation,
-    HpkeError,
-};
+use crate::error::{AeadOperation, HpkeError};
 use crate::types::*;
 
 /// Saturnin AEAD implementation using lib-q-saturnin

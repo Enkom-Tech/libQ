@@ -32,39 +32,14 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_dkg::lattice::bdlop::{
-    self,
-    KAPPA,
-    MU,
-};
+use lib_q_dkg::lattice::bdlop::{self, KAPPA, MU};
 use lib_q_dkg::lattice::ring::{
-    N,
-    Q,
-    RQ_BYTES,
-    Rq,
-    RqNtt,
-    centered_coeffs,
-    from_ntt,
-    ntt_mul_acc,
-    ring_add,
-    ring_sub,
-    rq_from_le_bytes,
-    rq_write_le_bytes,
-    to_ntt,
+    N, Q, RQ_BYTES, Rq, RqNtt, centered_coeffs, from_ntt, ntt_mul_acc, ring_add, ring_sub,
+    rq_from_le_bytes, rq_write_le_bytes, to_ntt,
 };
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::error::ThresholdKemError;
 

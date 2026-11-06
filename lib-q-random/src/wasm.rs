@@ -10,10 +10,7 @@ extern crate alloc;
 
 use js_sys::Uint8Array;
 use rand_core::TryRng;
-use wasm_bindgen::prelude::{
-    JsValue,
-    wasm_bindgen,
-};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 use zeroize::Zeroizing;
 
 use crate::new_secure_rng;

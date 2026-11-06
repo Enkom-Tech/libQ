@@ -9,11 +9,7 @@ use alloc::vec::Vec;
 use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    blind_commit,
-    blind_open,
-    verify,
-};
+use crate::{blind_commit, blind_open, verify};
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_BLIND_PCS", e)

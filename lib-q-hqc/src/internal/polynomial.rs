@@ -214,9 +214,9 @@ impl Polynomial {
             const MAX_ATTEMPTS: usize = 10000; // Prevent infinite loops
 
             // Use rejection sampling to ensure exactly the required weight
-            while positions_len < weight &&
-                attempts < MAX_ATTEMPTS &&
-                positions_len < positions.len()
+            while positions_len < weight
+                && attempts < MAX_ATTEMPTS
+                && positions_len < positions.len()
             {
                 let mut pos_bytes = [0u8; 4];
                 rng.fill_bytes(&mut pos_bytes);

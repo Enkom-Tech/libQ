@@ -3,26 +3,10 @@
 
 #![cfg(feature = "std")]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
 use lib_q_hpke::HpkeContext;
-use lib_q_hpke::interop::{
-    HpkeCapabilities,
-    HpkeInteropProfile,
-    negotiate_hpke_capabilities,
-};
-use lib_q_hpke::types::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-    HpkeMode,
-    HpkePskWireFormat,
-};
+use lib_q_hpke::interop::{HpkeCapabilities, HpkeInteropProfile, negotiate_hpke_capabilities};
+use lib_q_hpke::types::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, HpkeMode, HpkePskWireFormat};
 use lib_q_kem::LibQKemProvider;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

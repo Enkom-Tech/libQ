@@ -3,21 +3,13 @@
 //! This module provides comprehensive security tests including timing attack resistance,
 //! fault injection resistance, and other security properties.
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
 use lib_q_aead::security::constant_time::constant_time_eq;
 use lib_q_aead::security::memory::secure_zero_slice;
 use lib_q_aead::security::timing::protect_timing;
 use lib_q_aead::security::validation::validate_plaintext;
-use lib_q_aead::{
-    AeadKey,
-    Algorithm,
-    Nonce,
-    create_aead,
-};
+use lib_q_aead::{AeadKey, Algorithm, Nonce, create_aead};
 
 /// Generate a proper test key with good entropy
 fn create_test_key() -> AeadKey {

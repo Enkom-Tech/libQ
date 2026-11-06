@@ -10,20 +10,8 @@
 
 use crate::SigningError;
 use crate::expand::shake256;
-use crate::gf16::{
-    ct_64_is_greater_than,
-    ct_compare_8,
-    ct_compare_64,
-    inverse_f,
-    mul_f,
-    mul_fx8,
-};
-use crate::mvec::{
-    m_vec_add,
-    m_vec_copy,
-    m_vec_mul_add,
-    m_vec_multiply_bins,
-};
+use crate::gf16::{ct_64_is_greater_than, ct_compare_8, ct_compare_64, inverse_f, mul_f, mul_fx8};
+use crate::mvec::{m_vec_add, m_vec_copy, m_vec_mul_add, m_vec_multiply_bins};
 use crate::params::*;
 
 pub(crate) const P_LIMBS: usize = P1_LIMBS + P2_LIMBS;
@@ -411,10 +399,10 @@ fn compute_a(vtl: &[u64], a_out: &mut [u8]) {
             let t3 = (a[pos] >> 3) & LOW_BIT_IN_NIBBLE;
             for t in 0..F_TAIL.len() {
                 let rr = r + t - M;
-                a[(rr / 16) * A_WIDTH + c + (rr % 16)] ^= t0.wrapping_mul(tab[4 * t] as u64) ^
-                    t1.wrapping_mul(tab[4 * t + 1] as u64) ^
-                    t2.wrapping_mul(tab[4 * t + 2] as u64) ^
-                    t3.wrapping_mul(tab[4 * t + 3] as u64);
+                a[(rr / 16) * A_WIDTH + c + (rr % 16)] ^= t0.wrapping_mul(tab[4 * t] as u64)
+                    ^ t1.wrapping_mul(tab[4 * t + 1] as u64)
+                    ^ t2.wrapping_mul(tab[4 * t + 2] as u64)
+                    ^ t3.wrapping_mul(tab[4 * t + 3] as u64);
             }
         }
     }
@@ -469,10 +457,10 @@ fn row_mul_add(input: &[u64], a: u8, acc: &mut [u64]) {
     let tab = crate::gf16::mul_table(a);
     const LSB: u64 = 0x1111_1111_1111_1111;
     for i in 0..ROW_LEN {
-        acc[i] ^= ((input[i] & LSB) * ((tab & 0xFF) as u64)) ^
-            (((input[i] >> 1) & LSB) * (((tab >> 8) & 0xF) as u64)) ^
-            (((input[i] >> 2) & LSB) * (((tab >> 16) & 0xF) as u64)) ^
-            (((input[i] >> 3) & LSB) * (((tab >> 24) & 0xF) as u64));
+        acc[i] ^= ((input[i] & LSB) * ((tab & 0xFF) as u64))
+            ^ (((input[i] >> 1) & LSB) * (((tab >> 8) & 0xF) as u64))
+            ^ (((input[i] >> 2) & LSB) * (((tab >> 16) & 0xF) as u64))
+            ^ (((input[i] >> 3) & LSB) * (((tab >> 24) & 0xF) as u64));
     }
 }
 
@@ -506,8 +494,8 @@ fn echelon_form(a: &mut [u8]) {
             let is_pivot_row = !ct_compare_64(row, pivot_row);
             let below_pivot_row = ct_64_is_greater_than(row, pivot_row);
             for j in 0..ROW_LEN {
-                prow[j] ^= (is_pivot_row | (below_pivot_row & pivot_is_zero)) &
-                    packed[row as usize * ROW_LEN + j];
+                prow[j] ^= (is_pivot_row | (below_pivot_row & pivot_is_zero))
+                    & packed[row as usize * ROW_LEN + j];
             }
             pivot = ef_extract(&prow, pivot_col as usize);
             pivot_is_zero = !ct_compare_64(pivot as i32, 0);
@@ -630,14 +618,8 @@ fn expand_p1_p2(seed_pk: &[u8; PK_SEED_BYTES], p: &mut [u64]) {
     let mut bytes = [0u8; 16];
     // (P1_BYTES + P2_BYTES) is a multiple of 16 for MAYO_2
     let mut ctr: u128 = 0;
-    use aes::cipher::{
-        BlockCipherEncrypt,
-        KeyInit,
-    };
-    use aes::{
-        Aes128,
-        Block,
-    };
+    use aes::cipher::{BlockCipherEncrypt, KeyInit};
+    use aes::{Aes128, Block};
     let cipher = Aes128::new_from_slice(seed_pk).expect("16-byte key");
     for chunk in p[..P_LIMBS].chunks_mut(2) {
         let mut block = Block::from(ctr.to_be_bytes());

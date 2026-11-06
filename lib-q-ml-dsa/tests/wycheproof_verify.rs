@@ -10,13 +10,7 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use lib_q_ml_dsa::{
-    MLDSASignature,
-    MLDSAVerificationKey,
-    ml_dsa_44,
-    ml_dsa_65,
-    ml_dsa_87,
-};
+use lib_q_ml_dsa::{MLDSASignature, MLDSAVerificationKey, ml_dsa_44, ml_dsa_65, ml_dsa_87};
 
 include!("wycheproof/verify_schema.rs");
 

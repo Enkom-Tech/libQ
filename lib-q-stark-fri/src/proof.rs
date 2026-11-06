@@ -2,10 +2,7 @@ use alloc::vec::Vec;
 
 use lib_q_stark_commit::Mmcs;
 use lib_q_stark_field::Field;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone)]
 #[serde(bound(

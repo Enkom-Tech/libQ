@@ -20,10 +20,7 @@ use lib_q_core::Result;
 use lib_q_stark_baby_bear::BabyBear;
 
 use crate::air::next_power_of_two;
-use crate::air::wide_merkle_path_baby_bear::{
-    WideDigestBb,
-    compress_bb,
-};
+use crate::air::wide_merkle_path_baby_bear::{WideDigestBb, compress_bb};
 use crate::air::wide_sponge_baby_bear::poseidon2_wide_hash_bb;
 
 /// Maximum supported tree depth. `from_leaf_digests` materializes `2^depth` leaves, so this caps

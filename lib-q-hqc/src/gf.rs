@@ -21,12 +21,7 @@
 //! different `M`/`GF_POLY`, the crate would fail to build rather than silently computing wrong
 //! field arithmetic.
 
-use crate::params::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use crate::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
 /// Field degree `m` for GF(2^m). Fixed for all HQC parameter sets.
 pub const GF_M: u32 = 8;

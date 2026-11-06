@@ -39,9 +39,7 @@ mod tests {
     use super::*;
     use crate::polynomial::PolynomialRingElement;
     use crate::simd::traits::Operations;
-    use crate::simd::{
-        self,
-    };
+    use crate::simd::{self};
 
     fn test_serialize_generic<SIMDUnit: Operations>() {
         // Test serialization when LOW_ORDER_ROUNDING_RANGE = 95_232

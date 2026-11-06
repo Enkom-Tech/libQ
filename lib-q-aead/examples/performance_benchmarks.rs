@@ -6,12 +6,7 @@
 use std::time::Instant;
 
 use lib_q_aead::security::timing::protect_timing;
-use lib_q_aead::{
-    AeadKey,
-    Algorithm,
-    Nonce,
-    create_aead,
-};
+use lib_q_aead::{AeadKey, Algorithm, Nonce, create_aead};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("lib-q-aead Performance Benchmarks");

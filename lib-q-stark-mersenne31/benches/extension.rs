@@ -1,17 +1,7 @@
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_stark_field::extension::{
-    BinomialExtensionField,
-    Complex,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
+use lib_q_stark_field::extension::{BinomialExtensionField, Complex};
 use lib_q_stark_field_testing::bench_func::{
-    benchmark_inv,
-    benchmark_mul_latency,
-    benchmark_mul_throughput,
-    benchmark_square,
+    benchmark_inv, benchmark_mul_latency, benchmark_mul_throughput, benchmark_square,
 };
 use lib_q_stark_mersenne31::Mersenne31;
 

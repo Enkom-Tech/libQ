@@ -95,14 +95,8 @@ pub(crate) mod shake128 {
 
 /// A portable implementation of [`shake128::Xof`] and [`shake256::Xof`].
 pub(crate) mod portable {
-    use super::{
-        shake128,
-        shake256,
-    };
-    use crate::sha3_shim::portable::{
-        KeccakState,
-        incremental,
-    };
+    use super::{shake128, shake256};
+    use crate::sha3_shim::portable::{KeccakState, incremental};
 
     /// Portable SHAKE 128 x4 state.
     ///
@@ -446,22 +440,12 @@ pub(crate) mod portable {
 
     #[cfg(test)]
     mod tests {
-        use super::{
-            Shake128,
-            Shake128X4,
-            Shake256,
-            Shake256X4,
-            Shake256Xof,
-        };
+        use super::{Shake128, Shake128X4, Shake256, Shake256X4, Shake256Xof};
         use crate::hash_functions::shake128::{
-            self,
-            Xof as Shake128OneShot,
-            XofX4 as Shake128X4Trait,
+            self, Xof as Shake128OneShot, XofX4 as Shake128X4Trait,
         };
         use crate::hash_functions::shake256::{
-            DsaXof,
-            Xof as Shake256StreamXof,
-            XofX4 as Shake256X4Trait,
+            DsaXof, Xof as Shake256StreamXof, XofX4 as Shake256X4Trait,
         };
 
         #[test]
@@ -520,10 +504,7 @@ pub(crate) mod portable {
 #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 pub(crate) mod simd256 {
 
-    use super::{
-        shake128,
-        shake256,
-    };
+    use super::{shake128, shake256};
     use crate::sha3_shim::avx2::x4;
 
     /// AVX2 SHAKE 128 state
@@ -825,10 +806,7 @@ pub(crate) mod simd256 {
 #[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 pub(crate) mod neon {
 
-    use super::{
-        shake128,
-        shake256,
-    };
+    use super::{shake128, shake256};
     use crate::sha3_shim::neon::x2;
     #[cfg_attr(hax, hax_lib::opaque)]
     pub(crate) type KeccakState = x2::incremental::KeccakStateX2;

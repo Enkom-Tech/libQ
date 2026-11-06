@@ -3,32 +3,15 @@
 //! The harness plays all `t` parties locally through the 3-round protocol (commit → reveal →
 //! respond) and checks the aggregated signature verifies — each party uses only its own share.
 
-use lib_q_dkg::{
-    dkg_run_honest,
-    setup as dkg_setup,
-};
+use lib_q_dkg::{dkg_run_honest, setup as dkg_setup};
 use lib_q_random::new_deterministic_rng;
 use lib_q_threshold_raccoon::threshold::{
-    PartialSignature,
-    Round1Commit,
-    Round1Reveal,
-    Round1State,
-    ZeroShareSeeds,
-    aggregate,
-    aggregate_commitment,
-    sign_round1,
-    sign_round1_reveal,
-    sign_round2,
+    PartialSignature, Round1Commit, Round1Reveal, Round1State, ZeroShareSeeds, aggregate,
+    aggregate_commitment, sign_round1, sign_round1_reveal, sign_round2,
 };
 use lib_q_threshold_raccoon::{
-    RaccoonError,
-    SecretShare,
-    ShareVerifier,
-    ThresholdRaccoonPublicKey,
-    group_commitment,
-    keygen_shares,
-    setup,
-    verify,
+    RaccoonError, SecretShare, ShareVerifier, ThresholdRaccoonPublicKey, group_commitment,
+    keygen_shares, setup, verify,
 };
 
 /// Drive the full 3-round protocol for `subset` and return the aggregated signature.

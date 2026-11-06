@@ -3,28 +3,15 @@
 use lib_q_stark_air::symbolic::SymbolicExpression;
 use lib_q_stark_air::symbolic::expression::BaseLeaf;
 use lib_q_stark_air::{
-    AirBuilder,
-    ExtensionBuilder,
-    PermutationAirBuilder,
-    RowWindow,
-    WindowAccess,
+    AirBuilder, ExtensionBuilder, PermutationAirBuilder, RowWindow, WindowAccess,
 };
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_stark_field::{ExtensionField, Field};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_matrix::stack::ViewPair;
 use tracing::warn;
 
 pub use crate::types::{
-    Direction,
-    Kind,
-    Lookup,
-    LookupData,
-    LookupError,
-    LookupEvaluator,
-    LookupInput,
+    Direction, Kind, Lookup, LookupData, LookupError, LookupEvaluator, LookupInput,
 };
 
 /// A trait for lookup argument gadgets.
@@ -173,10 +160,7 @@ pub fn symbolic_to_expr<AB>(
 where
     AB: AirBuilder + PermutationAirBuilder,
 {
-    use lib_q_stark_air::symbolic::{
-        BaseEntry,
-        SymbolicExpr,
-    };
+    use lib_q_stark_air::symbolic::{BaseEntry, SymbolicExpr};
 
     match expr {
         SymbolicExpr::Leaf(leaf) => match leaf {

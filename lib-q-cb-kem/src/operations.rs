@@ -1,29 +1,16 @@
 //! KEM API
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use crate::api::{
-    CRYPTO_BYTES,
-    CRYPTO_CIPHERTEXTBYTES,
-    CRYPTO_PUBLICKEYBYTES,
-    CRYPTO_SECRETKEYBYTES,
+    CRYPTO_BYTES, CRYPTO_CIPHERTEXTBYTES, CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES,
 };
 use crate::controlbits::controlbitsfrompermutation;
 use crate::crypto_hash::shake256;
 use crate::decrypt::decrypt;
 use crate::encrypt::encrypt;
 use crate::macros::sub;
-use crate::params::{
-    COND_BYTES,
-    GFBITS,
-    IRR_BYTES,
-    SYND_BYTES,
-    SYS_N,
-    SYS_T,
-};
+use crate::params::{COND_BYTES, GFBITS, IRR_BYTES, SYND_BYTES, SYS_N, SYS_T};
 #[cfg(all(
     not(any(
         feature = "cbkem348864",
@@ -35,17 +22,10 @@ use crate::params::{
     )),
     any(feature = "cbkem6960119", feature = "cbkem6960119f")
 ))]
-use crate::params::{
-    PK_NCOLS,
-    PK_NROWS,
-    PK_ROW_BYTES,
-};
+use crate::params::{PK_NCOLS, PK_NROWS, PK_ROW_BYTES};
 use crate::pk_gen::pk_gen;
 use crate::sk_gen::genpoly_gen;
-use crate::util::{
-    load_gf,
-    store_gf,
-};
+use crate::util::{load_gf, store_gf};
 
 /// This function determines (in a constant-time manner) whether the padding bits of `pk` are all zero.
 #[cfg(all(
@@ -475,10 +455,7 @@ mod tests {
 
     #[test]
     fn test_crypto_kem_dec() {
-        use crate::api::{
-            CRYPTO_CIPHERTEXTBYTES,
-            CRYPTO_SECRETKEYBYTES,
-        };
+        use crate::api::{CRYPTO_CIPHERTEXTBYTES, CRYPTO_SECRETKEYBYTES};
 
         let mut sk = TestData::new().u8vec("cbkem8192128f_sk1");
         let mut c = TestData::new().u8vec("cbkem8192128f_ct1");
@@ -496,11 +473,7 @@ mod tests {
 
     #[test]
     fn test_crypto_kem_enc() {
-        use crate::api::{
-            CRYPTO_BYTES,
-            CRYPTO_CIPHERTEXTBYTES,
-            CRYPTO_PUBLICKEYBYTES,
-        };
+        use crate::api::{CRYPTO_BYTES, CRYPTO_CIPHERTEXTBYTES, CRYPTO_PUBLICKEYBYTES};
 
         let mut c = [0u8; CRYPTO_CIPHERTEXTBYTES];
         let mut ss = [0u8; CRYPTO_BYTES];
@@ -540,10 +513,7 @@ mod tests {
 
     #[test]
     fn test_crypto_kem_keypair() {
-        use crate::api::{
-            CRYPTO_PUBLICKEYBYTES,
-            CRYPTO_SECRETKEYBYTES,
-        };
+        use crate::api::{CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES};
 
         let mut pk_input = [0; CRYPTO_PUBLICKEYBYTES].to_vec();
         let mut sk_input = [0; CRYPTO_SECRETKEYBYTES].to_vec();

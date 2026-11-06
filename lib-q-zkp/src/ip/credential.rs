@@ -8,26 +8,14 @@ extern crate alloc;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
 use lib_q_core::Result;
 
 use crate::ZkpProof;
 use crate::air::credential::attr_to_left_right;
-use crate::air::{
-    CredentialAir,
-    CredentialInput,
-    CredentialSchema,
-    TraceGenerator,
-};
-use crate::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-};
+use crate::air::{CredentialAir, CredentialInput, CredentialSchema, TraceGenerator};
+use crate::stark::{StarkProver, StarkVerifier, default_config};
 
 /// IP credential structure
 #[derive(Debug, Clone)]
@@ -197,10 +185,7 @@ pub fn compute_credential_commitment(attributes: &[Vec<u8>]) -> Result<Vec<u8>> 
 
 /// Serialize a `Complex<Mersenne31>` to 8 LE bytes (4 real + 4 imag).
 fn commitment_field_to_bytes(f: lib_q_poseidon::PoseidonField) -> Vec<u8> {
-    use lib_q_stark_field::{
-        BasedVectorSpace,
-        PrimeField32,
-    };
+    use lib_q_stark_field::{BasedVectorSpace, PrimeField32};
     use lib_q_stark_mersenne31::Mersenne31;
     let coords: &[Mersenne31] = f.as_basis_coefficients_slice();
     let mut bytes = Vec::with_capacity(8);
@@ -340,11 +325,7 @@ mod tests {
     use alloc::vec;
 
     use super::*;
-    use crate::{
-        ProofMetadata,
-        ProofType,
-        ZkpProof,
-    };
+    use crate::{ProofMetadata, ProofType, ZkpProof};
 
     #[test]
     fn test_prove_credential_attributes() {

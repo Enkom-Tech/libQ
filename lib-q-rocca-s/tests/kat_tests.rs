@@ -6,12 +6,7 @@
 //! partial associated-data and message blocks, and the empty-message case; they
 //! pin this implementation against the reference round/init/finalize logic.
 
-use lib_q_rocca_s::{
-    Aead,
-    AeadKey,
-    Nonce,
-    RoccaSAead,
-};
+use lib_q_rocca_s::{Aead, AeadKey, Nonce, RoccaSAead};
 
 fn unhex(s: &str) -> Vec<u8> {
     (0..s.len() / 2)

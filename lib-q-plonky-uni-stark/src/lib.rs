@@ -32,27 +32,15 @@ pub mod sub_builder;
 pub mod symbolic;
 pub mod verifier;
 
-pub use check_constraints::{
-    DebugConstraintBuilder,
-    check_constraints,
-};
+pub use check_constraints::{DebugConstraintBuilder, check_constraints};
 pub use config::*;
 pub use folder::*;
 pub use preprocessed::*;
 pub use proof::*;
-pub use prover::{
-    ProverError,
-    prove,
-    prove_with_preprocessed,
-    quotient_values,
-};
+pub use prover::{ProverError, prove, prove_with_preprocessed, quotient_values};
 pub use sub_builder::*;
 pub use symbolic::{
-    AirLayout,
-    ConstraintLayout,
-    SymbolicAirBuilder,
-    get_constraint_layout,
-    get_log_num_quotient_chunks,
-    get_symbolic_constraints,
+    AirLayout, ConstraintLayout, SymbolicAirBuilder, get_constraint_layout,
+    get_log_num_quotient_chunks, get_symbolic_constraints,
 };
 pub use verifier::*;

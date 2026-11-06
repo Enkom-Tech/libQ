@@ -2,25 +2,12 @@
 
 use alloc::vec::Vec;
 use core::arch::x86_64::{
-    __m256i,
-    _mm256_and_si256,
-    _mm256_loadu_si256,
-    _mm256_or_si256,
-    _mm256_set_epi32,
-    _mm256_set1_epi16,
-    _mm256_set1_epi32,
-    _mm256_slli_epi16,
-    _mm256_slli_epi32,
-    _mm256_srli_epi16,
-    _mm256_srli_epi32,
-    _mm256_storeu_si256,
-    _mm256_xor_si256,
+    __m256i, _mm256_and_si256, _mm256_loadu_si256, _mm256_or_si256, _mm256_set_epi32,
+    _mm256_set1_epi16, _mm256_set1_epi32, _mm256_slli_epi16, _mm256_slli_epi32, _mm256_srli_epi16,
+    _mm256_srli_epi32, _mm256_storeu_si256, _mm256_xor_si256,
 };
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 
 #[inline]
 #[target_feature(enable = "avx2")]
@@ -107,38 +94,38 @@ unsafe fn decode_blocks8(blocks: &[[u8; 32]; 8]) -> [__m256i; 8] {
 
     for lane in 0..8 {
         let src = &blocks[lane];
-        words[0][lane] = (src[0] as u32) |
-            ((src[1] as u32) << 8) |
-            ((src[16] as u32) << 16) |
-            ((src[17] as u32) << 24);
-        words[1][lane] = (src[2] as u32) |
-            ((src[3] as u32) << 8) |
-            ((src[18] as u32) << 16) |
-            ((src[19] as u32) << 24);
-        words[2][lane] = (src[4] as u32) |
-            ((src[5] as u32) << 8) |
-            ((src[20] as u32) << 16) |
-            ((src[21] as u32) << 24);
-        words[3][lane] = (src[6] as u32) |
-            ((src[7] as u32) << 8) |
-            ((src[22] as u32) << 16) |
-            ((src[23] as u32) << 24);
-        words[4][lane] = (src[8] as u32) |
-            ((src[9] as u32) << 8) |
-            ((src[24] as u32) << 16) |
-            ((src[25] as u32) << 24);
-        words[5][lane] = (src[10] as u32) |
-            ((src[11] as u32) << 8) |
-            ((src[26] as u32) << 16) |
-            ((src[27] as u32) << 24);
-        words[6][lane] = (src[12] as u32) |
-            ((src[13] as u32) << 8) |
-            ((src[28] as u32) << 16) |
-            ((src[29] as u32) << 24);
-        words[7][lane] = (src[14] as u32) |
-            ((src[15] as u32) << 8) |
-            ((src[30] as u32) << 16) |
-            ((src[31] as u32) << 24);
+        words[0][lane] = (src[0] as u32)
+            | ((src[1] as u32) << 8)
+            | ((src[16] as u32) << 16)
+            | ((src[17] as u32) << 24);
+        words[1][lane] = (src[2] as u32)
+            | ((src[3] as u32) << 8)
+            | ((src[18] as u32) << 16)
+            | ((src[19] as u32) << 24);
+        words[2][lane] = (src[4] as u32)
+            | ((src[5] as u32) << 8)
+            | ((src[20] as u32) << 16)
+            | ((src[21] as u32) << 24);
+        words[3][lane] = (src[6] as u32)
+            | ((src[7] as u32) << 8)
+            | ((src[22] as u32) << 16)
+            | ((src[23] as u32) << 24);
+        words[4][lane] = (src[8] as u32)
+            | ((src[9] as u32) << 8)
+            | ((src[24] as u32) << 16)
+            | ((src[25] as u32) << 24);
+        words[5][lane] = (src[10] as u32)
+            | ((src[11] as u32) << 8)
+            | ((src[26] as u32) << 16)
+            | ((src[27] as u32) << 24);
+        words[6][lane] = (src[12] as u32)
+            | ((src[13] as u32) << 8)
+            | ((src[28] as u32) << 16)
+            | ((src[29] as u32) << 24);
+        words[7][lane] = (src[14] as u32)
+            | ((src[15] as u32) << 8)
+            | ((src[30] as u32) << 16)
+            | ((src[31] as u32) << 24);
     }
 
     [
@@ -687,10 +674,10 @@ pub unsafe fn encrypt_blocks8(
 
     let mut keybuf = [0u32; 16];
     for i in 0..8 {
-        let w = (key[i << 1] as u32) |
-            ((key[(i << 1) + 1] as u32) << 8) |
-            ((key[(i << 1) + 16] as u32) << 16) |
-            ((key[(i << 1) + 17] as u32) << 24);
+        let w = (key[i << 1] as u32)
+            | ((key[(i << 1) + 1] as u32) << 8)
+            | ((key[(i << 1) + 16] as u32) << 16)
+            | ((key[(i << 1) + 17] as u32) << 24);
         keybuf[i] = w;
         keybuf[i + 8] = ((w & 0x001F001F) << 11) | ((w >> 5) & 0x07FF07FF);
     }

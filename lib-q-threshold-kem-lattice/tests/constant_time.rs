@@ -16,12 +16,7 @@
 //! Run in release: the shared `lib-q-dkg` lattice keygen is slow in debug (see roundtrip.rs).
 
 use lib_q_random::new_deterministic_rng;
-use lib_q_threshold_kem_lattice::{
-    decapsulate_reference,
-    encapsulate,
-    keygen_shares,
-    setup,
-};
+use lib_q_threshold_kem_lattice::{decapsulate_reference, encapsulate, keygen_shares, setup};
 
 const THRESHOLD: u8 = 3;
 const PARTIES: u8 = 5;

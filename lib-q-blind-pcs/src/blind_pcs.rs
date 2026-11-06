@@ -1,7 +1,4 @@
-use lib_q_sha3::{
-    Digest,
-    Sha3_256,
-};
+use lib_q_sha3::{Digest, Sha3_256};
 use subtle::ConstantTimeEq;
 
 #[derive(Clone, Debug, PartialEq, Eq)]

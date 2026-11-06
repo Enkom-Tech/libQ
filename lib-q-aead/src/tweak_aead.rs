@@ -5,19 +5,10 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    Algorithm,
-    DecryptSemanticOutcome,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, Algorithm, DecryptSemanticOutcome, Nonce, Result,
 };
 
-use crate::metadata::{
-    AeadMetadata,
-    AeadWithMetadata,
-};
+use crate::metadata::{AeadMetadata, AeadWithMetadata};
 
 /// Tweak AEAD — registry / HPKE-facing type.
 pub struct TweakAead {

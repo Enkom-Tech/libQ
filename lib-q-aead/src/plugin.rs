@@ -5,17 +5,10 @@
 
 use alloc::boxed::Box;
 use alloc::collections::BTreeMap;
-use alloc::string::{
-    String,
-    ToString,
-};
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Algorithm,
-    Error,
-    Result,
-};
+use lib_q_core::{Algorithm, Error, Result};
 
 use crate::AeadWithMetadata;
 use crate::metadata::AeadMetadata;
@@ -334,11 +327,7 @@ macro_rules! impl_aead_plugin {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_core::{
-        Aead,
-        AeadKey,
-        Nonce,
-    };
+    use lib_q_core::{Aead, AeadKey, Nonce};
 
     use super::*;
 

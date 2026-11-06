@@ -2,18 +2,10 @@
 
 mod common;
 
-use common::{
-    PARTIES,
-    THRESHOLD,
-    det_rng,
-};
+use common::{PARTIES, THRESHOLD, det_rng};
 use lib_q_dkg::{
-    WIRE_BUDGET_DKG_ROUND1_BYTES,
-    dkg_round1_commit,
-    dkg_run_honest,
-    encode_round1_commitments,
-    setup,
-    signing_share_commitment,
+    WIRE_BUDGET_DKG_ROUND1_BYTES, dkg_round1_commit, dkg_run_honest, encode_round1_commitments,
+    setup, signing_share_commitment,
 };
 
 #[test]

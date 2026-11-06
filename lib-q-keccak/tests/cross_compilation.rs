@@ -16,10 +16,7 @@
 
 #[cfg(test)]
 mod tests {
-    use lib_q_keccak::{
-        f1600,
-        keccak_p,
-    };
+    use lib_q_keccak::{f1600, keccak_p};
 
     /// Test that basic Keccak operations work identically across architectures
     #[test]
@@ -218,10 +215,7 @@ mod tests {
 #[cfg(all(test, feature = "std"))]
 mod integration_tests {
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{
-        Hash,
-        Hasher,
-    };
+    use std::hash::{Hash, Hasher};
 
     use lib_q_keccak::f1600;
 

@@ -3,52 +3,21 @@ use alloc::vec::Vec;
 use core::cmp::min;
 
 use itertools::Itertools;
-use lib_q_stark_air::{
-    Air,
-    RowWindow,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-};
-use lib_q_stark_commit::{
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PackedValue,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, RowWindow};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger};
+use lib_q_stark_commit::{Pcs, PolynomialSpace};
+use lib_q_stark_field::{BasedVectorSpace, PackedValue, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use lib_q_stark_util::log2_strict_usize;
-use tracing::{
-    debug_span,
-    info_span,
-    instrument,
-};
+use tracing::{debug_span, info_span, instrument};
 
 use crate::symbolic::{
-    get_constraint_layout,
-    get_log_num_quotient_chunks,
-    get_symbolic_constraints,
+    get_constraint_layout, get_log_num_quotient_chunks, get_symbolic_constraints,
 };
 use crate::{
-    AirLayout,
-    Commitments,
-    Domain,
-    OpenedValues,
-    PackedVal,
-    PreprocessedProverData,
-    Proof,
-    ProverConstraintFolder,
-    StarkGenericConfig,
-    SymbolicAirBuilder,
-    Val,
+    AirLayout, Commitments, Domain, OpenedValues, PackedVal, PreprocessedProverData, Proof,
+    ProverConstraintFolder, StarkGenericConfig, SymbolicAirBuilder, Val,
 };
 
 /// DoS limits for prover input validation.

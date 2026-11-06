@@ -5,30 +5,15 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use core::fmt::{
-    Debug,
-    Display,
-    Formatter,
-};
+use core::fmt::{Debug, Display, Formatter};
 use core::ops::Deref;
 
-use itertools::{
-    Itertools,
-    izip,
-};
+use itertools::{Itertools, izip};
 use lib_q_stark_field::{
-    BasedVectorSpace,
-    ExtensionField,
-    Field,
-    PackedValue,
-    PrimeCharacteristicRing,
-    dot_product,
+    BasedVectorSpace, ExtensionField, Field, PackedValue, PrimeCharacteristicRing, dot_product,
 };
 use lib_q_stark_rayon::prelude::*;
-use strided::{
-    VerticallyStridedMatrixView,
-    VerticallyStridedRowIndexMap,
-};
+use strided::{VerticallyStridedMatrixView, VerticallyStridedRowIndexMap};
 
 use crate::dense::RowMajorMatrix;
 
@@ -515,18 +500,12 @@ pub trait Matrix<T: Send + Sync + Clone>: Send + Sync {
 #[cfg(test)]
 mod tests {
     use alloc::vec::Vec;
-    use alloc::{
-        format,
-        vec,
-    };
+    use alloc::{format, vec};
 
     use itertools::izip;
     use lib_q_random::new_deterministic_rng;
     use lib_q_stark_field::PrimeCharacteristicRing;
-    use lib_q_stark_field::extension::{
-        BinomialExtensionField,
-        Complex,
-    };
+    use lib_q_stark_field::extension::{BinomialExtensionField, Complex};
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;

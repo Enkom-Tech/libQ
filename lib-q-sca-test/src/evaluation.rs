@@ -27,17 +27,9 @@ use lib_q_ml_dsa::Zeroizing;
 #[cfg(feature = "mldsa")]
 use lib_q_ml_dsa::ml_dsa_44::portable;
 #[cfg(feature = "mlkem")]
-use lib_q_ml_kem::{
-    Decapsulate,
-    Encapsulate,
-    KemCore,
-    MlKem768,
-};
+use lib_q_ml_kem::{Decapsulate, Encapsulate, KemCore, MlKem768};
 #[cfg(feature = "slhdsa")]
-use lib_q_slh_dsa::{
-    Shake128f,
-    SigningKey,
-};
+use lib_q_slh_dsa::{Shake128f, SigningKey};
 
 /// Collect fixed-vs-random wall-clock timings for ML-KEM decapsulation (TVLA-style smoke harness).
 ///
@@ -208,13 +200,8 @@ pub fn mldsa_sign_dudect_screen(samples: usize, threshold: f64) -> bool {
 #[cfg(feature = "lattice-zkp-hardened")]
 pub fn lattice_zkp_prove_opening_tvla_timings(samples: usize) -> (Vec<f64>, Vec<f64>) {
     use lib_q_lattice_zkp::{
-        AjtaiCommitmentKey,
-        LatticeZkpProfileV0,
-        TOKEN_EPOCH_LEN,
-        TOKEN_ORIGIN_LEN,
-        TOKEN_SERIAL_LEN,
-        commit,
-        opening_from_token_fields,
+        AjtaiCommitmentKey, LatticeZkpProfileV0, TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN,
+        TOKEN_SERIAL_LEN, commit, opening_from_token_fields,
     };
 
     use crate::privacy_workloads::touch_opening_prove;
@@ -335,10 +322,7 @@ pub fn hqc_keygen_tvla_timings<P: lib_q_hqc::HqcParams>(samples: usize) -> (Vec<
 pub fn hqc_encapsulate_tvla_timings<P: lib_q_hqc::HqcParams>(
     samples: usize,
 ) -> (Vec<f64>, Vec<f64>) {
-    use lib_q_hqc::hqc_kem::{
-        HqcKem,
-        HqcKemPublicKey,
-    };
+    use lib_q_hqc::hqc_kem::{HqcKem, HqcKemPublicKey};
     use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
     use rand_core::Rng;
 

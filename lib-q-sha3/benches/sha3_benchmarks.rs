@@ -3,26 +3,9 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use digest::{
-    Digest,
-    ExtendableOutput,
-    Update,
-};
-use lib_q_sha3::{
-    Sha3_224,
-    Sha3_256,
-    Sha3_384,
-    Sha3_512,
-    Shake128,
-    Shake256,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use digest::{Digest, ExtendableOutput, Update};
+use lib_q_sha3::{Sha3_224, Sha3_256, Sha3_384, Sha3_512, Shake128, Shake256};
 
 const INPUT_SIZES: &[usize] = &[10, 100, 1_000, 10_000];
 

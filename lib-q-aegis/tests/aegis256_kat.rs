@@ -6,18 +6,9 @@
 //! present), on the portable constant-time backend, and through the public types.
 
 use lib_q_aegis::_internals::{
-    aegis256_open_dispatch,
-    aegis256_open_soft,
-    aegis256_seal_dispatch,
-    aegis256_seal_soft,
+    aegis256_open_dispatch, aegis256_open_soft, aegis256_seal_dispatch, aegis256_seal_soft,
 };
-use lib_q_aegis::{
-    Aead,
-    AeadKey,
-    Aegis256,
-    Aegis256Tag128,
-    Nonce,
-};
+use lib_q_aegis::{Aead, AeadKey, Aegis256, Aegis256Tag128, Nonce};
 
 struct Kat {
     name: &'static str,

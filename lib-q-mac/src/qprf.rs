@@ -1,11 +1,7 @@
 //! Quantum PRF interface (SHAKE256 expansion keyed by secret material).
 
 use lib_q_sha3::Shake256;
-use lib_q_sha3::digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
 use crate::profile::QCW_MAC_TAG_BYTES;
 

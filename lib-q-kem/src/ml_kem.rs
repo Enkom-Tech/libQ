@@ -6,40 +6,15 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    format,
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{format, string::ToString, vec::Vec};
 
-use lib_q_core::{
-    Error,
-    Kem,
-    KemKeypair,
-    KemPublicKey,
-    KemSecretKey,
-    SecurityLevel,
-};
+use lib_q_core::{Error, Kem, KemKeypair, KemPublicKey, KemSecretKey, SecurityLevel};
 use lib_q_ml_kem::array::Array;
 use lib_q_ml_kem::{
-    ArraySize,
-    Decapsulate,
-    Encapsulate,
-    EncodedSizeUser,
-    KemCore,
-    MLKEM512_CIPHERTEXT_SIZE,
-    MLKEM512_PUBLIC_KEY_SIZE,
-    MLKEM512_SECRET_KEY_SIZE,
-    MLKEM768_CIPHERTEXT_SIZE,
-    MLKEM768_PUBLIC_KEY_SIZE,
-    MLKEM768_SECRET_KEY_SIZE,
-    MLKEM1024_CIPHERTEXT_SIZE,
-    MLKEM1024_PUBLIC_KEY_SIZE,
-    MLKEM1024_SECRET_KEY_SIZE,
-    MlKem512,
-    MlKem768,
-    MlKem1024,
-    Zeroizing,
+    ArraySize, Decapsulate, Encapsulate, EncodedSizeUser, KemCore, MLKEM512_CIPHERTEXT_SIZE,
+    MLKEM512_PUBLIC_KEY_SIZE, MLKEM512_SECRET_KEY_SIZE, MLKEM768_CIPHERTEXT_SIZE,
+    MLKEM768_PUBLIC_KEY_SIZE, MLKEM768_SECRET_KEY_SIZE, MLKEM1024_CIPHERTEXT_SIZE,
+    MLKEM1024_PUBLIC_KEY_SIZE, MLKEM1024_SECRET_KEY_SIZE, MlKem512, MlKem768, MlKem1024, Zeroizing,
 };
 use lib_q_random::new_secure_rng;
 

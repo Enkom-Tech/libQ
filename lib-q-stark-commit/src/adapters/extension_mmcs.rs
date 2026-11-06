@@ -2,21 +2,11 @@ use alloc::vec::Vec;
 use core::marker::PhantomData;
 use core::ops::Deref;
 
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_stark_field::{ExtensionField, Field};
 use lib_q_stark_matrix::extension::FlatMatrixView;
-use lib_q_stark_matrix::{
-    Dimensions,
-    Matrix,
-};
+use lib_q_stark_matrix::{Dimensions, Matrix};
 
-use crate::{
-    BatchOpening,
-    BatchOpeningRef,
-    Mmcs,
-};
+use crate::{BatchOpening, BatchOpeningRef, Mmcs};
 
 /// A wrapper to lift an MMCS from a base field `F` to an extension field `EF`.
 ///

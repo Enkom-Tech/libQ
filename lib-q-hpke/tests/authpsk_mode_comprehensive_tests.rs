@@ -11,16 +11,8 @@
 #![cfg(feature = "std")]
 #![allow(unused_variables, unused_mut, clippy::useless_vec)]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
-use lib_q_hpke::{
-    HpkeContext,
-    HpkePskWireFormat,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
+use lib_q_hpke::{HpkeContext, HpkePskWireFormat};
 use lib_q_kem::LibQKemProvider;
 
 /// Test that AuthPSK mode fails closed (B14) for basic setup — sender and receiver alike.

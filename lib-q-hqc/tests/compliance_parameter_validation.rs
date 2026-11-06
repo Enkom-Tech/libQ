@@ -1,9 +1,4 @@
-use lib_q_hqc::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 use lib_q_types::hqc;
 
 /// Parameter validation tests to ensure all constants match the HQC specification

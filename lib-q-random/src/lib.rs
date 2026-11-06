@@ -208,11 +208,8 @@ pub use deterministic_rng::DeterministicRng;
 // Cryptographic (KT128-backed) RNG for ZK hiding salts/blinding
 pub mod kt128_rng;
 pub use kt128_expander::{
-    DOMAIN_HPKE_RNG,
-    DOMAIN_LIBQ_DET_RNG,
-    KT128_DET_GOLDEN_U64_SEED_64,
-    KT128_DET_GOLDEN_ZERO_SEED_64,
-    Kt128Expander,
+    DOMAIN_HPKE_RNG, DOMAIN_LIBQ_DET_RNG, KT128_DET_GOLDEN_U64_SEED_64,
+    KT128_DET_GOLDEN_ZERO_SEED_64, Kt128Expander,
 };
 pub use kt128_rng::Kt128Rng;
 
@@ -221,10 +218,7 @@ pub use kt128_rng::Kt128Rng;
 pub mod custom_entropy;
 
 // Re-export main types
-pub use error::{
-    Error,
-    Result,
-};
+pub use error::{Error, Result};
 #[cfg(feature = "alloc")]
 pub use provider::LibQRng;
 // Re-export specialized implementations
@@ -239,16 +233,9 @@ pub use specialized::FnDsaRng;
 // type with the same name. The HPKE variant remains reachable as `lib_q_random::specialized::Kt128Rng`.
 #[cfg(feature = "alloc")]
 pub use traits::RngProvider;
-pub use traits::{
-    EntropySource,
-    SecureRng,
-    SecurityLevel,
-};
+pub use traits::{EntropySource, SecureRng, SecurityLevel};
 // Re-export validation types
-pub use validation::{
-    EntropyQuality,
-    EntropyValidator,
-};
+pub use validation::{EntropyQuality, EntropyValidator};
 
 /// Version information
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -553,7 +540,7 @@ mod tests {
         // VERSION is a non-empty string constant
         #[allow(clippy::const_is_empty)]
         {
-            assert!(!VERSION.is_empty());
+            assert_ne!(VERSION, "");
         }
     }
 

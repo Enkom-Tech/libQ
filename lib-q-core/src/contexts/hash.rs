@@ -4,20 +4,12 @@
 //! with proper security validation.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    string::String,
-    vec::Vec,
-};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 use super::BaseContext;
 #[cfg(test)]
 use crate::api::HashOperations;
-use crate::api::{
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-};
+use crate::api::{Algorithm, AlgorithmCategory, CryptoProvider};
 use crate::error::Result;
 
 /// Hash context for hash operations

@@ -3,13 +3,7 @@
 #![cfg(feature = "nist-aes-rng")]
 #![allow(clippy::needless_range_loop)]
 
-use lib_q_cb_kem::{
-    AesState,
-    MAX_BYTES_PER_REQUEST,
-    NistDrbgError,
-    RESEED_INTERVAL,
-    SEEDLEN,
-};
+use lib_q_cb_kem::{AesState, MAX_BYTES_PER_REQUEST, NistDrbgError, RESEED_INTERVAL, SEEDLEN};
 
 #[test]
 fn instantiate_first_generate() {

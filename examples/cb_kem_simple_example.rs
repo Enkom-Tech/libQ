@@ -7,10 +7,7 @@
 #[cfg(feature = "cb-kem")]
 use lib_q_cb_kem::LibQCbKemProvider;
 #[cfg(feature = "cb-kem")]
-use lib_q_core::{
-    Algorithm,
-    KemOperations,
-};
+use lib_q_core::{Algorithm, KemOperations};
 
 fn main() {
     #[cfg(not(feature = "cb-kem"))]

@@ -24,27 +24,14 @@ use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
 use super::{
-    AirError,
-    TraceGenerator,
-    bytes_to_poseidon_field,
-    next_power_of_two,
-    poseidon_to_field,
+    AirError, TraceGenerator, bytes_to_poseidon_field, next_power_of_two, poseidon_to_field,
     validate_trace_dimensions,
 };
 
@@ -201,8 +188,8 @@ where
         // and provides signature_commitment = Poseidon(signature). We constrain the trace's
         // signature-commitment column to equal that value. Full in-circuit Poseidon(signature)
         // verification is a future enhancement.
-        if self.constraints.verify_signatures &&
-            let Some(ref commitment) = self.constraints.signature_commitment
+        if self.constraints.verify_signatures
+            && let Some(ref commitment) = self.constraints.signature_commitment
         {
             let proof_start = STATE_HASH_SIZE + MAX_TRANSACTION_SIZE + STATE_HASH_SIZE;
             for (i, &byte) in commitment.iter().take(32).enumerate() {
@@ -285,8 +272,8 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, StateTran
         }
 
         // Fill signature commitment (first 32 bytes of transition proof) when set
-        if self.constraints.verify_signatures &&
-            let Some(ref commitment) = self.constraints.signature_commitment
+        if self.constraints.verify_signatures
+            && let Some(ref commitment) = self.constraints.signature_commitment
         {
             let proof_start = post_start + STATE_HASH_SIZE;
             for (i, &byte) in commitment.iter().take(32).enumerate() {

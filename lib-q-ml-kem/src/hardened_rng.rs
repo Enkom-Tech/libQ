@@ -10,10 +10,7 @@
 //! unavailable while `hardened` is active, the system is in an unrecoverable insecure state.
 //! [`OsRngFill`] therefore **panics** on `getrandom` failure rather than returning a fallback.
 
-use rand_core::{
-    Infallible,
-    TryRng,
-};
+use rand_core::{Infallible, TryRng};
 
 /// Infallible [`rand_core::Rng`] adapter backed by the OS CSPRNG.
 ///

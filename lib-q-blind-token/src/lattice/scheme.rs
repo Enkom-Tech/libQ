@@ -24,36 +24,16 @@
 
 use alloc::vec::Vec;
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 use subtle::ConstantTimeEq;
 
 use super::gadget::GADGET_GAUSSIAN_WIDTH;
 use super::ring::{
-    N,
-    Rq,
-    centered_coeffs,
-    const_poly,
-    ring_add,
-    ring_mul,
-    ring_sub,
-    sample_gaussian_poly,
-    sample_in_ball,
-    sample_uniform_poly,
+    N, Rq, centered_coeffs, const_poly, ring_add, ring_mul, ring_sub, sample_gaussian_poly,
+    sample_in_ball, sample_uniform_poly,
 };
-use super::trapdoor::{
-    PREIMAGE_LEN,
-    PublicMatrix,
-    Trapdoor,
-    trapdoor_gen,
-};
+use super::trapdoor::{PREIMAGE_LEN, PublicMatrix, Trapdoor, trapdoor_gen};
 
 /// Trapdoor Gaussian width.
 pub const S_R: f64 = 4.0;
@@ -198,8 +178,8 @@ pub fn unblind(
     // signature check fails. Compare the whole centered-coefficient vectors in constant time.
     if centered_coeffs(&ax)[..]
         .ct_eq(&centered_coeffs(&u)[..])
-        .unwrap_u8() ==
-        0
+        .unwrap_u8()
+        == 0
     {
         return None;
     }

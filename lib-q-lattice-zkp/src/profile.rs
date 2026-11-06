@@ -6,10 +6,7 @@
 //! Fiat–Shamir proofs use a committed-first-message transform analyzed in the **QROM**
 //! (see workspace [`SECURITY.md`](../../SECURITY.md)).
 
-use lib_q_ring::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    FIELD_MODULUS,
-};
+use lib_q_ring::constants::{COEFFICIENTS_IN_RING_ELEMENT, FIELD_MODULUS};
 
 use crate::params::AjtaiParameters;
 

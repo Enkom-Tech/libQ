@@ -12,14 +12,8 @@
 //! table-lookup finding itself is tracked separately under the SKINNY table-lookup finding).
 
 use aead::array::Array;
-use aead::{
-    AeadInOut,
-    KeyInit,
-};
-use lib_q_romulus::{
-    RomulusM,
-    RomulusN,
-};
+use aead::{AeadInOut, KeyInit};
+use lib_q_romulus::{RomulusM, RomulusN};
 
 /// Flips every byte of a correct 16-byte tag independently and confirms verification is
 /// rejected in all 16 cases -- including the last byte, which a prefix/short-circuit

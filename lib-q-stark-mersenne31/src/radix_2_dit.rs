@@ -1,15 +1,8 @@
 use lib_q_stark_dft::TwoAdicSubgroupDft;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    PrimeCharacteristicRing,
-    PrimeField64,
-    TwoAdicField,
-};
+use lib_q_stark_field::{PrimeCharacteristicRing, PrimeField64, TwoAdicField};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixViewMut,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixViewMut};
 use lib_q_stark_matrix::util::reverse_matrix_index_bits;
 use lib_q_stark_util::log2_strict_usize;
 

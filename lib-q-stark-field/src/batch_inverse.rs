@@ -4,11 +4,7 @@ use lib_q_stark_rayon::prelude::*;
 use tracing::instrument;
 
 use crate::field::Field;
-use crate::{
-    FieldArray,
-    PackedValue,
-    PrimeCharacteristicRing,
-};
+use crate::{FieldArray, PackedValue, PrimeCharacteristicRing};
 
 /// Batch multiplicative inverses with Montgomery's trick
 /// This is Montgomery's trick. At a high level, we invert the product of the given field

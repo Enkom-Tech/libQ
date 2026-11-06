@@ -6,15 +6,8 @@
 
 use crate::gf::Gf;
 use crate::macros::sub;
-use crate::params::{
-    COND_BYTES,
-    GFBITS,
-    SYS_N,
-};
-use crate::{
-    transpose,
-    util,
-};
+use crate::params::{COND_BYTES, GFBITS, SYS_N};
+use crate::{transpose, util};
 
 /// Layers of the Beneš network. The required size of `data` and `bits` depends on the value `lgs`.
 /// NOTE const expressions are not sophisticated enough in rust yet to represent this relationship.

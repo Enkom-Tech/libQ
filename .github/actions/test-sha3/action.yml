@@ -184,7 +184,7 @@ runs:
         echo "Feature powerset test completed"
         
     - name: Run benchmarks
-      if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
+      if: inputs.run-benchmarks == 'true'
       shell: bash
       run: |
         echo "Running SHA3 benchmarks..."

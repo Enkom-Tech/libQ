@@ -2,17 +2,7 @@
 #![allow(non_upper_case_globals)]
 
 use core::cmp::Ordering;
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    DivAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use zeroize::DefaultIsZeroes;
 
@@ -4936,10 +4926,7 @@ pub(crate) const GM_TAB: [Fxc; 1024] = [
 #[cfg(test)]
 mod tests {
 
-    use lib_q_sha3::{
-        Digest,
-        Sha3_256,
-    };
+    use lib_q_sha3::{Digest, Sha3_256};
 
     use super::GM_TAB;
 
@@ -4953,8 +4940,8 @@ mod tests {
             sh.update(z.im.0.to_le_bytes());
         }
         assert!(
-            sh.finalize()[..] ==
-                hex::decode("da028cc21a6634bbc49d9d7043d27926cb739a0c781afb41d2b7171d3b82a45d")
+            sh.finalize()[..]
+                == hex::decode("da028cc21a6634bbc49d9d7043d27926cb739a0c781afb41d2b7171d3b82a45d")
                     .unwrap()
         );
     }

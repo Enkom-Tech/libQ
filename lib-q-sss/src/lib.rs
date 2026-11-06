@@ -66,15 +66,9 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(all(feature = "alloc", not(feature = "std")))]
-use alloc::{
-    vec,
-    vec::Vec,
-};
+use alloc::{vec, vec::Vec};
 
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Minimum reconstruction threshold. `k = 1` is not sharing (the lone "share" IS the secret in
 /// the clear), so it is rejected rather than silently accepted as a degenerate case.
@@ -732,10 +726,7 @@ mod tests {
 /// table index regressing into `gf_mul`/`gf_inv` (both deliberately branchless today).
 #[cfg(all(test, feature = "sca-test"))]
 mod shamir_gf256_ct {
-    use lib_q_sca_test::dudect::{
-        timing_passes_loose,
-        timing_t_statistic,
-    };
+    use lib_q_sca_test::dudect::{timing_passes_loose, timing_t_statistic};
     use rand::rng;
     use rand_core::Rng;
 

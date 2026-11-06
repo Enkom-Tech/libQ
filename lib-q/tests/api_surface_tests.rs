@@ -2,18 +2,9 @@
 
 use lib_q_core::KemOperations;
 use libq::{
-    Algorithm,
-    LibQCbKemProvider,
-    Utils,
-    available_algorithms,
-    create_hash_context,
-    create_kem_context,
-    create_signature,
-    create_signature_context,
-    init,
-    sig_available_algorithms,
-    supported_algorithms,
-    version,
+    Algorithm, LibQCbKemProvider, Utils, available_algorithms, create_hash_context,
+    create_kem_context, create_signature, create_signature_context, init, sig_available_algorithms,
+    supported_algorithms, version,
 };
 
 #[test]
@@ -142,10 +133,7 @@ fn umbrella_signature_fn_dsa512_roundtrip() {
 
 #[test]
 fn umbrella_zkp_reexports_constructible() {
-    use libq::zkp::{
-        ProofType,
-        ZkpProver,
-    };
+    use libq::zkp::{ProofType, ZkpProver};
     assert_eq!(ProofType::Stark, ProofType::Stark);
     let _prover = ZkpProver::new();
 }

@@ -7,12 +7,7 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::Field;
 
 /// A wire in the circuit, representing a field element

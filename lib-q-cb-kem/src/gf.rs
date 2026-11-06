@@ -1,10 +1,6 @@
 //! Module to implement Galois field operations
 
-use crate::params::{
-    GFBITS,
-    GFMASK,
-    SYS_T,
-};
+use crate::params::{GFBITS, GFMASK, SYS_T};
 pub(crate) type Gf = u16;
 
 /// Does Gf element `a` have value 0? Returns yes (8191 = `u16::MAX/8`) or no (0) as Gf element.

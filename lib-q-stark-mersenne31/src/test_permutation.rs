@@ -16,10 +16,7 @@
 #[cfg(any(test, feature = "test-utils"))]
 use lib_q_stark_field::PrimeCharacteristicRing;
 #[cfg(any(test, feature = "test-utils"))]
-use lib_q_stark_symmetric::{
-    CryptographicPermutation,
-    Permutation,
-};
+use lib_q_stark_symmetric::{CryptographicPermutation, Permutation};
 
 #[cfg(any(test, feature = "test-utils"))]
 use crate::Mersenne31;

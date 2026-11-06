@@ -4,11 +4,7 @@
 //! used in HQC polynomial arithmetic. This follows the same secure architecture
 //! patterns as ML-KEM and ML-DSA.
 
-use core::ops::{
-    Add,
-    Mul,
-    Sub,
-};
+use core::ops::{Add, Mul, Sub};
 
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;

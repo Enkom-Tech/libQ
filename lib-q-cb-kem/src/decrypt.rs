@@ -4,13 +4,7 @@ use crate::benes::support_gen;
 use crate::bm::bm;
 use crate::gf::gf_iszero;
 use crate::macros::sub;
-use crate::params::{
-    COND_BYTES,
-    IRR_BYTES,
-    SYND_BYTES,
-    SYS_N,
-    SYS_T,
-};
+use crate::params::{COND_BYTES, IRR_BYTES, SYND_BYTES, SYS_N, SYS_T};
 use crate::root::root;
 use crate::synd::synd;
 use crate::util::load_gf;

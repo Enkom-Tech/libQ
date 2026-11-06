@@ -19,37 +19,20 @@ extern crate alloc;
 // Conditional imports based on feature flags
 #[cfg(feature = "alloc")]
 use lib_q_random::entropy::{
-    DeterministicEntropySource,
-    EntropySourceFactory,
-    OsEntropySource,
-    UserEntropySource,
+    DeterministicEntropySource, EntropySourceFactory, OsEntropySource, UserEntropySource,
 };
 #[cfg(feature = "alloc")]
-use lib_q_random::traits::{
-    EntropySource,
-    EntropySourceType,
-    SecureRng,
-    SecurityLevel,
-};
+use lib_q_random::traits::{EntropySource, EntropySourceType, SecureRng, SecurityLevel};
 #[cfg(feature = "alloc")]
 use lib_q_random::validation::quick_entropy_check;
 #[cfg(feature = "alloc")]
 use lib_q_random::{
-    EntropyQuality,
-    EntropyValidator,
-    KT128_DET_GOLDEN_U64_SEED_64,
-    KT128_DET_GOLDEN_ZERO_SEED_64,
-    LibQRng,
-    new_deterministic_rng,
-    new_deterministic_rng_from_u64,
-    new_secure_rng,
+    EntropyQuality, EntropyValidator, KT128_DET_GOLDEN_U64_SEED_64, KT128_DET_GOLDEN_ZERO_SEED_64,
+    LibQRng, new_deterministic_rng, new_deterministic_rng_from_u64, new_secure_rng,
 };
 // no_std imports
 #[cfg(not(feature = "alloc"))]
-use lib_q_random::{
-    new_deterministic_rng_no_std,
-    new_secure_rng_no_std,
-};
+use lib_q_random::{new_deterministic_rng_no_std, new_secure_rng_no_std};
 use rand_core::Rng;
 
 #[test]

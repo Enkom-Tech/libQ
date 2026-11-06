@@ -8,11 +8,7 @@
 
 use core::arch::aarch64::*;
 
-use crate::state::{
-    ROUNDS,
-    Z0,
-    Z1,
-};
+use crate::state::{ROUNDS, Z0, Z1};
 
 #[inline(always)]
 unsafe fn ld(b: &[u8]) -> uint8x16_t {

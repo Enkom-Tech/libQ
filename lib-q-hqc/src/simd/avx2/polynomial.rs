@@ -24,12 +24,7 @@ macro_rules! debug_log {
 }
 
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
-use core::arch::x86_64::{
-    __m256i,
-    _mm256_loadu_si256,
-    _mm256_storeu_si256,
-    _mm256_xor_si256,
-};
+use core::arch::x86_64::{__m256i, _mm256_loadu_si256, _mm256_storeu_si256, _mm256_xor_si256};
 
 /// Vector shift and XOR (public interface) — partially AVX2-accelerated.
 ///

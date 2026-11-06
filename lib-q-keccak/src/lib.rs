@@ -83,13 +83,7 @@ extern crate std;
 /// );
 /// ```
 use core::fmt::Debug;
-use core::ops::{
-    BitAnd,
-    BitAndAssign,
-    BitXor,
-    BitXorAssign,
-    Not,
-};
+use core::ops::{BitAnd, BitAndAssign, BitXor, BitXorAssign, Not};
 
 #[rustfmt::skip]
 mod unroll;
@@ -405,17 +399,9 @@ pub fn p1600x8(states: &mut [[u64; PLEN]; 8], round_count: usize) {
 #[cfg(all(feature = "simd", keccak_portable_simd))]
 /// SIMD implementations for Keccak-f1600 sponge function
 pub mod simd {
-    pub use core::simd::{
-        u64x2,
-        u64x4,
-        u64x8,
-    };
+    pub use core::simd::{u64x2, u64x4, u64x8};
 
-    use crate::{
-        LaneSize,
-        PLEN,
-        keccak_p,
-    };
+    use crate::{LaneSize, PLEN, keccak_p};
 
     macro_rules! impl_lanesize_simd_u64xn {
         ($type:ty) => {
@@ -512,48 +498,28 @@ pub fn keccak_p<L: LaneSize>(state: &mut [L; PLEN], round_count: usize) {
 // Re-export feature configuration
 #[cfg(all(feature = "simd", keccak_portable_simd))]
 pub use crate::advanced_simd::{
-    AdvancedLaneSize,
-    SimdConfig,
-    SimdSecurityValidator,
-    parallel as simd_parallel,
+    AdvancedLaneSize, SimdConfig, SimdSecurityValidator, parallel as simd_parallel,
 };
 pub use crate::features::{
-    FeatureConfig,
-    FeatureReport,
-    detection,
-    get_global_config,
-    reset_global_config,
+    FeatureConfig, FeatureReport, detection, get_global_config, reset_global_config,
     set_global_config,
 };
 // Re-export multi-threading functionality
 #[cfg(all(feature = "multithreading", feature = "std"))]
 pub use crate::multithreading::{
-    AffinityStrategy,
-    CryptoThreadPool,
-    ThreadingConfig,
-    WorkerStats,
-    get_global_thread_pool,
-    init_global_thread_pool,
-    process_keccak_states_global,
+    AffinityStrategy, CryptoThreadPool, ThreadingConfig, WorkerStats, get_global_thread_pool,
+    init_global_thread_pool, process_keccak_states_global,
 };
 #[cfg(feature = "simd")]
 pub use crate::optimized_core::parallel;
 #[cfg(all(feature = "multithreading", feature = "std", feature = "simd"))]
 pub use crate::optimized_core::parallel::p1600_multithreaded;
-pub use crate::optimized_core::{
-    OptimizationLevel,
-    fast_loop_absorb_optimized,
-    p1600_optimized,
-};
+pub use crate::optimized_core::{OptimizationLevel, fast_loop_absorb_optimized, p1600_optimized};
 
 #[cfg(test)]
 #[allow(clippy::unreadable_literal)] // Test vectors should remain as-is
 mod tests {
-    use crate::{
-        LaneSize,
-        PLEN,
-        keccak_p,
-    };
+    use crate::{LaneSize, PLEN, keccak_p};
 
     fn keccak_f<L: LaneSize>(state_first: [L; PLEN], state_second: [L; PLEN]) {
         let mut state = [L::default(); PLEN];
@@ -683,11 +649,7 @@ mod tests {
 
     #[cfg(all(test, feature = "simd", keccak_portable_simd))]
     mod test_simd {
-        use core::simd::{
-            u64x2,
-            u64x4,
-            u64x8,
-        };
+        use core::simd::{u64x2, u64x4, u64x8};
 
         use crate::tests::keccak_f;
 

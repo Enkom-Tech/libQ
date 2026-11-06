@@ -3,15 +3,9 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-use lib_q_stark_matrix::{
-    Dimensions,
-    Matrix,
-};
+use lib_q_stark_matrix::{Dimensions, Matrix};
 use serde::de::DeserializeOwned;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 /// A "Mixed Matrix Commitment Scheme" (MMCS) is a generalization of a vector commitment scheme.
 ///

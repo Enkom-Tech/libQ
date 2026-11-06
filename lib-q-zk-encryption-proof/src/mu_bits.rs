@@ -31,29 +31,13 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use lib_q_plonky_lookup::{
-    Direction,
-    Kind,
-    Lookup,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_plonky_lookup::{Direction, Kind, Lookup};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_zkp::stark::ConfigVal;
 
-use crate::logup_join::{
-    MU_BIT_BUS,
-    MU_LIMB_BUS,
-    fc,
-    mcol,
-    pcol,
-    sconst,
-};
+use crate::logup_join::{MU_BIT_BUS, MU_LIMB_BUS, fc, mcol, pcol, sconst};
 
 /// Bits per μ preimage limb (a Keccak rate limb is 16 bits).
 pub const MU_BITS_PER_LIMB: usize = 16;

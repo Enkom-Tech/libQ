@@ -11,22 +11,13 @@
 //! Where several algorithms or inputs are compared, their samples are interleaved so that
 //! frequency scaling and load changes affect all of them alike.
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
 use digest::Digest;
 use digest::common::BlockSizeUser;
 #[cfg(not(tarpaulin))]
-use lib_q_sha3::{
-    Sha3_224,
-    Sha3_384,
-};
-use lib_q_sha3::{
-    Sha3_256,
-    Sha3_512,
-};
+use lib_q_sha3::{Sha3_224, Sha3_384};
+use lib_q_sha3::{Sha3_256, Sha3_512};
 
 #[cfg(not(tarpaulin))]
 /// Upper bound on mean ns/op for SHA3-256-class algorithms (short input, many iterations).

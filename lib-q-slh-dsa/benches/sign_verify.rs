@@ -1,16 +1,8 @@
 use std::hint::black_box;
 
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lib_q_slh_dsa::*;
-use signature::{
-    Keypair,
-    Signer,
-    Verifier,
-};
+use signature::{Keypair, Signer, Verifier};
 
 pub fn sign_benchmark<P: ParameterSet>(c: &mut Criterion) {
     let mut rng = lib_q_random::new_secure_rng().expect("Failed to create secure RNG");

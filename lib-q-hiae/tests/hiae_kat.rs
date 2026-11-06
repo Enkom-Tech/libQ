@@ -5,17 +5,9 @@
 //! on the portable constant-time backend, and through the `Aead` trait.
 
 use lib_q_hiae::_internals::{
-    hiae_open_dispatch,
-    hiae_open_soft,
-    hiae_seal_dispatch,
-    hiae_seal_soft,
+    hiae_open_dispatch, hiae_open_soft, hiae_seal_dispatch, hiae_seal_soft,
 };
-use lib_q_hiae::{
-    Aead,
-    AeadKey,
-    Hiae,
-    Nonce,
-};
+use lib_q_hiae::{Aead, AeadKey, Hiae, Nonce};
 
 struct Kat {
     name: &'static str,

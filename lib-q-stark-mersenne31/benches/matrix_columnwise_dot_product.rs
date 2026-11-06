@@ -1,13 +1,5 @@
-use criterion::{
-    BatchSize,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_stark_field::extension::{
-    BinomialExtensionField,
-    Complex,
-};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use lib_q_stark_field::extension::{BinomialExtensionField, Complex};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;

@@ -4,46 +4,18 @@ use core::borrow::Borrow;
 extern crate alloc;
 
 use lib_q_random::DeterministicRng;
-use lib_q_stark::{
-    StarkConfig,
-    prove,
-    verify,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_challenger::{
-    ComplexFieldChallenger,
-    Shake256Challenger32,
-};
+use lib_q_stark::{StarkConfig, prove, verify};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
-use lib_q_stark_fri::{
-    HidingFriPcs,
-    TwoAdicFriPcs,
-    create_test_fri_params,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
+use lib_q_stark_fri::{HidingFriPcs, TwoAdicFriPcs, create_test_fri_params};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-use lib_q_stark_merkle::{
-    MerkleTreeHidingMmcs,
-    MerkleTreeMmcs,
-};
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_merkle::{MerkleTreeHidingMmcs, MerkleTreeMmcs};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 
 /// For testing the public values feature
 pub struct FibonacciAir {}

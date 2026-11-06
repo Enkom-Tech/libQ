@@ -2,18 +2,8 @@
 
 #![cfg(feature = "alloc")]
 
-use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-};
-use lib_q_romulus::{
-    RomulusMAead,
-    RomulusNAead,
-};
+use lib_q_core::{Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce};
+use lib_q_romulus::{RomulusMAead, RomulusNAead};
 
 #[test]
 fn romulus_n_aead_invalid_key_size() {

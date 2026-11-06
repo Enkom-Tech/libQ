@@ -22,12 +22,7 @@
 
 #![cfg(all(feature = "alloc", feature = "aead"))]
 
-use lib_q_saturnin::{
-    Aead,
-    AeadKey,
-    Nonce,
-    SaturninAead,
-};
+use lib_q_saturnin::{Aead, AeadKey, Nonce, SaturninAead};
 
 fn from_hex(s: &str) -> Vec<u8> {
     (0..s.len())

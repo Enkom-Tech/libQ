@@ -9,11 +9,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use digest::{ExtendableOutput, Update, XofReader};
 use lib_q_sha3::Shake128;
 use lib_q_stark_symmetric::CryptographicHasher;
 

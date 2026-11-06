@@ -1,21 +1,7 @@
 //! Criterion benchmarks for tweak AEAD.
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
-use lib_q_tweak_aead::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    TweakAead,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use lib_q_core::{Aead, AeadKey, Nonce};
+use lib_q_tweak_aead::{KEY_BYTES, NONCE_BYTES, TweakAead};
 
 fn bench_encrypt(c: &mut Criterion) {
     let aead = TweakAead::new();

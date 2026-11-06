@@ -1,18 +1,8 @@
 //! The batched FIPS-202 SHAKE must equal four independent scalar instances, byte for byte.
 
-use digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use lib_q_sha3::parallel::{
-    shake128_x4,
-    shake256_x4,
-};
-use lib_q_sha3::{
-    Shake128,
-    Shake256,
-};
+use digest::{ExtendableOutput, Update, XofReader};
+use lib_q_sha3::parallel::{shake128_x4, shake256_x4};
+use lib_q_sha3::{Shake128, Shake256};
 
 fn seeded(seed: u64, len: usize) -> Vec<u8> {
     let mut x = seed.wrapping_mul(0x9E37_79B9_7F4A_7C15).wrapping_add(1);

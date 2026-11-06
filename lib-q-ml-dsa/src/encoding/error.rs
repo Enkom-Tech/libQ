@@ -72,9 +72,7 @@ pub(crate) fn deserialize_to_vector_then_ntt<SIMDUnit: Operations>(
 mod tests {
     use super::*;
     use crate::simd::traits::Operations;
-    use crate::simd::{
-        self,
-    };
+    use crate::simd::{self};
 
     fn test_deserialize_generic<SIMDUnit: Operations>() {
         let serialized = [

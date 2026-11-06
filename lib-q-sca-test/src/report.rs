@@ -12,10 +12,7 @@
 //!
 //! [`docs/sca-self-certification.md`]: ../../docs/sca-self-certification.md
 
-use std::time::{
-    SystemTime,
-    UNIX_EPOCH,
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Outcome of a single leakage screen against the configured threshold.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

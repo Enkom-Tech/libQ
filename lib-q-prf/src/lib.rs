@@ -41,35 +41,12 @@ mod wasm;
 
 pub use error::PrfError;
 pub use field::{
-    fp_add,
-    fp_mul,
-    fp_pow,
-    legendre_symbol_monty,
-    legendre_symbol_residue,
-    to_monty,
+    fp_add, fp_mul, fp_pow, legendre_symbol_monty, legendre_symbol_residue, to_monty,
     uint_ct_eq_zero,
 };
-pub use gold::{
-    GoldKey256,
-    GoldKey512,
-    gold_prf_u256,
-    gold_prf_u512,
-};
-pub use legendre::{
-    LegendreKey256,
-    LegendreKey512,
-    legendre_prf_u256,
-    legendre_prf_u512,
-};
+pub use gold::{GoldKey256, GoldKey512, gold_prf_u256, gold_prf_u512};
+pub use legendre::{LegendreKey256, LegendreKey512, legendre_prf_u256, legendre_prf_u512};
 pub use params::{
-    GoldPrfParams256,
-    GoldPrfParams512,
-    LegendrePrfParams256,
-    LegendrePrfParams512,
-    P256_BE_HEX,
-    P512_BE_HEX,
-    u256_from_le_bytes,
-    u256_to_le_bytes,
-    u512_from_le_bytes,
-    u512_to_le_bytes,
+    GoldPrfParams256, GoldPrfParams512, LegendrePrfParams256, LegendrePrfParams512, P256_BE_HEX,
+    P512_BE_HEX, u256_from_le_bytes, u256_to_le_bytes, u512_from_le_bytes, u512_to_le_bytes,
 };

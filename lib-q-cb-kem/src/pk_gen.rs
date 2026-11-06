@@ -3,25 +3,12 @@
 #[cfg(all(feature = "alloc", feature = "zeroize"))]
 use zeroize::Zeroize;
 
-use crate::gf::{
-    gf_inv,
-    gf_mul,
-};
+use crate::gf::{gf_inv, gf_mul};
 use crate::macros::sub;
-use crate::params::{
-    GFBITS,
-    GFMASK,
-    PK_NROWS,
-    PK_ROW_BYTES,
-    SYS_N,
-    SYS_T,
-};
+use crate::params::{GFBITS, GFMASK, PK_NROWS, PK_ROW_BYTES, SYS_N, SYS_T};
 use crate::root::root;
 use crate::uint64_sort::uint64_sort;
-use crate::util::{
-    bitrev,
-    load_gf,
-};
+use crate::util::{bitrev, load_gf};
 
 /// Return number of trailing zeros of the non-zero input `input`
 #[cfg(all(

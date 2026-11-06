@@ -5,12 +5,7 @@
 
 use alloc::vec::Vec;
 
-use crate::types::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeMode,
-    HpkePskWireFormat,
-};
+use crate::types::{HpkeAead, HpkeCipherSuite, HpkeMode, HpkePskWireFormat};
 
 /// Documented interoperability profile for HPKE on the wire.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -131,8 +126,8 @@ fn first_common_psk_wire(
         if !remote.psk_wire_preferences.contains(w) {
             continue;
         }
-        if profile == HpkeInteropProfile::RfcStrictPq &&
-            *w == HpkePskWireFormat::LibQCommitmentSuffix
+        if profile == HpkeInteropProfile::RfcStrictPq
+            && *w == HpkePskWireFormat::LibQCommitmentSuffix
         {
             continue;
         }
@@ -197,10 +192,7 @@ mod tests {
     use alloc::vec;
 
     use super::*;
-    use crate::types::{
-        HpkeKdf,
-        HpkeKem,
-    };
+    use crate::types::{HpkeKdf, HpkeKem};
 
     fn default_suite() -> HpkeCipherSuite {
         HpkeCipherSuite::new(

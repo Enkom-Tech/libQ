@@ -4,21 +4,12 @@
 //! Registry-backed AEAD lives in the `lib-q-aead` crate as `LibQAeadProvider`.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
-use crate::api::{
-    AeadOperations,
-    Algorithm,
-};
+use crate::api::{AeadOperations, Algorithm};
 use crate::error::Result;
 use crate::security::SecurityValidator;
-use crate::traits::{
-    AeadKey,
-    Nonce,
-};
+use crate::traits::{AeadKey, Nonce};
 
 /// Stub AEAD provider bundled with `lib-q-core` (no algorithm implementations).
 ///

@@ -39,19 +39,9 @@
 //! attempted here (would require also colliding through `opening_statement_ctx`, which lives in
 //! `lib-q-lattice-zkp`, outside this crate's edit scope for the 2026-08 test-hygiene audit).
 
-use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AjtaiParameters,
-};
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
-use lib_q_ring_sig::{
-    dualring_lb_signing_context,
-    federation_signing_context,
-};
+use lib_q_lattice_zkp::{AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters};
+use lib_q_ring::{ModuleVec, Poly};
+use lib_q_ring_sig::{dualring_lb_signing_context, federation_signing_context};
 
 fn crs() -> AjtaiCommitmentKey {
     AjtaiCommitmentKey {

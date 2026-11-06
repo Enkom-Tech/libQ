@@ -97,10 +97,7 @@ impl SecurityConfig {
 }
 
 #[cfg(feature = "std")]
-use std::sync::{
-    LazyLock,
-    RwLock,
-};
+use std::sync::{LazyLock, RwLock};
 
 /// Global security configuration.
 ///
@@ -314,10 +311,7 @@ impl SecurityContext {
     fn get_timestamp() -> u64 {
         #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
         {
-            use std::time::{
-                SystemTime,
-                UNIX_EPOCH,
-            };
+            use std::time::{SystemTime, UNIX_EPOCH};
             SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()

@@ -6,13 +6,7 @@
 #![cfg(feature = "std")]
 #![allow(unused_imports, unused_variables)]
 
-use lib_q_core::{
-    Algorithm,
-    Kem,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::{Algorithm, Kem, KemContext, KemPublicKey, KemSecretKey};
 use lib_q_hash::Sha3_256;
 use lib_q_hash::digest::Digest;
 use lib_q_hpke::HpkeKem;

@@ -1,37 +1,15 @@
 // Additional tests to improve coverage for lib-q-core
 
 use lib_q_core::algorithm_registry::AlgorithmRegistry;
-use lib_q_core::contexts::{
-    AeadContext,
-    KemContext,
-    SignatureContext,
-};
-use lib_q_core::error::{
-    Error,
-    HexDecodeError,
-    supported_security_levels,
-};
+use lib_q_core::contexts::{AeadContext, KemContext, SignatureContext};
+use lib_q_core::error::{Error, HexDecodeError, supported_security_levels};
 use lib_q_core::security::SecurityConstants;
 use lib_q_core::traits::{
-    AeadKey,
-    KemKeypair,
-    KemPublicKey,
-    KemSecretKey,
-    Nonce,
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
+    AeadKey, KemKeypair, KemPublicKey, KemSecretKey, Nonce, SigKeypair, SigPublicKey, SigSecretKey,
 };
 use lib_q_core::{
-    Algorithm,
-    AlgorithmCategory,
-    SecurityValidator,
-    Utils,
-    algorithms_by_category,
-    create_hash_context,
-    create_kem_context,
-    create_signature_context,
-    supported_algorithms,
+    Algorithm, AlgorithmCategory, SecurityValidator, Utils, algorithms_by_category,
+    create_hash_context, create_kem_context, create_signature_context, supported_algorithms,
 };
 
 #[test]

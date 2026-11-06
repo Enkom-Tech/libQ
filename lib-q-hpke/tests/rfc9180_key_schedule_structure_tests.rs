@@ -26,13 +26,7 @@
 
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::KdfProvider;
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-    hpke_core,
-};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, hpke_core};
 
 /// RFC 9180 Section 4:
 /// ```text

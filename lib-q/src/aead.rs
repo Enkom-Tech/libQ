@@ -6,12 +6,7 @@
 use alloc::boxed::Box;
 
 #[cfg(feature = "alloc")]
-pub use lib_q_core::{
-    AeadContext,
-    AeadKey,
-    Algorithm,
-    Nonce,
-};
+pub use lib_q_core::{AeadContext, AeadKey, Algorithm, Nonce};
 
 /// Returns an `AeadContext` wired to `lib-q-aead`.
 #[cfg(feature = "alloc")]

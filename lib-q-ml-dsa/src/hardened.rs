@@ -31,11 +31,7 @@ use zeroize::Zeroize;
 use crate::constants::FIELD_MODULUS;
 use crate::hash_functions::shake256::Xof;
 use crate::polynomial::PolynomialRingElement;
-use crate::simd::traits::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    Operations,
-    SIMD_UNITS_IN_RING_ELEMENT,
-};
+use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, Operations, SIMD_UNITS_IN_RING_ELEMENT};
 
 const SPLIT_DOMAIN: &[u8] = b"lib-q-ml-dsa/hardened-sk-split-v2";
 

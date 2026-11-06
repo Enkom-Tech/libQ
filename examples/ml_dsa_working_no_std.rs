@@ -2,14 +2,8 @@
 //!
 //! This example shows how to use ML-DSA without std via the low-level `lib-q-ml-dsa` API.
 
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
-use lib_q_ml_dsa::{
-    Zeroizing,
-    ml_dsa_65,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+use lib_q_ml_dsa::{Zeroizing, ml_dsa_65};
 
 // In a real no_std environment, you would get randomness from:
 // - Hardware random number generator
@@ -108,10 +102,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn test_all_variants() -> Result<(), Box<dyn std::error::Error>> {
-    use lib_q_ml_dsa::{
-        ml_dsa_44,
-        ml_dsa_87,
-    };
+    use lib_q_ml_dsa::{ml_dsa_44, ml_dsa_87};
 
     // Test ML-DSA-44
     println!("   Testing ML-DSA-44...");
@@ -167,14 +158,8 @@ fn test_all_variants() -> Result<(), Box<dyn std::error::Error>> {
 // This is a demonstration of how you would implement hardware RNG in a real embedded system
 #[allow(dead_code)]
 mod embedded_example {
-    use lib_q_ml_dsa::constants::{
-        KEY_GENERATION_RANDOMNESS_SIZE,
-        SIGNING_RANDOMNESS_SIZE,
-    };
-    use lib_q_ml_dsa::{
-        Zeroizing,
-        ml_dsa_65,
-    };
+    use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+    use lib_q_ml_dsa::{Zeroizing, ml_dsa_65};
 
     // Hardware RNG implementation for embedded systems
     pub struct HardwareRng;

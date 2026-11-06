@@ -33,34 +33,12 @@ pub mod prover;
 pub mod symbolic;
 pub mod verifier;
 
-pub use common::{
-    CommonData,
-    ProverData,
-    ProverOnlyData,
-    get_perm_challenges,
-};
+pub use common::{CommonData, ProverData, ProverOnlyData, get_perm_challenges};
 pub use config::{
-    Challenge,
-    Commitment,
-    Domain,
-    PackedChallenge,
-    PackedVal,
-    PcsError,
-    PcsProof,
-    StarkGenericConfig,
-    Val,
+    Challenge, Commitment, Domain, PackedChallenge, PackedVal, PcsError, PcsProof,
+    StarkGenericConfig, Val,
 };
-pub use lib_q_plonky_uni_stark::{
-    OpenedValues,
-    VerificationError,
-};
-pub use proof::{
-    BatchCommitments,
-    BatchOpenedValues,
-    BatchProof,
-};
-pub use prover::{
-    StarkInstance,
-    prove_batch,
-};
+pub use lib_q_plonky_uni_stark::{OpenedValues, VerificationError};
+pub use proof::{BatchCommitments, BatchOpenedValues, BatchProof};
+pub use prover::{StarkInstance, prove_batch};
 pub use verifier::verify_batch;

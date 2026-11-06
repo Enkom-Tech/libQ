@@ -3,10 +3,7 @@
 use core::array;
 
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 
 use crate::AirBuilder;
 
@@ -127,12 +124,12 @@ pub fn add3<AB: AirBuilder>(
     let acc = acc_16.clone() + acc_32.mul_2exp_u64(16);
 
     builder.assert_zeros([
-        acc.clone() *
-            (acc.clone() + AB::Expr::from_prime_subfield(two_32)) *
-            (acc + AB::Expr::from_prime_subfield(two_32.double())),
-        acc_16.clone() *
-            (acc_16.clone() + AB::Expr::from_prime_subfield(two_16)) *
-            (acc_16 + AB::Expr::from_prime_subfield(two_16.double())),
+        acc.clone()
+            * (acc.clone() + AB::Expr::from_prime_subfield(two_32))
+            * (acc + AB::Expr::from_prime_subfield(two_32.double())),
+        acc_16.clone()
+            * (acc_16.clone() + AB::Expr::from_prime_subfield(two_16))
+            * (acc_16 + AB::Expr::from_prime_subfield(two_16.double())),
     ]);
 }
 
@@ -361,10 +358,10 @@ mod tests {
         assert_eq!(limbs[3], F::from_u16(0x1234));
 
         assert_eq!(
-            limbs[0] +
-                limbs[1].mul_2exp_u64(16) +
-                limbs[2].mul_2exp_u64(32) +
-                limbs[3].mul_2exp_u64(48),
+            limbs[0]
+                + limbs[1].mul_2exp_u64(16)
+                + limbs[2].mul_2exp_u64(32)
+                + limbs[3].mul_2exp_u64(48),
             F::from_u64(val)
         );
 

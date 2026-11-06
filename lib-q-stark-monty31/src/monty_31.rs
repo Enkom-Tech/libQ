@@ -2,90 +2,33 @@
 
 use alloc::vec;
 use alloc::vec::Vec;
-use core::fmt::{
-    self,
-    Debug,
-    Display,
-    Formatter,
-};
+use core::fmt::{self, Debug, Display, Formatter};
 use core::hash::Hash;
-use core::iter::{
-    Product,
-    Sum,
-};
+use core::iter::{Product, Sum};
 use core::marker::PhantomData;
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    DivAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
-use core::{
-    array,
-    iter,
-};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::{array, iter};
 
 use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_field::op_assign_macros::{
-    impl_add_assign,
-    impl_div_methods,
-    impl_mul_methods,
-    impl_sub_assign,
+    impl_add_assign, impl_div_methods, impl_mul_methods, impl_sub_assign,
 };
 use lib_q_stark_field::{
-    Field,
-    InjectiveMonomial,
-    Packable,
-    PermutationMonomial,
-    PrimeCharacteristicRing,
-    PrimeField,
-    PrimeField32,
-    PrimeField64,
-    RawDataSerializable,
-    TwoAdicField,
-    impl_raw_serializable_primefield32,
-    quotient_map_small_int,
+    Field, InjectiveMonomial, Packable, PermutationMonomial, PrimeCharacteristicRing, PrimeField,
+    PrimeField32, PrimeField64, RawDataSerializable, TwoAdicField,
+    impl_raw_serializable_primefield32, quotient_map_small_int,
 };
-use lib_q_stark_util::{
-    flatten_to_base,
-    gcd_inversion_prime_field_32,
-};
+use lib_q_stark_util::{flatten_to_base, gcd_inversion_prime_field_32};
 use num_bigint::BigUint;
 use rand::Rng;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
-use serde::{
-    Deserialize,
-    Deserializer,
-    Serialize,
-};
+use rand::distr::{Distribution, StandardUniform};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::utils::{
-    add,
-    from_monty,
-    halve_u32,
-    large_monty_reduce,
-    monty_reduce,
-    monty_reduce_u128,
-    sub,
-    to_monty,
-    to_monty_64,
-    to_monty_64_signed,
-    to_monty_signed,
+    add, from_monty, halve_u32, large_monty_reduce, monty_reduce, monty_reduce_u128, sub, to_monty,
+    to_monty_64, to_monty_64_signed, to_monty_signed,
 };
-use crate::{
-    FieldParameters,
-    MontyParameters,
-    RelativelyPrimePower,
-    TwoAdicData,
-};
+use crate::{FieldParameters, MontyParameters, RelativelyPrimePower, TwoAdicData};
 
 #[derive(Clone, Copy, Default, Eq, Hash, PartialEq)]
 #[repr(transparent)] // Important for reasoning about memory layout.
@@ -318,32 +261,32 @@ impl<FP: FieldParameters> PrimeCharacteristicRing for MontyField31<FP> {
                 // As all values are < P < 2^31, the products are < P^2 < 2^31P.
                 // Hence, summing two together we stay below MONTY*P which means
                 // monty_reduce will produce a valid result.
-                let u64_prod_sum = (lhs[0].value as u64) * (rhs[0].value as u64) +
-                    (lhs[1].value as u64) * (rhs[1].value as u64);
+                let u64_prod_sum = (lhs[0].value as u64) * (rhs[0].value as u64)
+                    + (lhs[1].value as u64) * (rhs[1].value as u64);
                 Self::new_monty(monty_reduce::<FP>(u64_prod_sum))
             }
             3 => {
                 // As all values are < P < 2^31, the products are < P^2 < 2^31P.
                 // Hence, summing three together will be less than 2 * MONTY * P
-                let u64_prod_sum = (lhs[0].value as u64) * (rhs[0].value as u64) +
-                    (lhs[1].value as u64) * (rhs[1].value as u64) +
-                    (lhs[2].value as u64) * (rhs[2].value as u64);
+                let u64_prod_sum = (lhs[0].value as u64) * (rhs[0].value as u64)
+                    + (lhs[1].value as u64) * (rhs[1].value as u64)
+                    + (lhs[2].value as u64) * (rhs[2].value as u64);
                 Self::new_monty(large_monty_reduce::<FP>(u64_prod_sum))
             }
             4 => {
                 // As all values are < P < 2^31, the products are < P^2 < 2^31P.
                 // Hence, summing four together will be less than 2 * MONTY * P.
-                let u64_prod_sum = (lhs[0].value as u64) * (rhs[0].value as u64) +
-                    (lhs[1].value as u64) * (rhs[1].value as u64) +
-                    (lhs[2].value as u64) * (rhs[2].value as u64) +
-                    (lhs[3].value as u64) * (rhs[3].value as u64);
+                let u64_prod_sum = (lhs[0].value as u64) * (rhs[0].value as u64)
+                    + (lhs[1].value as u64) * (rhs[1].value as u64)
+                    + (lhs[2].value as u64) * (rhs[2].value as u64)
+                    + (lhs[3].value as u64) * (rhs[3].value as u64);
                 Self::new_monty(large_monty_reduce::<FP>(u64_prod_sum))
             }
             5 => {
-                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64) +
-                    (lhs[1].value as u64) * (rhs[1].value as u64) +
-                    (lhs[2].value as u64) * (rhs[2].value as u64) +
-                    (lhs[3].value as u64) * (rhs[3].value as u64);
+                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64)
+                    + (lhs[1].value as u64) * (rhs[1].value as u64)
+                    + (lhs[2].value as u64) * (rhs[2].value as u64)
+                    + (lhs[3].value as u64) * (rhs[3].value as u64);
                 let tail_sum = (lhs[4].value as u64) * (rhs[4].value as u64);
                 // head_sum < 4*P^2, tail_sum < P^2.
                 let head_sum_corr = head_sum.wrapping_sub((FP::PRIME as u64) << FP::MONTY_BITS);
@@ -353,12 +296,12 @@ impl<FP: FieldParameters> PrimeCharacteristicRing for MontyField31<FP> {
                 Self::new_monty(large_monty_reduce::<FP>(sum))
             }
             6 => {
-                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64) +
-                    (lhs[1].value as u64) * (rhs[1].value as u64) +
-                    (lhs[2].value as u64) * (rhs[2].value as u64) +
-                    (lhs[3].value as u64) * (rhs[3].value as u64);
-                let tail_sum = (lhs[4].value as u64) * (rhs[4].value as u64) +
-                    (lhs[5].value as u64) * (rhs[5].value as u64);
+                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64)
+                    + (lhs[1].value as u64) * (rhs[1].value as u64)
+                    + (lhs[2].value as u64) * (rhs[2].value as u64)
+                    + (lhs[3].value as u64) * (rhs[3].value as u64);
+                let tail_sum = (lhs[4].value as u64) * (rhs[4].value as u64)
+                    + (lhs[5].value as u64) * (rhs[5].value as u64);
                 // head_sum < 4*P^2, tail_sum < 2*P^2.
                 let head_sum_corr = head_sum.wrapping_sub((FP::PRIME as u64) << FP::MONTY_BITS);
                 // head_sum.min(head_sum_corr) is guaranteed to be < 2*P^2.
@@ -367,13 +310,13 @@ impl<FP: FieldParameters> PrimeCharacteristicRing for MontyField31<FP> {
                 Self::new_monty(large_monty_reduce::<FP>(sum))
             }
             7 => {
-                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64) +
-                    (lhs[1].value as u64) * (rhs[1].value as u64) +
-                    (lhs[2].value as u64) * (rhs[2].value as u64) +
-                    (lhs[3].value as u64) * (rhs[3].value as u64);
-                let tail_sum = (lhs[4].value as u64) * (rhs[4].value as u64) +
-                    lhs[5].value as u64 * (rhs[5].value as u64) +
-                    lhs[6].value as u64 * (rhs[6].value as u64);
+                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64)
+                    + (lhs[1].value as u64) * (rhs[1].value as u64)
+                    + (lhs[2].value as u64) * (rhs[2].value as u64)
+                    + (lhs[3].value as u64) * (rhs[3].value as u64);
+                let tail_sum = (lhs[4].value as u64) * (rhs[4].value as u64)
+                    + lhs[5].value as u64 * (rhs[5].value as u64)
+                    + lhs[6].value as u64 * (rhs[6].value as u64);
                 // head_sum, tail_sum are guaranteed to be < 4*P^2.
                 let head_sum_corr = head_sum.wrapping_sub((FP::PRIME as u64) << FP::MONTY_BITS);
                 let tail_sum_corr = tail_sum.wrapping_sub((FP::PRIME as u64) << FP::MONTY_BITS);
@@ -383,14 +326,14 @@ impl<FP: FieldParameters> PrimeCharacteristicRing for MontyField31<FP> {
                 Self::new_monty(large_monty_reduce::<FP>(sum))
             }
             8 => {
-                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64) +
-                    (lhs[1].value as u64) * (rhs[1].value as u64) +
-                    (lhs[2].value as u64) * (rhs[2].value as u64) +
-                    (lhs[3].value as u64) * (rhs[3].value as u64);
-                let tail_sum = (lhs[4].value as u64) * (rhs[4].value as u64) +
-                    lhs[5].value as u64 * (rhs[5].value as u64) +
-                    lhs[6].value as u64 * (rhs[6].value as u64) +
-                    lhs[7].value as u64 * (rhs[7].value as u64);
+                let head_sum = (lhs[0].value as u64) * (rhs[0].value as u64)
+                    + (lhs[1].value as u64) * (rhs[1].value as u64)
+                    + (lhs[2].value as u64) * (rhs[2].value as u64)
+                    + (lhs[3].value as u64) * (rhs[3].value as u64);
+                let tail_sum = (lhs[4].value as u64) * (rhs[4].value as u64)
+                    + lhs[5].value as u64 * (rhs[5].value as u64)
+                    + lhs[6].value as u64 * (rhs[6].value as u64)
+                    + lhs[7].value as u64 * (rhs[7].value as u64);
                 // head_sum, tail_sum are guaranteed to be < 4*P^2.
                 let head_sum_corr = head_sum.wrapping_sub((FP::PRIME as u64) << FP::MONTY_BITS);
                 let tail_sum_corr = tail_sum.wrapping_sub((FP::PRIME as u64) << FP::MONTY_BITS);
@@ -775,11 +718,7 @@ impl<FP: MontyParameters> Sum for MontyField31<FP> {
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field_testing::{
-        test_field,
-        test_prime_field,
-        test_prime_field_32,
-        test_prime_field_64,
-        test_two_adic_field,
+        test_field, test_prime_field, test_prime_field_32, test_prime_field_64, test_two_adic_field,
     };
     use num_bigint::BigUint;
 

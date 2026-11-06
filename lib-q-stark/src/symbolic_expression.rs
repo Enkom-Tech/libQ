@@ -1,26 +1,11 @@
 use alloc::sync::Arc;
 use core::fmt::Debug;
-use core::iter::{
-    Product,
-    Sum,
-};
-use core::ops::{
-    Add,
-    AddAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
+use core::iter::{Product, Sum};
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use lib_q_stark_field::extension::BinomialExtensionField;
 use lib_q_stark_field::{
-    Algebra,
-    ExtensionField,
-    Field,
-    InjectiveMonomial,
-    PrimeCharacteristicRing,
+    Algebra, ExtensionField, Field, InjectiveMonomial, PrimeCharacteristicRing,
 };
 
 use crate::symbolic_variable::SymbolicVariable;
@@ -192,14 +177,14 @@ impl<F> SymbolicExpression<F> {
             Self::IsTransition | Self::Constant(_) => 0,
             Self::Add {
                 degree_multiple, ..
-            } |
-            Self::Sub {
+            }
+            | Self::Sub {
                 degree_multiple, ..
-            } |
-            Self::Neg {
+            }
+            | Self::Neg {
                 degree_multiple, ..
-            } |
-            Self::Mul {
+            }
+            | Self::Mul {
                 degree_multiple, ..
             } => *degree_multiple,
         }

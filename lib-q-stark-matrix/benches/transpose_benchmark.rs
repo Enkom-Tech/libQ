@@ -1,10 +1,4 @@
-use criterion::{
-    BenchmarkGroup,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkGroup, Criterion, Throughput, criterion_group, criterion_main};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use rand::SeedableRng;
 use rand::rngs::SmallRng;

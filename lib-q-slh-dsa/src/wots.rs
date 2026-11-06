@@ -1,18 +1,12 @@
 use core::fmt::Debug;
 
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use hybrid_array::{Array, ArraySize};
 use typenum::Unsigned;
 use typenum::generic_const_mappings::U;
 
 use crate::hashes::HashSuite;
 use crate::util::base_2b;
-use crate::{
-    SkSeed,
-    address,
-};
+use crate::{SkSeed, address};
 
 // WOTS+ in general is parameterized on these values
 // But the FIPS standard uses the same values for all parameter sets
@@ -332,15 +326,9 @@ mod tests {
 
     use super::WotsParams;
     use crate::address::WotsHash;
-    use crate::hashes::{
-        HashSuite,
-        Shake128f,
-    };
+    use crate::hashes::{HashSuite, Shake128f};
     use crate::util::macros::test_parameter_sets;
-    use crate::{
-        PkSeed,
-        SkSeed,
-    };
+    use crate::{PkSeed, SkSeed};
 
     fn test_sign_verify<Wots: WotsParams>() {
         // Generate random sk_seed, pk_seed, message, address

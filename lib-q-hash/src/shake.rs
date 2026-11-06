@@ -1,41 +1,16 @@
 use core::fmt;
 
 use digest::block_api::{
-    AlgorithmName,
-    BlockSizeUser,
-    ExtendableOutputCore,
-    Reset,
-    UpdateCore,
-    XofReaderCore,
+    AlgorithmName, BlockSizeUser, ExtendableOutputCore, Reset, UpdateCore, XofReaderCore,
 };
-use digest::block_buffer::{
-    EagerBuffer,
-    ReadBuffer,
-};
-use digest::consts::{
-    U0,
-    U16,
-    U32,
-    U136,
-    U168,
-};
+use digest::block_buffer::{EagerBuffer, ReadBuffer};
+use digest::consts::{U0, U16, U32, U136, U168};
 use digest::{
-    CollisionResistance,
-    ExtendableOutput,
-    ExtendableOutputReset,
-    HashMarker,
-    Update,
-    XofReader,
+    CollisionResistance, ExtendableOutput, ExtendableOutputReset, HashMarker, Update, XofReader,
 };
 
-use crate::internal_block_api::{
-    Sha3HasherCore,
-    Sha3ReaderCore,
-};
-use crate::{
-    DEFAULT_ROUND_COUNT,
-    SHAKE_PAD,
-};
+use crate::internal_block_api::{Sha3HasherCore, Sha3ReaderCore};
+use crate::{DEFAULT_ROUND_COUNT, SHAKE_PAD};
 
 macro_rules! impl_shake {
     (
@@ -168,16 +143,10 @@ impl CollisionResistance for Shake256 {
 #[cfg(test)]
 mod tests {
     use digest::CollisionResistance;
-    use digest::consts::{
-        U16,
-        U32,
-    };
+    use digest::consts::{U16, U32};
     use digest::typenum::Unsigned;
 
-    use super::{
-        Shake128,
-        Shake256,
-    };
+    use super::{Shake128, Shake256};
 
     /// Pin the collision-resistance byte counts so the rate constants cannot drift back in.
     ///

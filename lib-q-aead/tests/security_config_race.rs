@@ -38,11 +38,7 @@ const CHILDREN: usize = 300;
 #[test]
 #[ignore = "driven as a subprocess by race_loser_is_never_discarded; needs a virgin process"]
 fn race_child() {
-    use lib_q_aead::{
-        SecurityConfig,
-        get_security_config,
-        set_security_config,
-    };
+    use lib_q_aead::{SecurityConfig, get_security_config, set_security_config};
 
     let barrier = std::sync::Arc::new(std::sync::Barrier::new(GETTERS + 1));
     let mut handles = Vec::with_capacity(GETTERS + 1);

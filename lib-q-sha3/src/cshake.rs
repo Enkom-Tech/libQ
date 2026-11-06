@@ -8,42 +8,16 @@ use core::fmt;
 
 use block_buffer::LazyBuffer;
 use digest::block_api::{
-    AlgorithmName,
-    Block,
-    BlockSizeUser,
-    Buffer,
-    BufferKindUser,
-    Eager,
-    ExtendableOutputCore,
+    AlgorithmName, Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore,
     UpdateCore,
 };
-use digest::common::hazmat::{
-    DeserializeStateError,
-    SerializableState,
-    SerializedState,
-};
-use digest::consts::{
-    U16,
-    U32,
-    U136,
-    U168,
-    U400,
-};
+use digest::common::hazmat::{DeserializeStateError, SerializableState, SerializedState};
+use digest::consts::{U16, U32, U136, U168, U400};
 use digest::typenum::Unsigned;
-use digest::{
-    CollisionResistance,
-    CustomizedInit,
-    HashMarker,
-    Reset,
-};
+use digest::{CollisionResistance, CustomizedInit, HashMarker, Reset};
 
 use crate::{
-    CSHAKE_PAD,
-    DEFAULT_ROUND_COUNT as ROUNDS,
-    PLEN,
-    SHAKE_PAD,
-    SpongeReaderCore,
-    xor_block,
+    CSHAKE_PAD, DEFAULT_ROUND_COUNT as ROUNDS, PLEN, SHAKE_PAD, SpongeReaderCore, xor_block,
 };
 
 #[inline]

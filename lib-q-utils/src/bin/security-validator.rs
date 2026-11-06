@@ -15,11 +15,7 @@ fn main() {
 use std::env;
 
 #[cfg(feature = "std")]
-use lib_q_utils::security_validation::{
-    SecurityCheck,
-    SecurityValidator,
-    print_report,
-};
+use lib_q_utils::security_validation::{SecurityCheck, SecurityValidator, print_report};
 
 #[cfg(feature = "std")]
 fn print_usage() {
@@ -131,10 +127,7 @@ fn main() {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
-    use super::{
-        run_command,
-        run_with_args,
-    };
+    use super::{run_command, run_with_args};
 
     #[test]
     fn run_with_args_requires_command() {

@@ -4,11 +4,7 @@
 //! as a replacement for the BearSSL C implementation, maintaining the same interface.
 
 use aes::Aes256;
-use aes::cipher::{
-    Array,
-    BlockCipherEncrypt,
-    KeyInit,
-};
+use aes::cipher::{Array, BlockCipherEncrypt, KeyInit};
 
 /// AES-256 context for pure Rust implementation
 #[derive(Clone)]

@@ -140,23 +140,11 @@
 
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Error,
-    Nonce,
-    Result,
-};
+use lib_q_core::{Aead, AeadKey, Error, Nonce, Result};
 use lib_q_hash::Kmac256;
 use lib_q_saturnin::SaturninStream;
-use subtle::{
-    Choice,
-    ConstantTimeEq,
-};
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use subtle::{Choice, ConstantTimeEq};
+use zeroize::{Zeroize, Zeroizing};
 
 /// The two independently-derived subkeys: `(K_mac, K_enc)`.
 type SubKeys = (Zeroizing<[u8; 32]>, Zeroizing<[u8; 32]>);

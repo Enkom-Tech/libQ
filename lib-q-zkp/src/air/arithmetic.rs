@@ -25,21 +25,12 @@ use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use super::{
-    AirError,
-    MAX_OPERATIONS,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
+    AirError, MAX_OPERATIONS, TraceGenerator, next_power_of_two, validate_trace_dimensions,
 };
 
 /// Number of columns per operation (a, b, c)

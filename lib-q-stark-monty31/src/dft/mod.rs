@@ -6,36 +6,19 @@ use alloc::vec::Vec;
 
 use itertools::izip;
 use lib_q_stark_dft::TwoAdicSubgroupDft;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::bitrev::{
-    BitReversedMatrixView,
-    BitReversibleMatrix,
-};
+use lib_q_stark_matrix::bitrev::{BitReversedMatrixView, BitReversibleMatrix};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_util::{
-    log2_ceil_usize,
-    log2_strict_usize,
-};
+use lib_q_stark_util::{log2_ceil_usize, log2_strict_usize};
 use spin::RwLock;
-use tracing::{
-    debug_span,
-    instrument,
-};
+use tracing::{debug_span, instrument};
 
 mod backward;
 mod forward;
 
-use crate::{
-    FieldParameters,
-    MontyField31,
-    MontyParameters,
-    TwoAdicData,
-};
+use crate::{FieldParameters, MontyField31, MontyParameters, TwoAdicData};
 
 /// Multiply each element of column `j` of `mat` by `shift**j`.
 #[instrument(level = "debug", skip_all)]
@@ -374,10 +357,7 @@ impl<MP: MontyParameters + FieldParameters + TwoAdicData> TwoAdicSubgroupDft<Mon
 /// factor would all be caught by disagreement with `NaiveDft`.
 #[cfg(test)]
 mod tests {
-    use lib_q_stark_field_testing::{
-        test_field_dft,
-        test_field_dft_large,
-    };
+    use lib_q_stark_field_testing::{test_field_dft, test_field_dft_large};
 
     test_field_dft!(
         recur_dft,

@@ -1,46 +1,21 @@
-use ::signature::{
-    Error,
-    SignatureEncoding,
-};
-use hybrid_array::sizes::{
-    U7856,
-    U16224,
-    U17088,
-    U29792,
-    U35664,
-    U49856,
-};
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use ::signature::{Error, SignatureEncoding};
+use hybrid_array::sizes::{U7856, U16224, U17088, U29792, U35664, U49856};
+use hybrid_array::{Array, ArraySize};
 use pkcs8::AlgorithmIdentifierRef;
 use pkcs8::der::AnyRef;
 use pkcs8::spki::AssociatedAlgorithmIdentifier;
 #[cfg(feature = "alloc")]
 use pkcs8::{
-    der::{
-        self,
-        asn1::BitString,
-    },
+    der::{self, asn1::BitString},
     spki::SignatureBitStringEncoding,
 };
 use typenum::Unsigned;
 
 use crate::fors::ForsSignature;
-use crate::hashes::{
-    Shake128f,
-    Shake192f,
-    Shake192s,
-    Shake256f,
-    Shake256s,
-};
+use crate::hashes::{Shake128f, Shake192f, Shake192s, Shake256f, Shake256s};
 use crate::hypertree::HypertreeSig;
 use crate::util::array_u8_try_from_exact;
-use crate::{
-    ParameterSet,
-    Shake128s,
-};
+use crate::{ParameterSet, Shake128s};
 
 #[derive(Debug, Clone)]
 /// A parsed SLH-DSA signature for a given parameter set
@@ -59,9 +34,9 @@ pub struct Signature<P: ParameterSet> {
 // suite `P` is not `Eq`, but the signature contents are.
 impl<P: ParameterSet> PartialEq for Signature<P> {
     fn eq(&self, other: &Self) -> bool {
-        self.randomizer == other.randomizer &&
-            self.fors_sig == other.fors_sig &&
-            self.ht_sig == other.ht_sig
+        self.randomizer == other.randomizer
+            && self.fors_sig == other.fors_sig
+            && self.ht_sig == other.ht_sig
     }
 }
 impl<P: ParameterSet> Eq for Signature<P> {}
@@ -192,18 +167,12 @@ impl SignatureLen for Shake256f {
 mod tests {
     use hybrid_array::Array;
     use lib_q_random::new_secure_rng;
-    use signature::{
-        SignatureEncoding,
-        Signer,
-    };
+    use signature::{SignatureEncoding, Signer};
 
     use crate::hashes::*;
     use crate::signature_encoding::Signature;
     use crate::util::macros::test_parameter_sets;
-    use crate::{
-        ParameterSet,
-        SigningKey,
-    };
+    use crate::{ParameterSet, SigningKey};
 
     fn test_serialize_deserialize<P: ParameterSet>() {
         let mut rng = new_secure_rng().expect("Failed to create secure RNG");

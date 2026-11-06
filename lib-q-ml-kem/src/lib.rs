@@ -90,16 +90,7 @@ use core::fmt::Debug;
 
 pub use hybrid_array as array;
 use hybrid_array::Array;
-use hybrid_array::typenum::{
-    U2,
-    U3,
-    U4,
-    U5,
-    U10,
-    U11,
-    U64,
-    Unsigned,
-};
+use hybrid_array::typenum::{U2, U3, U4, U5, U10, U11, U64, Unsigned};
 use rand_core::CryptoRng;
 pub use zeroize::Zeroizing;
 
@@ -136,10 +127,7 @@ pub trait Decapsulate<EK, SS> {
     fn decapsulate(&self, encapsulated_key: &EK) -> Result<SS, Self::Error>;
 }
 
-pub use param::{
-    ArraySize,
-    ParameterSet,
-};
+pub use param::{ArraySize, ParameterSet};
 #[cfg(feature = "deterministic")]
 pub use util::B32;
 

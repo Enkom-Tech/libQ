@@ -4,11 +4,7 @@
 //! zeroization of sensitive data and protection against memory attacks.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    format,
-    vec,
-    vec::Vec,
-};
+use alloc::{format, vec, vec::Vec};
 
 use crate::error::HpkeError;
 

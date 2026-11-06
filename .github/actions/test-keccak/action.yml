@@ -12,15 +12,19 @@ inputs:
     required: false
   rust-version:
     description: Rust toolchain version to use
-    default: "nightly"
+    default: "1.99.1"
     required: false
   run-benchmarks:
-    description: Whether to run benchmarks (requires nightly)
+    description: Whether to run benchmarks (uses the dated nightly in nightly-version)
     default: "false"
     required: false
   run-simd:
-    description: Whether to run SIMD tests (requires nightly)
+    description: Whether to run portable-SIMD tests (uses the dated nightly in nightly-version)
     default: "false"
+    required: false
+  nightly-version:
+    description: Explicit dated nightly used ONLY for the portable_simd tests and benches (never floating)
+    default: "nightly-2026-11-01"
     required: false
   test-algorithms:
     description: Specific algorithms to test
@@ -125,23 +129,27 @@ runs:
         cargo test --features "${{ inputs.features }}"
         echo "Tests with features completed"
     
-    - name: Run SIMD tests (nightly only)
-      if: inputs.run-simd == 'true' && inputs.rust-version == 'nightly'
+    - name: Install dated nightly (SIMD tests and benches only)
+      if: inputs.run-simd == 'true' || inputs.run-benchmarks == 'true'
+      shell: bash
+      run: rustup toolchain install "${{ inputs.nightly-version }}" --profile minimal -c rust-src
+    - name: Run portable-SIMD tests (dated nightly)
+      if: inputs.run-simd == 'true'
       shell: bash
       run: |
         echo "Running SIMD tests..."
         cd ${{ inputs.working-directory }}
-        cargo test --features "simd"
+        cargo +${{ inputs.nightly-version }} test --features "simd"
         echo "SIMD tests completed"
     
-    - name: Run benchmarks (nightly only)
-      if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
+    - name: Run benchmarks (dated nightly)
+      if: inputs.run-benchmarks == 'true'
       shell: bash
       run: |
         echo "Running benchmarks..."
         rm -rf target/release
         cd ${{ inputs.working-directory }}
-        cargo bench --features "nightly"
+        cargo +${{ inputs.nightly-version }} bench --features "nightly"
         echo "Benchmarks completed"
     
     - name: Cross-compilation test (ARM64)

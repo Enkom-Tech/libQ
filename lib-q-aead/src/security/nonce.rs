@@ -46,11 +46,7 @@ use alloc::string::String;
 use alloc::vec::Vec;
 use core::sync::atomic::Ordering;
 
-use lib_q_core::{
-    Error,
-    Nonce,
-    Result,
-};
+use lib_q_core::{Error, Nonce, Result};
 use portable_atomic::AtomicU64;
 
 /// Nonce management configuration
@@ -647,14 +643,8 @@ mod tests {
     #[test]
     fn test_secure_nonce_is_predictable_from_public_clock_and_counter() {
         use std::collections::hash_map::DefaultHasher;
-        use std::hash::{
-            Hash,
-            Hasher,
-        };
-        use std::time::{
-            SystemTime,
-            UNIX_EPOCH,
-        };
+        use std::hash::{Hash, Hasher};
+        use std::time::{SystemTime, UNIX_EPOCH};
 
         let now_before = SystemTime::now()
             .duration_since(UNIX_EPOCH)

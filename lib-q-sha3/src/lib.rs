@@ -34,14 +34,8 @@
 #![warn(missing_docs, missing_debug_implementations)]
 
 pub use digest::{
-    self,
-    CollisionResistance,
-    CustomizedInit,
-    Digest,
-    ExtendableOutput,
-    ExtendableOutputReset,
-    Update,
-    XofReader,
+    self, CollisionResistance, CustomizedInit, Digest, ExtendableOutput, ExtendableOutputReset,
+    Update, XofReader,
 };
 
 /// Block-level types and Keccak cores for advanced composition (e.g. K12). Most callers should use the crate-root types.
@@ -53,37 +47,12 @@ pub mod parallel;
 /// TurboSHAKE-128 and TurboSHAKE-256. Types are re-exported at the crate root.
 pub mod turbo_shake;
 
-use block_core::{
-    SpongeHasherCore,
-    SpongeReaderCore,
-};
+use block_core::{SpongeHasherCore, SpongeReaderCore};
 #[doc(inline)]
-pub use cshake::{
-    CShake128,
-    CShake128Reader,
-    CShake256,
-    CShake256Reader,
-};
-use digest::consts::{
-    U0,
-    U16,
-    U28,
-    U32,
-    U48,
-    U64,
-    U72,
-    U104,
-    U136,
-    U144,
-    U168,
-};
+pub use cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader};
+use digest::consts::{U0, U16, U28, U32, U48, U64, U72, U104, U136, U144, U168};
 #[doc(inline)]
-pub use turbo_shake::{
-    TurboShake128,
-    TurboShake128Reader,
-    TurboShake256,
-    TurboShake256Reader,
-};
+pub use turbo_shake::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
 
 /// One-shot **SHA3-256** (FIPS 202) over `data`.
 ///

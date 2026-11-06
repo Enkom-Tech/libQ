@@ -16,38 +16,19 @@ use alloc::boxed::Box;
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
 use alloc::vec::Vec;
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-use alloc::{
-    format,
-    vec,
-};
-use core::sync::atomic::{
-    AtomicBool,
-    AtomicUsize,
-    Ordering,
-};
+use alloc::{format, vec};
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 #[cfg(feature = "std")]
 use std::boxed::Box;
-use std::sync::{
-    Arc,
-    OnceLock,
-    RwLock,
-    RwLockReadGuard,
-    RwLockWriteGuard,
-};
+use std::sync::{Arc, OnceLock, RwLock, RwLockReadGuard, RwLockWriteGuard};
 use std::thread;
 use std::time::Duration;
 #[cfg(feature = "std")]
 use std::vec::Vec;
 #[cfg(feature = "std")]
-use std::{
-    format,
-    vec,
-};
+use std::{format, vec};
 
-use crate::{
-    OptimizationLevel,
-    keccak_p,
-};
+use crate::{OptimizationLevel, keccak_p};
 
 /// Cross-platform thread affinity implementation
 /// Sets thread affinity to a specific CPU core for optimal cache performance
@@ -95,8 +76,8 @@ fn set_thread_affinity(thread_id: usize, strategy: AffinityStrategy) {
     };
 
     // Get the core ID for the target CPU
-    if let Some(core_ids) = core_affinity::get_core_ids() &&
-        let Some(core_id) = core_ids.get(target_cpu)
+    if let Some(core_ids) = core_affinity::get_core_ids()
+        && let Some(core_id) = core_ids.get(target_cpu)
     {
         // Attempt to set thread affinity - ignore errors gracefully
         // This is a performance optimization, so we don't fail on errors

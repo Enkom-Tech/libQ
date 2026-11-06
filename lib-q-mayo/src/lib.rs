@@ -53,13 +53,7 @@ mod types;
 #[cfg(feature = "mayo2")]
 pub mod mayo_2;
 
-pub use types::{
-    DecodeError,
-    Mayo2KeyPair,
-    Mayo2Signature,
-    Mayo2SigningKey,
-    Mayo2VerificationKey,
-};
+pub use types::{DecodeError, Mayo2KeyPair, Mayo2Signature, Mayo2SigningKey, Mayo2VerificationKey};
 
 /// Errors that can occur during signing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

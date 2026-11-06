@@ -4,10 +4,7 @@
 //! implementation to achieve exact byte-for-byte compatibility with the reference implementation.
 
 #[cfg(feature = "aes-drbg")]
-use lib_q_hqc::{
-    Hqc1Params,
-    hqc_kem::HqcKem,
-};
+use lib_q_hqc::{Hqc1Params, hqc_kem::HqcKem};
 
 /// Helper function to convert hex string to bytes
 #[allow(dead_code)]

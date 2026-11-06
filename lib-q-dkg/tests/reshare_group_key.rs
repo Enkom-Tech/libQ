@@ -9,20 +9,10 @@
 
 mod common;
 
-use common::{
-    PARTIES,
-    THRESHOLD,
-    det_rng,
-};
+use common::{PARTIES, THRESHOLD, det_rng};
 use lib_q_dkg::{
-    dkg_assemble_vk_set,
-    dkg_eval_share,
-    dkg_finalize_share,
-    dkg_reshare,
-    dkg_round1_commit,
-    dkg_verify_share,
-    lagrange_coeff_at_zero,
-    setup,
+    dkg_assemble_vk_set, dkg_eval_share, dkg_finalize_share, dkg_reshare, dkg_round1_commit,
+    dkg_verify_share, lagrange_coeff_at_zero, setup,
 };
 
 /// Reshare a dealerless key to a fresh committee and reassemble both verification-key sets.

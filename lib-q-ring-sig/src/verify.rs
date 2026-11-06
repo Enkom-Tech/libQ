@@ -1,11 +1,7 @@
 //! Verification for federation opening proofs.
 
 use lib_q_lattice_zkp::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    OpeningProof,
-    VerifyError,
-    verify_opening,
+    AjtaiCommitment, AjtaiCommitmentKey, OpeningProof, VerifyError, verify_opening,
 };
 
 use crate::sign::federation_signing_context;

@@ -4,26 +4,14 @@
 //! operations with proper security validation.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    string::String,
-    vec::Vec,
-};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 use super::BaseContext;
 #[cfg(test)]
 use crate::api::SignatureOperations;
-use crate::api::{
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-};
+use crate::api::{Algorithm, AlgorithmCategory, CryptoProvider};
 use crate::error::Result;
-use crate::traits::{
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-};
+use crate::traits::{SigKeypair, SigPublicKey, SigSecretKey};
 
 /// Signature context for digital signature operations
 #[cfg(feature = "alloc")]

@@ -23,12 +23,16 @@ jobs:
     if: github.server_url == 'https://github.com'
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      # cargo-fuzz needs nightly (-Z sanitizer); rust-toolchain.toml pins stable, so override it
+      # explicitly with the same dated nightly the Keccak SIMD job uses. Never floating.
+      RUSTUP_TOOLCHAIN: nightly-2026-11-01
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
-          toolchain: nightly
+          toolchain: nightly-2026-11-01
           components: rust-src
 
       - name: Install cargo-fuzz

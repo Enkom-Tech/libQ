@@ -9,17 +9,10 @@
 
 #![cfg_attr(tarpaulin, allow(unused_imports, dead_code))]
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
 use lib_q_k12::Kt128;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Reset,
-    Update,
-};
+use lib_q_k12::digest::{ExtendableOutput, Reset, Update};
 
 /// Performance baseline for small hash (1KB input, 32-byte output)
 const BASELINE_SMALL_HASH_NS: u64 = 500000; // 500 microseconds baseline (more realistic for K12)
@@ -458,8 +451,8 @@ fn test_performance_consistency() {
                 let diff_ns = time.abs_diff(avg_time).as_nanos() as f64;
                 diff_ns * diff_ns
             })
-            .sum::<f64>() /
-            trimmed_run_times.len() as f64;
+            .sum::<f64>()
+            / trimmed_run_times.len() as f64;
         let std_dev_ns = variance.sqrt();
         let cv = std_dev_ns / avg_time.as_nanos() as f64;
 

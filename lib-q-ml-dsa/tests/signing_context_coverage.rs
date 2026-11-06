@@ -1,19 +1,8 @@
 //! Coverage for signing context length checks (FIPS 204 context ≤255 bytes).
 
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
-use lib_q_ml_dsa::types::{
-    SigningError,
-    VerificationError,
-};
-use lib_q_ml_dsa::{
-    Zeroizing,
-    ml_dsa_44,
-    ml_dsa_65,
-    ml_dsa_87,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+use lib_q_ml_dsa::types::{SigningError, VerificationError};
+use lib_q_ml_dsa::{Zeroizing, ml_dsa_44, ml_dsa_65, ml_dsa_87};
 
 /// FIPS 204 maximum context string length (bytes).
 const CTX_MAX: usize = 255;

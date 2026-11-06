@@ -8,14 +8,8 @@ use alloc::vec::Vec;
 
 use zeroize::Zeroizing;
 
-use crate::error::{
-    HpkeError,
-    SecurityValidation,
-};
-use crate::hpke_session::{
-    HpkeReceiverContext,
-    HpkeSenderContext,
-};
+use crate::error::{HpkeError, SecurityValidation};
+use crate::hpke_session::{HpkeReceiverContext, HpkeSenderContext};
 use crate::providers::traits::*;
 use crate::security::CryptoRng;
 use crate::security::constant_time::constant_time_eq;
@@ -145,8 +139,8 @@ fn validate_psk_parameters(
                 ));
             }
             // Validate PSK is not empty
-            if let Some(psk_bytes) = psk &&
-                psk_bytes.is_empty()
+            if let Some(psk_bytes) = psk
+                && psk_bytes.is_empty()
             {
                 return Err(HpkeError::CryptoError("PSK cannot be empty".into()));
             }
@@ -167,8 +161,8 @@ fn validate_psk_parameters(
                 ));
             }
             // Validate PSK is not empty
-            if let Some(psk_bytes) = psk &&
-                psk_bytes.is_empty()
+            if let Some(psk_bytes) = psk
+                && psk_bytes.is_empty()
             {
                 return Err(HpkeError::CryptoError("PSK cannot be empty".into()));
             }

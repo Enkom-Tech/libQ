@@ -13,11 +13,7 @@ use core::marker::PhantomData;
 use lib_q_stark_challenger::CanSample;
 use lib_q_stark_dft::TwoAdicSubgroupDft;
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    TwoAdicField,
-};
+use lib_q_stark_field::{ExtensionField, Field, TwoAdicField};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_util::log2_strict_usize;
@@ -25,11 +21,7 @@ use lib_q_stark_util::zip_eq::zip_eq;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
-use crate::{
-    OpenedValues,
-    Pcs,
-    PolynomialSpace,
-};
+use crate::{OpenedValues, Pcs, PolynomialSpace};
 
 /// A trivial PCS: its commitment is simply the coefficients of each poly.
 ///

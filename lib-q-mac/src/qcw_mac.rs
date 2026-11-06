@@ -5,10 +5,7 @@ use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 use crate::axu::epsilon_axu;
-use crate::profile::{
-    QCW_MAC_KEY_BYTES,
-    QCW_MAC_TAG_BYTES,
-};
+use crate::profile::{QCW_MAC_KEY_BYTES, QCW_MAC_TAG_BYTES};
 use crate::qprf::qprf_tag;
 
 const MAC_LABEL: &[u8] = b"tag";

@@ -21,26 +21,15 @@ pub use dft_testing::*;
 pub use extension_testing::*;
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
 use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    PackedValue,
-    PrimeCharacteristicRing,
-    PrimeField32,
-    PrimeField64,
+    ExtensionField, Field, PackedValue, PrimeCharacteristicRing, PrimeField32, PrimeField64,
     TwoAdicField,
 };
 use lib_q_stark_util::iter_array_chunks_padded;
 use num_bigint::BigUint;
 pub use packedfield_testing::*;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 use rand::rngs::SmallRng;
-use rand::{
-    RngExt,
-    SeedableRng,
-};
+use rand::{RngExt, SeedableRng};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
@@ -904,10 +893,7 @@ macro_rules! test_prime_field {
     ($field:ty) => {
         mod from_integer_small_tests {
             use lib_q_stark_field::integers::QuotientMap;
-            use lib_q_stark_field::{
-                Field,
-                PrimeCharacteristicRing,
-            };
+            use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 
             #[test]
             fn test_small_integer_conversions() {
@@ -936,17 +922,10 @@ macro_rules! test_prime_field_64 {
         mod from_integer_tests_prime_field_64 {
             use lib_q_stark_field::integers::QuotientMap;
             use lib_q_stark_field::{
-                Field,
-                PrimeCharacteristicRing,
-                PrimeField64,
-                RawDataSerializable,
+                Field, PrimeCharacteristicRing, PrimeField64, RawDataSerializable,
             };
             use rand::rngs::SmallRng;
-            use rand::{
-                Rng,
-                RngExt,
-                SeedableRng,
-            };
+            use rand::{Rng, RngExt, SeedableRng};
 
             #[test]
             fn test_as_canonical_u64() {
@@ -1016,18 +995,9 @@ macro_rules! test_prime_field_32 {
     ($field:ty, $zeros: expr, $ones: expr) => {
         mod from_integer_tests_prime_field_32 {
             use lib_q_stark_field::integers::QuotientMap;
-            use lib_q_stark_field::{
-                Field,
-                PrimeCharacteristicRing,
-                PrimeField32,
-                PrimeField64,
-            };
+            use lib_q_stark_field::{Field, PrimeCharacteristicRing, PrimeField32, PrimeField64};
             use rand::rngs::SmallRng;
-            use rand::{
-                Rng,
-                RngExt,
-                SeedableRng,
-            };
+            use rand::{Rng, RngExt, SeedableRng};
 
             #[test]
             fn test_as_canonical_u32() {

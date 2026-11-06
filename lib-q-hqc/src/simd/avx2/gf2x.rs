@@ -58,11 +58,7 @@ pub fn avx2_vect_mul_mod_xnm1<P: HqcParams>(
 #[cfg(feature = "alloc")]
 #[target_feature(enable = "avx2", enable = "pclmulqdq")]
 unsafe fn vect_mul_toom_avx2<P: HqcParams>(output: &mut [u64], a: &[u64], b: &[u64]) {
-    use gf2x_toom3::{
-        ToomDims,
-        reduce_avx2_to_u64,
-        toom_3_mult,
-    };
+    use gf2x_toom3::{ToomDims, reduce_avx2_to_u64, toom_3_mult};
 
     let n = P::VEC_N_SIZE_64;
     let vec_n_array = (P::PARAM_N_MULT + 255) / 256;
@@ -96,10 +92,7 @@ unsafe fn vect_mul_toom_avx2<P: HqcParams>(output: &mut [u64], a: &[u64], b: &[u
 mod tests {
     use super::*;
     use crate::hqc_pke::schoolbook_vect_mul_mod_xnm1;
-    use crate::params::{
-        Hqc1Params,
-        HqcParams,
-    };
+    use crate::params::{Hqc1Params, HqcParams};
     use crate::simd::runtime::has_avx2;
 
     fn assert_avx2_matches_schoolbook<P: HqcParams>(seeds: &[u64]) {

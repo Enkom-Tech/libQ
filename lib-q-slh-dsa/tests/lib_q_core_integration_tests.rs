@@ -11,37 +11,15 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec;
 
-use lib_q_core::{
-    Error,
-    SigPublicKey,
-    SigSecretKey,
-    Signature,
-};
-use lib_q_random::{
-    LibQRng,
-    new_deterministic_rng,
-};
+use lib_q_core::{Error, SigPublicKey, SigSecretKey, Signature};
+use lib_q_random::{LibQRng, new_deterministic_rng};
 use lib_q_slh_dsa::lib_q_integration::{
-    SlhDsaSignature,
-    bytes_to_slh_signature,
-    sig_public_key_to_verifying_key,
-    sig_secret_key_to_signing_key,
-    signing_key_to_sig_secret_key,
-    slh_signature_to_bytes,
+    SlhDsaSignature, bytes_to_slh_signature, sig_public_key_to_verifying_key,
+    sig_secret_key_to_signing_key, signing_key_to_sig_secret_key, slh_signature_to_bytes,
     verifying_key_to_sig_public_key,
 };
-use lib_q_slh_dsa::signature::{
-    Keypair,
-    RandomizedSigner,
-};
-use lib_q_slh_dsa::{
-    ParameterSet,
-    Shake128f,
-    Shake192f,
-    Shake256f,
-    SigningKey,
-    VerifyingKey,
-};
+use lib_q_slh_dsa::signature::{Keypair, RandomizedSigner};
+use lib_q_slh_dsa::{ParameterSet, Shake128f, Shake192f, Shake256f, SigningKey, VerifyingKey};
 
 #[inline]
 fn test_rng_from_material(seed: &[u8]) -> LibQRng {

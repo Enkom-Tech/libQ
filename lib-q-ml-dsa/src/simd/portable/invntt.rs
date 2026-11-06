@@ -1,14 +1,8 @@
-use super::arithmetic::{
-    self,
-    montgomery_multiply_fe_by_fer,
-};
+use super::arithmetic::{self, montgomery_multiply_fe_by_fer};
 use super::vector_type::Coefficients;
 #[cfg(hax)]
 use crate::simd::traits::specs::*;
-use crate::simd::traits::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    SIMD_UNITS_IN_RING_ELEMENT,
-};
+use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, SIMD_UNITS_IN_RING_ELEMENT};
 
 #[cfg_attr(tarpaulin, inline(never))]
 #[cfg_attr(not(tarpaulin), inline(always))]

@@ -5,21 +5,10 @@
 use std::sync::Arc;
 
 use lib_q_hpke::HpkeContext;
-use lib_q_hpke::interop::{
-    HpkeCapabilities,
-    HpkeInteropProfile,
-    negotiate_hpke_capabilities,
-};
+use lib_q_hpke::interop::{HpkeCapabilities, HpkeInteropProfile, negotiate_hpke_capabilities};
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::HpkeCryptoProvider;
-use lib_q_hpke::types::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-    HpkeMode,
-    HpkePskWireFormat,
-};
+use lib_q_hpke::types::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, HpkeMode, HpkePskWireFormat};
 use serde::Deserialize;
 
 const RFC_STRICT_FIXTURE: &str = include_str!("fixtures/negotiated_params_strict_pq_base.json");

@@ -40,10 +40,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Hash,
-    Result,
-};
+use lib_q_core::{Hash, Result};
 
 use crate::bs32_core::SaturninBs32Core;
 use crate::core::SaturninCore;

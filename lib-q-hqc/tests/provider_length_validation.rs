@@ -7,10 +7,7 @@
 //! the only correct behaviour for a fixed-size wire format.
 #![cfg(all(feature = "hqc128", feature = "std"))]
 
-use lib_q_core::api::{
-    Algorithm,
-    KemOperations,
-};
+use lib_q_core::api::{Algorithm, KemOperations};
 use lib_q_hqc::provider::LibQHqcProvider;
 
 #[test]

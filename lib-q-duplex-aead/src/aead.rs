@@ -4,33 +4,18 @@
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 #[cfg(feature = "alloc")]
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
 use zeroize::Zeroizing;
 
 use crate::crypto::{
-    decrypt as duplex_decrypt,
-    decrypt_semantic_outcome,
-    encrypt as duplex_encrypt,
+    decrypt as duplex_decrypt, decrypt_semantic_outcome, encrypt as duplex_encrypt,
 };
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    TAG_BYTES,
-};
+use crate::params::{KEY_BYTES, NONCE_BYTES, TAG_BYTES};
 
 /// Keccak-f\[1600\] duplex-sponge AEAD (136-byte rate, 32-byte tag).
 pub struct DuplexSpongeAead;

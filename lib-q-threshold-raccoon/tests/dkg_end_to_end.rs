@@ -4,18 +4,10 @@
 //! `SecretShare` / public key, so the dealerless DKG is a drop-in keygen for the signer — no GF(256)
 //! `lib-q-threshold-sig` involved. Run with `--release`.
 
-use lib_q_dkg::{
-    dkg_run_honest,
-    setup as dkg_setup,
-};
+use lib_q_dkg::{dkg_run_honest, setup as dkg_setup};
 use lib_q_random::new_deterministic_rng;
 use lib_q_threshold_raccoon::{
-    SecretShare,
-    ShareVerifier,
-    ThresholdRaccoonPublicKey,
-    combine_opening,
-    sign,
-    verify,
+    SecretShare, ShareVerifier, ThresholdRaccoonPublicKey, combine_opening, sign, verify,
 };
 
 #[test]

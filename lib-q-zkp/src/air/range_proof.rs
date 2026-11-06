@@ -26,26 +26,12 @@ use alloc::string::ToString;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
-use super::{
-    AirError,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
-};
+use super::{AirError, TraceGenerator, next_power_of_two, validate_trace_dimensions};
 
 /// Maximum number of bits for range proofs
 /// Limited to prevent field overflow during recomposition

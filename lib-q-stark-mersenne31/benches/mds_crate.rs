@@ -7,17 +7,9 @@
 
 use core::any::type_name;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 // Goldilocks field not integrated - commenting out
 // use p3_goldilocks::{
 //     Goldilocks,
@@ -26,19 +18,10 @@ use lib_q_stark_field::{
 use lib_q_stark_mds::MdsPermutation;
 use lib_q_stark_mds::coset_mds::CosetMds;
 use lib_q_stark_mds::integrated_coset_mds::IntegratedCosetMds;
-use lib_q_stark_mersenne31::{
-    MdsMatrixMersenne31,
-    Mersenne31,
-};
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use lib_q_stark_mersenne31::{MdsMatrixMersenne31, Mersenne31};
+use rand::distr::{Distribution, StandardUniform};
 use rand::rngs::SmallRng;
-use rand::{
-    RngExt,
-    SeedableRng,
-};
+use rand::{RngExt, SeedableRng};
 
 fn bench_all_mds(c: &mut Criterion) {
     type F = Complex<Mersenne31>;

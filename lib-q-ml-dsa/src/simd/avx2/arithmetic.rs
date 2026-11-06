@@ -1,16 +1,8 @@
 use lib_q_intrinsics::*;
 
-use crate::constants::{
-    BITS_IN_LOWER_PART_OF_T,
-    GAMMA2_V95_232,
-    GAMMA2_V261_888,
-    Gamma2,
-};
+use crate::constants::{BITS_IN_LOWER_PART_OF_T, GAMMA2_V95_232, GAMMA2_V261_888, Gamma2};
 use crate::simd::avx2::vector_type::Vec256;
-use crate::simd::traits::{
-    FIELD_MODULUS,
-    INVERSE_OF_MODULUS_MOD_MONTGOMERY_R,
-};
+use crate::simd::traits::{FIELD_MODULUS, INVERSE_OF_MODULUS_MOD_MONTGOMERY_R};
 
 #[inline]
 #[hax_lib::fstar::before(r#"open Spec.Intrinsics"#)]

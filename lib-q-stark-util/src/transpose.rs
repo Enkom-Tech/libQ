@@ -1,12 +1,6 @@
-use core::ptr::{
-    swap,
-    swap_nonoverlapping,
-};
+use core::ptr::{swap, swap_nonoverlapping};
 #[cfg(feature = "parallel")]
-use core::sync::atomic::{
-    AtomicPtr,
-    Ordering,
-};
+use core::sync::atomic::{AtomicPtr, Ordering};
 
 /// Log2 of the matrix dimension below which we use the base-case direct swap loop.
 /// e.g. BASE_CASE_LOG = 3 means base case is used for ≤ 8×8 submatrices

@@ -46,15 +46,9 @@ mod stack_secret;
 #[cfg(feature = "alloc")]
 mod libq_aead;
 
-pub use aead::consts::{
-    U0,
-    U16,
-};
+pub use aead::consts::{U0, U16};
 #[cfg(feature = "alloc")]
-pub use libq_aead::{
-    RomulusMAead,
-    RomulusNAead,
-};
+pub use libq_aead::{RomulusMAead, RomulusNAead};
 pub use romulus_m::RomulusM;
 pub use romulus_n::RomulusN;
 

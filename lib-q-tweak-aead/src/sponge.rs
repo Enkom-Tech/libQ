@@ -2,10 +2,7 @@
 
 use lib_q_keccak::f1600;
 
-use crate::params::{
-    PLEN,
-    RATE_BYTES,
-};
+use crate::params::{PLEN, RATE_BYTES};
 
 /// XOR `data` into the rate (first `data.len()` bytes, LE lanes).
 pub fn xor_into_rate(state: &mut [u64; PLEN], data: &[u8]) {

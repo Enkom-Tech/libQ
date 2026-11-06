@@ -3,11 +3,7 @@
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use crypto_bigint::U256;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_prf::{
-    LegendreKey256,
-    LegendrePrfParams256,
-    legendre_prf_u256,
-};
+use lib_q_prf::{LegendreKey256, LegendrePrfParams256, legendre_prf_u256};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 

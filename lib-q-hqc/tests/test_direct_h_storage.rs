@@ -1,9 +1,6 @@
 use lib_q_hqc::hqc_pke::HqcPke;
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
-use lib_q_hqc::{
-    Hqc1Params,
-    HqcParams,
-};
+use lib_q_hqc::{Hqc1Params, HqcParams};
 use rand_core::Rng;
 
 fn hex_to_bytes(hex: &str) -> Vec<u8> {

@@ -38,48 +38,20 @@ use alloc::vec::Vec;
 use core::array;
 
 use lib_q_plonky_keccak_air::{
-    KeccakAir,
-    KeccakColsRef,
-    NUM_KECCAK_COLS,
-    NUM_ROUNDS,
-    U64_LIMBS,
-    generate_trace_rows,
-    input_limb,
-    output_limb,
+    KeccakAir, KeccakColsRef, NUM_KECCAK_COLS, NUM_ROUNDS, U64_LIMBS, generate_trace_rows,
+    input_limb, output_limb,
 };
-use lib_q_plonky_lookup::{
-    Direction,
-    Kind,
-    Lookup,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeCharacteristicRing,
-};
+use lib_q_plonky_lookup::{Direction, Kind, Lookup};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::ConfigVal;
 
-use crate::logup_join::{
-    MU_LIMB_BUS,
-    SQUEEZE_LIMB_BUS,
-    mcol,
-    pcol,
-    sconst,
-};
+use crate::logup_join::{MU_LIMB_BUS, SQUEEZE_LIMB_BUS, mcol, pcol, sconst};
 use crate::mu_bits::MU_LIMBS;
 use crate::sponge::{
-    RATE_BYTES,
-    RATE_LANES,
-    generate_sponge_trace,
-    num_permutations,
-    sponge_permutation_states,
+    RATE_BYTES, RATE_LANES, generate_sponge_trace, num_permutations, sponge_permutation_states,
 };
 
 /// Number of 16-bit rate limbs squeezed per Keccak-f permutation (`RATE_LANES · U64_LIMBS = 68`,
@@ -280,8 +252,8 @@ impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for ShakeSpongeAir {
                 for x in 0..5 {
                     for limb in 0..U64_LIMBS {
                         cb.assert_zero(
-                            next.preimage(y, x, limb).into() -
-                                local.a_prime_prime_prime(y, x, limb).into(),
+                            next.preimage(y, x, limb).into()
+                                - local.a_prime_prime_prime(y, x, limb).into(),
                         );
                     }
                 }
@@ -433,11 +405,7 @@ mod tests {
     use alloc::vec;
 
     use lib_q_stark::check_constraints;
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     use super::*;
     use crate::sponge::RATE_BYTES;

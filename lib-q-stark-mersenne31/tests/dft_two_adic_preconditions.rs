@@ -1,17 +1,10 @@
 //! Radix-2 DFT must reject subgroup orders above the field's two-adicity.
 
-use lib_q_stark_dft::{
-    Radix2DFTSmallBatch,
-    Radix2Dit,
-    TwoAdicSubgroupDft,
-};
+use lib_q_stark_dft::{Radix2DFTSmallBatch, Radix2Dit, TwoAdicSubgroupDft};
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31Dft,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31Dft};
 
 type F = Mersenne31;
 type C = Complex<Mersenne31>;

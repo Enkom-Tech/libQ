@@ -2,11 +2,8 @@
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use lib_q_ml_kem::wasm::{
-    ml_kem_decapsulate,
-    ml_kem_encapsulate,
-    ml_kem_generate_keypair,
-    ml_kem_generate_keypair_with_seed,
-    ml_kem_keypair_from_seed,
+    ml_kem_decapsulate, ml_kem_encapsulate, ml_kem_generate_keypair,
+    ml_kem_generate_keypair_with_seed, ml_kem_keypair_from_seed,
 };
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;

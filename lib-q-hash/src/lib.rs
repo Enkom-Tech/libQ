@@ -18,44 +18,16 @@ use alloc::vec::Vec;
 
 // Re-export digest traits for internal use
 pub use digest::{
-    self,
-    CollisionResistance,
-    CustomizedInit,
-    Digest,
-    ExtendableOutput,
-    ExtendableOutputReset,
+    self, CollisionResistance, CustomizedInit, Digest, ExtendableOutput, ExtendableOutputReset,
     Update,
 };
 // Re-export core types for public use
-pub use lib_q_core::{
-    Algorithm,
-    Hash,
-    HashContext,
-    Result,
-};
+pub use lib_q_core::{Algorithm, Hash, HashContext, Result};
 // Re-export external hash implementations (explicit to avoid ambiguity)
-pub use lib_q_k12::{
-    Kt128,
-    Kt128Reader,
-    Kt256,
-    Kt256Reader,
-};
-pub use lib_q_keccak_digest::{
-    Keccak224,
-    Keccak256,
-    Keccak256Full,
-    Keccak384,
-    Keccak512,
-};
+pub use lib_q_k12::{Kt128, Kt128Reader, Kt256, Kt256Reader};
+pub use lib_q_keccak_digest::{Keccak224, Keccak256, Keccak256Full, Keccak384, Keccak512};
 pub use lib_q_sha3::{
-    Sha3_224,
-    Sha3_256,
-    Sha3_384,
-    Sha3_512,
-    Shake128,
-    Shake128Reader,
-    Shake256,
-    Shake256Reader,
+    Sha3_224, Sha3_256, Sha3_384, Sha3_512, Shake128, Shake128Reader, Shake256, Shake256Reader,
 };
 
 // Internal modules
@@ -72,72 +44,29 @@ mod turbo_shake;
 mod utils;
 
 // Re-export internal implementations
-pub use cshake::{
-    CShake128,
-    CShake128Reader,
-    CShake256,
-    CShake256Reader,
-};
+pub use cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader};
 // Re-export SP800-185 implementations
-pub use kmac::{
-    Kmac128,
-    Kmac128Reader,
-    Kmac256,
-    Kmac256Reader,
-};
+pub use kmac::{Kmac128, Kmac128Reader, Kmac256, Kmac256Reader};
 pub use parallelhash::{
-    ParallelHash128,
-    ParallelHash128Reader,
-    ParallelHash256,
-    ParallelHash256Reader,
+    ParallelHash128, ParallelHash128Reader, ParallelHash256, ParallelHash256Reader,
 };
 // Re-export provider
 #[cfg(feature = "alloc")]
 pub use provider::LibQHashProvider;
 pub use shake::{
-    Shake128 as InternalShake128,
-    Shake128Reader as InternalShake128Reader,
-    Shake256 as InternalShake256,
-    Shake256Reader as InternalShake256Reader,
+    Shake128 as InternalShake128, Shake128Reader as InternalShake128Reader,
+    Shake256 as InternalShake256, Shake256Reader as InternalShake256Reader,
 };
-pub use tuplehash::{
-    TupleHash128,
-    TupleHash128Reader,
-    TupleHash256,
-    TupleHash256Reader,
-};
-pub use turbo_shake::{
-    TurboShake128,
-    TurboShake128Reader,
-    TurboShake256,
-    TurboShake256Reader,
-};
+pub use tuplehash::{TupleHash128, TupleHash128Reader, TupleHash256, TupleHash256Reader};
+pub use turbo_shake::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
 pub use utils::MAX_SP800185_FIXED_OUTPUT_BYTES;
 
 // Re-export hash types
 pub use crate::hash_types::{
-    CShake128Hash,
-    CShake256Hash,
-    Keccak224Hash,
-    Keccak256Hash,
-    Keccak384Hash,
-    Keccak512Hash,
-    Kmac128Hash,
-    Kmac256Hash,
-    Kt128Hash,
-    Kt256Hash,
-    ParallelHash128Hash,
-    ParallelHash256Hash,
-    Sha3_224Hash,
-    Sha3_256Hash,
-    Sha3_384Hash,
-    Sha3_512Hash,
-    Shake128Hash,
-    Shake256Hash,
-    TupleHash128Hash,
-    TupleHash256Hash,
-    TurboShake128Hash,
-    TurboShake256Hash,
+    CShake128Hash, CShake256Hash, Keccak224Hash, Keccak256Hash, Keccak384Hash, Keccak512Hash,
+    Kmac128Hash, Kmac256Hash, Kt128Hash, Kt256Hash, ParallelHash128Hash, ParallelHash256Hash,
+    Sha3_224Hash, Sha3_256Hash, Sha3_384Hash, Sha3_512Hash, Shake128Hash, Shake256Hash,
+    TupleHash128Hash, TupleHash256Hash, TurboShake128Hash, TurboShake256Hash,
 };
 
 // Constants for SHA-3 implementation
@@ -347,10 +276,7 @@ pub fn create_hash_context() -> Result<HashContext> {
 mod tests {
     use alloc::format;
     use alloc::string::String;
-    use core::fmt::{
-        self,
-        Display,
-    };
+    use core::fmt::{self, Display};
 
     use digest::block_api::AlgorithmName;
 

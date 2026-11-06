@@ -13,10 +13,7 @@
 //! Hot loops that draw many samples at one fixed width should build a [`super::gaussian_ct::SamplerZ`]
 //! once and reuse it (this free function rebuilds the base table per call).
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 /// Draw a fresh `u64` from the RNG.
 #[inline]

@@ -4,47 +4,19 @@ use core::marker::PhantomData;
 use block_buffer::BlockSizes;
 use digest::array::ArraySize;
 use digest::block_api::{
-    AlgorithmName,
-    Block,
-    BlockSizeUser,
-    Buffer,
-    BufferKindUser,
-    Eager,
-    ExtendableOutputCore,
-    FixedOutputCore,
-    OutputSizeUser,
-    Reset,
-    UpdateCore,
-    XofReaderCore,
+    AlgorithmName, Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore,
+    FixedOutputCore, OutputSizeUser, Reset, UpdateCore, XofReaderCore,
 };
-use digest::common::hazmat::{
-    DeserializeStateError,
-    SerializableState,
-    SerializedState,
-};
-use digest::typenum::{
-    IsLessOrEqual,
-    True,
-    U0,
-    U200,
-};
-use digest::{
-    HashMarker,
-    Output,
-};
+use digest::common::hazmat::{DeserializeStateError, SerializableState, SerializedState};
+use digest::typenum::{IsLessOrEqual, True, U0, U200};
+use digest::{HashMarker, Output};
 #[cfg(feature = "simd")]
 use lib_q_keccak::OptimizationLevel;
 
 // Re-export cSHAKE cores for external use
 #[allow(unused_imports)]
-pub use crate::cshake::{
-    CShake128Core,
-    CShake256Core,
-};
-use crate::{
-    DEFAULT_ROUND_COUNT,
-    PLEN,
-};
+pub use crate::cshake::{CShake128Core, CShake256Core};
+use crate::{DEFAULT_ROUND_COUNT, PLEN};
 
 /// Core Sha3 fixed output hasher state.
 #[derive(Clone)]

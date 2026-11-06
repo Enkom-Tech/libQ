@@ -3,12 +3,7 @@ use lib_q_stark_commit::Pcs;
 use lib_q_stark_matrix::Matrix;
 use tracing::debug_span;
 
-use crate::{
-    ProverConstraintFolder,
-    StarkGenericConfig,
-    SymbolicAirBuilder,
-    Val,
-};
+use crate::{ProverConstraintFolder, StarkGenericConfig, SymbolicAirBuilder, Val};
 
 /// Prover-side reusable data for preprocessed columns.
 ///

@@ -1,18 +1,9 @@
 use std::hint::black_box;
 
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 use criterion_cycles_per_byte::CyclesPerByte;
 use lib_q_cb_kem::{
-    CRYPTO_BYTES,
-    CRYPTO_PUBLICKEYBYTES,
-    CRYPTO_SECRETKEYBYTES,
-    LibQRng,
-    decapsulate,
-    encapsulate,
+    CRYPTO_BYTES, CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES, LibQRng, decapsulate, encapsulate,
     keypair,
 };
 

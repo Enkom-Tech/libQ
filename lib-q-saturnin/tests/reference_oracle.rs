@@ -59,12 +59,7 @@ use lib_q_saturnin::simd::neon;
 ))]
 use lib_q_saturnin::simd::runtime;
 #[cfg(all(feature = "aead", feature = "simd-avx2", target_arch = "x86_64"))]
-use lib_q_saturnin::{
-    Aead,
-    AeadKey,
-    Nonce,
-    SaturninAead,
-};
+use lib_q_saturnin::{Aead, AeadKey, Nonce, SaturninAead};
 
 /// Parse a hex string into bytes (local copy — this file is intentionally self-contained rather
 /// than reaching into `tests/kat_tests.rs`'s private helpers).

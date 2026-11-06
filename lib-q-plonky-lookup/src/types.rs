@@ -7,15 +7,9 @@ use alloc::vec::Vec;
 use core::ops::Neg;
 
 use lib_q_stark_air::symbolic::SymbolicExpression;
-use lib_q_stark_air::{
-    Air,
-    PermutationAirBuilder,
-};
+use lib_q_stark_air::{Air, PermutationAirBuilder};
 use lib_q_stark_field::Field;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 /// Defines errors that can occur during lookup verification or evaluation.
 #[derive(Debug)]

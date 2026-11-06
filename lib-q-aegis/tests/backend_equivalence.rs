@@ -7,10 +7,7 @@
 
 #![allow(unused_imports)]
 
-use lib_q_aegis::{
-    _internals,
-    hardware_aes_available,
-};
+use lib_q_aegis::{_internals, hardware_aes_available};
 
 /// Deterministic xorshift byte stream (test data only).
 fn stream(seed: u64, len: usize) -> Vec<u8> {

@@ -3,12 +3,7 @@
 
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::AeadProvider;
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem};
 
 fn test_key_32() -> [u8; 32] {
     std::array::from_fn(|i| (i as u8).wrapping_mul(17).wrapping_add(3))
@@ -91,9 +86,9 @@ fn test_shake256_aead_different_key_sizes() {
     if result_16.is_err() {
         let error = result_16.unwrap_err();
         assert!(
-            error.to_string().contains("key") ||
-                error.to_string().contains("size") ||
-                error.to_string().contains("length"),
+            error.to_string().contains("key")
+                || error.to_string().contains("size")
+                || error.to_string().contains("length"),
             "Error should mention key size: {}",
             error
         );
@@ -120,9 +115,9 @@ fn test_shake256_aead_different_nonce_sizes() {
     if result_12.is_err() {
         let error = result_12.unwrap_err();
         assert!(
-            error.to_string().contains("nonce") ||
-                error.to_string().contains("size") ||
-                error.to_string().contains("length"),
+            error.to_string().contains("nonce")
+                || error.to_string().contains("size")
+                || error.to_string().contains("length"),
             "Error should mention nonce size: {}",
             error
         );

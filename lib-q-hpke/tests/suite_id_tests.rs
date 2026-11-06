@@ -4,14 +4,7 @@ use std::sync::Arc;
 
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::HpkeCryptoProvider;
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-    HpkeMode,
-    hpke_core,
-};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, HpkeMode, hpke_core};
 
 /// Test vectors for suite ID construction
 mod test_vectors {

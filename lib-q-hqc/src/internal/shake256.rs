@@ -155,11 +155,11 @@ impl Shake256Xof {
         // Theta step (simplified)
         let mut c = [0u64; 5];
         for (x, c_val) in c.iter_mut().enumerate() {
-            *c_val = self.state[x] ^
-                self.state[x + 5] ^
-                self.state[x + 10] ^
-                self.state[x + 15] ^
-                self.state[x + 20];
+            *c_val = self.state[x]
+                ^ self.state[x + 5]
+                ^ self.state[x + 10]
+                ^ self.state[x + 15]
+                ^ self.state[x + 20];
         }
 
         for x in 0..5 {

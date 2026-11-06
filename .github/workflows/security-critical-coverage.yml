@@ -49,9 +49,9 @@ jobs:
         with:
           # Pinned deliberately. `cargo-tarpaulin` (unpinned) resolves to @latest, so an upstream
           # release can break this job with no change on our side -- which is exactly how the
-          # nightly coverage job broke. coverage.yml already pins 0.37.0; these
+          # nightly coverage job broke. coverage.yml already pins 0.37.6; these
           # two jobs were the last unpinned installs in the repo. Bump both together.
-          tool: cargo-tarpaulin@0.37.0
+          tool: cargo-tarpaulin@0.37.6
 
       - name: Generate scoped Cobertura
         run: |
@@ -120,9 +120,9 @@ jobs:
         with:
           # Pinned deliberately. `cargo-tarpaulin` (unpinned) resolves to @latest, so an upstream
           # release can break this job with no change on our side -- which is exactly how the
-          # nightly coverage job broke. coverage.yml already pins 0.37.0; these
+          # nightly coverage job broke. coverage.yml already pins 0.37.6; these
           # two jobs were the last unpinned installs in the repo. Bump both together.
-          tool: cargo-tarpaulin@0.37.0
+          tool: cargo-tarpaulin@0.37.6
 
       - name: Generate scoped Cobertura
         run: |

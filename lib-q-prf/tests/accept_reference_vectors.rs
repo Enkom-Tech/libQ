@@ -2,21 +2,9 @@
 
 use crypto_bigint::U256;
 use lib_q_prf::{
-    GoldKey256,
-    GoldKey512,
-    GoldPrfParams256,
-    GoldPrfParams512,
-    LegendreKey256,
-    LegendreKey512,
-    LegendrePrfParams256,
-    LegendrePrfParams512,
-    PrfError,
-    gold_prf_u256,
-    gold_prf_u512,
-    legendre_prf_u256,
-    legendre_prf_u512,
-    u256_from_le_bytes,
-    u512_from_le_bytes,
+    GoldKey256, GoldKey512, GoldPrfParams256, GoldPrfParams512, LegendreKey256, LegendreKey512,
+    LegendrePrfParams256, LegendrePrfParams512, PrfError, gold_prf_u256, gold_prf_u512,
+    legendre_prf_u256, legendre_prf_u512, u256_from_le_bytes, u512_from_le_bytes,
 };
 use lib_q_sha3::sha3_256;
 
@@ -26,8 +14,8 @@ fn line_value<'a>(text: &'a str, key: &str) -> &'a str {
         if line.is_empty() || line.starts_with('#') {
             continue;
         }
-        if let Some(rest) = line.strip_prefix(key) &&
-            let Some(v) = rest.strip_prefix('=')
+        if let Some(rest) = line.strip_prefix(key)
+            && let Some(v) = rest.strip_prefix('=')
         {
             return v.trim();
         }

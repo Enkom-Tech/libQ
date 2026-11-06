@@ -1,21 +1,7 @@
 //! Criterion benchmarks for duplex-sponge AEAD.
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
-use lib_q_duplex_aead::{
-    DuplexSpongeAead,
-    KEY_BYTES,
-    NONCE_BYTES,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use lib_q_core::{Aead, AeadKey, Nonce};
+use lib_q_duplex_aead::{DuplexSpongeAead, KEY_BYTES, NONCE_BYTES};
 
 fn bench_encrypt(c: &mut Criterion) {
     let aead = DuplexSpongeAead::new();

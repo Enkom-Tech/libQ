@@ -87,18 +87,9 @@
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::core::SaturninCore;
 
@@ -442,10 +433,7 @@ mod tests {
     use alloc::vec;
 
     use super::*;
-    use crate::{
-        Error,
-        Result,
-    };
+    use crate::{Error, Result};
 
     #[test]
     fn test_ct_u8_is_zero() {

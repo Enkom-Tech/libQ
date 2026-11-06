@@ -38,12 +38,7 @@
 //! may be expected" — a conjecture, backed by their empirical attack, not a proof. That gap is
 //! one of the items in this crate's `SECURITY.md` sign-off list.
 
-use lib_q_maul::params::{
-    ALL,
-    MAUL512,
-    MAUL768,
-    MAUL1024,
-};
+use lib_q_maul::params::{ALL, MAUL512, MAUL768, MAUL1024};
 
 #[test]
 fn table_5_parameters_are_transcribed_exactly() {

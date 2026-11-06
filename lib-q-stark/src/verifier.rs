@@ -2,49 +2,21 @@
 
 use alloc::string::String;
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
 use itertools::Itertools;
-use lib_q_stark_air::{
-    Air,
-    RowWindow,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-};
-use lib_q_stark_commit::{
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-    TwoAdicField,
-};
-use lib_q_stark_fri::{
-    FriInitialEval,
-    FriReducedOpenings,
-};
+use lib_q_stark_air::{Air, RowWindow};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger};
+use lib_q_stark_commit::{Pcs, PolynomialSpace};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing, TwoAdicField};
+use lib_q_stark_fri::{FriInitialEval, FriReducedOpenings};
 use lib_q_stark_util::zip_eq::zip_eq;
 use thiserror::Error;
 use tracing::instrument;
 
-use crate::symbolic_builder::{
-    SymbolicAirBuilder,
-    get_log_num_quotient_chunks,
-};
+use crate::symbolic_builder::{SymbolicAirBuilder, get_log_num_quotient_chunks};
 use crate::{
-    Domain,
-    PcsError,
-    PreprocessedVerifierKey,
-    Proof,
-    StarkGenericConfig,
-    Val,
+    Domain, PcsError, PreprocessedVerifierKey, Proof, StarkGenericConfig, Val,
     VerifierConstraintFolder,
 };
 
@@ -116,8 +88,8 @@ where
                 .enumerate()
                 .filter(|(j, _)| *j != i)
                 .map(|(_, other_domain)| {
-                    other_domain.vanishing_poly_at_point(zeta) *
-                        other_domain
+                    other_domain.vanishing_poly_at_point(zeta)
+                        * other_domain
                             .vanishing_poly_at_point(domain.first_point())
                             .inverse()
                 })
@@ -132,8 +104,8 @@ where
             // We checked in valid_shape the length of "ch" is equal to
             // <SC::Challenge as BasedVectorSpace<Val<SC>>>::DIMENSION. Hence
             // the unwrap() will never panic.
-            zps[ch_i] *
-                ch.iter()
+            zps[ch_i]
+                * ch.iter()
                     .enumerate()
                     .map(|(e_i, &c)| SC::Challenge::ith_basis_element(e_i).unwrap() * c)
                     .sum::<SC::Challenge>()
@@ -331,9 +303,9 @@ where
         process_preprocessed_trace::<SC, A>(air, opened_values, config.is_zk(), preprocessed_vk)?;
 
     // Ensure the preprocessed trace and main trace have the same height.
-    if let Some(vk) = preprocessed_vk &&
-        preprocessed_width > 0 &&
-        vk.degree_bits != *degree_bits
+    if let Some(vk) = preprocessed_vk
+        && preprocessed_width > 0
+        && vk.degree_bits != *degree_bits
     {
         return Err(VerificationError::InvalidProofShape);
     }
@@ -372,22 +344,22 @@ where
     }
 
     // Validate opened values size to prevent memory exhaustion DoS
-    let total_opened_elements = opened_values.trace_local.len() +
-        opened_values.trace_next.len() +
-        opened_values
+    let total_opened_elements = opened_values.trace_local.len()
+        + opened_values.trace_next.len()
+        + opened_values
             .quotient_chunks
             .iter()
             .map(|qc| qc.len())
-            .sum::<usize>() +
-        opened_values
+            .sum::<usize>()
+        + opened_values
             .preprocessed_local
             .as_ref()
-            .map_or(0, |v| v.len()) +
-        opened_values
+            .map_or(0, |v| v.len())
+        + opened_values
             .preprocessed_next
             .as_ref()
-            .map_or(0, |v| v.len()) +
-        opened_values.random.as_ref().map_or(0, |v| v.len());
+            .map_or(0, |v| v.len())
+        + opened_values.random.as_ref().map_or(0, |v| v.len());
     if total_opened_elements > MAX_OPENED_ELEMENTS {
         return Err(VerificationError::InvalidProofShape);
     }
@@ -403,8 +375,8 @@ where
     // Check that the random commitments are/are not present depending on the ZK setting.
     // - If ZK is enabled, the prover should have random commitments.
     // - If ZK is not enabled, the prover should not have random commitments.
-    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
-        (commitments.random.is_some() != SC::Pcs::ZK)
+    if (opened_values.random.is_some() != SC::Pcs::ZK)
+        || (commitments.random.is_some() != SC::Pcs::ZK)
     {
         return Err(VerificationError::RandomizationError);
     }
@@ -610,14 +582,14 @@ where
     }
 
     let air_width = A::width(air);
-    let valid_shape = opened_values.trace_local.len() == air_width &&
-        opened_values.trace_next.len() == air_width &&
-        opened_values.quotient_chunks.len() == num_quotient_chunks &&
-        opened_values
+    let valid_shape = opened_values.trace_local.len() == air_width
+        && opened_values.trace_next.len() == air_width
+        && opened_values.quotient_chunks.len() == num_quotient_chunks
+        && opened_values
             .quotient_chunks
             .iter()
-            .all(|qc| qc.len() == SC::Challenge::DIMENSION) &&
-        opened_values
+            .all(|qc| qc.len() == SC::Challenge::DIMENSION)
+        && opened_values
             .random
             .as_ref()
             .is_none_or(|r_comm| r_comm.len() == SC::Challenge::DIMENSION);
@@ -625,8 +597,8 @@ where
         return Err(VerificationError::InvalidProofShape);
     }
 
-    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
-        (commitments.random.is_some() != SC::Pcs::ZK)
+    if (opened_values.random.is_some() != SC::Pcs::ZK)
+        || (commitments.random.is_some() != SC::Pcs::ZK)
     {
         return Err(VerificationError::RandomizationError);
     }
@@ -774,14 +746,14 @@ where
     }
 
     let air_width = A::width(air);
-    let valid_shape = opened_values.trace_local.len() == air_width &&
-        opened_values.trace_next.len() == air_width &&
-        opened_values.quotient_chunks.len() == num_quotient_chunks &&
-        opened_values
+    let valid_shape = opened_values.trace_local.len() == air_width
+        && opened_values.trace_next.len() == air_width
+        && opened_values.quotient_chunks.len() == num_quotient_chunks
+        && opened_values
             .quotient_chunks
             .iter()
-            .all(|qc| qc.len() == SC::Challenge::DIMENSION) &&
-        opened_values
+            .all(|qc| qc.len() == SC::Challenge::DIMENSION)
+        && opened_values
             .random
             .as_ref()
             .is_none_or(|r_comm| r_comm.len() == SC::Challenge::DIMENSION);
@@ -789,8 +761,8 @@ where
         return Err(VerificationError::InvalidProofShape);
     }
 
-    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
-        (commitments.random.is_some() != SC::Pcs::ZK)
+    if (opened_values.random.is_some() != SC::Pcs::ZK)
+        || (commitments.random.is_some() != SC::Pcs::ZK)
     {
         return Err(VerificationError::RandomizationError);
     }

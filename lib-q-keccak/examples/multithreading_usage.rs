@@ -10,12 +10,8 @@ use std::time::Instant;
 
 #[cfg(feature = "multithreading")]
 use lib_q_keccak::{
-    CryptoThreadPool,
-    OptimizationLevel,
-    ThreadingConfig,
-    init_global_thread_pool,
-    p1600_multithreaded,
-    process_keccak_states_global,
+    CryptoThreadPool, OptimizationLevel, ThreadingConfig, init_global_thread_pool,
+    p1600_multithreaded, process_keccak_states_global,
 };
 
 fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

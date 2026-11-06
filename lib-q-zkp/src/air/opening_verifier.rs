@@ -19,27 +19,15 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use super::{
-    AirError,
-    MerkleInclusionAir,
-    MerkleProofInput,
-    TraceGenerator,
-    next_power_of_two,
+    AirError, MerkleInclusionAir, MerkleProofInput, TraceGenerator, next_power_of_two,
     validate_trace_dimensions,
 };
 
@@ -159,10 +147,10 @@ impl OpeningVerifierAir {
         let merkle_air = MerkleInclusionAir::new(tree_depth).unwrap();
         let merkle_width = <MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
         const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
-        let level_width = 1 +
-            HASH_SIZE_FIELD_ELEMENTS +
-            HASH_SIZE_FIELD_ELEMENTS +
-            PoseidonGadget::COLUMNS_PER_HASH;
+        let level_width = 1
+            + HASH_SIZE_FIELD_ELEMENTS
+            + HASH_SIZE_FIELD_ELEMENTS
+            + PoseidonGadget::COLUMNS_PER_HASH;
         let per_value = 1 + 1 + merkle_width + 1 + 1;
 
         for value_idx in 0..num_opened_values {
@@ -283,10 +271,10 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<lib_q_stark_mersenne31::Mers
             {
                 use super::poseidon_gadget::PoseidonGadget;
                 const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
-                let level_width = 1 +
-                    HASH_SIZE_FIELD_ELEMENTS +
-                    HASH_SIZE_FIELD_ELEMENTS +
-                    PoseidonGadget::COLUMNS_PER_HASH;
+                let level_width = 1
+                    + HASH_SIZE_FIELD_ELEMENTS
+                    + HASH_SIZE_FIELD_ELEMENTS
+                    + PoseidonGadget::COLUMNS_PER_HASH;
                 let root_col_within_merkle = 1 + (self.tree_depth - 1) * level_width + 2;
                 trace_values[merkle_proof_start + root_col_within_merkle] = computed_root_field;
             }

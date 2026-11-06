@@ -13,36 +13,15 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_ring::Poly;
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 
-use crate::commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-};
-use crate::error::{
-    ProofError,
-    VerifyError,
-};
+use crate::commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening};
+use crate::error::{ProofError, VerifyError};
 use crate::sigma::norm::{
-    CrtPackedNormProof,
-    prove_inf_norm,
-    verify_inf_norm,
-    verify_inf_norm_proof,
+    CrtPackedNormProof, prove_inf_norm, verify_inf_norm, verify_inf_norm_proof,
 };
-use crate::sigma::opening::{
-    OpeningProof,
-    prove_opening,
-    verify_opening,
-};
+use crate::sigma::opening::{OpeningProof, prove_opening, verify_opening};
 use crate::util::module_norm_within_bound;
 
 /// Pilot infinity-norm budget for packing `clearance_level - min_clearance` in coefficient 0.
@@ -577,10 +556,7 @@ mod tests {
     fn hierarchical_auth_accepts_leaf_at_level() {
         use lib_q_random::new_deterministic_rng;
 
-        use crate::commitment::{
-            AjtaiOpening,
-            commit,
-        };
+        use crate::commitment::{AjtaiOpening, commit};
         use crate::params::AjtaiParameters;
         use crate::sigma::opening::prove_opening;
 
@@ -662,10 +638,7 @@ mod tests {
     fn private_membership_roundtrip_and_clearance_rejects_low_level() {
         use lib_q_random::new_deterministic_rng;
 
-        use crate::commitment::{
-            AjtaiOpening,
-            commit,
-        };
+        use crate::commitment::{AjtaiOpening, commit};
         use crate::params::AjtaiParameters;
 
         #[inline]

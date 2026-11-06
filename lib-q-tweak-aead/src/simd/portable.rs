@@ -1,11 +1,7 @@
 //! Portable keystream XOR.
 
 use crate::block::keystream_block;
-use crate::params::{
-    BLOCK_BYTES,
-    KEY_BYTES,
-    NONCE_BYTES,
-};
+use crate::params::{BLOCK_BYTES, KEY_BYTES, NONCE_BYTES};
 use crate::simd::traits::TweakAeadStreamOps;
 
 pub struct Portable;

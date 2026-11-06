@@ -13,22 +13,10 @@
 //! coefficient commitments at that party's index. Publishing the wrong bytes would satisfy
 //! "present" and fail this.
 
-use lib_q_dkg::lattice::bdlop::{
-    self,
-    Commitment,
-    KAPPA,
-    MU,
-};
-use lib_q_dkg::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-    rq_from_le_bytes,
-};
+use lib_q_dkg::lattice::bdlop::{self, Commitment, KAPPA, MU};
+use lib_q_dkg::lattice::ring::{RQ_BYTES, Rq, rq_from_le_bytes};
 use lib_q_random::new_deterministic_rng;
-use lib_q_threshold_kem_lattice::{
-    ThresholdKemLatticeProfileV1,
-    keygen_shares,
-};
+use lib_q_threshold_kem_lattice::{ThresholdKemLatticeProfileV1, keygen_shares};
 
 /// Inverse of the crate's `encode_commitment`: `MU` `t0` elements followed by `t1`.
 fn decode_commitment(bytes: &[u8]) -> Commitment {

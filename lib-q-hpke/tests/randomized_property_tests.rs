@@ -16,21 +16,10 @@
 
 #![cfg(feature = "std")]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
 use lib_q_hpke::providers::AeadProvider;
-use lib_q_hpke::security::prng::{
-    CryptoRng,
-    Kt128Rng,
-};
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeContext,
-};
+use lib_q_hpke::security::prng::{CryptoRng, Kt128Rng};
+use lib_q_hpke::{HpkeAead, HpkeContext};
 use lib_q_kem::LibQKemProvider;
 
 fn random_bytes(rng: &mut Kt128Rng, n: usize) -> Vec<u8> {

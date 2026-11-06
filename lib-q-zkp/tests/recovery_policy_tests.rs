@@ -3,15 +3,9 @@
 #![cfg(feature = "zkp")]
 
 use lib_q_zkp::air::{
-    RecoveryPolicyInput,
-    RecoveryPolicyKey,
-    RecoveryPolicyPublicInputs,
-    policy_commitment,
+    RecoveryPolicyInput, RecoveryPolicyKey, RecoveryPolicyPublicInputs, policy_commitment,
 };
-use lib_q_zkp::ip::{
-    prove_recovery_policy,
-    verify_recovery_policy_envelope,
-};
+use lib_q_zkp::ip::{prove_recovery_policy, verify_recovery_policy_envelope};
 use lib_q_zkp::wire::decode_recovery_zk_proof_v0;
 
 fn kat_input(seed: u64) -> RecoveryPolicyInput {
@@ -92,11 +86,7 @@ fn recovery_policy_rejects_wrong_air_id_in_envelope() {
 
 #[test]
 fn recovery_policy_rejects_excessive_key_count() {
-    use lib_q_zkp::air::{
-        RecoveryPolicyAir,
-        RecoveryPolicyPublicInputs,
-        policy_commitment,
-    };
+    use lib_q_zkp::air::{RecoveryPolicyAir, RecoveryPolicyPublicInputs, policy_commitment};
 
     let keys: Vec<_> = (0..33)
         .map(|i| RecoveryPolicyKey {
@@ -154,10 +144,7 @@ fn kat_regenerate_recovery_policy_vectors() {
 #[test]
 #[ignore = "Measure proof sizes: cargo test -p lib-q-zkp recovery_policy_budget_sizes -- --ignored --release"]
 fn recovery_policy_budget_sizes() {
-    use lib_q_zkp::air::{
-        RecoveryPolicyPublicInputs,
-        policy_commitment,
-    };
+    use lib_q_zkp::air::{RecoveryPolicyPublicInputs, policy_commitment};
 
     fn prove_size(key_count: usize, threshold: u32) -> usize {
         let mut keys = Vec::with_capacity(key_count);

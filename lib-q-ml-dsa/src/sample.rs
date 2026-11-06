@@ -1,12 +1,6 @@
-use crate::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    Eta,
-};
+use crate::constants::{COEFFICIENTS_IN_RING_ELEMENT, Eta};
 use crate::encoding;
-use crate::hash_functions::{
-    shake128,
-    shake256,
-};
+use crate::hash_functions::{shake128, shake256};
 use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
@@ -510,9 +504,7 @@ mod tests {
     use crate::constants::COEFFICIENTS_IN_RING_ELEMENT;
     use crate::hash_functions;
     use crate::simd::traits::Operations;
-    use crate::simd::{
-        self,
-    };
+    use crate::simd::{self};
 
     fn sample_ring_element_uniform<SIMDUnit: Operations>(
         seed: [u8; 34],

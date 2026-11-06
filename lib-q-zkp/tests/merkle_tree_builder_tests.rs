@@ -5,17 +5,11 @@
 
 use lib_q_zkp::air::MerkleHash;
 use lib_q_zkp::api::{
-    build_merkle_tree,
-    merkle_path_from_tree,
-    prove_membership_with_config,
-    verify_membership_with_config,
-    verify_membership_with_depth_and_config,
+    build_merkle_tree, merkle_path_from_tree, prove_membership_with_config,
+    verify_membership_with_config, verify_membership_with_depth_and_config,
 };
 use lib_q_zkp::merkle::PoseidonMerkleTree;
-use lib_q_zkp::stark::{
-    default_config,
-    fast_proof_config,
-};
+use lib_q_zkp::stark::{default_config, fast_proof_config};
 
 /// Assert that a verifier *ran to a verdict* and rejected.
 ///

@@ -21,16 +21,8 @@
 
 #![cfg(all(feature = "alloc", feature = "hqc", feature = "random"))]
 
-use lib_q_hqc::hqc_kem::{
-    HqcKem,
-    HqcKemSecretKey,
-};
-use lib_q_hqc::params::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::hqc_kem::{HqcKem, HqcKemSecretKey};
+use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
 /// Encodes a keypair and checks every field's offset and width against
 /// the reference struct layout, independently of `nist_secret_key_len()` (which is the

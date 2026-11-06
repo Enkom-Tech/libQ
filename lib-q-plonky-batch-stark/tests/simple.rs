@@ -8,55 +8,22 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_plonky_batch_stark::{
-    ProverData,
-    StarkInstance,
-    prove_batch,
-    verify_batch,
-};
-use lib_q_plonky_uni_stark::{
-    StarkConfig,
-    prove_with_preprocessed,
-    verify_with_preprocessed,
-};
-use lib_q_stark_air::{
-    Air,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_plonky_batch_stark::{ProverData, StarkInstance, prove_batch, verify_batch};
+use lib_q_plonky_uni_stark::{StarkConfig, prove_with_preprocessed, verify_with_preprocessed};
+use lib_q_stark_air::{Air, BaseAir, WindowAccess};
 use lib_q_stark_challenger::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
-    Shake256Challenger32,
+    CanObserve, CanSample, CanSampleBits, FieldChallenger, GrindingChallenger, Shake256Challenger32,
 };
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-    PrimeField32,
-};
-use lib_q_stark_fri::{
-    TwoAdicFriPcs,
-    create_test_fri_params,
-};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing, PrimeField32};
+use lib_q_stark_fri::{TwoAdicFriPcs, create_test_fri_params};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    Hash,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, Hash, SerializingHasher};
 
 type Val = Complex<Mersenne31>;
 type Challenge = Val;
@@ -345,16 +312,8 @@ impl<AB: lib_q_stark_air::AirBuilder<F = Val>> Air<AB> for SelfLookupAir {
 /// selector-degree fix, the quotient domain was sized for `inner` instead of `inner + 1`, so this
 /// round-trip failed with `OodEvaluationMismatch`. It is the regression guard for that fix.
 fn self_lookup() -> lib_q_plonky_lookup::lookup_traits::Lookup<Val> {
-    use lib_q_plonky_lookup::lookup_traits::{
-        Direction,
-        Kind,
-        Lookup,
-    };
-    use lib_q_stark_air::symbolic::{
-        BaseEntry,
-        SymbolicExpression,
-        SymbolicVariable,
-    };
+    use lib_q_plonky_lookup::lookup_traits::{Direction, Kind, Lookup};
+    use lib_q_stark_air::symbolic::{BaseEntry, SymbolicExpression, SymbolicVariable};
 
     let col0 = SymbolicExpression::from(SymbolicVariable::<Val>::new(
         BaseEntry::Main { offset: 0 },
@@ -378,10 +337,7 @@ fn self_lookup() -> lib_q_plonky_lookup::lookup_traits::Lookup<Val> {
 /// quotient domain is undersized and verification fails with `OodEvaluationMismatch`).
 #[test]
 fn batch_prover_global_lookup_round_trip() {
-    use lib_q_plonky_batch_stark::{
-        CommonData,
-        ProverOnlyData,
-    };
+    use lib_q_plonky_batch_stark::{CommonData, ProverOnlyData};
 
     let shake256 = Shake256Hash {};
     let hash = MyHash::new(shake256);

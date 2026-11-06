@@ -1,7 +1,4 @@
-use crate::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    Gamma2,
-};
+use crate::constants::{COEFFICIENTS_IN_RING_ELEMENT, Gamma2};
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 
@@ -224,11 +221,7 @@ pub(crate) fn use_hint<SIMDUnit: Operations>(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::constants::{
-        COEFFICIENTS_IN_RING_ELEMENT,
-        GAMMA2_V95_232,
-        GAMMA2_V261_888,
-    };
+    use crate::constants::{COEFFICIENTS_IN_RING_ELEMENT, GAMMA2_V95_232, GAMMA2_V261_888};
     use crate::polynomial::PolynomialRingElement;
     use crate::simd::portable::PortableSIMDUnit;
 

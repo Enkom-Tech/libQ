@@ -37,10 +37,7 @@
 
 extern crate alloc;
 
-use lib_q_poseidon::{
-    Poseidon256,
-    PoseidonField,
-};
+use lib_q_poseidon::{Poseidon256, PoseidonField};
 
 use super::compute_poseidon_row;
 
@@ -100,17 +97,9 @@ mod tests {
     use alloc::vec::Vec;
 
     use lib_q_stark::check_constraints;
-    use lib_q_stark_air::{
-        Air,
-        AirBuilder,
-        BaseAir,
-        WindowAccess,
-    };
+    use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
     use lib_q_stark_field::extension::Complex;
-    use lib_q_stark_field::{
-        BasedVectorSpace,
-        Field,
-    };
+    use lib_q_stark_field::{BasedVectorSpace, Field};
     use lib_q_stark_matrix::dense::RowMajorMatrix;
     use lib_q_stark_mersenne31::Mersenne31;
 

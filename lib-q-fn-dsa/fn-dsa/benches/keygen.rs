@@ -1,17 +1,8 @@
 #![allow(non_snake_case)]
 
 mod util;
-use fn_dsa::{
-    KeyPairGenerator,
-    KeyPairGeneratorStandard,
-    sign_key_size,
-    vrfy_key_size,
-};
-use util::{
-    FakeRNG,
-    banner_arch,
-    core_cycles,
-};
+use fn_dsa::{KeyPairGenerator, KeyPairGeneratorStandard, sign_key_size, vrfy_key_size};
+use util::{FakeRNG, banner_arch, core_cycles};
 
 fn bench_keygen(logn: u32) -> (f64, u8) {
     let z = core_cycles();

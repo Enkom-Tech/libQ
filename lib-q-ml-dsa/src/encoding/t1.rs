@@ -37,9 +37,7 @@ mod tests {
     use super::*;
     use crate::constants::RING_ELEMENT_OF_T1S_SIZE;
     use crate::simd::traits::Operations;
-    use crate::simd::{
-        self,
-    };
+    use crate::simd::{self};
 
     fn test_serialize_generic<SIMDUnit: Operations>() {
         let coefficients = [

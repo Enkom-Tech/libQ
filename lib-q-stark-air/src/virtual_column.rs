@@ -2,10 +2,7 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::Mul;
 
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 
 /// An affine linear combination of columns in a PAIR (Preprocessed AIR).
 ///

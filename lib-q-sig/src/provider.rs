@@ -52,33 +52,18 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 
 #[cfg(feature = "alloc")]
-use lib_q_core::api::{
-    Algorithm,
-    CryptoProvider,
-    SignatureOperations,
-};
+use lib_q_core::api::{Algorithm, CryptoProvider, SignatureOperations};
 #[cfg(feature = "alloc")]
-use lib_q_core::error::{
-    Error,
-    Result,
-};
+use lib_q_core::error::{Error, Result};
 #[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
 #[cfg(all(feature = "alloc", any(feature = "ml-dsa", feature = "fn-dsa")))]
 use lib_q_core::traits::Signature;
 #[cfg(feature = "alloc")]
-use lib_q_core::traits::{
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-};
+use lib_q_core::traits::{SigKeypair, SigPublicKey, SigSecretKey};
 
 #[cfg(feature = "fn-dsa")]
-use crate::fn_dsa::{
-    FnDsa,
-    FnDsa512,
-    FnDsa1024,
-};
+use crate::fn_dsa::{FnDsa, FnDsa512, FnDsa1024};
 // Import algorithm implementations
 #[cfg(feature = "ml-dsa")]
 use crate::ml_dsa::MlDsa;
@@ -234,9 +219,9 @@ impl SignatureOperations for LibQSignatureProvider {
                 })
             }
             #[cfg(not(feature = "slh-dsa"))]
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
                 feature: "SLH-DSA implementations require 'slh-dsa' feature flag".to_string(),
             }),
 
@@ -337,9 +322,9 @@ impl SignatureOperations for LibQSignatureProvider {
 
             // SLH-DSA algorithms
             #[cfg(feature = "slh-dsa")]
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => {
                 let slh_dsa = SlhDsa::new();
                 slh_dsa.sign_for_algorithm(algorithm, secret_key, message, randomness)
             }
@@ -358,9 +343,9 @@ impl SignatureOperations for LibQSignatureProvider {
                 })
             }
             #[cfg(not(feature = "slh-dsa"))]
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
                 feature: "SLH-DSA implementations require 'slh-dsa' feature flag".to_string(),
             }),
 
@@ -433,9 +418,9 @@ impl SignatureOperations for LibQSignatureProvider {
 
             // SLH-DSA algorithms
             #[cfg(feature = "slh-dsa")]
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => {
                 let slh_dsa = SlhDsa::new();
                 slh_dsa.verify_for_algorithm(algorithm, public_key, message, signature)
             }
@@ -454,9 +439,9 @@ impl SignatureOperations for LibQSignatureProvider {
                 })
             }
             #[cfg(not(feature = "slh-dsa"))]
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => Err(Error::NotImplemented {
                 feature: "SLH-DSA implementations require 'slh-dsa' feature flag".to_string(),
             }),
 

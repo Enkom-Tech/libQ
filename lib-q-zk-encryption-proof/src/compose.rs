@@ -53,27 +53,16 @@
 //! (blinds μ; #32, demonstrated in `encryption_proof::tests`). **Remaining:** the KEM-side H1
 //! (constant-time samplers) and H3 (estimator vendoring), plus external cryptographer sign-off.
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_zkp::stark::ConfigVal;
 
 use crate::logup_join::XofStreamTableAir;
 use crate::mu_bits::MuBitsAir;
-use crate::sampler::{
-    BoundedSamplerAir,
-    TernarySamplerAir,
-};
+use crate::sampler::{BoundedSamplerAir, TernarySamplerAir};
 use crate::sponge_air::ShakeSpongeAir;
 use crate::squeeze_byte::SqueezeByteAir;
-use crate::zq::{
-    DotFoldAir,
-    EncodeMuFoldAir,
-    RelationCheckAir,
-};
+use crate::zq::{DotFoldAir, EncodeMuFoldAir, RelationCheckAir};
 
 /// One-type-fits-all wrapper over the encryption-proof AIRs so a single `prove_batch` call can
 /// carry the heterogeneous tables. Each variant holds the concrete AIR; `BaseAir`/`Air` dispatch to
@@ -166,46 +155,22 @@ impl<AB: AirBuilder<F = ConfigVal>> Air<AB> for EncProofAir {
 #[cfg(test)]
 mod tests {
     use lib_q_plonky_batch_stark::{
-        CommonData,
-        ProverData,
-        ProverOnlyData,
-        StarkInstance,
-        prove_batch,
-        verify_batch,
+        CommonData, ProverData, ProverOnlyData, StarkInstance, prove_batch, verify_batch,
     };
     use lib_q_plonky_uni_stark::StarkConfig;
-    use lib_q_sha3::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
-    use lib_q_stark_challenger::{
-        ComplexFieldChallenger,
-        Shake256Challenger32,
-    };
+    use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+    use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_fri::create_test_fri_params;
     use lib_q_stark_matrix::dense::RowMajorMatrix;
     use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_shake256::Shake256Hash;
-    use lib_q_zkp::stark::{
-        ConfigDft,
-        DefaultChallengeMmcs,
-        DefaultPcs,
-        DefaultValMmcs,
-    };
+    use lib_q_zkp::stark::{ConfigDft, DefaultChallengeMmcs, DefaultPcs, DefaultValMmcs};
 
     use super::*;
-    use crate::logup_join::{
-        fc,
-        generate_xof_stream_table,
-        xof_stream_send_lookup,
-    };
+    use crate::logup_join::{fc, generate_xof_stream_table, xof_stream_send_lookup};
     use crate::sampler::{
-        SAMPLER_WIDTH,
-        generate_ternary_trace,
-        ternary_public_values,
-        ternary_receive_lookup,
+        SAMPLER_WIDTH, generate_ternary_trace, ternary_public_values, ternary_receive_lookup,
     };
 
     type TestChallenger = ComplexFieldChallenger<Shake256Challenger32<Mersenne31>>;
@@ -300,10 +265,7 @@ mod tests {
         SC: lib_q_plonky_uni_stark::StarkGenericConfig,
         A: BaseAir<lib_q_plonky_uni_stark::Val<SC>>,
     {
-        use lib_q_plonky_batch_stark::common::{
-            GlobalPreprocessed,
-            PreprocessedInstanceMeta,
-        };
+        use lib_q_plonky_batch_stark::common::{GlobalPreprocessed, PreprocessedInstanceMeta};
         use lib_q_stark_commit::Pcs;
 
         let pcs = config.pcs();
@@ -526,16 +488,8 @@ mod tests {
     /// `[p]` + Receive `[p]`), so it must verify. Previously untested repo-wide.
     #[test]
     fn compose_preprocessed_lookup_round_trip() {
-        use lib_q_plonky_lookup::{
-            Direction,
-            Kind,
-            Lookup,
-        };
-        use lib_q_stark_air::symbolic::{
-            BaseEntry,
-            SymbolicExpression,
-            SymbolicVariable,
-        };
+        use lib_q_plonky_lookup::{Direction, Kind, Lookup};
+        use lib_q_stark_air::symbolic::{BaseEntry, SymbolicExpression, SymbolicVariable};
 
         /// Width-1 AIR with a single **preprocessed** column (fixed values `0,1,2,…`) and no
         /// algebraic constraints of its own; the lookup is the only thing binding the trace.
@@ -612,26 +566,16 @@ mod tests {
     /// output of the sponge. This is the capstone that the limb-Send + consumed-flag design targets.
     #[test]
     fn compose_byte_provenance_prove_batch() {
-        use lib_q_plonky_keccak_air::{
-            NUM_KECCAK_COLS,
-            NUM_ROUNDS,
-        };
+        use lib_q_plonky_keccak_air::{NUM_KECCAK_COLS, NUM_ROUNDS};
 
-        use crate::sampler::{
-            generate_ternary_trace,
-            ternary_public_values,
-        };
+        use crate::sampler::{generate_ternary_trace, ternary_public_values};
         use crate::sponge::RATE_BYTES;
         use crate::sponge_air::{
-            ShakeSpongeAir,
-            encap_preimage,
-            generate_provable_sponge_trace,
-            sponge_limb_send_lookups,
-            sponge_public_values,
+            ShakeSpongeAir, encap_preimage, generate_provable_sponge_trace,
+            sponge_limb_send_lookups, sponge_public_values,
         };
         use crate::squeeze_byte::{
-            generate_squeeze_byte_trace_partial,
-            squeeze_byte_limb_receive_lookup,
+            generate_squeeze_byte_trace_partial, squeeze_byte_limb_receive_lookup,
             squeeze_byte_send_lookup,
         };
 
@@ -723,26 +667,16 @@ mod tests {
     /// exists to catch.
     #[test]
     fn compose_byte_provenance_wrong_sponge_rejected() {
-        use lib_q_plonky_keccak_air::{
-            NUM_KECCAK_COLS,
-            NUM_ROUNDS,
-        };
+        use lib_q_plonky_keccak_air::{NUM_KECCAK_COLS, NUM_ROUNDS};
 
-        use crate::sampler::{
-            generate_ternary_trace,
-            ternary_public_values,
-        };
+        use crate::sampler::{generate_ternary_trace, ternary_public_values};
         use crate::sponge::RATE_BYTES;
         use crate::sponge_air::{
-            ShakeSpongeAir,
-            encap_preimage,
-            generate_provable_sponge_trace,
-            sponge_limb_send_lookups,
-            sponge_public_values,
+            ShakeSpongeAir, encap_preimage, generate_provable_sponge_trace,
+            sponge_limb_send_lookups, sponge_public_values,
         };
         use crate::squeeze_byte::{
-            generate_squeeze_byte_trace_partial,
-            squeeze_byte_limb_receive_lookup,
+            generate_squeeze_byte_trace_partial, squeeze_byte_limb_receive_lookup,
             squeeze_byte_send_lookup,
         };
 
@@ -904,10 +838,7 @@ mod tests {
     fn compose_fold_to_relation_prove_batch() {
         use crate::logup_join::FOLD_E_BUS;
         use crate::zq::{
-            Q,
-            RelationCheckAir,
-            fold_result_send_lookups_at,
-            generate_dot_trace,
+            Q, RelationCheckAir, fold_result_send_lookups_at, generate_dot_trace,
             generate_relation_trace,
         };
 
@@ -1024,11 +955,7 @@ mod tests {
     fn compose_sampler_to_fold_join2_prove_batch() {
         use crate::logup_join::COEFF_E_BUS;
         use crate::sampler::ternary_coeff_send_lookups_at;
-        use crate::zq::{
-            Q,
-            fold_coeff_receive_lookups_at,
-            generate_dot_trace,
-        };
+        use crate::zq::{Q, fold_coeff_receive_lookups_at, generate_dot_trace};
 
         let bytes = shake256_xof(b"libq/compose/join2", 4096);
         let n = 32usize; // power of two ⇒ fold height = n, no front padding
@@ -1131,10 +1058,7 @@ mod tests {
     #[test]
     fn compose_bounded_join1_prove_batch() {
         use crate::sampler::{
-            BOUNDED_WIDTH,
-            bounded_public_values,
-            bounded_receive_lookup,
-            generate_bounded_trace,
+            BOUNDED_WIDTH, bounded_public_values, bounded_receive_lookup, generate_bounded_trace,
         };
 
         let num = 32usize;
@@ -1189,18 +1113,11 @@ mod tests {
     /// witness fold receives its coefficients and sends its evaluation), proven end-to-end here.
     #[test]
     fn compose_sampler_fold_relation_two_joins_prove_batch() {
-        use crate::logup_join::{
-            COEFF_E_BUS,
-            FOLD_E_BUS,
-        };
+        use crate::logup_join::{COEFF_E_BUS, FOLD_E_BUS};
         use crate::sampler::ternary_coeff_send_lookups_at;
         use crate::zq::{
-            Q,
-            RelationCheckAir,
-            fold_coeff_receive_lookups_at,
-            fold_result_send_lookups_at,
-            generate_dot_trace,
-            generate_relation_trace,
+            Q, RelationCheckAir, fold_coeff_receive_lookups_at, fold_result_send_lookups_at,
+            generate_dot_trace, generate_relation_trace,
         };
 
         let bytes = shake256_xof(b"libq/compose/two-joins", 4096);
@@ -1302,35 +1219,22 @@ mod tests {
     /// replicates it across all `e`/`f`/`g` components and all relations.
     #[test]
     fn compose_full_vertical_slice_prove_batch() {
-        use lib_q_plonky_keccak_air::{
-            NUM_KECCAK_COLS,
-            NUM_ROUNDS,
-        };
+        use lib_q_plonky_keccak_air::{NUM_KECCAK_COLS, NUM_ROUNDS};
 
-        use crate::logup_join::{
-            COEFF_E_BUS,
-            FOLD_E_BUS,
-        };
+        use crate::logup_join::{COEFF_E_BUS, FOLD_E_BUS};
         use crate::sampler::ternary_coeff_send_lookups_at;
         use crate::sponge::RATE_BYTES;
         use crate::sponge_air::{
-            encap_preimage,
-            generate_provable_sponge_trace,
-            sponge_limb_send_lookups,
+            encap_preimage, generate_provable_sponge_trace, sponge_limb_send_lookups,
             sponge_public_values,
         };
         use crate::squeeze_byte::{
-            generate_squeeze_byte_trace_partial,
-            squeeze_byte_limb_receive_lookup,
+            generate_squeeze_byte_trace_partial, squeeze_byte_limb_receive_lookup,
             squeeze_byte_send_lookup,
         };
         use crate::zq::{
-            Q,
-            RelationCheckAir,
-            fold_coeff_receive_lookups_at,
-            fold_result_send_lookups_at,
-            generate_dot_trace,
-            generate_relation_trace,
+            Q, RelationCheckAir, fold_coeff_receive_lookups_at, fold_result_send_lookups_at,
+            generate_dot_trace, generate_relation_trace,
         };
 
         let pk = [0x21u8; 32];
@@ -1474,10 +1378,7 @@ mod tests {
     fn compose_join3_zk_prove_batch() {
         use crate::logup_join::FOLD_E_BUS;
         use crate::zq::{
-            Q,
-            RelationCheckAir,
-            fold_result_send_lookups_at,
-            generate_dot_trace,
+            Q, RelationCheckAir, fold_result_send_lookups_at, generate_dot_trace,
             generate_relation_trace,
         };
 
@@ -1558,18 +1459,11 @@ mod tests {
     /// cols 0..4 plus two join-3 sends on cols 4..8 and 8..12) at full breadth.
     #[test]
     fn compose_multifold_fanout_prove_batch() {
-        use crate::logup_join::{
-            COEFF_E_BUS,
-            FOLD_E_BUS,
-        };
+        use crate::logup_join::{COEFF_E_BUS, FOLD_E_BUS};
         use crate::sampler::ternary_coeff_send_lookups_at;
         use crate::zq::{
-            Q,
-            RelationCheckAir,
-            fold_coeff_receive_lookups_at,
-            fold_result_send_lookups_at,
-            generate_dot_trace,
-            generate_relation_trace,
+            Q, RelationCheckAir, fold_coeff_receive_lookups_at, fold_result_send_lookups_at,
+            generate_dot_trace, generate_relation_trace,
         };
 
         let bytes = shake256_xof(b"libq/compose/multifold", 4096);
@@ -1686,35 +1580,22 @@ mod tests {
     /// ⇒ all relations), proven here end-to-end at reduced scale — the full-assembly wiring, complete.
     #[test]
     fn compose_full_stack_prove_batch() {
-        use lib_q_plonky_keccak_air::{
-            NUM_KECCAK_COLS,
-            NUM_ROUNDS,
-        };
+        use lib_q_plonky_keccak_air::{NUM_KECCAK_COLS, NUM_ROUNDS};
 
-        use crate::logup_join::{
-            COEFF_E_BUS,
-            FOLD_E_BUS,
-        };
+        use crate::logup_join::{COEFF_E_BUS, FOLD_E_BUS};
         use crate::sampler::ternary_coeff_send_lookups_at;
         use crate::sponge::RATE_BYTES;
         use crate::sponge_air::{
-            encap_preimage,
-            generate_provable_sponge_trace,
-            sponge_limb_send_lookups,
+            encap_preimage, generate_provable_sponge_trace, sponge_limb_send_lookups,
             sponge_public_values,
         };
         use crate::squeeze_byte::{
-            generate_squeeze_byte_trace_partial,
-            squeeze_byte_limb_receive_lookup,
+            generate_squeeze_byte_trace_partial, squeeze_byte_limb_receive_lookup,
             squeeze_byte_send_lookup,
         };
         use crate::zq::{
-            Q,
-            RelationCheckAir,
-            fold_coeff_receive_lookups_at,
-            fold_result_send_lookups_at,
-            generate_dot_trace,
-            generate_relation_trace,
+            Q, RelationCheckAir, fold_coeff_receive_lookups_at, fold_result_send_lookups_at,
+            generate_dot_trace, generate_relation_trace,
         };
 
         let pk = [0x5Du8; 32];

@@ -95,32 +95,12 @@ use core::marker::PhantomData;
 
 // Re-export FN-DSA types and constants
 pub use fn_dsa::{
-    DOMAIN_NONE,
-    FN_DSA_LOGN_512,
-    FN_DSA_LOGN_1024,
-    HASH_ID_RAW,
-    KeyPairGenerator,
-    KeyPairGeneratorStandard,
-    SigningKey,
-    SigningKey512,
-    SigningKey1024,
-    SigningKeyStandard,
-    VerifyingKey,
-    VerifyingKey512,
-    VerifyingKey1024,
-    VerifyingKeyStandard,
-    sign_key_size,
-    signature_size,
-    vrfy_key_size,
+    DOMAIN_NONE, FN_DSA_LOGN_512, FN_DSA_LOGN_1024, HASH_ID_RAW, KeyPairGenerator,
+    KeyPairGeneratorStandard, SigningKey, SigningKey512, SigningKey1024, SigningKeyStandard,
+    VerifyingKey, VerifyingKey512, VerifyingKey1024, VerifyingKeyStandard, sign_key_size,
+    signature_size, vrfy_key_size,
 };
-pub use lib_q_core::{
-    Error,
-    Result,
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-    Signature,
-};
+pub use lib_q_core::{Error, Result, SigKeypair, SigPublicKey, SigSecretKey, Signature};
 // KangarooTwelve-backed deterministic CSPRNG (seedable). Used by the `*_from_seed` entry points so
 // FN-DSA key generation and signing are reproducible from a fixed seed (KAT / conformance vectors),
 // while remaining cryptographically secure when the seed is fresh CSPRNG entropy.

@@ -39,25 +39,15 @@
 #![allow(clippy::needless_range_loop)]
 #![allow(clippy::identity_op)]
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 use lib_q_poseidon::PoseidonField;
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::air::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-    poseidon_field_to_bytes,
-    poseidon256_wide_hash,
+    WIDE_DIGEST_ELEMS, WideDigest, poseidon_field_to_bytes, poseidon256_wide_hash,
 };
-use lib_q_zkp::membership::{
-    WIDE_DIGEST_BYTES,
-    wide_digest_from_bytes,
-    wide_digest_to_bytes,
-};
+use lib_q_zkp::membership::{WIDE_DIGEST_BYTES, wide_digest_from_bytes, wide_digest_to_bytes};
 
 pub mod air;
 // `producer` (was `prove`): mVE producer/relay entry points. Renamed off the bare `prove` to avoid
@@ -66,11 +56,7 @@ pub mod air;
 // public surface is unchanged: `mve_prove` / `mve_verify` are re-exported at the crate root.
 pub mod producer;
 
-pub use producer::{
-    MveEncapsulationKey,
-    mve_prove,
-    mve_verify,
-};
+pub use producer::{MveEncapsulationKey, mve_prove, mve_verify};
 
 /// Number of field elements in the distributed key `K` (= [`WIDE_DIGEST_ELEMS`] = 5;
 /// 5 × ~62-bit GF(p²) ≈ 310-bit key material ≥ 256-bit).
@@ -144,11 +130,7 @@ pub(crate) fn ss_to_felts(ss: &[u8]) -> [PoseidonField; SS_ELEMS] {
 /// distributed key; the value every recipient recomputes and checks against (mve-rekey-v0 §4.3).
 pub fn key_commitment(key: &Key, r: &[u8], epoch_id: u32) -> [u8; COMMITMENT_BYTES] {
     use lib_q_k12::Kt128;
-    use lib_q_k12::digest::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_k12::digest::{ExtendableOutput, Update, XofReader};
     let key_bytes = poseidon_field_to_bytes(key);
     debug_assert_eq!(key_bytes.len(), KEY_BYTES, "K serializes to KEY_BYTES");
     let mut h = Kt128::default(); //                 EMPTY K12 customization (the K12 domain-separation registry discipline)
@@ -243,12 +225,7 @@ pub(crate) fn check_shape(n_ids: usize, n_cts: usize) -> Result<usize> {
 mod value_tests {
     use lib_q_ml_kem::array::Array;
     use lib_q_ml_kem::array::typenum::U32;
-    use lib_q_ml_kem::{
-        Decapsulate,
-        EncapsulateDeterministic,
-        KemCore,
-        MlKem768,
-    };
+    use lib_q_ml_kem::{Decapsulate, EncapsulateDeterministic, KemCore, MlKem768};
 
     use super::*;
 
@@ -335,11 +312,7 @@ mod value_tests {
     #[test]
     fn commitment_canonical_layout_kat() {
         use lib_q_k12::Kt128;
-        use lib_q_k12::digest::{
-            ExtendableOutput,
-            Update,
-            XofReader,
-        };
+        use lib_q_k12::digest::{ExtendableOutput, Update, XofReader};
         let k = key(5);
         let r: &[u8] = b"\x01\x02\x03\x04";
         let epoch_id: u32 = 0xDEAD_BEEF;

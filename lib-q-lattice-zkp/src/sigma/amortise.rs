@@ -4,51 +4,21 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use lib_q_ring::constants::FIELD_MODULUS;
-use lib_q_ring::{
-    ModuleMatrix,
-    ModuleVec,
-    Poly,
-    try_uniform_coeff_mod_q_from_u32,
-};
-use lib_q_sha3::{
-    ExtendableOutput,
-    Shake256,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_ring::{ModuleMatrix, ModuleVec, Poly, try_uniform_coeff_mod_q_from_u32};
+use lib_q_sha3::{ExtendableOutput, Shake256, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 use zeroize::Zeroize;
 
-use crate::commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-};
-use crate::error::{
-    ProofError,
-    VerifyError,
-};
+use crate::commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening};
+use crate::error::{ProofError, VerifyError};
 use crate::serialize::write_module_vec;
 use crate::sigma::opening;
 use crate::sigma::opening::OpeningProof;
 #[cfg(feature = "hardened")]
-use crate::sigma::secrets::{
-    MaskedWitness,
-    zeroize_poly_vec,
-};
-use crate::sigma::secrets::{
-    ProverMaskScratch,
-    SecretMaskVec,
-    SecretWitnessVec,
-};
+use crate::sigma::secrets::{MaskedWitness, zeroize_poly_vec};
+use crate::sigma::secrets::{ProverMaskScratch, SecretMaskVec, SecretWitnessVec};
 use crate::util::{
-    canonicalize_polys_mod_q,
-    module_add,
-    module_norm_within_bound,
-    module_ring_mul_challenge,
+    canonicalize_polys_mod_q, module_add, module_norm_within_bound, module_ring_mul_challenge,
     polys_ct_eq,
 };
 
@@ -125,16 +95,16 @@ pub fn amortise<R: Rng + CryptoRng>(
     let mut scratch = ProverMaskScratch::new();
     let mut w_list = Vec::with_capacity(openings.len());
     for (opening_i, commitment_i) in openings.iter().zip(commitments.iter()) {
-        if opening_i.message.0.len() != p.module_rank ||
-            opening_i.randomness.0.len() != p.randomness_dimension ||
-            commitment_i.value.0.len() != p.module_rank
+        if opening_i.message.0.len() != p.module_rank
+            || opening_i.randomness.0.len() != p.randomness_dimension
+            || commitment_i.value.0.len() != p.module_rank
         {
             return Err(ProofError::InvalidParameters);
         }
         let witness_i = opening::witness_vec(opening_i);
         let expected_com = matrix.mul_vec_polys(&witness_i);
-        if expected_com.0.len() != commitment_i.value.0.len() ||
-            !bool::from(polys_ct_eq(&expected_com.0, &commitment_i.value.0))
+        if expected_com.0.len() != commitment_i.value.0.len()
+            || !bool::from(polys_ct_eq(&expected_com.0, &commitment_i.value.0))
         {
             return Err(ProofError::InvalidParameters);
         }
@@ -258,8 +228,8 @@ fn derive_scalars_from_transcript(transcript: &[u8], count: usize) -> Vec<u32> {
             let mut rb = [0u8; 4];
             XofReader::read(&mut reader, &mut rb);
             let word = u32::from_le_bytes(rb);
-            if let Some(c) = try_uniform_coeff_mod_q_from_u32(q, word) &&
-                c != 0
+            if let Some(c) = try_uniform_coeff_mod_q_from_u32(q, word)
+                && c != 0
             {
                 break c as u32;
             }
@@ -327,9 +297,9 @@ pub fn verify_aggregate(
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
     let p = &key.params;
-    if proof.agg_w.0.len() != p.module_rank ||
-        proof.agg_z.0.len() != p.witness_len() ||
-        commitments.len() != proof.r_scalars.len()
+    if proof.agg_w.0.len() != p.module_rank
+        || proof.agg_z.0.len() != p.witness_len()
+        || commitments.len() != proof.r_scalars.len()
     {
         return Err(VerifyError::InvalidFormat);
     }
@@ -380,16 +350,9 @@ mod hardened_tests {
     use lib_q_random::new_deterministic_rng;
 
     use super::*;
-    use crate::commitment::{
-        AjtaiCommitmentKey,
-        AjtaiOpening,
-        commit,
-    };
+    use crate::commitment::{AjtaiCommitmentKey, AjtaiOpening, commit};
     use crate::sigma::opening;
-    use crate::sigma::secrets::{
-        MaskedWitness,
-        SecretWitnessVec,
-    };
+    use crate::sigma::secrets::{MaskedWitness, SecretWitnessVec};
     use crate::util::ring_mul;
 
     fn test_seed32(tag: u64) -> [u8; 32] {

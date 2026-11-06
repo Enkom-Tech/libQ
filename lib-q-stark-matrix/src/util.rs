@@ -1,18 +1,11 @@
 use core::borrow::BorrowMut;
 
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_util::{
-    log2_strict_usize,
-    reverse_bits_len,
-};
+use lib_q_stark_util::{log2_strict_usize, reverse_bits_len};
 use tracing::instrument;
 
 use crate::Matrix;
-use crate::dense::{
-    DenseMatrix,
-    DenseStorage,
-    RowMajorMatrix,
-};
+use crate::dense::{DenseMatrix, DenseStorage, RowMajorMatrix};
 
 /// Reverse the order of matrix rows based on the bit-reversal of their indices.
 ///

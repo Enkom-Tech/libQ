@@ -1,14 +1,7 @@
-use crate::constants::{
-    Eta,
-    Gamma2,
-};
+use crate::constants::{Eta, Gamma2};
 #[cfg(not(eurydice))]
 use crate::simd::traits::Repr;
-use crate::simd::traits::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    Operations,
-    SIMD_UNITS_IN_RING_ELEMENT,
-};
+use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, Operations, SIMD_UNITS_IN_RING_ELEMENT};
 
 mod arithmetic;
 mod encoding;
@@ -18,10 +11,7 @@ mod rejection_sample;
 mod vector_type;
 
 use arithmetic::shift_left_then_reduce;
-pub(crate) use vector_type::{
-    AVX2RingElement,
-    Vec256 as AVX2SIMDUnit,
-};
+pub(crate) use vector_type::{AVX2RingElement, Vec256 as AVX2SIMDUnit};
 
 #[cfg(not(eurydice))]
 impl Repr for AVX2SIMDUnit {

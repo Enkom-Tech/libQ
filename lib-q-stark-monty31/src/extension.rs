@@ -1,29 +1,14 @@
 use lib_q_stark_field::extension::{
-    BinomiallyExtendable,
-    BinomiallyExtendableAlgebra,
-    HasTwoAdicBinomialExtension,
+    BinomiallyExtendable, BinomiallyExtendableAlgebra, HasTwoAdicBinomialExtension,
 };
 use lib_q_stark_field::{
-    PrimeCharacteristicRing,
-    TwoAdicField,
-    field_to_array,
-    packed_mod_add,
-    packed_mod_sub,
+    PrimeCharacteristicRing, TwoAdicField, field_to_array, packed_mod_add, packed_mod_sub,
 };
 
-use crate::utils::{
-    add,
-    sub,
-};
+use crate::utils::{add, sub};
 use crate::{
-    BinomialExtensionData,
-    FieldParameters,
-    MontyField31,
-    TwoAdicData,
-    base_mul_packed,
-    octic_mul_packed,
-    quartic_mul_packed,
-    quintic_mul_packed,
+    BinomialExtensionData, FieldParameters, MontyField31, TwoAdicData, base_mul_packed,
+    octic_mul_packed, quartic_mul_packed, quintic_mul_packed,
 };
 
 // If a field implements BinomialExtensionData<WIDTH> then there is a natural
@@ -123,10 +108,7 @@ where
 /// into CI (`.github/workflows/ci.yml`, outside this crate) would close the gap.
 #[cfg(test)]
 mod ext4_tests {
-    use lib_q_stark_field_testing::{
-        test_extension_field,
-        test_two_adic_extension_field,
-    };
+    use lib_q_stark_field_testing::{test_extension_field, test_two_adic_extension_field};
 
     test_extension_field!(crate::test_utils::TestField, crate::test_utils::TestEF4);
     test_two_adic_extension_field!(crate::test_utils::TestField, crate::test_utils::TestEF4);

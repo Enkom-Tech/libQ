@@ -24,33 +24,14 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_dkg::lattice::bdlop::{
-    self,
-    Commitment,
-    KAPPA,
-    TAU,
-};
+use lib_q_dkg::lattice::bdlop::{self, Commitment, KAPPA, TAU};
 use lib_q_dkg::lattice::ring::{
-    N,
-    Rq,
-    centered_coeffs,
-    ring_add,
-    ring_mul,
-    ring_sub,
-    sample_discrete_gaussian_block,
-    sample_in_ball,
-    sample_uniform_poly,
+    N, Rq, centered_coeffs, ring_add, ring_mul, ring_sub, sample_discrete_gaussian_block,
+    sample_in_ball, sample_uniform_poly,
 };
 use lib_q_dkg::lattice::rngbuf::BufRng;
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 
 /// Gaussian width for the randomness mask `y_r`.
 ///

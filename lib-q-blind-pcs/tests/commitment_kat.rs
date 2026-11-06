@@ -31,11 +31,7 @@
 
 #![cfg(feature = "blind-pcs")]
 
-use lib_q_blind_pcs::{
-    blind_commit,
-    blind_open,
-    verify,
-};
+use lib_q_blind_pcs::{blind_commit, blind_open, verify};
 
 /// `(message, blind, expected_commitment_hex)`.
 const VECTORS: [(&[u8], &[u8], &str); 3] = [

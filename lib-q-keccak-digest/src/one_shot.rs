@@ -7,13 +7,7 @@
 
 use digest::Digest;
 
-use crate::{
-    Keccak224,
-    Keccak256,
-    Keccak256Full,
-    Keccak384,
-    Keccak512,
-};
+use crate::{Keccak224, Keccak256, Keccak256Full, Keccak384, Keccak512};
 
 /// One-shot **Keccak-224** (original padding; not SHA-3-224).
 #[inline(always)]

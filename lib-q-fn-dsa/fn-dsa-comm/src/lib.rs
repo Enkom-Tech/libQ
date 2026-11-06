@@ -40,13 +40,7 @@ pub mod shake;
 pub mod mq_avx2;
 
 // Re-export RNG traits to get a smooth dependency management.
-pub use rand_core::{
-    CryptoRng,
-    Infallible,
-    Rng,
-    TryCryptoRng,
-    TryRng,
-};
+pub use rand_core::{CryptoRng, Infallible, Rng, TryCryptoRng, TryRng};
 
 /// Error type for RNG operations.
 ///
@@ -94,12 +88,12 @@ pub const fn signature_size(logn: u32) -> usize {
     //   8    256     356
     //   9    512     666
     //  10   1024    1280
-    44 + 3 * (256 >> (10 - logn)) +
-        2 * (128 >> (10 - logn)) +
-        3 * (64 >> (10 - logn)) +
-        2 * (16 >> (10 - logn)) -
-        2 * (2 >> (10 - logn)) -
-        8 * (1 >> (10 - logn))
+    44 + 3 * (256 >> (10 - logn))
+        + 2 * (128 >> (10 - logn))
+        + 3 * (64 >> (10 - logn))
+        + 2 * (16 >> (10 - logn))
+        - 2 * (2 >> (10 - logn))
+        - 8 * (1 >> (10 - logn))
 }
 
 /// The message for which a signature is to be generated or verified is

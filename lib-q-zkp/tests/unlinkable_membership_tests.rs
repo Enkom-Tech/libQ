@@ -12,24 +12,12 @@
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::air::{
-    CTX_ELEMS,
-    SECRET_T_ELEMS,
-    WideDigest,
-    membership_leaf,
-    membership_nullifier,
+    CTX_ELEMS, SECRET_T_ELEMS, WideDigest, membership_leaf, membership_nullifier,
 };
 use lib_q_zkp::membership::{
-    CTX_BYTES,
-    MAX_DEPTH,
-    MembershipWitness,
-    PUBLIC_STATEMENT_BYTES,
-    WIDE_DIGEST_BYTES,
-    prove_unlinkable_membership_with_config,
-    public_statement_bytes,
-    statement_domain,
-    verify_unlinkable_membership_with_config,
-    wide_digest_from_bytes,
-    wide_digest_to_bytes,
+    CTX_BYTES, MAX_DEPTH, MembershipWitness, PUBLIC_STATEMENT_BYTES, WIDE_DIGEST_BYTES,
+    prove_unlinkable_membership_with_config, public_statement_bytes, statement_domain,
+    verify_unlinkable_membership_with_config, wide_digest_from_bytes, wide_digest_to_bytes,
 };
 use lib_q_zkp::merkle::WidePoseidonMerkleTree;
 use lib_q_zkp::stark::membership_fast_config;

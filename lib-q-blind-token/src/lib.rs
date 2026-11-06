@@ -45,28 +45,11 @@ pub mod wire;
 
 #[cfg(feature = "std")]
 pub use blind_token::{
-    Credential,
-    IssueRequest,
-    IssueResponse,
-    IssueState,
-    IssuerPublic,
-    IssuerSecret,
-    TokenProof,
-    blind,
-    blind_sign,
-    keygen_issuer,
-    redeem,
-    unblind,
-    verify,
+    Credential, IssueRequest, IssueResponse, IssueState, IssuerPublic, IssuerSecret, TokenProof,
+    blind, blind_sign, keygen_issuer, redeem, unblind, verify,
 };
 pub use error::BlindTokenError;
 pub use profile::PROFILE_ID_V1;
-pub use wire::{
-    WIRE_BUDGET_BLIND_TOKEN_BYTES,
-    WIRE_VERSION_V1,
-};
+pub use wire::{WIRE_BUDGET_BLIND_TOKEN_BYTES, WIRE_VERSION_V1};
 #[cfg(feature = "std")]
-pub use wire::{
-    decode_token_value,
-    encode_token_value,
-};
+pub use wire::{decode_token_value, encode_token_value};

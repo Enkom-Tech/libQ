@@ -207,10 +207,7 @@ pub mod crypto_ops {
 
 #[cfg(test)]
 mod tests {
-    use super::{
-        crypto_ops,
-        vector_ops,
-    };
+    use super::{crypto_ops, vector_ops};
 
     #[test]
     fn generic_vector_ops() {

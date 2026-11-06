@@ -713,12 +713,7 @@ pub(crate) unsafe fn reduce_avx2_to_u64(
 #[cfg(test)]
 mod toom_dims_tests {
     use super::ToomDims;
-    use crate::params::{
-        Hqc1Params,
-        Hqc3Params,
-        Hqc5Params,
-        HqcParams,
-    };
+    use crate::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
     #[test]
     fn t3w_256_matches_reference_avx2_layout() {

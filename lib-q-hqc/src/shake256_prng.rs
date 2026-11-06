@@ -6,10 +6,7 @@
 #[cfg(feature = "random")]
 use lib_q_random::Result;
 #[cfg(feature = "random")]
-use lib_q_random::traits::{
-    EntropySource,
-    EntropySourceType,
-};
+use lib_q_random::traits::{EntropySource, EntropySourceType};
 
 #[cfg(feature = "random")]
 /// SHAKE256 PRNG entropy source for KAT compatibility

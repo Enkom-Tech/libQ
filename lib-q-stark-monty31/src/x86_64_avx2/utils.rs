@@ -1,14 +1,7 @@
-use core::arch::x86_64::{
-    self,
-    __m256i,
-};
+use core::arch::x86_64::{self, __m256i};
 use core::mem::transmute;
 
-use crate::{
-    MontyParameters,
-    MontyParametersAVX2,
-    TwoAdicData,
-};
+use crate::{MontyParameters, MontyParametersAVX2, TwoAdicData};
 
 // Godbolt file showing that these all compile to the expected instructions. (Potentially plus a few memory ops):
 // https://godbolt.org/z/9P71nYrqh

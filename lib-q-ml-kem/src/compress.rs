@@ -1,13 +1,5 @@
-use crate::algebra::{
-    FieldElement,
-    Integer,
-    Polynomial,
-    PolynomialVector,
-};
-use crate::param::{
-    ArraySize,
-    EncodingSize,
-};
+use crate::algebra::{FieldElement, Integer, Polynomial, PolynomialVector};
+use crate::param::{ArraySize, EncodingSize};
 use crate::util::Truncate;
 
 // A convenience trait to allow us to associate some constants with a typenum
@@ -96,15 +88,7 @@ impl<K: ArraySize> Compress for PolynomialVector<K> {
 
 #[cfg(test)]
 pub(crate) mod test {
-    use hybrid_array::typenum::{
-        U1,
-        U4,
-        U5,
-        U6,
-        U10,
-        U11,
-        U12,
-    };
+    use hybrid_array::typenum::{U1, U4, U5, U6, U10, U11, U12};
     use num_rational::Ratio;
 
     use super::*;

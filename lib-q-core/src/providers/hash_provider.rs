@@ -4,15 +4,9 @@
 //! with proper security validation and algorithm routing.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
-use crate::api::{
-    Algorithm,
-    HashOperations,
-};
+use crate::api::{Algorithm, HashOperations};
 use crate::error::Result;
 use crate::security::SecurityValidator;
 
@@ -57,10 +51,10 @@ impl HashOperations for LibQHashProvider {
         // Route to specific algorithm implementation
         // Note: Actual implementations are provided by the main lib-q crate
         match algorithm {
-            Algorithm::Sha3_224 |
-            Algorithm::Sha3_256 |
-            Algorithm::Sha3_384 |
-            Algorithm::Sha3_512 => Err(crate::error::Error::NotImplemented {
+            Algorithm::Sha3_224
+            | Algorithm::Sha3_256
+            | Algorithm::Sha3_384
+            | Algorithm::Sha3_512 => Err(crate::error::Error::NotImplemented {
                 feature: "SHA3 implementations are provided by the main lib-q crate".to_string(),
             }),
             Algorithm::Shake128 | Algorithm::Shake256 => Err(crate::error::Error::NotImplemented {
@@ -87,10 +81,10 @@ impl HashOperations for LibQHashProvider {
                         .to_string(),
                 })
             }
-            Algorithm::Keccak224 |
-            Algorithm::Keccak256 |
-            Algorithm::Keccak384 |
-            Algorithm::Keccak512 => Err(crate::error::Error::NotImplemented {
+            Algorithm::Keccak224
+            | Algorithm::Keccak256
+            | Algorithm::Keccak384
+            | Algorithm::Keccak512 => Err(crate::error::Error::NotImplemented {
                 feature: "Keccak implementations are provided by the main lib-q crate".to_string(),
             }),
             Algorithm::Kt128 | Algorithm::Kt256 => Err(crate::error::Error::NotImplemented {

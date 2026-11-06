@@ -18,10 +18,7 @@
 //! would not catch it. Every byte position is therefore exercised individually.
 
 use lib_q_threshold_raccoon::threshold::{
-    Round1Commit,
-    aggregate_commitment,
-    sign_round1,
-    sign_round1_reveal,
+    Round1Commit, aggregate_commitment, sign_round1, sign_round1_reveal,
 };
 
 /// Deterministic RNG so a failure names a reproducible case rather than a random one.

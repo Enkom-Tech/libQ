@@ -7,24 +7,14 @@
 //! of `tests/mmcs.rs` for the exact compile error this produces).
 
 use lib_q_stark_baby_bear::BabyBear;
-use lib_q_stark_commit::{
-    BatchOpeningRef,
-    ExtensionMmcs,
-    Mmcs,
-};
+use lib_q_stark_commit::{BatchOpeningRef, ExtensionMmcs, Mmcs};
 use lib_q_stark_field::extension::BinomialExtensionField;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Dimensions;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
 use lib_q_stark_shake128::Shake128Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 
 type Val = BabyBear;
 // The degree-4 binomial extension field, as used e.g. by `lib-q-stark-baby-bear`'s own

@@ -1,9 +1,6 @@
 //! cSHAKE KATs
 
-use digest::{
-    CustomizedInit,
-    ExtendableOutput,
-};
+use digest::{CustomizedInit, ExtendableOutput};
 
 #[derive(Debug, Clone, Copy)]
 pub struct TestVector {

@@ -11,17 +11,8 @@
 //! passing RNG output yields the randomized mode used by the KATs.
 
 use crate::params::*;
-use crate::types::{
-    Mayo2KeyPair,
-    Mayo2Signature,
-    Mayo2SigningKey,
-    Mayo2VerificationKey,
-};
-use crate::{
-    SigningError,
-    VerificationError,
-    mayo_core as core,
-};
+use crate::types::{Mayo2KeyPair, Mayo2Signature, Mayo2SigningKey, Mayo2VerificationKey};
+use crate::{SigningError, VerificationError, mayo_core as core};
 
 /// Signing key (compact secret key) size in bytes.
 pub const SIGNING_KEY_SIZE: usize = CSK_BYTES;

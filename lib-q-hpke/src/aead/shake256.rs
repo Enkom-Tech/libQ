@@ -14,18 +14,9 @@ use alloc::vec::Vec;
 #[cfg(feature = "shake256")]
 use lib_q_aead::Shake256Aead;
 #[cfg(feature = "shake256")]
-use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Nonce,
-};
+use lib_q_core::{Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Nonce};
 
-use crate::error::{
-    AeadOperation,
-    HpkeError,
-};
+use crate::error::{AeadOperation, HpkeError};
 use crate::types::*;
 
 /// SHAKE256 AEAD implementation using concrete `lib-q-aead` [`Shake256Aead`].

@@ -13,10 +13,7 @@
 //! strategies.
 
 #[cfg(all(not(feature = "std"), feature = "alloc"))]
-use alloc::string::{
-    String,
-    ToString,
-};
+use alloc::string::{String, ToString};
 use core::fmt;
 
 /// Result type alias for lib-q-random operations
@@ -365,9 +362,9 @@ impl Error {
     pub fn is_recoverable(&self) -> bool {
         matches!(
             self,
-            Self::EntropySourceUnavailable { .. } |
-                Self::PlatformRngFailed { .. } |
-                Self::HardwareRngFailed { .. }
+            Self::EntropySourceUnavailable { .. }
+                | Self::PlatformRngFailed { .. }
+                | Self::HardwareRngFailed { .. }
         )
     }
 
@@ -375,9 +372,9 @@ impl Error {
     pub fn is_entropy_related(&self) -> bool {
         matches!(
             self,
-            Self::EntropySourceUnavailable { .. } |
-                Self::InsufficientEntropy { .. } |
-                Self::EntropyValidationFailed { .. }
+            Self::EntropySourceUnavailable { .. }
+                | Self::InsufficientEntropy { .. }
+                | Self::EntropyValidationFailed { .. }
         )
     }
 

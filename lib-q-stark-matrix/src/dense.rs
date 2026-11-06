@@ -1,34 +1,18 @@
 use alloc::borrow::Cow;
 use alloc::vec;
 use alloc::vec::Vec;
-use core::borrow::{
-    Borrow,
-    BorrowMut,
-};
+use core::borrow::{Borrow, BorrowMut};
 use core::iter;
 use core::marker::PhantomData;
 use core::ops::Deref;
 
 use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    PackedValue,
-    par_scale_slice_in_place,
-    scale_slice_in_place_single_core,
+    ExtensionField, Field, PackedValue, par_scale_slice_in_place, scale_slice_in_place_single_core,
 };
 use lib_q_stark_rayon::prelude::*;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
-use rand::{
-    Rng,
-    RngExt,
-};
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use rand::distr::{Distribution, StandardUniform};
+use rand::{Rng, RngExt};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use zeroize::Zeroize;
 

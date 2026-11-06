@@ -4,69 +4,24 @@ use core::cmp::min;
 
 use lib_q_plonky_lookup::AirWithLookups;
 use lib_q_plonky_lookup::logup::LogUpGadget;
-use lib_q_plonky_lookup::lookup_traits::{
-    Lookup,
-    LookupGadget,
-};
+use lib_q_plonky_lookup::lookup_traits::{Lookup, LookupGadget};
 use lib_q_plonky_uni_stark::{
-    AirLayout,
-    Domain,
-    OpenedValues,
-    ProverConstraintFolder,
-    ProverError,
-    SymbolicAirBuilder,
-    Val,
+    AirLayout, Domain, OpenedValues, ProverConstraintFolder, ProverError, SymbolicAirBuilder, Val,
 };
-use lib_q_stark_air::{
-    Air,
-    RowWindow,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-};
-use lib_q_stark_commit::{
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PackedValue,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, RowWindow};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger};
+use lib_q_stark_commit::{Pcs, PolynomialSpace};
+use lib_q_stark_field::{BasedVectorSpace, PackedValue, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use lib_q_stark_util::log2_strict_usize;
-use tracing::{
-    debug_span,
-    info_span,
-    instrument,
-};
+use tracing::{debug_span, info_span, instrument};
 
-use crate::common::{
-    CommonData,
-    ProverData,
-    get_perm_challenges,
-};
-use crate::config::{
-    Challenge,
-    StarkGenericConfig as SGC,
-    observe_instance_binding,
-};
+use crate::common::{CommonData, ProverData, get_perm_challenges};
+use crate::config::{Challenge, StarkGenericConfig as SGC, observe_instance_binding};
 use crate::folder::ProverConstraintFolderWithLookups;
-use crate::proof::{
-    BatchCommitments,
-    BatchOpenedValues,
-    BatchProof,
-    OpenedValuesWithLookups,
-};
-use crate::symbolic::{
-    get_constraint_layout,
-    get_log_num_quotient_chunks,
-};
+use crate::proof::{BatchCommitments, BatchOpenedValues, BatchProof, OpenedValuesWithLookups};
+use crate::symbolic::{get_constraint_layout, get_log_num_quotient_chunks};
 
 #[derive(Debug)]
 pub struct StarkInstance<'a, SC: SGC, A> {
@@ -121,10 +76,7 @@ where
     Mat: Matrix<Val<SC>> + Sync,
     LG: LookupGadget,
 {
-    use crate::config::{
-        PackedChallenge,
-        PackedVal,
-    };
+    use crate::config::{PackedChallenge, PackedVal};
 
     let quotient_size = quotient_domain.size();
     let main_width = trace_on_quotient_domain.width();

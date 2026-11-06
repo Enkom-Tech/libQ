@@ -106,21 +106,9 @@ extern crate alloc;
 // unconditionally; `KemContext`/`KemKeypair`/`KemOperations`/`KemPublicKey`/`KemSecretKey`
 // need `alloc` in lib-q-core (they carry owned buffers), so a bare no_std build with no
 // `alloc` feature (and thus no allocator available) must not pull them in.
-pub use lib_q_core::{
-    Algorithm,
-    AlgorithmCategory,
-    Error,
-    Kem,
-    Result,
-};
+pub use lib_q_core::{Algorithm, AlgorithmCategory, Error, Kem, Result};
 #[cfg(feature = "alloc")]
-pub use lib_q_core::{
-    KemContext,
-    KemKeypair,
-    KemOperations,
-    KemPublicKey,
-    KemSecretKey,
-};
+pub use lib_q_core::{KemContext, KemKeypair, KemOperations, KemPublicKey, KemSecretKey};
 
 // Provider implementation
 pub mod provider;
@@ -237,17 +225,9 @@ pub mod wasm {
     use alloc::string::ToString;
     use alloc::vec::Vec;
 
-    use lib_q_core::{
-        Algorithm,
-        KemKeypair,
-        KemPublicKey,
-        KemSecretKey,
-    };
+    use lib_q_core::{Algorithm, KemKeypair, KemPublicKey, KemSecretKey};
     #[allow(unused_imports)]
-    use wasm_bindgen::{
-        JsError,
-        prelude::*,
-    };
+    use wasm_bindgen::{JsError, prelude::*};
 
     use super::*;
 
@@ -491,9 +471,9 @@ mod tests {
         // Check that algorithm names follow NIST conventions
         for algorithm in algorithms {
             assert!(
-                algorithm.starts_with("ML-KEM-") ||
-                    algorithm.starts_with("CB-KEM-") ||
-                    algorithm.starts_with("HQC-"),
+                algorithm.starts_with("ML-KEM-")
+                    || algorithm.starts_with("CB-KEM-")
+                    || algorithm.starts_with("HQC-"),
                 "Algorithm name '{}' should follow NIST naming conventions",
                 algorithm
             );

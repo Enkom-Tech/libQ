@@ -2,17 +2,8 @@
 
 mod common;
 
-use common::{
-    EPOCH,
-    ISSUER_KEY_ID,
-    det_rng,
-    issue,
-};
-use lib_q_blind_token::{
-    WIRE_BUDGET_BLIND_TOKEN_BYTES,
-    redeem,
-    verify,
-};
+use common::{EPOCH, ISSUER_KEY_ID, det_rng, issue};
+use lib_q_blind_token::{WIRE_BUDGET_BLIND_TOKEN_BYTES, redeem, verify};
 
 #[test]
 #[ignore = "regenerates tests/vectors/blind-token-v2.json"]

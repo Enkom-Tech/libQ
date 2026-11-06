@@ -1,30 +1,12 @@
 //! Legendre PRF: \(L_K(x) = \left(\frac{x+K}{p}\right)\).
 
-use crypto_bigint::{
-    NonZero,
-    U256,
-    U512,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use crypto_bigint::{NonZero, U256, U512};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::error::PrfError;
-use crate::field::{
-    fp_add,
-    legendre_symbol_monty,
-    to_monty,
-    uint_ct_eq_zero,
-};
-use crate::keys::{
-    validate_key_u256,
-    validate_key_u512,
-};
-use crate::params::{
-    LegendrePrfParams256,
-    LegendrePrfParams512,
-};
+use crate::field::{fp_add, legendre_symbol_monty, to_monty, uint_ct_eq_zero};
+use crate::keys::{validate_key_u256, validate_key_u512};
+use crate::params::{LegendrePrfParams256, LegendrePrfParams512};
 
 /// Secret key `K` for the Legendre PRF (pilot: [`U256`] field).
 ///

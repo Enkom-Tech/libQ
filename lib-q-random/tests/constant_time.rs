@@ -19,15 +19,9 @@
 //! regressed to something *visibly* data-dependent (e.g. a future`Vec`-growth path
 //! keyed off seed content, or a debug/logging branch on seed bytes).
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
-use lib_q_random::{
-    DOMAIN_LIBQ_DET_RNG,
-    Kt128Expander,
-};
+use lib_q_random::{DOMAIN_LIBQ_DET_RNG, Kt128Expander};
 
 const ITERATIONS: usize = 2_000;
 

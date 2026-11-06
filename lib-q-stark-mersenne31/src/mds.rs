@@ -10,10 +10,7 @@ use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_mds::MdsPermutation;
 use lib_q_stark_mds::karatsuba_convolution::Convolve;
-use lib_q_stark_mds::util::{
-    dot_product,
-    first_row_to_first_col,
-};
+use lib_q_stark_mds::util::{dot_product, first_row_to_first_col};
 use lib_q_stark_symmetric::Permutation;
 
 use crate::Mersenne31;
@@ -253,10 +250,7 @@ impl MdsPermutation<Mersenne31, 64> for MdsMatrixMersenne31 {}
 mod tests {
     use lib_q_stark_symmetric::Permutation;
 
-    use super::{
-        MdsMatrixMersenne31,
-        Mersenne31,
-    };
+    use super::{MdsMatrixMersenne31, Mersenne31};
 
     #[test]
     fn mersenne8() {

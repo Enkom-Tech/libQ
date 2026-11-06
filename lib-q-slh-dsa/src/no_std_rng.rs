@@ -3,11 +3,7 @@
 //! This module provides no_std compatible RNG functionality for SLH-DSA
 //! when the standard library is not available.
 
-use rand_core::{
-    Rng,
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{Rng, TryCryptoRng, TryRng};
 
 // Use a simple error type for no_std
 #[derive(Debug)]

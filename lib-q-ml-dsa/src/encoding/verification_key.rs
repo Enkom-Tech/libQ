@@ -1,7 +1,4 @@
-use crate::constants::{
-    RING_ELEMENT_OF_T1S_SIZE,
-    SEED_FOR_A_SIZE,
-};
+use crate::constants::{RING_ELEMENT_OF_T1S_SIZE, SEED_FOR_A_SIZE};
 use crate::encoding::t1;
 use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;

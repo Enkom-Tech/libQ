@@ -14,12 +14,7 @@ use alloc::vec::Vec;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 
-use crate::constants::{
-    mds_matrix_5x5,
-    mds_matrix_7x7,
-    round_constants_128,
-    round_constants_256,
-};
+use crate::constants::{mds_matrix_5x5, mds_matrix_7x7, round_constants_128, round_constants_256};
 use crate::permutation::PoseidonPermutation;
 
 /// Field type used for Poseidon

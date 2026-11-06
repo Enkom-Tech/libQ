@@ -2,63 +2,24 @@ use alloc::format;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use core::array;
-use core::fmt::{
-    self,
-    Debug,
-    Display,
-    Formatter,
-};
-use core::iter::{
-    Product,
-    Sum,
-};
+use core::fmt::{self, Debug, Display, Formatter};
+use core::iter::{Product, Sum};
 use core::marker::PhantomData;
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    DivAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use itertools::Itertools;
-use lib_q_stark_util::{
-    as_base_slice,
-    as_base_slice_mut,
-    flatten_to_base,
-    reconstitute_from_base,
-};
+use lib_q_stark_util::{as_base_slice, as_base_slice_mut, flatten_to_base, reconstitute_from_base};
 use num_bigint::BigUint;
 use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use super::{
-    HasFrobenius,
-    HasTwoAdicBinomialExtension,
-    PackedBinomialExtensionField,
-};
-use crate::extension::{
-    BinomiallyExtendable,
-    BinomiallyExtendableAlgebra,
-};
+use super::{HasFrobenius, HasTwoAdicBinomialExtension, PackedBinomialExtensionField};
+use crate::extension::{BinomiallyExtendable, BinomiallyExtendableAlgebra};
 use crate::field::Field;
 use crate::{
-    Algebra,
-    BasedVectorSpace,
-    ExtensionField,
-    Packable,
-    PrimeCharacteristicRing,
-    RawDataSerializable,
-    TwoAdicField,
-    field_to_array,
+    Algebra, BasedVectorSpace, ExtensionField, Packable, PrimeCharacteristicRing,
+    RawDataSerializable, TwoAdicField, field_to_array,
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, PartialOrd, Ord)]
@@ -792,8 +753,8 @@ fn cubic_inv<F: Field, const D: usize>(a: &[F; D], res: &mut [F; D], w: F) {
     let a0_a1 = a[0] * a[1];
 
     // scalar = (a0^3+wa1^3+w^2a2^3-3wa0a1a2)^-1
-    let scalar = (a0_square * a[0] + w * a[1] * a1_square + a2_w.square() * a[2] -
-        (F::ONE + F::TWO) * a2_w * a0_a1)
+    let scalar = (a0_square * a[0] + w * a[1] * a1_square + a2_w.square() * a[2]
+        - (F::ONE + F::TWO) * a2_w * a0_a1)
         .inverse();
 
     //scalar*[a0^2-wa1a2, wa2^2-a0a1, a1^2-a0a2]
@@ -818,15 +779,15 @@ fn cubic_mul<F: Field, R: Algebra<F> + Algebra<R2>, R2: Algebra<F>, const D: usi
     let a1_b1 = a[1].clone() * b[1].clone();
     let a2_b2 = a[2].clone() * b[2].clone();
 
-    res[0] = a0_b0.clone() +
-        ((a[1].clone() + a[2].clone()) * (b[1].clone() + b[2].clone()) -
-            a1_b1.clone() -
-            a2_b2.clone()) *
-            w;
-    res[1] = (a[0].clone() + a[1].clone()) * (b[0].clone() + b[1].clone()) -
-        a0_b0.clone() -
-        a1_b1.clone() +
-        a2_b2.clone() * w;
+    res[0] = a0_b0.clone()
+        + ((a[1].clone() + a[2].clone()) * (b[1].clone() + b[2].clone())
+            - a1_b1.clone()
+            - a2_b2.clone())
+            * w;
+    res[1] = (a[0].clone() + a[1].clone()) * (b[0].clone() + b[1].clone())
+        - a0_b0.clone()
+        - a1_b1.clone()
+        + a2_b2.clone() * w;
     res[2] = (a[0].clone() + a[2].clone()) * (b[0].clone() + b[2].clone()) - a0_b0 - a2_b2 + a1_b1;
 }
 

@@ -3,10 +3,7 @@
 //! This module provides tests to ensure compatibility between different
 //! ML-DSA modes (FIPS mode, hardened mode, and default mode).
 
-use lib_q_ml_dsa::{
-    Zeroizing,
-    *,
-};
+use lib_q_ml_dsa::{Zeroizing, *};
 
 /// Test that both modes produce compatible outputs
 /// This test compiles without mode features to test both

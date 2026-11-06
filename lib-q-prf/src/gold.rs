@@ -1,30 +1,12 @@
 //! Gold (power-residue) PRF: \(\mathrm{Gold}_k(x) = (k+x)^g \bmod p\).
 
-use crypto_bigint::{
-    NonZero,
-    U256,
-    U512,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use crypto_bigint::{NonZero, U256, U512};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::error::PrfError;
-use crate::field::{
-    fp_add,
-    fp_pow,
-    to_monty,
-    uint_ct_eq_zero,
-};
-use crate::keys::{
-    validate_key_u256,
-    validate_key_u512,
-};
-use crate::params::{
-    GoldPrfParams256,
-    GoldPrfParams512,
-};
+use crate::field::{fp_add, fp_pow, to_monty, uint_ct_eq_zero};
+use crate::keys::{validate_key_u256, validate_key_u512};
+use crate::params::{GoldPrfParams256, GoldPrfParams512};
 
 /// Secret key `k` for the Gold PRF (pilot: [`U256`] field).
 ///

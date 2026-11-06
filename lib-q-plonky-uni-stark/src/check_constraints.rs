@@ -1,8 +1,4 @@
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    RowWindow,
-};
+use lib_q_stark_air::{Air, AirBuilder, RowWindow};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;

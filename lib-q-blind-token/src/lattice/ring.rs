@@ -16,15 +16,8 @@
 
 use std::sync::OnceLock;
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 
 use super::gaussian::sample_discrete_gaussian;
 

@@ -19,14 +19,8 @@
 
 use core::fmt;
 
-use aes::cipher::{
-    BlockCipherEncrypt,
-    KeyInit,
-};
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
+use aes::cipher::{BlockCipherEncrypt, KeyInit};
+use rand_core::{TryCryptoRng, TryRng};
 #[cfg(feature = "zeroize")]
 use zeroize::Zeroize;
 

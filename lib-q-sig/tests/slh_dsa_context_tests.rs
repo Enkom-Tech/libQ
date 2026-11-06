@@ -7,10 +7,7 @@
 #![cfg(all(feature = "slh-dsa", feature = "alloc"))]
 
 use lib_q_core::Algorithm;
-use lib_q_sig::slh_dsa::{
-    SLH_DSA_CONTEXT_MAX_LEN,
-    SlhDsa,
-};
+use lib_q_sig::slh_dsa::{SLH_DSA_CONTEXT_MAX_LEN, SlhDsa};
 
 /// Cheapest parameter set; the context is threaded identically for all six.
 const ALG: Algorithm = Algorithm::SlhDsaShake256128fRobust;

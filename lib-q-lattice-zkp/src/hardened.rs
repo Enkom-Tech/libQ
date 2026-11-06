@@ -25,10 +25,7 @@ pub use lib_q_random::LibQRng;
 /// Secure RNG constructor used by hardened integrations and CI smoke tests.
 pub use lib_q_random::new_secure_rng;
 use lib_q_ring::Poly;
-use subtle::{
-    Choice,
-    ConditionallySelectable,
-};
+use subtle::{Choice, ConditionallySelectable};
 
 use crate::util::module_norm_within_bound;
 

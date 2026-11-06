@@ -11,11 +11,7 @@ use core::fmt;
 use zeroize::Zeroizing;
 
 use crate::Result;
-use crate::traits::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
+use crate::traits::{Aead, AeadKey, Nonce};
 
 /// Semantic result of an AEAD decrypt after parseable inputs were accepted.
 ///

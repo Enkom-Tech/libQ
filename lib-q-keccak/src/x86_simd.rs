@@ -13,36 +13,14 @@
 //! registers even when the crate is not built with `-C target-cpu=native`.
 
 use core::arch::x86_64::{
-    __m256i,
-    _mm_cvtsi32_si128,
-    _mm256_and_si256,
-    _mm256_cmpeq_epi64,
-    _mm256_movemask_epi8,
-    _mm256_or_si256,
-    _mm256_set_epi64x,
-    _mm256_set1_epi64x,
-    _mm256_setzero_si256,
-    _mm256_sll_epi64,
-    _mm256_srl_epi64,
-    _mm256_storeu_si256,
-    _mm256_xor_si256,
+    __m256i, _mm_cvtsi32_si128, _mm256_and_si256, _mm256_cmpeq_epi64, _mm256_movemask_epi8,
+    _mm256_or_si256, _mm256_set_epi64x, _mm256_set1_epi64x, _mm256_setzero_si256, _mm256_sll_epi64,
+    _mm256_srl_epi64, _mm256_storeu_si256, _mm256_xor_si256,
 };
 use core::fmt;
-use core::ops::{
-    BitAnd,
-    BitAndAssign,
-    BitXor,
-    BitXorAssign,
-    Not,
-};
+use core::ops::{BitAnd, BitAndAssign, BitXor, BitXorAssign, Not};
 
-use crate::{
-    LaneSize,
-    PI,
-    PLEN,
-    RC,
-    RHO,
-};
+use crate::{LaneSize, PI, PLEN, RC, RHO};
 
 /// Fully unroll a 5-trip loop with a compile-time index, so `array[(x+1)%5]`,
 /// `PI[x]`, `RHO[x]` etc. fold to constants (no runtime table loads).

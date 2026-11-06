@@ -14,14 +14,8 @@
 //!
 //! [`docs/sca-self-certification.md`]: ../../docs/sca-self-certification.md
 
-use std::path::{
-    Path,
-    PathBuf,
-};
-use std::{
-    fs,
-    io,
-};
+use std::path::{Path, PathBuf};
+use std::{fs, io};
 
 use crate::report::SelfCertReport;
 #[cfg(any(
@@ -31,10 +25,7 @@ use crate::report::SelfCertReport;
     feature = "hqc-hardened",
     feature = "slhdsa"
 ))]
-use crate::report::{
-    Channel,
-    EvaluationReport,
-};
+use crate::report::{Channel, EvaluationReport};
 
 /// Configuration for a self-certification timing battery.
 #[derive(Clone, Copy, Debug)]
@@ -138,11 +129,7 @@ pub fn run_timing_battery(config: BatteryConfig) -> SelfCertReport {
 
     #[cfg(feature = "hqc-hardened")]
     {
-        use lib_q_hqc::{
-            Hqc1Params,
-            Hqc3Params,
-            Hqc5Params,
-        };
+        use lib_q_hqc::{Hqc1Params, Hqc3Params, Hqc5Params};
 
         macro_rules! push_hqc_target {
             ($id:literal, $params:ty, $timings:ident, $notes:literal) => {{

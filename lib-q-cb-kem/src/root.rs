@@ -1,14 +1,7 @@
 //! This file is for evaluating a polynomial at one or more field elements
 
-use crate::gf::{
-    Gf,
-    gf_add,
-    gf_mul,
-};
-use crate::params::{
-    SYS_N,
-    SYS_T,
-};
+use crate::gf::{Gf, gf_add, gf_mul};
+use crate::params::{SYS_N, SYS_T};
 
 /// Evaluate polynomial `f` with argument `a`.
 /// Thus it returns `f(a)` in symbolic notation.

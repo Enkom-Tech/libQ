@@ -3,12 +3,7 @@
 use core::cmp::Ordering;
 
 use lib_q_platform::{
-    CpuFeatures,
-    Platform,
-    SimdLevel,
-    SimdSupport,
-    simd128_support,
-    simd256_support,
+    CpuFeatures, Platform, SimdLevel, SimdSupport, simd128_support, simd256_support,
     simd512_support,
 };
 

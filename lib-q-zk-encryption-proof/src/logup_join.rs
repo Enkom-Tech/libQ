@@ -39,27 +39,10 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use lib_q_plonky_lookup::{
-    Direction,
-    Kind,
-    Lookup,
-    LookupAir,
-};
-use lib_q_stark_air::symbolic::{
-    BaseEntry,
-    SymbolicExpression,
-    SymbolicVariable,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeCharacteristicRing,
-};
+use lib_q_plonky_lookup::{Direction, Kind, Lookup, LookupAir};
+use lib_q_stark_air::symbolic::{BaseEntry, SymbolicExpression, SymbolicVariable};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::ConfigVal;
@@ -248,24 +231,13 @@ pub fn generate_xof_stream_table(bytes: &[u8]) -> RowMajorMatrix<ConfigVal> {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_plonky_lookup::debug_util::{
-        LookupDebugInstance,
-        check_lookups,
-    };
-    use lib_q_sha3::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_plonky_lookup::debug_util::{LookupDebugInstance, check_lookups};
+    use lib_q_sha3::{ExtendableOutput, Update, XofReader};
 
     use super::*;
     use crate::sampler::{
-        BOUNDED_WIDTH,
-        SAMPLER_WIDTH,
-        bounded_receive_lookup,
-        generate_bounded_trace,
-        generate_ternary_trace,
-        ternary_receive_lookup,
+        BOUNDED_WIDTH, SAMPLER_WIDTH, bounded_receive_lookup, generate_bounded_trace,
+        generate_ternary_trace, ternary_receive_lookup,
     };
 
     fn xof_bytes(seed: &[u8], n: usize) -> Vec<u8> {
@@ -428,10 +400,7 @@ mod tests {
     /// exactly, so all three instances balance. A wrong offset for `f` unbalances the join.
     #[test]
     fn join_binds_two_samplers_on_shared_absolute_axis() {
-        use crate::sampler::{
-            bounded_receive_lookup_at,
-            ternary_receive_lookup_at,
-        };
+        use crate::sampler::{bounded_receive_lookup_at, ternary_receive_lookup_at};
 
         // The samplers now consume a *fixed budget* (they process the whole slice they are given,
         // emitting the first `num` accepts and draining the rest), so slice `e` and `f` at explicit
@@ -532,15 +501,8 @@ mod tests {
     /// (the fold's `w` no longer matches the sampler's Sent lift at that position).
     #[test]
     fn join2_binds_ternary_coeffs_to_fold() {
-        use crate::sampler::{
-            generate_ternary_trace,
-            ternary_coeff_send_lookups_at,
-        };
-        use crate::zq::{
-            Q,
-            fold_coeff_receive_lookups_at,
-            generate_dot_trace,
-        };
+        use crate::sampler::{generate_ternary_trace, ternary_coeff_send_lookups_at};
+        use crate::zq::{Q, fold_coeff_receive_lookups_at, generate_dot_trace};
 
         let bytes = xof_bytes(b"libq/join2/ternary", 4096);
         let n = 16usize; // power of two ⇒ fold height = n, no front padding
@@ -590,15 +552,8 @@ mod tests {
     /// Honest binding balances; a fold over a different coefficient unbalances.
     #[test]
     fn join2_binds_bounded_coeffs_to_fold() {
-        use crate::sampler::{
-            bounded_coeff_send_lookups_at,
-            generate_bounded_trace,
-        };
-        use crate::zq::{
-            Q,
-            fold_coeff_receive_lookups_at,
-            generate_dot_trace,
-        };
+        use crate::sampler::{bounded_coeff_send_lookups_at, generate_bounded_trace};
+        use crate::zq::{Q, fold_coeff_receive_lookups_at, generate_dot_trace};
 
         const BND: u64 = 1 << 20;
         const SPN: u64 = 2 * BND + 1;
@@ -651,10 +606,7 @@ mod tests {
     #[test]
     fn join3_binds_fold_result_to_relation() {
         use crate::zq::{
-            Q,
-            RelationCheckAir,
-            fold_result_send_lookups_at,
-            generate_dot_trace,
+            Q, RelationCheckAir, fold_result_send_lookups_at, generate_dot_trace,
             generate_relation_trace,
         };
 

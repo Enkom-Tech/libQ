@@ -1,11 +1,6 @@
 //! Dudect-style timing smoke for `hardened` ML-KEM decapsulation.
 
-use lib_q_ml_kem::{
-    Decapsulate,
-    Encapsulate,
-    KemCore,
-    MlKem768,
-};
+use lib_q_ml_kem::{Decapsulate, Encapsulate, KemCore, MlKem768};
 use lib_q_random::new_secure_rng;
 use lib_q_sca_test::dudect::timing_passes_loose;
 

@@ -4,18 +4,10 @@
 use std::ops::Deref;
 
 use hex_literal::hex;
-use lib_q_slh_dsa::{
-    Shake128s,
-    SigningKey,
-    VerifyingKey,
-};
+use lib_q_slh_dsa::{Shake128s, SigningKey, VerifyingKey};
 use pkcs8::der::Decode;
 use pkcs8::{
-    DecodePrivateKey,
-    EncodePrivateKey,
-    EncodePublicKey,
-    LineEnding,
-    ObjectIdentifier,
+    DecodePrivateKey, EncodePrivateKey, EncodePublicKey, LineEnding, ObjectIdentifier,
     PrivateKeyInfoRef,
 };
 

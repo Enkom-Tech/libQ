@@ -138,17 +138,9 @@ pub mod membership;
 
 #[cfg(feature = "zkp")]
 pub use api::{
-    MerklePath,
-    build_merkle_tree,
-    prove_membership,
-    prove_membership_with_config,
-    prove_preimage,
-    prove_preimage_nist,
-    verify_membership,
-    verify_membership_with_config,
-    verify_membership_with_depth,
-    verify_membership_with_depth_and_config,
-    verify_preimage,
+    MerklePath, build_merkle_tree, prove_membership, prove_membership_with_config, prove_preimage,
+    prove_preimage_nist, verify_membership, verify_membership_with_config,
+    verify_membership_with_depth, verify_membership_with_depth_and_config, verify_preimage,
     verify_preimage_nist,
 };
 
@@ -157,12 +149,7 @@ mod wasm;
 
 #[cfg(feature = "zkp")]
 pub use lib_q_stark::{
-    Proof as StarkProof,
-    StarkConfig,
-    StarkGenericConfig,
-    check_constraints,
-    prove,
-    verify,
+    Proof as StarkProof, StarkConfig, StarkGenericConfig, check_constraints, prove, verify,
 };
 #[cfg(feature = "zkp")]
 pub use lib_q_stark_air::Air;
@@ -175,10 +162,7 @@ use lib_q_stark_mersenne31::Mersenne31;
 #[cfg(feature = "zkp")]
 pub use merkle::PoseidonMerkleTree;
 #[cfg(feature = "zkp")]
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "zkp")]
 #[allow(unused_imports)]
@@ -394,14 +378,8 @@ impl ZkpProver {
         secret_value: &[u8],
         _public_statement: &[u8],
     ) -> Result<ZkpProof> {
-        use crate::air::{
-            HashPreimageAir,
-            TraceGenerator,
-        };
-        use crate::stark::{
-            StarkProver,
-            default_config,
-        };
+        use crate::air::{HashPreimageAir, TraceGenerator};
+        use crate::stark::{StarkProver, default_config};
 
         // Validate input size
         if secret_value.is_empty() {
@@ -533,10 +511,7 @@ impl ZkpProver {
         public: &[ZkpField],
     ) -> Result<ZkpProof> {
         use crate::circuit::CircuitAir;
-        use crate::stark::{
-            StarkProver,
-            default_config,
-        };
+        use crate::stark::{StarkProver, default_config};
 
         // Create the circuit AIR
         let air = CircuitAir::new(circuit.clone());
@@ -649,14 +624,8 @@ impl ZkpVerifier {
     ///
     /// `Ok(true)` if the proof is valid, `Ok(false)` or `Err` otherwise
     pub fn verify_secret_value(&self, proof: &ZkpProof, preimage: &[u8]) -> Result<bool> {
-        use crate::air::{
-            HashPreimageAir,
-            TraceGenerator,
-        };
-        use crate::stark::{
-            StarkVerifier,
-            default_config,
-        };
+        use crate::air::{HashPreimageAir, TraceGenerator};
+        use crate::stark::{StarkVerifier, default_config};
 
         if proof.proof_type != ProofType::Stark {
             return Ok(false);
@@ -722,10 +691,7 @@ impl ZkpVerifier {
         public: &[ZkpField],
     ) -> Result<bool> {
         use crate::circuit::CircuitAir;
-        use crate::stark::{
-            StarkVerifier,
-            default_config,
-        };
+        use crate::stark::{StarkVerifier, default_config};
 
         if proof.proof_type != ProofType::Stark {
             return Ok(false);
@@ -983,14 +949,8 @@ mod tests {
         use lib_q_stark_field::PrimeCharacteristicRing;
         use lib_q_stark_mersenne31::Mersenne31;
 
-        use crate::air::{
-            ArithmeticAir,
-            TraceGenerator,
-        };
-        use crate::stark::{
-            StarkProver,
-            default_config,
-        };
+        use crate::air::{ArithmeticAir, TraceGenerator};
+        use crate::stark::{StarkProver, default_config};
 
         let air = ArithmeticAir::new(1).expect("ArithmeticAir");
         let one = <ZkpField as PrimeCharacteristicRing>::ONE;

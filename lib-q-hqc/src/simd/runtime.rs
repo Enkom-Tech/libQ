@@ -5,10 +5,7 @@
 
 #![allow(unsafe_code)]
 
-use core::sync::atomic::{
-    AtomicBool,
-    Ordering,
-};
+use core::sync::atomic::{AtomicBool, Ordering};
 
 // Global state for CPU feature detection
 static AVX2_AVAILABLE: AtomicBool = AtomicBool::new(false);

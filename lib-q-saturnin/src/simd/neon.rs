@@ -2,24 +2,11 @@
 
 use alloc::vec::Vec;
 use core::arch::aarch64::{
-    uint8x16_t,
-    uint32x4_t,
-    vandq_u32,
-    vdupq_n_u32,
-    veorq_u8,
-    veorq_u32,
-    vgetq_lane_u32,
-    vld1q_u8,
-    vorrq_u32,
-    vshlq_n_u32,
-    vshrq_n_u32,
-    vst1q_u8,
+    uint8x16_t, uint32x4_t, vandq_u32, vdupq_n_u32, veorq_u8, veorq_u32, vgetq_lane_u32, vld1q_u8,
+    vorrq_u32, vshlq_n_u32, vshrq_n_u32, vst1q_u8,
 };
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 
 /// NEON XOR for one 32-byte block.
 ///
@@ -314,48 +301,48 @@ pub unsafe fn encrypt_block_bs32(
 
     let mut keybuf = [0u32; 16];
     for i in 0..8 {
-        let w = (key[i << 1] as u32) |
-            ((key[(i << 1) + 1] as u32) << 8) |
-            ((key[(i << 1) + 16] as u32) << 16) |
-            ((key[(i << 1) + 17] as u32) << 24);
+        let w = (key[i << 1] as u32)
+            | ((key[(i << 1) + 1] as u32) << 8)
+            | ((key[(i << 1) + 16] as u32) << 16)
+            | ((key[(i << 1) + 17] as u32) << 24);
         keybuf[i] = w;
         keybuf[i + 8] = ((w & 0x001F001F) << 11) | ((w >> 5) & 0x07FF07FF);
     }
     let rc = round_constants(num_super_rounds, domain);
 
     let words = [
-        (block[0] as u32) |
-            ((block[1] as u32) << 8) |
-            ((block[16] as u32) << 16) |
-            ((block[17] as u32) << 24),
-        (block[2] as u32) |
-            ((block[3] as u32) << 8) |
-            ((block[18] as u32) << 16) |
-            ((block[19] as u32) << 24),
-        (block[4] as u32) |
-            ((block[5] as u32) << 8) |
-            ((block[20] as u32) << 16) |
-            ((block[21] as u32) << 24),
-        (block[6] as u32) |
-            ((block[7] as u32) << 8) |
-            ((block[22] as u32) << 16) |
-            ((block[23] as u32) << 24),
-        (block[8] as u32) |
-            ((block[9] as u32) << 8) |
-            ((block[24] as u32) << 16) |
-            ((block[25] as u32) << 24),
-        (block[10] as u32) |
-            ((block[11] as u32) << 8) |
-            ((block[26] as u32) << 16) |
-            ((block[27] as u32) << 24),
-        (block[12] as u32) |
-            ((block[13] as u32) << 8) |
-            ((block[28] as u32) << 16) |
-            ((block[29] as u32) << 24),
-        (block[14] as u32) |
-            ((block[15] as u32) << 8) |
-            ((block[30] as u32) << 16) |
-            ((block[31] as u32) << 24),
+        (block[0] as u32)
+            | ((block[1] as u32) << 8)
+            | ((block[16] as u32) << 16)
+            | ((block[17] as u32) << 24),
+        (block[2] as u32)
+            | ((block[3] as u32) << 8)
+            | ((block[18] as u32) << 16)
+            | ((block[19] as u32) << 24),
+        (block[4] as u32)
+            | ((block[5] as u32) << 8)
+            | ((block[20] as u32) << 16)
+            | ((block[21] as u32) << 24),
+        (block[6] as u32)
+            | ((block[7] as u32) << 8)
+            | ((block[22] as u32) << 16)
+            | ((block[23] as u32) << 24),
+        (block[8] as u32)
+            | ((block[9] as u32) << 8)
+            | ((block[24] as u32) << 16)
+            | ((block[25] as u32) << 24),
+        (block[10] as u32)
+            | ((block[11] as u32) << 8)
+            | ((block[26] as u32) << 16)
+            | ((block[27] as u32) << 24),
+        (block[12] as u32)
+            | ((block[13] as u32) << 8)
+            | ((block[28] as u32) << 16)
+            | ((block[29] as u32) << 24),
+        (block[14] as u32)
+            | ((block[15] as u32) << 8)
+            | ((block[30] as u32) << 16)
+            | ((block[31] as u32) << 24),
     ];
 
     let mut q = [

@@ -5,20 +5,11 @@
 
 #![cfg(feature = "std")]
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
-use lib_q_hpke::providers::{
-    AeadProvider,
-    KemProvider,
-};
+use lib_q_hpke::providers::{AeadProvider, KemProvider};
 use lib_q_hpke::security::prng::Kt128Rng;
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeKem,
-};
+use lib_q_hpke::{HpkeAead, HpkeKem};
 
 /// Test constant-time key comparison
 #[test]

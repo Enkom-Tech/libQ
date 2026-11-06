@@ -59,23 +59,11 @@ mod aegis256;
 mod dispatch;
 mod wrapper;
 
-pub use aegis256::{
-    KEY_SIZE,
-    NONCE_SIZE,
-};
-pub use lib_q_core::{
-    Aead,
-    AeadKey,
-    Error,
-    Nonce,
-    Result,
-};
+pub use aegis256::{KEY_SIZE, NONCE_SIZE};
+pub use lib_q_core::{Aead, AeadKey, Error, Nonce, Result};
 // Re-export the lib-Q AEAD surface so downstream code can `use lib_q_aegis::Aead`.
 #[cfg(feature = "alloc")]
-pub use lib_q_core::{
-    AeadDecryptSemantic,
-    DecryptSemanticOutcome,
-};
+pub use lib_q_core::{AeadDecryptSemantic, DecryptSemanticOutcome};
 pub use lib_q_intrinsics::aes_round::hardware_aes_available;
 
 /// Maximum plaintext and associated-data length in bytes (`2^61 - 1`).

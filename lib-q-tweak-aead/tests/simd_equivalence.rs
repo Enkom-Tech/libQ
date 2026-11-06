@@ -27,17 +27,10 @@
 #![cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 
 use lib_q_tweak_aead::block::keystream_block;
-use lib_q_tweak_aead::params::{
-    BLOCK_BYTES,
-    KEY_BYTES,
-    NONCE_BYTES,
-};
+use lib_q_tweak_aead::params::{BLOCK_BYTES, KEY_BYTES, NONCE_BYTES};
 use lib_q_tweak_aead::simd::avx2::xor_keystream_avx2;
 use lib_q_tweak_aead::simd::runtime::has_avx2;
-use lib_q_tweak_aead::simd::{
-    Portable,
-    TweakAeadStreamOps,
-};
+use lib_q_tweak_aead::simd::{Portable, TweakAeadStreamOps};
 
 /// Number of blocks the 4-way BATCHED loop handles for a buffer of `len` bytes.
 ///

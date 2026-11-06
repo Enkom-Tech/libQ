@@ -2780,10 +2780,7 @@ pub(crate) const PRIMES: [SmallPrime; 308] = [
 
 #[cfg(test)]
 mod tests {
-    use lib_q_sha3::{
-        Digest,
-        Sha3_256,
-    };
+    use lib_q_sha3::{Digest, Sha3_256};
 
     use super::*;
 

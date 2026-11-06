@@ -5,10 +5,7 @@
 
 use lib_q_keccak::f1600;
 
-use crate::permutation::{
-    CryptographicPermutation,
-    Permutation,
-};
+use crate::permutation::{CryptographicPermutation, Permutation};
 
 /// Keccak-f\[1600\] permutation over 25 u64 lanes (200 bytes total state).
 ///

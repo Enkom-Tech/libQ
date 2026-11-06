@@ -15,10 +15,7 @@
 //! is exactly the shape of KangarooTwelve's uniform 8192-byte leaves. Ragged
 //! groups (e.g. a short final leaf) should use the scalar path.
 
-use crate::{
-    PLEN,
-    xor_block,
-};
+use crate::{PLEN, xor_block};
 
 const TURBO_SHAKE_ROUND_COUNT: usize = 12;
 /// Full Keccak-f\[1600\] round count, used by SHAKE (FIPS 202).

@@ -1,13 +1,6 @@
-use crate::coeff::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    Coefficients,
-    SIMD_UNITS_IN_RING_ELEMENT,
-};
+use crate::coeff::{COEFFICIENTS_IN_SIMD_UNIT, Coefficients, SIMD_UNITS_IN_RING_ELEMENT};
 use crate::field::{
-    add_coeffs,
-    montgomery_multiply_by_constant,
-    montgomery_multiply_fe_by_fer,
-    subtract_coeffs,
+    add_coeffs, montgomery_multiply_by_constant, montgomery_multiply_fe_by_fer, subtract_coeffs,
 };
 
 #[inline(always)]

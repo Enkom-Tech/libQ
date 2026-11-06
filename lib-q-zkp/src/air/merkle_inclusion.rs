@@ -21,37 +21,17 @@ extern crate alloc;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_poseidon::{
-    Poseidon,
-    Poseidon128,
-    PoseidonField,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-};
+use lib_q_poseidon::{Poseidon, Poseidon128, PoseidonField};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
 use super::{
-    AirError,
-    TraceGenerator,
-    bytes_to_poseidon_field,
-    next_power_of_two,
-    poseidon_slice_to_field,
-    poseidon_to_field,
-    validate_trace_dimensions,
+    AirError, TraceGenerator, bytes_to_poseidon_field, next_power_of_two, poseidon_slice_to_field,
+    poseidon_to_field, validate_trace_dimensions,
 };
 
 /// Poseidon-128 hasher instance (unit struct, can be used directly)
@@ -407,11 +387,11 @@ impl MerkleInclusionAir {
     /// Total: 1 + tree_depth × (1 + 1 + 1 + 576) = 1 + tree_depth × 579
     fn trace_width(&self) -> usize {
         use super::poseidon_gadget::PoseidonGadget;
-        HASH_SIZE_FIELD_ELEMENTS +
-            self.tree_depth *
-                (1 + HASH_SIZE_FIELD_ELEMENTS +
-                    HASH_SIZE_FIELD_ELEMENTS +
-                    PoseidonGadget::COLUMNS_PER_HASH)
+        HASH_SIZE_FIELD_ELEMENTS
+            + self.tree_depth
+                * (1 + HASH_SIZE_FIELD_ELEMENTS
+                    + HASH_SIZE_FIELD_ELEMENTS
+                    + PoseidonGadget::COLUMNS_PER_HASH)
     }
 }
 
@@ -435,10 +415,10 @@ where
         // [leaf_hash, level_0_data, level_1_data, ...]
         // where level_i_data = [direction_bit, sibling, computed_hash, intermediate_states...]
 
-        let level_width = 1 +
-            HASH_SIZE_FIELD_ELEMENTS +
-            HASH_SIZE_FIELD_ELEMENTS +
-            PoseidonGadget::COLUMNS_PER_HASH;
+        let level_width = 1
+            + HASH_SIZE_FIELD_ELEMENTS
+            + HASH_SIZE_FIELD_ELEMENTS
+            + PoseidonGadget::COLUMNS_PER_HASH;
         let gadget = PoseidonGadget::new();
 
         // Start with leaf hash
@@ -467,8 +447,8 @@ where
             //        right = direction * previous_hash + (1 - direction) * sibling
             use lib_q_stark_field::PrimeCharacteristicRing;
             let one = AB::Expr::from(<AB::F as PrimeCharacteristicRing>::ONE);
-            let left = (one.clone() - direction) * local[previous_hash_col].into() +
-                direction * sibling.into();
+            let left = (one.clone() - direction) * local[previous_hash_col].into()
+                + direction * sibling.into();
             let right =
                 direction * local[previous_hash_col].into() + (one - direction) * sibling.into();
 
@@ -575,10 +555,10 @@ impl<F: Field + BasedVectorSpace<Mersenne31>> TraceGenerator<F, MerkleProofInput
 
         // Fill each level
         use super::poseidon_gadget::PoseidonGadget;
-        let level_width = 1 +
-            HASH_SIZE_FIELD_ELEMENTS +
-            HASH_SIZE_FIELD_ELEMENTS +
-            PoseidonGadget::COLUMNS_PER_HASH;
+        let level_width = 1
+            + HASH_SIZE_FIELD_ELEMENTS
+            + HASH_SIZE_FIELD_ELEMENTS
+            + PoseidonGadget::COLUMNS_PER_HASH;
         let mut current_hash = leaf_hash;
 
         for level in 0..self.tree_depth {

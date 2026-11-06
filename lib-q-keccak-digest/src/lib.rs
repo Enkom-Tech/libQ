@@ -18,21 +18,8 @@
 #![warn(missing_docs, missing_debug_implementations)]
 
 pub use digest::Digest;
-use digest::consts::{
-    U28,
-    U32,
-    U48,
-    U64,
-    U72,
-    U104,
-    U136,
-    U144,
-    U200,
-};
-use lib_q_sha3::block_core::{
-    KECCAK_DIGEST_PAD,
-    SpongeHasherCore,
-};
+use digest::consts::{U28, U32, U48, U64, U72, U104, U136, U144, U200};
+use lib_q_sha3::block_core::{KECCAK_DIGEST_PAD, SpongeHasherCore};
 
 digest::buffer_fixed!(
     /// Non-standard 200-byte output Keccak-256 (e.g. CryptoNight-style). **Not** FIPS SHA3-256—see the crate README.
@@ -62,13 +49,7 @@ digest::buffer_fixed!(
 
 mod one_shot;
 
-pub use one_shot::{
-    keccak_224,
-    keccak_256,
-    keccak_256_full,
-    keccak_384,
-    keccak_512,
-};
+pub use one_shot::{keccak_224, keccak_256, keccak_256_full, keccak_384, keccak_512};
 
 #[cfg(test)]
 mod tests {

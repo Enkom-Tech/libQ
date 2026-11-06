@@ -13,19 +13,9 @@ use lib_q_core::DecryptSemanticOutcome;
 #[cfg(feature = "alloc")]
 use zeroize::Zeroizing;
 
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    PLEN,
-    RATE_BYTES,
-    TAG_BYTES,
-};
+use crate::params::{KEY_BYTES, NONCE_BYTES, PLEN, RATE_BYTES, TAG_BYTES};
 use crate::state::{
-    absorb_all,
-    duplex_decrypt_chunk,
-    duplex_encrypt_chunk,
-    init_key_nonce,
-    tag_from_state,
+    absorb_all, duplex_decrypt_chunk, duplex_encrypt_chunk, init_key_nonce, tag_from_state,
 };
 
 /// Encrypt/decrypt failed: buffer too small, length overflow, or (decrypt) authentication failure.

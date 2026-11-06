@@ -11,10 +11,7 @@
 //! before the intrinsic path is relied upon. The all-zero lane additionally pins the canonical
 //! Keccak-f[1600] vector, which would catch a wrong rotate count or `ternarylogic` immediate.
 
-use lib_q_keccak::{
-    p1600,
-    p1600x8,
-};
+use lib_q_keccak::{p1600, p1600x8};
 
 /// Build a deterministic but per-lane-distinct state.
 fn seeded_state(seed: u64) -> [u64; 25] {

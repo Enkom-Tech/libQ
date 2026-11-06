@@ -8,25 +8,11 @@ extern crate alloc;
 use alloc::vec;
 use core::ops::Neg;
 
-use lib_q_plonky_lookup::debug_util::{
-    LookupDebugInstance,
-    check_lookups,
-};
+use lib_q_plonky_lookup::debug_util::{LookupDebugInstance, check_lookups};
 use lib_q_plonky_lookup::logup::LogUpGadget;
 use lib_q_plonky_lookup::lookup_traits::LookupGadget;
-use lib_q_plonky_lookup::{
-    Direction,
-    Kind,
-    Lookup,
-    LookupAir,
-    LookupData,
-    LookupEvaluator,
-};
-use lib_q_stark_air::symbolic::{
-    BaseEntry,
-    SymbolicExpression,
-    SymbolicVariable,
-};
+use lib_q_plonky_lookup::{Direction, Kind, Lookup, LookupAir, LookupData, LookupEvaluator};
+use lib_q_stark_air::symbolic::{BaseEntry, SymbolicExpression, SymbolicVariable};
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;

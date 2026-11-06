@@ -1,17 +1,9 @@
-pub use ml_dsa_65::{
-    MLDSA65KeyPair,
-    MLDSA65Signature,
-    MLDSA65SigningKey,
-    MLDSA65VerificationKey,
-};
+pub use ml_dsa_65::{MLDSA65KeyPair, MLDSA65Signature, MLDSA65SigningKey, MLDSA65VerificationKey};
 use zeroize::Zeroizing;
 
 use crate::constants::*;
 use crate::types::*;
-use crate::{
-    SigningError,
-    VerificationError,
-};
+use crate::{SigningError, VerificationError};
 
 // Instantiate the different functions.
 macro_rules! instantiate {

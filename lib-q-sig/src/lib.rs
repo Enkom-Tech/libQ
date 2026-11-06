@@ -234,16 +234,8 @@ extern crate alloc;
 
 // Re-export core types for public use
 pub use lib_q_core::{
-    Algorithm,
-    AlgorithmCategory,
-    Error,
-    Result,
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-    Signature,
-    SignatureContext,
-    SignatureOperations,
+    Algorithm, AlgorithmCategory, Error, Result, SigKeypair, SigPublicKey, SigSecretKey, Signature,
+    SignatureContext, SignatureOperations,
 };
 
 // Provider implementation
@@ -334,13 +326,13 @@ pub fn create_signature(algorithm: &str) -> Result<Box<dyn Signature>> {
         "fn-dsa-1024" | "FN-DSA-1024" => Ok(Box::new(fn_dsa::FnDsa1024::new())),
 
         #[cfg(feature = "slh-dsa")]
-        "slh-dsa" |
-        "SLH-DSA-SHAKE256-128f-Robust" |
-        "slh-dsa-shake256-128f-robust" |
-        "SLH-DSA-SHAKE256-192f-Robust" |
-        "slh-dsa-shake256-192f-robust" |
-        "SLH-DSA-SHAKE256-256f-Robust" |
-        "slh-dsa-shake256-256f-robust" => Ok(Box::new(slh_dsa::SlhDsa::new())),
+        "slh-dsa"
+        | "SLH-DSA-SHAKE256-128f-Robust"
+        | "slh-dsa-shake256-128f-robust"
+        | "SLH-DSA-SHAKE256-192f-Robust"
+        | "slh-dsa-shake256-192f-robust"
+        | "SLH-DSA-SHAKE256-256f-Robust"
+        | "slh-dsa-shake256-256f-robust" => Ok(Box::new(slh_dsa::SlhDsa::new())),
 
         _ => Err(Error::InvalidAlgorithm {
             algorithm: "Unknown algorithm",
@@ -460,9 +452,9 @@ mod tests {
         // Check that algorithm names follow NIST conventions
         for algorithm in algorithms {
             assert!(
-                algorithm.starts_with("ML-DSA-") ||
-                    algorithm.starts_with("FN-DSA") ||
-                    algorithm.starts_with("SLH-DSA-"),
+                algorithm.starts_with("ML-DSA-")
+                    || algorithm.starts_with("FN-DSA")
+                    || algorithm.starts_with("SLH-DSA-"),
                 "Algorithm name '{}' should follow NIST naming conventions",
                 algorithm
             );

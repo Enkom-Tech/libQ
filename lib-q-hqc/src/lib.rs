@@ -105,16 +105,8 @@ extern crate alloc;
 
 // Re-export core types for public use
 pub use lib_q_core::{
-    Algorithm,
-    AlgorithmCategory,
-    Error,
-    Kem,
-    KemContext,
-    KemKeypair,
-    KemOperations,
-    KemPublicKey,
-    KemSecretKey,
-    Result,
+    Algorithm, AlgorithmCategory, Error, Kem, KemContext, KemKeypair, KemOperations, KemPublicKey,
+    KemSecretKey, Result,
 };
 
 // Core modules - Correct Implementation

@@ -20,33 +20,16 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_poseidon::{
-    Poseidon,
-    Poseidon128,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_poseidon::{Poseidon, Poseidon128};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
 use super::poseidon_gadget::PoseidonGadget;
 use super::{
-    AirError,
-    TraceGenerator,
-    bytes_to_poseidon_field,
-    compute_poseidon_row,
-    next_power_of_two,
-    poseidon_to_field,
-    validate_trace_dimensions,
+    AirError, TraceGenerator, bytes_to_poseidon_field, compute_poseidon_row, next_power_of_two,
+    poseidon_to_field, validate_trace_dimensions,
 };
 
 /// Poseidon-128 hasher instance

@@ -1,18 +1,12 @@
 mod coset {
     use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
     use lib_q_stark_field::extension::Complex;
-    use lib_q_stark_field::{
-        PrimeCharacteristicRing,
-        TwoAdicField,
-    };
+    use lib_q_stark_field::{PrimeCharacteristicRing, TwoAdicField};
     use lib_q_stark_mersenne31::Mersenne31;
     // Goldilocks field not integrated
     // use p3_goldilocks::Goldilocks;
     use rand::rngs::SmallRng;
-    use rand::{
-        RngExt,
-        SeedableRng,
-    };
+    use rand::{RngExt, SeedableRng};
 
     // Use Complex<Mersenne31> as base field (TWO_ADICITY = 32) for sufficient two-adicity
     type BB = Complex<Mersenne31>;

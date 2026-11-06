@@ -6,10 +6,7 @@
 use lib_q_hqc::Hqc128Kem;
 use lib_q_hqc::concatenated_code::ConcatenatedCode;
 use lib_q_hqc::hqc_pke::schoolbook_vect_mul_mod_xnm1;
-use lib_q_hqc::params::{
-    Hqc1Params,
-    HqcParams,
-};
+use lib_q_hqc::params::{Hqc1Params, HqcParams};
 use lib_q_random::LibQRng;
 use rand_core::Rng;
 

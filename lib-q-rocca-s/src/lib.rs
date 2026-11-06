@@ -74,13 +74,7 @@ mod aead;
 pub use aead::RoccaSAead;
 // Re-export the lib-Q AEAD surface so downstream code can `use lib_q_rocca_s::Aead`.
 pub use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
 
 /// Key size in bytes (256 bits).

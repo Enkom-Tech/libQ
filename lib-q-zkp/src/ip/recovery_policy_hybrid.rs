@@ -10,25 +10,13 @@ use lib_q_core::Result;
 
 use crate::air::TraceGenerator;
 use crate::air::recovery_policy_hybrid::{
-    RECOVERY_POLICY_HYBRID_AIR_ID,
-    RecoveryPolicyHybridAir,
-    RecoveryPolicyHybridInput,
+    RECOVERY_POLICY_HYBRID_AIR_ID, RecoveryPolicyHybridAir, RecoveryPolicyHybridInput,
 };
-use crate::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-    fast_proof_config,
-};
+use crate::stark::{StarkProver, StarkVerifier, default_config, fast_proof_config};
 use crate::wire::recovery_proof_v1::{
-    RecoveryZkProofV1,
-    decode_recovery_zk_proof_v1,
-    encode_recovery_zk_proof_v1,
+    RecoveryZkProofV1, decode_recovery_zk_proof_v1, encode_recovery_zk_proof_v1,
 };
-use crate::{
-    ProofMetadata,
-    ZkpProof,
-};
+use crate::{ProofMetadata, ZkpProof};
 
 pub fn prove_recovery_policy_hybrid(
     input: &RecoveryPolicyHybridInput,

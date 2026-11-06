@@ -10,11 +10,7 @@
 //! microarchitectures, so reduction goes through a multiply-shift Barrett estimate followed by a
 //! fixed number of branch-free conditional corrections.
 
-use crate::params::{
-    N,
-    ParamSet,
-    Poly,
-};
+use crate::params::{N, ParamSet, Poly};
 
 /// Branch-free `if r >= q { r - q } else { r }`.
 #[inline(always)]

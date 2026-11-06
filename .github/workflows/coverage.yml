@@ -61,36 +61,11 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # `nightly` runs current nightly (unpinned) again as of the coverage-nightly pin.
-        #
-        # ROOT CAUSE (still true, kept for context): LLVM 23 bumped INSTR_PROF_RAW_VERSION to 11,
-        # changing the .profraw header (+3 uint64), the ProfileData record (+UniformCounterPtr,
-        # +OffloadDeviceWaveSize), and the struct tail padding. cargo-tarpaulin's llvm-profparser
-        # dependency does not parse that format, so every nightly run failed with
-        #   ERROR cargo_tarpaulin: parser failure: Nom(Satisfy)
-        # before running a single test, on unchanged source, while `stable` (LLVM 22.1.2, profraw
-        # v10) kept passing. Reproduced on a one-function crate:
-        #   stable  (rustc 1.96.0, LLVM 22.1.2) -> profraw header version 0x0a (10) -> parses
-        #   nightly (rustc 1.99.0, LLVM 23.1.0) -> profraw header version 0x0b (11) -> fails
-        #
-        # DO NOT "fix" this by switching the nightly row to `--engine ptrace`. That engine DOES
-        # parse current nightly, but ptrace and llvm are different measurement engines that report
-        # different numbers for the same crate, so the nightly row would stop being comparable to
-        # the floors, which are all calibrated against llvm. That trades a visible workaround for a
-        # silently wrong number.
-        #
-        # UNPIN MECHANISM (TEMPORARY, until upstream ships v11 support): the nightly row below
-        # builds cargo-tarpaulin FROM SOURCE at the pinned 0.37.0 tag with a `[patch.crates-io]`
-        # pointing llvm_profparser at a fork commit carrying the v11 fix
-        # (https://github.com/Nexlab-One/llvm-profparser, fix/llvm23-raw-profile-v11), pinned by
-        # commit SHA rather than branch since a branch is a mutable build input for a security
-        # library's CI. The fix is filed upstream as
-        # https://github.com/xd009642/llvm-profparser/pull/82 (issue #81). REVERT the nightly row
-        # to the plain `taiki-e/install-action` step (matching the stable row) once that PR is
-        # released, and drop the `[patch.crates-io]` build step entirely -- it exists only to
-        # bridge the gap until then. The `stable` row is untouched and keeps using the prebuilt
-        # pinned `cargo-tarpaulin@0.37.0` binary; only `nightly` depends on the fork.
-        rust: [stable, nightly]
+        # Stable only. A second (nightly) row existed to track LLVM 23 profraw v11, which needed
+        # a from-source cargo-tarpaulin built against a patched llvm-profparser fork; with the
+        # repo now on exact stable 1.99.1 that row and the fork build are gone. Add a dated
+        # nightly row back only deliberately (never a floating nightly).
+        rust: [stable]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
@@ -129,47 +104,11 @@ jobs:
         with:
           # Pinned. Previously `cargo-tarpaulin` (i.e. @latest), which meant an upstream release
           # could break this job with no change on our side -- the same failure shape as the
-          # nightly incompatibility documented on the matrix above, just from the other
-          # unpinned input. 0.37.0 (2026-07-04) is both the newest release and the version the
-          # last passing run used, so this pins the status quo rather than rolling anything back.
-          tool: cargo-tarpaulin@0.37.0
+          # profparser incompatibility that once affected the nightly row, just from the other
+          # unpinned input. 0.37.6 is the first release that reads the profraw v11 written by the
+          # LLVM 23 in Rust 1.99 (0.37.0 fails with "parser failure: Nom(Satisfy)").
+          tool: cargo-tarpaulin@0.37.6
 
-      - name: Install tarpaulin (nightly, built from source against patched llvm-profparser fork)
-        if: matrix.rust != 'stable'
-        shell: bash
-        env:
-          # Clear the job-level `-D warnings`. It is libQ's policy for libQ's own code; here we are
-          # compiling a THIRD-PARTY tool from source, and cargo applies `--cap-lints allow` only to
-          # registry dependencies, never to the root package of a `cargo install --path` build. So
-          # any new lint that current nightly adds turns tarpaulin's own source into a hard error
-          # and fails this job for a reason that has nothing to do with libQ. Observed in run
-          # 31316800728: `unused import: syn::*` (x5) plus deprecated `u64::max_value()`,
-          # "-D deprecated implied by -D warnings" -> "could not compile cargo-tarpaulin (lib) due
-          # to 6 previous errors". The version pin below is what guards this build, not lints.
-          RUSTFLAGS: ""
-        run: |
-          set -euo pipefail
-          # TEMPORARY: cargo-tarpaulin's llvm-profparser dependency cannot parse
-          # profraw v11 (LLVM 23+). Build the same 0.37.0 release the stable row installs prebuilt,
-          # but with `[patch.crates-io]` pointing llvm_profparser at a fork commit that fixes v11
-          # parsing, pinned by commit SHA (not branch) since a branch is a mutable build input for
-          # a security library's CI. Upstream fix: https://github.com/xd009642/llvm-profparser/pull/82
-          # Revert to the plain install-action step above once that ships in a release.
-          FORK_REV="d90b02be7e80ba9b83506d635909ccba7f9038d1"
-          git clone --branch 0.37.0 --depth 1 https://github.com/xd009642/tarpaulin /tmp/tarpaulin-src
-          cd /tmp/tarpaulin-src
-          cat >> Cargo.toml <<EOF
-
-          [patch.crates-io]
-          llvm_profparser = { git = "https://github.com/Nexlab-One/llvm-profparser", rev = "${FORK_REV}" }
-          EOF
-          cargo install --path . --locked
-          installed_version="$(cargo-tarpaulin --version | awk '{print $2}')"
-          if [ "$installed_version" != "0.37.0" ]; then
-            echo "::error::built cargo-tarpaulin ${installed_version}, expected 0.37.0 to match the stable row"
-            exit 1
-          fi
-          rm -rf /tmp/tarpaulin-src
 
       # First run coverage for individual critical crates
       - name: Run coverage for core cryptographic crates
@@ -293,7 +232,7 @@ jobs:
   # against a 150-minute timeout. Adding ~23 crates to it would blow that budget. Sharded and
   # parallel, each shard is independent and the existing gate is untouched.
   #
-  # stable only, deliberately. The job above runs a stable + pinned-nightly matrix; these
+  # stable only, deliberately. The job above is stable only as well; these
   # floors are regression backstops, and doubling 23 crates of debug tarpaulin to re-measure
   # the same lines under a second toolchain buys little for the runner time it costs.
   #
@@ -313,7 +252,7 @@ jobs:
   #
   # A local WSL run is NOT a substitute for these numbers either -- it disagreed with CI by up
   # to 44 points (lib-q-rocca-s again: 53.92% under cargo-tarpaulin 0.35.2 vs 98.21% under the
-  # 0.37.0 pinned here). Retune from a CI log, not from a laptop.
+  # 0.37.6 pinned here). Retune from a CI log, not from a laptop.
   extended-coverage:
     name: Test Coverage (previously ungated crates)
     # GitHub-only: see the `coverage` job above.
@@ -368,7 +307,7 @@ jobs:
       - name: Install tarpaulin
         uses: taiki-e/install-action@9534c84618278caac52cb373bb164ed464dbd8af # v2.87.11
         with:
-          tool: cargo-tarpaulin@0.37.0
+          tool: cargo-tarpaulin@0.37.6
 
       - name: Run coverage against measured floors
         shell: bash

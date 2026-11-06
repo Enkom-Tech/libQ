@@ -1,9 +1,6 @@
 //! Performance tests for Keccak fixed digests (moved from `lib-q-sha3`).
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
 use digest::Digest;
 use lib_q_keccak_digest::Keccak256;

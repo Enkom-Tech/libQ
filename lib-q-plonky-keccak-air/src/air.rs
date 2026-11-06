@@ -1,25 +1,12 @@
 use core::array;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::PrimeCharacteristicRing;
 
-use crate::columns::{
-    KeccakColsRef,
-    NUM_KECCAK_COLS,
-};
+use crate::columns::{KeccakColsRef, NUM_KECCAK_COLS};
 use crate::constants::rc_value_bit;
 use crate::round_flags::eval_round_flags;
-use crate::{
-    BITS_PER_LIMB,
-    NUM_ROUNDS,
-    NUM_ROUNDS_MIN_1,
-    U64_LIMBS,
-};
+use crate::{BITS_PER_LIMB, NUM_ROUNDS, NUM_ROUNDS_MIN_1, U64_LIMBS};
 
 /// Assumes the field size is at least 16 bits.
 #[derive(Debug)]
@@ -138,8 +125,8 @@ impl<AB: AirBuilder> Air<AB> for KeccakAir {
         // A'''[0, 0] = A''[0, 0] XOR RC
         builder.assert_bools::<64, _>(array::from_fn(|z| local.a_prime_prime_0_0_bits(z)));
         builder.assert_zeros::<U64_LIMBS, _>(array::from_fn(|limb| {
-            let computed_a_prime_prime_0_0_limb = (limb * BITS_PER_LIMB..
-                (limb + 1) * BITS_PER_LIMB)
+            let computed_a_prime_prime_0_0_limb = (limb * BITS_PER_LIMB
+                ..(limb + 1) * BITS_PER_LIMB)
                 .rev()
                 .fold(AB::Expr::ZERO, |acc, z| {
                     acc.double() + local.a_prime_prime_0_0_bits(z)
@@ -159,8 +146,8 @@ impl<AB: AirBuilder> Air<AB> for KeccakAir {
         };
 
         builder.assert_zeros::<U64_LIMBS, _>(array::from_fn(|limb| {
-            let computed_a_prime_prime_prime_0_0_limb = (limb * BITS_PER_LIMB..
-                (limb + 1) * BITS_PER_LIMB)
+            let computed_a_prime_prime_prime_0_0_limb = (limb * BITS_PER_LIMB
+                ..(limb + 1) * BITS_PER_LIMB)
                 .rev()
                 .fold(AB::Expr::ZERO, |acc, z| acc.double() + get_xored_bit(z));
             computed_a_prime_prime_prime_0_0_limb - local.a_prime_prime_prime_0_0_limbs(limb)

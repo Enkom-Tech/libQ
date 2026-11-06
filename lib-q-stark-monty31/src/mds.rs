@@ -5,11 +5,7 @@ use lib_q_stark_mds::karatsuba_convolution::Convolve;
 use lib_q_stark_mds::util::dot_product;
 use lib_q_stark_symmetric::Permutation;
 
-use crate::{
-    BarrettParameters,
-    MontyField31,
-    MontyParameters,
-};
+use crate::{BarrettParameters, MontyField31, MontyParameters};
 
 /// A collection of circulant MDS matrices saved using their left most column.
 pub trait MDSUtils: Clone + Sync {
@@ -380,10 +376,7 @@ mod tests {
     use lib_q_stark_symmetric::Permutation;
 
     use crate::MdsMatrixMontyField31;
-    use crate::test_utils::{
-        TestField,
-        TestMDS,
-    };
+    use crate::test_utils::{TestField, TestMDS};
 
     type MdsMatrixTest = MdsMatrixMontyField31<TestMDS>;
 

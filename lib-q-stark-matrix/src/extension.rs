@@ -3,10 +3,7 @@ use core::iter;
 use core::marker::PhantomData;
 use core::ops::Deref;
 
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_stark_field::{ExtensionField, Field};
 
 use crate::Matrix;
 
@@ -141,10 +138,7 @@ mod tests {
 
     use itertools::Itertools;
     use lib_q_stark_field::extension::Complex;
-    use lib_q_stark_field::{
-        BasedVectorSpace,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing};
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;

@@ -1,10 +1,7 @@
 use core::iter;
 
 use crate::field::Field;
-use crate::{
-    Algebra,
-    ExtensionField,
-};
+use crate::{Algebra, ExtensionField};
 
 mod binomial_extension;
 mod complex;

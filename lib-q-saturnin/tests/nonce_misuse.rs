@@ -57,13 +57,7 @@
 
 #![cfg(feature = "qcb")]
 
-use lib_q_saturnin::{
-    Aead,
-    AeadKey,
-    Nonce,
-    SaturninAead,
-    SaturninQcb,
-};
+use lib_q_saturnin::{Aead, AeadKey, Nonce, SaturninAead, SaturninQcb};
 
 fn key() -> AeadKey {
     AeadKey::new((0..32u8).collect::<Vec<_>>())

@@ -1,10 +1,7 @@
 //! Performance metrics collection for HPKE operations
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::String,
-    vec::Vec,
-};
+use alloc::{string::String, vec::Vec};
 
 // Use a simple Vec-based approach instead of HashMap for no_std compatibility
 #[cfg(feature = "alloc")]
@@ -205,8 +202,8 @@ impl MetricsCollector {
         let avg_success_rate = operation_metrics
             .iter()
             .map(|m| m.success_rate)
-            .sum::<f64>() /
-            operation_metrics.len() as f64;
+            .sum::<f64>()
+            / operation_metrics.len() as f64;
 
         Some(PerformanceMetrics::new(
             operation,

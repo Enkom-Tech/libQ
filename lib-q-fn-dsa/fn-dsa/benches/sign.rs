@@ -2,21 +2,10 @@
 
 mod util;
 use fn_dsa::{
-    DOMAIN_NONE,
-    HASH_ID_RAW,
-    KeyPairGenerator,
-    KeyPairGeneratorStandard,
-    SigningKey,
-    SigningKeyStandard,
-    sign_key_size,
-    signature_size,
-    vrfy_key_size,
+    DOMAIN_NONE, HASH_ID_RAW, KeyPairGenerator, KeyPairGeneratorStandard, SigningKey,
+    SigningKeyStandard, sign_key_size, signature_size, vrfy_key_size,
 };
-use util::{
-    FakeRNG,
-    banner_arch,
-    core_cycles,
-};
+use util::{FakeRNG, banner_arch, core_cycles};
 
 fn bench_sign(logn: u32) -> (f64, u8) {
     let z = core_cycles();

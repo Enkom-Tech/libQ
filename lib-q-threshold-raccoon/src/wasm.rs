@@ -14,14 +14,7 @@ use alloc::vec::Vec;
 use lib_q_random::new_secure_rng;
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    combine_opening,
-    encode_signature,
-    keygen_shares,
-    setup,
-    sign,
-    verify,
-};
+use crate::{combine_opening, encode_signature, keygen_shares, setup, sign, verify};
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_THRESHOLD_RACCOON", e)

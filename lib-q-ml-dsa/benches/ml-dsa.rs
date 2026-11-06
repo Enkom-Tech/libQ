@@ -1,14 +1,7 @@
 use std::time::Duration;
 
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_ml_dsa::{
-    Zeroizing,
-    ml_dsa_65,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
+use lib_q_ml_dsa::{Zeroizing, ml_dsa_65};
 use lib_q_random::new_secure_rng;
 use rand_core::Rng;
 

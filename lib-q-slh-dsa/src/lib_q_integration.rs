@@ -6,33 +6,16 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 #[cfg(feature = "alloc")]
-use lib_q_core::{
-    Error,
-    Result,
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-    Signature,
-};
+use lib_q_core::{Error, Result, SigKeypair, SigPublicKey, SigSecretKey, Signature};
 #[cfg(feature = "alloc")]
-use lib_q_sha3::{
-    ExtendableOutput,
-    Shake256,
-    Update,
-};
+use lib_q_sha3::{ExtendableOutput, Shake256, Update};
 #[cfg(all(feature = "alloc", feature = "std"))]
 use rand_core::Rng;
 #[cfg(feature = "alloc")]
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{TryCryptoRng, TryRng};
 #[cfg(feature = "alloc")]
 use signature::Keypair;
 #[cfg(feature = "alloc")]
@@ -42,11 +25,7 @@ use zeroize::Zeroizing;
 
 use crate::ParameterSet;
 #[cfg(feature = "alloc")]
-use crate::{
-    Signature as SlhSignature,
-    SigningKey,
-    VerifyingKey,
-};
+use crate::{Signature as SlhSignature, SigningKey, VerifyingKey};
 
 /// Maximum length of a FIPS-205 signing context, in bytes.
 ///

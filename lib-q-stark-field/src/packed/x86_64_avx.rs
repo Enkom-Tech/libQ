@@ -2,11 +2,7 @@
 
 #[cfg(target_feature = "avx512f")]
 use core::arch::x86_64::__m512i;
-use core::arch::x86_64::{
-    self,
-    __m128i,
-    __m256i,
-};
+use core::arch::x86_64::{self, __m128i, __m256i};
 use core::mem::transmute;
 
 // Goal: Compute r = lhs + rhs mod P for lhs, rhs <= P < 2^31

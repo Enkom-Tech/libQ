@@ -1,9 +1,6 @@
 //! NTT wrappers over the generated portable butterflies.
 
-use crate::coeff::{
-    Coefficients,
-    SIMD_UNITS_IN_RING_ELEMENT,
-};
+use crate::coeff::{Coefficients, SIMD_UNITS_IN_RING_ELEMENT};
 use crate::field::montgomery_multiply_coeffs;
 use crate::generated_invntt::invert_ntt_montgomery;
 use crate::generated_ntt::ntt_forward as ntt_forward_generated;

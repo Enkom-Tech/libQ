@@ -44,20 +44,11 @@
 #![cfg(all(feature = "cbkem348864", feature = "nist-aes-rng", feature = "alloc"))]
 
 use std::fs;
-use std::io::{
-    BufRead,
-    BufReader,
-    Write,
-};
+use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
 
 use lib_q_cb_kem::{
-    AesState,
-    CRYPTO_BYTES,
-    CRYPTO_PUBLICKEYBYTES,
-    CRYPTO_SECRETKEYBYTES,
-    decapsulate,
-    encapsulate,
+    AesState, CRYPTO_BYTES, CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES, decapsulate, encapsulate,
     keypair,
 };
 

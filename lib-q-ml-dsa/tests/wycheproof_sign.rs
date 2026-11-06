@@ -10,22 +10,10 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 
-use lib_q_ml_dsa::ml_dsa_44::{
-    self,
-    MLDSA44SigningKey,
-};
-use lib_q_ml_dsa::ml_dsa_65::{
-    self,
-    MLDSA65SigningKey,
-};
-use lib_q_ml_dsa::ml_dsa_87::{
-    self,
-    MLDSA87SigningKey,
-};
-use lib_q_ml_dsa::{
-    MLDSASigningKey,
-    SigningError,
-};
+use lib_q_ml_dsa::ml_dsa_44::{self, MLDSA44SigningKey};
+use lib_q_ml_dsa::ml_dsa_65::{self, MLDSA65SigningKey};
+use lib_q_ml_dsa::ml_dsa_87::{self, MLDSA87SigningKey};
+use lib_q_ml_dsa::{MLDSASigningKey, SigningError};
 
 include!("wycheproof/sign_schema.rs");
 

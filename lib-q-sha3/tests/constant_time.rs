@@ -5,23 +5,12 @@
 
 mod common;
 
-use std::sync::{
-    Mutex,
-    MutexGuard,
-};
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::sync::{Mutex, MutexGuard};
+use std::time::{Duration, Instant};
 
 use common::duration_min_max_nanos;
 use digest::Digest;
-use lib_q_sha3::{
-    Sha3_224,
-    Sha3_256,
-    Sha3_384,
-    Sha3_512,
-};
+use lib_q_sha3::{Sha3_224, Sha3_256, Sha3_384, Sha3_512};
 
 #[cfg(not(tarpaulin))]
 const TIMING_ITERATIONS: usize = 10_000;

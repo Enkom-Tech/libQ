@@ -4,33 +4,15 @@
 
 mod common;
 
-use core::fmt::{
-    self,
-    Display,
-};
+use core::fmt::{self, Display};
 
 use common::deserialize_state;
 use digest::block_api::AlgorithmName;
 use digest::common::hazmat::SerializableState;
-use digest::consts::{
-    U0,
-    U32,
-    U136,
-    U168,
-};
-use digest::{
-    CustomizedInit,
-    Digest,
-    ExtendableOutput,
-    ExtendableOutputReset,
-    XofReader,
-};
+use digest::consts::{U0, U32, U136, U168};
+use digest::{CustomizedInit, Digest, ExtendableOutput, ExtendableOutputReset, XofReader};
 use lib_q_sha3::Update;
-use lib_q_sha3::block_core::{
-    CShake128Core,
-    CShake256Core,
-    SpongeHasherCore,
-};
+use lib_q_sha3::block_core::{CShake128Core, CShake256Core, SpongeHasherCore};
 
 struct AlgName<T: AlgorithmName>(core::marker::PhantomData<T>);
 

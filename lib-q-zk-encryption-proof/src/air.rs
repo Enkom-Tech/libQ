@@ -21,10 +21,7 @@ use alloc::vec::Vec;
 /// The audited Keccak-f\[1600\] permutation AIR, ready to prove/verify (re-export for callers).
 pub use lib_q_plonky_keccak_air::KeccakAir;
 use lib_q_plonky_keccak_air::NUM_KECCAK_COLS;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::ConfigVal;
@@ -50,11 +47,7 @@ pub fn embed_sponge_trace(input: &[u8], out_len: usize) -> RowMajorMatrix<Config
 
 #[cfg(test)]
 mod tests {
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     use super::*;
 

@@ -2,11 +2,7 @@
 use lib_q_hqc::{
     HqcParams,
     hqc_kem::HqcKem,
-    params::{
-        Hqc1Params,
-        Hqc3Params,
-        Hqc5Params,
-    },
+    params::{Hqc1Params, Hqc3Params, Hqc5Params},
 };
 use lib_q_random::LibQRng;
 

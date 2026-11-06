@@ -7,10 +7,7 @@
 #![cfg(all(feature = "random", feature = "acvp"))]
 
 use lib_q_ml_dsa::rng::MLDsaRng;
-use lib_q_ml_dsa::{
-    Zeroizing,
-    *,
-};
+use lib_q_ml_dsa::{Zeroizing, *};
 
 fn label_seed(s: &[u8]) -> [u8; 32] {
     assert!(

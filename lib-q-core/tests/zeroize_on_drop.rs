@@ -20,24 +20,12 @@
 //! is no conflict.
 #![cfg(feature = "alloc")]
 
-use std::alloc::{
-    GlobalAlloc,
-    Layout,
-    System,
-};
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::sync::Mutex;
 use std::sync::atomic::Ordering::SeqCst;
-use std::sync::atomic::{
-    AtomicBool,
-    AtomicUsize,
-};
+use std::sync::atomic::{AtomicBool, AtomicUsize};
 
-use lib_q_core::{
-    AeadKey,
-    KemKeypair,
-    KemSecretKey,
-    SigSecretKey,
-};
+use lib_q_core::{AeadKey, KemKeypair, KemSecretKey, SigSecretKey};
 
 struct WatchAlloc;
 
@@ -55,9 +43,9 @@ unsafe impl GlobalAlloc for WatchAlloc {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, l: Layout) {
-        if WATCH_ARMED.load(SeqCst) &&
-            ptr as usize == WATCH_PTR.load(SeqCst) &&
-            WATCH_ARMED.swap(false, SeqCst)
+        if WATCH_ARMED.load(SeqCst)
+            && ptr as usize == WATCH_PTR.load(SeqCst)
+            && WATCH_ARMED.swap(false, SeqCst)
         // consume: safe against address reuse after this point
         {
             // SAFETY: `ptr` is still a live allocation of size `l.size()` — we are

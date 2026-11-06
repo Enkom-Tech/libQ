@@ -1,10 +1,6 @@
 use crate::constants::*;
 use crate::pre_hash::SHAKE128_PH;
-use crate::types::{
-    SigningError,
-    VerificationError,
-    *,
-};
+use crate::types::{SigningError, VerificationError, *};
 
 // The 6 `#[allow(dead_code)]` functions generated below are genuinely dead in the only
 // configuration where this module even compiles (x86_64 + `--all-features`, which is required
@@ -17,9 +13,7 @@ macro_rules! parameter_set {
         pub(crate) mod $parameter_module {
             use super::*;
             use crate::ml_dsa_generic::$parameter_module::{
-                SIGNATURE_SIZE,
-                SIGNING_KEY_SIZE,
-                VERIFICATION_KEY_SIZE,
+                SIGNATURE_SIZE, SIGNING_KEY_SIZE, VERIFICATION_KEY_SIZE,
             };
 
             #[allow(unsafe_code)]

@@ -4,11 +4,7 @@
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use lib_q_core::{
-    AeadKey,
-    Nonce,
-    Result,
-};
+use lib_q_core::{AeadKey, Nonce, Result};
 use lib_q_saturnin::*;
 
 /// Test AEAD round-trip encryption/decryption

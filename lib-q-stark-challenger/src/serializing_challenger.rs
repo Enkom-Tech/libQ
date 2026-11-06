@@ -1,26 +1,14 @@
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeField32,
-    PrimeField64,
-};
+use lib_q_stark_field::{BasedVectorSpace, PrimeField32, PrimeField64};
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_symmetric::{
-    CryptographicHasher,
-    Hash,
-};
+use lib_q_stark_symmetric::{CryptographicHasher, Hash};
 use lib_q_stark_util::log2_ceil_u64;
 use tracing::instrument;
 
 use crate::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
-    HashChallenger,
+    CanObserve, CanSample, CanSampleBits, FieldChallenger, GrindingChallenger, HashChallenger,
 };
 
 /// Given a challenger that can observe and sample bytes, produces a challenger that is able to

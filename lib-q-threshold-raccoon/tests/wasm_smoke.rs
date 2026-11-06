@@ -2,10 +2,7 @@
 
 #![cfg(all(target_arch = "wasm32", feature = "wasm"))]
 
-use lib_q_threshold_raccoon::wasm::{
-    raccoon_setup_wasm,
-    raccoon_sign_verify_demo_wasm,
-};
+use lib_q_threshold_raccoon::wasm::{raccoon_setup_wasm, raccoon_sign_verify_demo_wasm};
 use serde_wasm_bindgen::from_value;
 use wasm_bindgen_test::*;
 

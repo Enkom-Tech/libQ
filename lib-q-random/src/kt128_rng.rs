@@ -13,11 +13,7 @@
 
 use core::convert::Infallible;
 
-use rand_core::{
-    SeedableRng,
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{SeedableRng, TryCryptoRng, TryRng};
 
 use crate::kt128_expander::Kt128Expander;
 

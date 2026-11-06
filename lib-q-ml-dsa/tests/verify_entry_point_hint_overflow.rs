@@ -28,21 +28,9 @@
 //! (`MLDSAxxSignature::len()`), which only agree with the standard if both this test's
 //! constants and the crate's implementation are FIPS-204-conformant.
 
-use lib_q_ml_dsa::ml_dsa_44::{
-    self,
-    MLDSA44Signature,
-    MLDSA44VerificationKey,
-};
-use lib_q_ml_dsa::ml_dsa_65::{
-    self,
-    MLDSA65Signature,
-    MLDSA65VerificationKey,
-};
-use lib_q_ml_dsa::ml_dsa_87::{
-    self,
-    MLDSA87Signature,
-    MLDSA87VerificationKey,
-};
+use lib_q_ml_dsa::ml_dsa_44::{self, MLDSA44Signature, MLDSA44VerificationKey};
+use lib_q_ml_dsa::ml_dsa_65::{self, MLDSA65Signature, MLDSA65VerificationKey};
+use lib_q_ml_dsa::ml_dsa_87::{self, MLDSA87Signature, MLDSA87VerificationKey};
 
 /// Overwrite `buf`'s trailing `omega + rows` bytes (the hint block, per the wire layout
 /// `commitment_hash || signer_response || hint`) with a crafted hint that overflows on the

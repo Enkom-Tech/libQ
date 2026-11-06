@@ -6,10 +6,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use crate::error::{
-    AeadOperation,
-    HpkeError,
-};
+use crate::error::{AeadOperation, HpkeError};
 use crate::types::*;
 
 /// Export-only AEAD implementation

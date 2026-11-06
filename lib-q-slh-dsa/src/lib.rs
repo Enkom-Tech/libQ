@@ -32,33 +32,12 @@ mod wasm;
 mod no_std_rng;
 
 use fors::ForsParams;
-pub use hashes::{
-    Shake,
-    Shake128f,
-    Shake128s,
-    Shake192f,
-    Shake192s,
-    Shake256f,
-    Shake256s,
-};
-pub use signature_encoding::{
-    Signature,
-    SignatureLen,
-};
-pub use signing_key::{
-    SigningKey,
-    SigningKeyLen,
-};
+pub use hashes::{Shake, Shake128f, Shake128s, Shake192f, Shake192s, Shake256f, Shake256s};
+pub use signature_encoding::{Signature, SignatureLen};
+pub use signing_key::{SigningKey, SigningKeyLen};
 // Re-export internal types for use by other modules
-pub use signing_key::{
-    SkPrf,
-    SkSeed,
-};
-pub use verifying_key::{
-    PkSeed,
-    VerifyingKey,
-    VerifyingKeyLen,
-};
+pub use signing_key::{SkPrf, SkSeed};
+pub use verifying_key::{PkSeed, VerifyingKey, VerifyingKeyLen};
 
 /// Specific parameters for each of the six FIPS 205 SHAKE parameter sets
 ///
@@ -227,10 +206,7 @@ mod tests {
         use lib_q_random::new_secure_rng;
         use signature::*;
 
-        use crate::{
-            Shake128f,
-            SigningKey,
-        };
+        use crate::{Shake128f, SigningKey};
 
         let mut rng = new_secure_rng().expect("Failed to create RNG");
         let sk = SigningKey::<Shake128f>::new(&mut rng);
@@ -246,10 +222,7 @@ mod tests {
         use lib_q_random::new_secure_rng;
         use signature::*;
 
-        use crate::{
-            Shake128f,
-            SigningKey,
-        };
+        use crate::{Shake128f, SigningKey};
 
         let mut rng = new_secure_rng().expect("Failed to create RNG");
         let sk = SigningKey::<Shake128f>::new(&mut rng);
@@ -270,10 +243,7 @@ mod tests {
         use lib_q_random::new_deterministic_rng;
         use signature::*;
 
-        use crate::{
-            Shake128f,
-            SigningKey,
-        };
+        use crate::{Shake128f, SigningKey};
         let mut key_seed = [0u8; 32];
         key_seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
         let mut key_rng = new_deterministic_rng(key_seed);
@@ -300,10 +270,7 @@ mod tests {
         use lib_q_random::new_secure_rng;
         use signature::*;
 
-        use crate::{
-            Shake128f,
-            SigningKey,
-        };
+        use crate::{Shake128f, SigningKey};
 
         // Create a signing key for the SHAKE256-128f parameter set
         let mut rng = new_secure_rng().expect("Failed to create RNG");
@@ -331,14 +298,10 @@ mod tests {
         }
 
         use lib_q_types::slhdsa::{
-            SLHDSA_128F_PUBLIC_KEY_BYTES,
-            SLHDSA_128F_SECRET_KEY_BYTES,
-            SLHDSA_128F_SIGNATURE_BYTES,
-            SLHDSA_192F_PUBLIC_KEY_BYTES,
-            SLHDSA_192F_SECRET_KEY_BYTES,
-            SLHDSA_192F_SIGNATURE_BYTES,
-            SLHDSA_256F_PUBLIC_KEY_BYTES,
-            SLHDSA_256F_SECRET_KEY_BYTES,
+            SLHDSA_128F_PUBLIC_KEY_BYTES, SLHDSA_128F_SECRET_KEY_BYTES,
+            SLHDSA_128F_SIGNATURE_BYTES, SLHDSA_192F_PUBLIC_KEY_BYTES,
+            SLHDSA_192F_SECRET_KEY_BYTES, SLHDSA_192F_SIGNATURE_BYTES,
+            SLHDSA_256F_PUBLIC_KEY_BYTES, SLHDSA_256F_SECRET_KEY_BYTES,
             SLHDSA_256F_SIGNATURE_BYTES,
         };
 

@@ -1,9 +1,6 @@
 use lib_q_intrinsics::*;
 
-use super::{
-    AVX2RingElement,
-    arithmetic,
-};
+use super::{AVX2RingElement, arithmetic};
 use crate::simd::traits::COEFFICIENTS_IN_SIMD_UNIT;
 
 // Compute (a,b) ↦ (a + ζb, a - ζb) at layer 0 for 2 SIMD Units in one go.

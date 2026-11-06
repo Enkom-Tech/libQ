@@ -36,11 +36,7 @@
 //! evidence of constant-time behaviour, and it does not replace instrumented dudect or TVLA with
 //! cycle counters. Treat this as a regression tripwire only.
 
-use lib_q_mayo::mayo_2::{
-    SIGNING_RANDOMNESS_SIZE,
-    generate_key_pair,
-    sign,
-};
+use lib_q_mayo::mayo_2::{SIGNING_RANDOMNESS_SIZE, generate_key_pair, sign};
 use lib_q_sca_test::dudect::timing_passes_loose;
 
 /// Samples per class. Sensitivity scales as `sqrt(SMOKE_ITERS)`; see the sensitivity note in the

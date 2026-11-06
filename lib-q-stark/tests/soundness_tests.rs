@@ -4,45 +4,18 @@
 
 use std::vec::Vec;
 
-use lib_q_stark::{
-    MAX_TRACE_HEIGHT,
-    StarkConfig,
-    assert_trace_height_within_limit,
-    prove,
-    verify,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_challenger::{
-    ComplexFieldChallenger,
-    Shake256Challenger32,
-};
+use lib_q_stark::{MAX_TRACE_HEIGHT, StarkConfig, assert_trace_height_within_limit, prove, verify};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
-use lib_q_stark_fri::{
-    TwoAdicFriPcs,
-    create_test_fri_params,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
+use lib_q_stark_fri::{TwoAdicFriPcs, create_test_fri_params};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    Hash,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, Hash, SerializingHasher};
 
 type ValF = Complex<Mersenne31>;
 type Challenge = ValF;
@@ -221,8 +194,8 @@ fn test_verifier_rejects_constraint_violation_in_trace() {
 fn test_verifier_rejects_tampered_fri_auth_path() {
     let (air, _, pv, mut proof) = make_mul_proof(3, 4);
     let config = make_fast_config();
-    if let Some(q) = proof.opened_values.quotient_chunks.get_mut(0) &&
-        let Some(cell) = q.get_mut(0)
+    if let Some(q) = proof.opened_values.quotient_chunks.get_mut(0)
+        && let Some(cell) = q.get_mut(0)
     {
         let new_val = *cell + ValF::ONE;
         *cell = new_val;

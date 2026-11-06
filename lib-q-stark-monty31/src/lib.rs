@@ -49,8 +49,5 @@ mod no_packing;
     all(target_arch = "x86_64", target_feature = "avx2",),
 )))]
 pub(crate) use no_packing::{
-    base_mul_packed,
-    octic_mul_packed,
-    quartic_mul_packed,
-    quintic_mul_packed,
+    base_mul_packed, octic_mul_packed, quartic_mul_packed, quintic_mul_packed,
 };

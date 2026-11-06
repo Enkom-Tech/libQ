@@ -6,10 +6,7 @@ use core::arch::x86::*;
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::*;
 
-use super::{
-    KeccakState,
-    SHAKE256x4,
-};
+use super::{KeccakState, SHAKE256x4};
 
 // ========================================================================
 // SHAKE256x4 with AVX2 Optimizations

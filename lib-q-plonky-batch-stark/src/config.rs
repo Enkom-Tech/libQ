@@ -1,17 +1,9 @@
 pub use lib_q_plonky_uni_stark::{
-    Domain,
-    PackedChallenge,
-    PackedVal,
-    PcsError,
-    StarkGenericConfig,
-    Val,
+    Domain, PackedChallenge, PackedVal, PcsError, StarkGenericConfig, Val,
 };
 use lib_q_stark_challenger::FieldChallenger;
 use lib_q_stark_commit::Pcs;
-use lib_q_stark_field::{
-    ExtensionField,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{ExtensionField, PrimeCharacteristicRing};
 
 pub type Challenge<SC> = <SC as StarkGenericConfig>::Challenge;
 

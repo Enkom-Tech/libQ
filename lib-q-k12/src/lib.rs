@@ -18,32 +18,11 @@ pub mod block_api;
 use core::fmt;
 
 use digest::block_api::{
-    AlgorithmName,
-    BlockSizeUser,
-    ExtendableOutputCore,
-    UpdateCore,
-    XofReaderCore,
+    AlgorithmName, BlockSizeUser, ExtendableOutputCore, UpdateCore, XofReaderCore,
 };
-use digest::block_buffer::{
-    BlockBuffer,
-    Eager,
-    ReadBuffer,
-};
-use digest::consts::{
-    U16,
-    U32,
-    U128,
-    U136,
-    U168,
-};
-use digest::{
-    CollisionResistance,
-    ExtendableOutput,
-    HashMarker,
-    Reset,
-    Update,
-    XofReader,
-};
+use digest::block_buffer::{BlockBuffer, Eager, ReadBuffer};
+use digest::consts::{U16, U32, U128, U136, U168};
+use digest::{CollisionResistance, ExtendableOutput, HashMarker, Reset, Update, XofReader};
 
 macro_rules! impl_k12 {
     (

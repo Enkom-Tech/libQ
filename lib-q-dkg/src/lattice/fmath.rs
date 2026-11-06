@@ -71,12 +71,4 @@ mod imp {
     }
 }
 
-pub(crate) use imp::{
-    ceil,
-    cos,
-    exp,
-    floor,
-    ln,
-    round,
-    sqrt,
-};
+pub(crate) use imp::{ceil, cos, exp, floor, ln, round, sqrt};

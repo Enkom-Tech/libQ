@@ -1,12 +1,7 @@
 //! wasm-bindgen-test smoke for wasm32 (CB-KEM wasm + one parameter set).
 
 #[cfg(target_arch = "wasm32")]
-use lib_q_cb_kem::{
-    CRYPTO_BYTES,
-    decapsulate_boxed,
-    encapsulate_boxed,
-    keypair_boxed,
-};
+use lib_q_cb_kem::{CRYPTO_BYTES, decapsulate_boxed, encapsulate_boxed, keypair_boxed};
 #[cfg(target_arch = "wasm32")]
 use lib_q_random::LibQRng;
 #[cfg(target_arch = "wasm32")]

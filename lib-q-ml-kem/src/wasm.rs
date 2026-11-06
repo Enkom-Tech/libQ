@@ -41,24 +41,10 @@ use js_sys::Uint8Array;
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
 
-use crate::kem::{
-    DecapsulationKey,
-    EncapsulationKey,
-};
+use crate::kem::{DecapsulationKey, EncapsulationKey};
 use crate::{
-    Ciphertext,
-    Decapsulate,
-    Encapsulate,
-    Encoded,
-    EncodedSizeUser,
-    KemCore,
-    MlKem512,
-    MlKem512Params,
-    MlKem768,
-    MlKem768Params,
-    MlKem1024,
-    MlKem1024Params,
-    Seed,
+    Ciphertext, Decapsulate, Encapsulate, Encoded, EncodedSizeUser, KemCore, MlKem512,
+    MlKem512Params, MlKem768, MlKem768Params, MlKem1024, MlKem1024Params, Seed,
 };
 
 /// Copy `secret` into a new `Uint8Array` for the JS boundary without returning an owned `Vec<u8>`.

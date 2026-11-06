@@ -3,11 +3,7 @@
 //! Run with: cargo test -p lib-q-kem --features "hqc,std,alloc"
 
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
-use lib_q_core::{
-    Algorithm,
-    Error,
-    KemOperations,
-};
+use lib_q_core::{Algorithm, Error, KemOperations};
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]
 use lib_q_hqc::LibQHqcProvider;
 #[cfg(all(feature = "hqc", feature = "std", feature = "alloc"))]

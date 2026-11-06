@@ -3,10 +3,7 @@
 //! This module provides comprehensive input validation functions to ensure
 //! that all inputs to cryptographic operations are safe and valid.
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 
 /// Input validation configuration
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -126,9 +123,9 @@ impl InputValidator {
         }
 
         // Validate entropy if enabled
-        if self.config.validate_key_entropy &&
-            self.config.strict &&
-            !self.has_sufficient_entropy(key)
+        if self.config.validate_key_entropy
+            && self.config.strict
+            && !self.has_sufficient_entropy(key)
         {
             return Err(Error::InvalidKeyFormat);
         }
@@ -348,10 +345,7 @@ impl Default for InputValidator {
 
 /// Global input validator with thread-safe access
 #[cfg(feature = "std")]
-use std::sync::{
-    LazyLock,
-    RwLock,
-};
+use std::sync::{LazyLock, RwLock};
 
 /// The process-wide input validator.
 ///

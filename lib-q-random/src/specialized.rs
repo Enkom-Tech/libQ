@@ -8,11 +8,7 @@ use core::fmt;
 // `Rng` is only referenced on the `all(rand, std)` ThreadRng path (see `FnDsaRng`); allow it to be
 // unused whenever that path is off (no `rand`, or `rand` without `std`, e.g. bare-metal builds).
 #[cfg_attr(not(all(feature = "rand", feature = "std")), allow(unused_imports))]
-use rand_core::{
-    Rng,
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{Rng, TryCryptoRng, TryRng};
 
 #[cfg(feature = "hash")]
 use crate::Error;
@@ -128,10 +124,10 @@ impl ClassicalMcElieceRng {
 
             // Enhanced entropy mixing for better statistical properties
             // This addresses the specific needs of CB-KEM
-            let mut value = self.state ^
-                self.counter ^
-                (u64::from(self.reseed_counter) << 32) ^
-                (u64::from(self.reseed_counter) << 16);
+            let mut value = self.state
+                ^ self.counter
+                ^ (u64::from(self.reseed_counter) << 32)
+                ^ (u64::from(self.reseed_counter) << 16);
 
             // Additional mixing for better statistical properties
             // This helps ensure the RNG output has properties suitable for CB-KEM

@@ -1,9 +1,6 @@
 //! A collection of helper methods when Neon is available
 
-use core::arch::aarch64::{
-    self,
-    uint32x4_t,
-};
+use core::arch::aarch64::{self, uint32x4_t};
 use core::mem::transmute;
 
 /// Convert a four element array of u32's into a packed vector.

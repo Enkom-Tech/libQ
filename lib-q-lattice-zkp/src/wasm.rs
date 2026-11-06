@@ -6,19 +6,11 @@ extern crate alloc;
 
 use alloc::vec;
 
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_ring::{ModuleVec, Poly};
 use wasm_bindgen::prelude::*;
 
 use crate::serialize::write_module_vec;
-use crate::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AjtaiParameters,
-    commit,
-};
+use crate::{AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters, commit};
 
 fn smoke_commitment_key() -> AjtaiCommitmentKey {
     AjtaiCommitmentKey {

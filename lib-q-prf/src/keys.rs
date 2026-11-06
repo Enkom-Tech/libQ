@@ -7,12 +7,7 @@
 //! [`validate_key_u256`] and [`validate_key_u512`] directly; opaque key types in
 //! [`crate::legendre`] and [`crate::gold`] already apply these checks in their constructors.
 
-use crypto_bigint::{
-    CtEq,
-    CtLt,
-    U256,
-    U512,
-};
+use crypto_bigint::{CtEq, CtLt, U256, U512};
 
 use crate::error::PrfError;
 

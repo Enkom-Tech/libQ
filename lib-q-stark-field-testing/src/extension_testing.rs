@@ -1,20 +1,9 @@
 use alloc::vec::Vec;
 
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    PackedFieldExtension,
-    PackedValue,
-};
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use lib_q_stark_field::{ExtensionField, Field, PackedFieldExtension, PackedValue};
+use rand::distr::{Distribution, StandardUniform};
 use rand::rngs::SmallRng;
-use rand::{
-    RngExt,
-    SeedableRng,
-};
+use rand::{RngExt, SeedableRng};
 
 use crate::exp_biguint;
 

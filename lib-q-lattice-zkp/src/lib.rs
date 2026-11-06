@@ -49,159 +49,60 @@ pub mod util;
 pub mod wire;
 
 pub use blind::{
-    BLIND_ISSUER_FS_LABEL,
-    BlindIssuance,
-    BlindIssuerKeypair,
-    BlindRequest,
-    BlindResponse,
-    BlindSignature,
-    BlindUserState,
-    ISSUER_PARAMS_DIGEST_DOMAIN,
-    IssuerCommitmentParams,
-    UnblindedBlindSignature,
-    UnblindedIssuance,
-    add_module_vec,
-    aggregate_opening,
-    blind_message_digest,
-    blinded_commitment,
-    blinded_commitment_digest,
-    issuance_blind_message_extra,
-    issuance_transcript_ctx,
+    BLIND_ISSUER_FS_LABEL, BlindIssuance, BlindIssuerKeypair, BlindRequest, BlindResponse,
+    BlindSignature, BlindUserState, ISSUER_PARAMS_DIGEST_DOMAIN, IssuerCommitmentParams,
+    UnblindedBlindSignature, UnblindedIssuance, add_module_vec, aggregate_opening,
+    blind_message_digest, blinded_commitment, blinded_commitment_digest,
+    issuance_blind_message_extra, issuance_transcript_ctx,
 };
-pub use budget::{
-    AmortisationBudget,
-    measured_opening_wire_body_bytes,
-};
+pub use budget::{AmortisationBudget, measured_opening_wire_body_bytes};
 pub use challenge::MlDsaCompatibleChallenge;
-pub use commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    commit,
-};
-pub use error::{
-    ProofError,
-    VerifyError,
-};
+pub use commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening, commit};
+pub use error::{ProofError, VerifyError};
 pub use params::AjtaiParameters;
 pub use profile::{
-    LATTICE_ZKP_WIRE_VERSION_V0,
-    LatticeZkpProfileV0,
-    PROFILE_ID_PVTN_MEMBERSHIP_V0,
-    PROFILE_ID_SELECTIVE_DISCLOSURE_V0,
-    PROFILE_ID_TOKEN_SPEND_V0,
-    RQ_COEFF_PACK_BITS,
-    WIRE_BUDGET_PRESENTATION_BYTES,
-    WIRE_BUDGET_PRESENTATION_HARD_CAP_BYTES,
+    LATTICE_ZKP_WIRE_VERSION_V0, LatticeZkpProfileV0, PROFILE_ID_PVTN_MEMBERSHIP_V0,
+    PROFILE_ID_SELECTIVE_DISCLOSURE_V0, PROFILE_ID_TOKEN_SPEND_V0, RQ_COEFF_PACK_BITS,
+    WIRE_BUDGET_PRESENTATION_BYTES, WIRE_BUDGET_PRESENTATION_HARD_CAP_BYTES,
     WIRE_BUDGET_PVTN_MEMBERSHIP_BYTES,
 };
 pub use wire::{
-    BlindIssuanceWireV0,
-    MAX_WIRE_BYTES_AMORTISED_V0,
-    MAX_WIRE_BYTES_BLIND_ISSUANCE_V0,
-    MAX_WIRE_BYTES_DUAL_RING_V0,
-    MAX_WIRE_BYTES_LINEAR_V0,
-    MAX_WIRE_BYTES_NULLIFIER_V0,
-    MAX_WIRE_BYTES_OPENING_V0,
-    MAX_WIRE_BYTES_PVTN_V0,
-    MAX_WIRE_BYTES_SPENDING_V0,
-    ProofKindV0,
-    WIRE_ENVELOPE_HEADER_LEN,
-    decode_amortised_proof_v0,
-    decode_blind_issuance_v0,
-    decode_dual_ring_opening_proof_v0,
-    decode_linear_relation_proof_v0,
-    decode_nullifier_opening_proof_v0,
-    decode_opening_proof_v0,
-    decode_private_membership_proof_v0,
-    decode_spending_proof_v0,
-    decode_witness_nullifier_opening_proof_v0,
-    encode_amortised_proof_v0,
-    encode_blind_issuance_v0,
-    encode_dual_ring_opening_proof_v0,
-    encode_linear_relation_proof_v0,
-    encode_nullifier_opening_proof_v0,
-    encode_opening_proof_v0,
-    encode_private_membership_proof_v0,
-    encode_spending_proof_v0,
-    encode_witness_nullifier_opening_proof_v0,
-    wire_byte_len,
+    BlindIssuanceWireV0, MAX_WIRE_BYTES_AMORTISED_V0, MAX_WIRE_BYTES_BLIND_ISSUANCE_V0,
+    MAX_WIRE_BYTES_DUAL_RING_V0, MAX_WIRE_BYTES_LINEAR_V0, MAX_WIRE_BYTES_NULLIFIER_V0,
+    MAX_WIRE_BYTES_OPENING_V0, MAX_WIRE_BYTES_PVTN_V0, MAX_WIRE_BYTES_SPENDING_V0, ProofKindV0,
+    WIRE_ENVELOPE_HEADER_LEN, decode_amortised_proof_v0, decode_blind_issuance_v0,
+    decode_dual_ring_opening_proof_v0, decode_linear_relation_proof_v0,
+    decode_nullifier_opening_proof_v0, decode_opening_proof_v0, decode_private_membership_proof_v0,
+    decode_spending_proof_v0, decode_witness_nullifier_opening_proof_v0, encode_amortised_proof_v0,
+    encode_blind_issuance_v0, encode_dual_ring_opening_proof_v0, encode_linear_relation_proof_v0,
+    encode_nullifier_opening_proof_v0, encode_opening_proof_v0, encode_private_membership_proof_v0,
+    encode_spending_proof_v0, encode_witness_nullifier_opening_proof_v0, wire_byte_len,
 };
 #[cfg(feature = "wasm")]
 mod wasm;
 
 pub use sigma::hierarchical::{
-    PVTN_PATH_INDEX_COMMIT_DOMAIN,
-    merkle_direction_at,
-    path_index_commitment,
-    recover_clearance_level,
-    recover_path_index,
-    verify_merkle_path_from_index,
+    PVTN_PATH_INDEX_COMMIT_DOMAIN, merkle_direction_at, path_index_commitment,
+    recover_clearance_level, recover_path_index, verify_merkle_path_from_index,
 };
-pub use sigma::opening::{
-    QROM_FS_W_DIGEST_DOMAIN,
-    fs_w_digest,
-};
+pub use sigma::opening::{QROM_FS_W_DIGEST_DOMAIN, fs_w_digest};
 pub use sigma::{
-    AmortisedProof,
-    BatchPresentationState,
-    CrtPackedNormProof,
-    DualRingOpeningProof,
-    HierarchicalAuthProof,
-    LinearRelationProof,
-    MerklePath,
-    NullifierOpeningProof,
-    OpeningProof,
-    PVTN_CLEARANCE_MARGIN_NORM_BETA,
-    PrivateMembershipProof,
-    WitnessNullifierOpeningProof,
-    aggregate_proofs,
-    amortise,
-    encode_pvtn_leaf,
-    hierarchical,
-    hierarchical_opening_ctx,
-    leaf_clearance_level,
-    leaf_hash,
-    linear,
-    node_hash,
-    norm,
-    opening,
-    opening_ctx_with_nullifier,
-    opening_ctx_with_witness_nullifier,
-    private_membership_opening_ctx,
-    prove_dual_ring_opening,
-    prove_inf_norm,
-    prove_level_membership,
-    prove_linear,
-    prove_nullifier_opening,
-    prove_opening,
-    prove_private_membership,
-    prove_witness_nullifier_opening,
-    registry_nullifier,
-    uniqueness,
-    uniqueness_amortisation_label,
-    verify_aggregate,
-    verify_dual_ring_opening,
-    verify_hierarchical_membership,
-    verify_inf_norm,
-    verify_inf_norm_proof,
-    verify_level_membership,
-    verify_linear,
-    verify_merkle_path,
-    verify_nullifier_opening,
-    verify_opening,
-    verify_private_membership,
-    verify_witness_nullifier_opening,
-    witness_nullifier,
-    witness_uniqueness_amortisation_label,
-    witness_wire,
+    AmortisedProof, BatchPresentationState, CrtPackedNormProof, DualRingOpeningProof,
+    HierarchicalAuthProof, LinearRelationProof, MerklePath, NullifierOpeningProof, OpeningProof,
+    PVTN_CLEARANCE_MARGIN_NORM_BETA, PrivateMembershipProof, WitnessNullifierOpeningProof,
+    aggregate_proofs, amortise, encode_pvtn_leaf, hierarchical, hierarchical_opening_ctx,
+    leaf_clearance_level, leaf_hash, linear, node_hash, norm, opening, opening_ctx_with_nullifier,
+    opening_ctx_with_witness_nullifier, private_membership_opening_ctx, prove_dual_ring_opening,
+    prove_inf_norm, prove_level_membership, prove_linear, prove_nullifier_opening, prove_opening,
+    prove_private_membership, prove_witness_nullifier_opening, registry_nullifier, uniqueness,
+    uniqueness_amortisation_label, verify_aggregate, verify_dual_ring_opening,
+    verify_hierarchical_membership, verify_inf_norm, verify_inf_norm_proof,
+    verify_level_membership, verify_linear, verify_merkle_path, verify_nullifier_opening,
+    verify_opening, verify_private_membership, verify_witness_nullifier_opening, witness_nullifier,
+    witness_uniqueness_amortisation_label, witness_wire,
 };
 pub use token::{
-    AnonymousToken,
-    SpendingProof,
-    TOKEN_EPOCH_LEN,
-    TOKEN_ORIGIN_LEN,
-    TOKEN_SERIAL_LEN,
+    AnonymousToken, SpendingProof, TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN, TOKEN_SERIAL_LEN,
     opening_from_token_fields,
 };
 pub use zeroize::Zeroizing;
@@ -209,11 +110,7 @@ pub use zeroize::Zeroizing;
 #[cfg(test)]
 mod tests {
     use lib_q_random::new_deterministic_rng;
-    use lib_q_ring::{
-        ModuleVec,
-        Poly,
-        sample_in_ball,
-    };
+    use lib_q_ring::{ModuleVec, Poly, sample_in_ball};
 
     use super::*;
 

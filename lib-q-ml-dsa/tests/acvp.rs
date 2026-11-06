@@ -78,9 +78,9 @@ fn keygen() {
     for kat in prompts.testGroups {
         let parameter_set = kat.parameterSet;
         assert!(
-            parameter_set == "ML-DSA-44" ||
-                parameter_set == "ML-DSA-65" ||
-                parameter_set == "ML-DSA-87"
+            parameter_set == "ML-DSA-44"
+                || parameter_set == "ML-DSA-65"
+                || parameter_set == "ML-DSA-87"
         );
         eprintln!("{parameter_set}");
 
@@ -173,9 +173,9 @@ fn siggen() {
     for kat in prompts.testGroups {
         let parameter_set = kat.parameterSet;
         assert!(
-            parameter_set == "ML-DSA-44" ||
-                parameter_set == "ML-DSA-65" ||
-                parameter_set == "ML-DSA-87"
+            parameter_set == "ML-DSA-44"
+                || parameter_set == "ML-DSA-65"
+                || parameter_set == "ML-DSA-87"
         );
         eprintln!("{parameter_set}");
 
@@ -269,9 +269,9 @@ fn sigver() {
     for kat in prompts.testGroups {
         let parameter_set = kat.parameterSet;
         assert!(
-            parameter_set == "ML-DSA-44" ||
-                parameter_set == "ML-DSA-65" ||
-                parameter_set == "ML-DSA-87"
+            parameter_set == "ML-DSA-44"
+                || parameter_set == "ML-DSA-65"
+                || parameter_set == "ML-DSA-87"
         );
         eprintln!("{parameter_set}");
 

@@ -1,25 +1,11 @@
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    AirBuilder,
-    ExtensionBuilder,
-    RowWindow,
-};
-use lib_q_stark_field::{
-    Algebra,
-    BasedVectorSpace,
-    PackedField,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{AirBuilder, ExtensionBuilder, RowWindow};
+use lib_q_stark_field::{Algebra, BasedVectorSpace, PackedField, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrixView;
 use lib_q_stark_matrix::stack::ViewPair;
 
-use crate::{
-    PackedChallenge,
-    PackedVal,
-    StarkGenericConfig,
-    Val,
-};
+use crate::{PackedChallenge, PackedVal, StarkGenericConfig, Val};
 
 const CONSTRAINT_BATCH: usize = 8;
 

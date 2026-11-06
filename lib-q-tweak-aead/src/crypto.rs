@@ -11,23 +11,12 @@ use alloc::vec::Vec;
 #[cfg(feature = "alloc")]
 use lib_q_core::DecryptSemanticOutcome;
 use subtle::ConstantTimeEq;
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use zeroize::{Zeroize, Zeroizing};
 
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    PLEN,
-    TAG_BYTES,
-};
+use crate::params::{KEY_BYTES, NONCE_BYTES, PLEN, TAG_BYTES};
 use crate::simd::portable::Portable;
 use crate::simd::traits::TweakAeadStreamOps;
-use crate::sponge::{
-    absorb_all,
-    first_32_from_state,
-};
+use crate::sponge::{absorb_all, first_32_from_state};
 
 /// Encrypt/decrypt failed: buffer too small, length overflow, or (decrypt) authentication failure.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -166,11 +155,7 @@ fn compute_tag(
 #[cfg(test)]
 mod kat_tests {
     use super::encrypt;
-    use crate::params::{
-        KEY_BYTES,
-        NONCE_BYTES,
-        TAG_BYTES,
-    };
+    use crate::params::{KEY_BYTES, NONCE_BYTES, TAG_BYTES};
 
     #[test]
     fn kat_encrypt_libq_empty_ad() {

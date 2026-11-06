@@ -36,23 +36,12 @@
 
 extern crate alloc;
 
-use alloc::string::{
-    String,
-    ToString,
-};
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::fmt;
 
-use lib_q_poseidon::{
-    PoseidonField,
-    PoseidonParams,
-    sbox,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_poseidon::{PoseidonField, PoseidonParams, sbox};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
@@ -92,137 +81,60 @@ pub mod wide_sponge;
 pub mod wide_sponge_baby_bear;
 
 #[cfg(feature = "recursive-proofs-experimental")]
-pub use air_poseidon_mmcs::{
-    AirPoseidonCompressor,
-    AirPoseidonMmcs,
-    air_poseidon_mmcs_instance,
-};
-pub use anonymous_auth::{
-    AnonymousAuthAir,
-    AnonymousAuthInput,
-};
+pub use air_poseidon_mmcs::{AirPoseidonCompressor, AirPoseidonMmcs, air_poseidon_mmcs_instance};
+pub use anonymous_auth::{AnonymousAuthAir, AnonymousAuthInput};
 pub use arithmetic::ArithmeticAir;
 pub use batch_stark_verifier::{
-    BatchRecursiveStarkVerificationInput,
-    BatchStarkVerifierAir,
+    BatchRecursiveStarkVerificationInput, BatchStarkVerifierAir,
     batch_recursive_verifier_public_values,
 };
 #[cfg(all(feature = "recursive-proofs-experimental", feature = "std"))]
 pub use commitment_verifier::debug_commitment_trace_sanity_check;
-pub use commitment_verifier::{
-    CommitmentVerificationInput,
-    CommitmentVerifierAir,
-};
-pub use constraint_verifier::{
-    ConstraintVerificationInput,
-    ConstraintVerifierAir,
-};
-pub use credential::{
-    CredentialAir,
-    CredentialInput,
-    CredentialSchema,
-};
-pub use fri_verifier::{
-    FriVerificationInput,
-    FriVerifierAir,
-};
+pub use commitment_verifier::{CommitmentVerificationInput, CommitmentVerifierAir};
+pub use constraint_verifier::{ConstraintVerificationInput, ConstraintVerifierAir};
+pub use credential::{CredentialAir, CredentialInput, CredentialSchema};
+pub use fri_verifier::{FriVerificationInput, FriVerifierAir};
 pub use hash_preimage::HashPreimageAir;
 pub use hash_preimage_nist::{
-    HASH_OUTPUT_BYTES,
-    HashPreimageNistAir,
-    HashPreimageNistInput,
-    expected_hash_to_public_values,
+    HASH_OUTPUT_BYTES, HashPreimageNistAir, HashPreimageNistInput, expected_hash_to_public_values,
 };
-pub use identity_proof::{
-    IdentityProofAir,
-    IdentityProofInput,
-    MlDsaLevel,
-};
-pub use merkle_inclusion::{
-    MerkleHash,
-    MerkleInclusionAir,
-    MerkleProofInput,
-};
-pub use opening_verifier::{
-    OpeningVerificationInput,
-    OpeningVerifierAir,
-};
+pub use identity_proof::{IdentityProofAir, IdentityProofInput, MlDsaLevel};
+pub use merkle_inclusion::{MerkleHash, MerkleInclusionAir, MerkleProofInput};
+pub use opening_verifier::{OpeningVerificationInput, OpeningVerifierAir};
 pub use poseidon_gadget::PoseidonGadget;
 pub use poseidon_hash::PoseidonHashAir;
 pub use range_proof::RangeProofAir;
 pub use recovery_policy::{
-    RECOVERY_POLICY_AIR_ID,
-    RECOVERY_POLICY_COMMIT_DOMAIN,
-    RECOVERY_PUBLIC_INPUTS_LEN,
-    RECOVERY_VK_COMMIT_DOMAIN,
-    RecoveryPolicyAir,
-    RecoveryPolicyInput,
-    RecoveryPolicyKey,
-    RecoveryPolicyPublicInputs,
-    policy_commitment,
-    shake256_commit,
-    vk_commitment,
+    RECOVERY_POLICY_AIR_ID, RECOVERY_POLICY_COMMIT_DOMAIN, RECOVERY_PUBLIC_INPUTS_LEN,
+    RECOVERY_VK_COMMIT_DOMAIN, RecoveryPolicyAir, RecoveryPolicyInput, RecoveryPolicyKey,
+    RecoveryPolicyPublicInputs, policy_commitment, shake256_commit, vk_commitment,
 };
 pub use recovery_policy_hybrid::{
-    RECOVERY_HYBRID_POLICY_COMMIT_DOMAIN,
-    RECOVERY_HYBRID_PUBLIC_INPUTS_LEN,
-    RECOVERY_HYBRID_VK_COMMIT_DOMAIN,
-    RECOVERY_POLICY_HYBRID_AIR_ID,
-    RecoveryPolicyHybridAir,
-    RecoveryPolicyHybridInput,
-    RecoveryPolicyHybridPublicInputs,
-    hybrid_policy_commitment,
+    RECOVERY_HYBRID_POLICY_COMMIT_DOMAIN, RECOVERY_HYBRID_PUBLIC_INPUTS_LEN,
+    RECOVERY_HYBRID_VK_COMMIT_DOMAIN, RECOVERY_POLICY_HYBRID_AIR_ID, RecoveryPolicyHybridAir,
+    RecoveryPolicyHybridInput, RecoveryPolicyHybridPublicInputs, hybrid_policy_commitment,
 };
-pub use recursive_types::{
-    RecursiveStarkInput,
-    SerializedFriRound,
-    SerializedStarkProof,
-};
+pub use recursive_types::{RecursiveStarkInput, SerializedFriRound, SerializedStarkProof};
 pub use session_key::{
-    KdfAlgorithm,
-    KdfParams,
-    OUTPUT_LENGTH_GRANULARITY,
-    SessionKeyDerivationAir,
-    SessionKeyInput,
+    KdfAlgorithm, KdfParams, OUTPUT_LENGTH_GRANULARITY, SessionKeyDerivationAir, SessionKeyInput,
     derive_session_keys,
 };
 pub use unlinkable_membership::{
-    CTX_ELEMS,
-    MEMBERSHIP_DOMAIN_STR,
-    MEMBERSHIP_NUM_PUBLIC,
-    MEMBERSHIP_ROW_WIDTH,
-    SECRET_T_ELEMS,
-    UnlinkableMembershipAir,
-    generate_membership_trace,
-    membership_domain,
-    membership_leaf,
-    membership_nullifier,
-    membership_public_values,
+    CTX_ELEMS, MEMBERSHIP_DOMAIN_STR, MEMBERSHIP_NUM_PUBLIC, MEMBERSHIP_ROW_WIDTH, SECRET_T_ELEMS,
+    UnlinkableMembershipAir, generate_membership_trace, membership_domain, membership_leaf,
+    membership_nullifier, membership_public_values,
 };
 pub use wide_hash::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-    poseidon256_perm_truncated,
-    poseidon256_wide_hash,
+    WIDE_DIGEST_ELEMS, WideDigest, poseidon256_perm_truncated, poseidon256_wide_hash,
 };
 pub use wide_merkle::{
-    NODE_NUM_PERMS,
-    NODE_ROW_WIDTH,
-    WideNodeHashAir,
-    generate_node_trace,
-    node_public_values,
+    NODE_NUM_PERMS, NODE_ROW_WIDTH, WideNodeHashAir, generate_node_trace, node_public_values,
 };
 pub use wide_merkle_path::{
-    PATH_NUM_PUBLIC,
-    PATH_ROW_WIDTH,
-    WideMerklePathAir,
-    generate_path_trace,
-    path_public_values,
+    PATH_NUM_PUBLIC, PATH_ROW_WIDTH, WideMerklePathAir, generate_path_trace, path_public_values,
 };
 pub use wide_sponge::{
-    constrain_wide_sponge,
-    generate_wide_sponge_cells,
-    wide_sponge_interm_cols,
+    constrain_wide_sponge, generate_wide_sponge_cells, wide_sponge_interm_cols,
     wide_sponge_num_perms,
 };
 /// Trait for PCS commitments that are Poseidon Merkle roots. Used by the recursive verifier.
@@ -233,14 +145,11 @@ pub trait PoseidonCommitmentRoot {
 
 #[cfg(feature = "recursive-proofs-experimental")]
 pub use stark_verifier::{
-    MerklePathExtractable,
-    build_recursive_verification_input_from_proof,
+    MerklePathExtractable, build_recursive_verification_input_from_proof,
     build_recursive_verification_input_from_proof_with_poseidon,
 };
 pub use stark_verifier::{
-    RecursiveStarkVerificationInput,
-    StarkVerifierAir,
-    build_recursive_verification_input,
+    RecursiveStarkVerificationInput, StarkVerifierAir, build_recursive_verification_input,
 };
 
 /// Maximum number of operations allowed in a single AIR instance

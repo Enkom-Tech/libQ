@@ -26,38 +26,16 @@
 use alloc::vec::Vec;
 use core::array;
 
-use lib_q_plonky_lookup::{
-    Direction,
-    Kind,
-    Lookup,
-    LookupAir,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeCharacteristicRing,
-};
+use lib_q_plonky_lookup::{Direction, Kind, Lookup, LookupAir};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::ConfigVal;
 
 use crate::error::EncProofError;
-use crate::logup_join::{
-    COEFF_E_BUS,
-    XOF_STREAM_BUS,
-    mcol,
-    sconst,
-};
-use crate::zq::{
-    Q,
-    Q_LIMBS,
-    QM1_LIMBS,
-};
+use crate::logup_join::{COEFF_E_BUS, XOF_STREAM_BUS, mcol, sconst};
+use crate::zq::{Q, Q_LIMBS, QM1_LIMBS};
 
 // Column layout.
 const C_ACTIVE: usize = 0; // 1 = real attempt, 0 = padding
@@ -1023,16 +1001,8 @@ impl LookupAir<ConfigVal> for BoundedSamplerAir {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_sha3::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     use super::*;
     use crate::test_macros::assert_air_rejects;
@@ -1065,8 +1035,8 @@ mod tests {
         let mut out = Vec::new();
         for r in 0..height {
             let base = r * SAMPLER_WIDTH;
-            if trace.values[base + C_ACTIVE] == ConfigVal::ONE &&
-                trace.values[base + C_ACCEPTED] == ConfigVal::ONE
+            if trace.values[base + C_ACTIVE] == ConfigVal::ONE
+                && trace.values[base + C_ACCEPTED] == ConfigVal::ONE
             {
                 let v = trace.values[base + C_COEFF_VAL];
                 let s = if v == ConfigVal::ZERO {
@@ -1162,8 +1132,8 @@ mod tests {
         let mut out = Vec::new();
         for r in 0..height {
             let base = r * BOUNDED_WIDTH;
-            if trace.values[base + W_ACTIVE] == ConfigVal::ONE &&
-                trace.values[base + W_ACCEPTED] == ConfigVal::ONE
+            if trace.values[base + W_ACTIVE] == ConfigVal::ONE
+                && trace.values[base + W_ACCEPTED] == ConfigVal::ONE
             {
                 out.push(trace.values[base + W_COEFF]);
             }

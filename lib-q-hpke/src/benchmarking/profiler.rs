@@ -4,11 +4,7 @@
 use alloc::string::ToString;
 use core::mem::size_of;
 
-use crate::benchmarking::{
-    AlgorithmType,
-    OperationType,
-    PerformanceMetrics,
-};
+use crate::benchmarking::{AlgorithmType, OperationType, PerformanceMetrics};
 use crate::error::HpkeError;
 
 /// Counter-based timing implementation
@@ -17,10 +13,7 @@ use crate::error::HpkeError;
 /// `SystemTime::now()` panics with "time not implemented on this platform").
 #[cfg(any(not(feature = "std"), target_arch = "wasm32"))]
 mod no_std_timing {
-    use core::sync::atomic::{
-        AtomicU64,
-        Ordering,
-    };
+    use core::sync::atomic::{AtomicU64, Ordering};
 
     /// Get current timestamp using a simple counter
     /// This provides basic timing without unsafe code
@@ -42,10 +35,7 @@ mod no_std_timing {
 /// Std timing implementation using standard library
 #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
 mod std_timing {
-    use std::time::{
-        SystemTime,
-        UNIX_EPOCH,
-    };
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     /// Get current timestamp using system time
     pub fn get_timestamp() -> u64 {

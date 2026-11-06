@@ -1,19 +1,11 @@
 //! Performance benchmarks for ZKP operations (Criterion; stable-compatible).
 
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::air::{
-    ArithmeticAir,
-    HashPreimageAir,
-    MerkleInclusionAir,
-    PoseidonHashAir,
-    RangeProofAir,
+    ArithmeticAir, HashPreimageAir, MerkleInclusionAir, PoseidonHashAir, RangeProofAir,
     TraceGenerator,
 };
 
@@ -66,10 +58,7 @@ fn bench_poseidon_hash_air_trace_generation(c: &mut Criterion) {
 }
 
 fn bench_merkle_inclusion_air_trace_generation_depth_8(c: &mut Criterion) {
-    use lib_q_zkp::air::{
-        MerkleHash,
-        MerkleProofInput,
-    };
+    use lib_q_zkp::air::{MerkleHash, MerkleProofInput};
     let air = MerkleInclusionAir::new(8).unwrap();
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
@@ -89,10 +78,7 @@ fn bench_merkle_inclusion_air_trace_generation_depth_8(c: &mut Criterion) {
 }
 
 fn bench_merkle_inclusion_air_trace_generation_depth_32(c: &mut Criterion) {
-    use lib_q_zkp::air::{
-        MerkleHash,
-        MerkleProofInput,
-    };
+    use lib_q_zkp::air::{MerkleHash, MerkleProofInput};
     let air = MerkleInclusionAir::new(32).unwrap();
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],
@@ -112,10 +98,7 @@ fn bench_merkle_inclusion_air_trace_generation_depth_32(c: &mut Criterion) {
 }
 
 fn bench_merkle_inclusion_air_trace_generation_depth_64(c: &mut Criterion) {
-    use lib_q_zkp::air::{
-        MerkleHash,
-        MerkleProofInput,
-    };
+    use lib_q_zkp::air::{MerkleHash, MerkleProofInput};
     let air = MerkleInclusionAir::new(64).unwrap();
     let input = MerkleProofInput {
         leaf: vec![1, 2, 3, 4],

@@ -6,15 +6,8 @@
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;
 
-use super::{
-    EntropyValidator,
-    SecurityConstants,
-    TimingValidator,
-};
-use crate::api::{
-    Algorithm,
-    AlgorithmCategory,
-};
+use super::{EntropyValidator, SecurityConstants, TimingValidator};
+use crate::api::{Algorithm, AlgorithmCategory};
 use crate::error::Result;
 
 /// Centralized security validator for lib-Q

@@ -3,11 +3,7 @@ use core::mem::size_of;
 use lib_q_stark_util::indices_arr;
 
 use crate::constants::R;
-use crate::{
-    NUM_ROUNDS,
-    RATE_LIMBS,
-    U64_LIMBS,
-};
+use crate::{NUM_ROUNDS, RATE_LIMBS, U64_LIMBS};
 
 /// Note: The ordering of each array is based on the input mapping. As the spec says,
 ///

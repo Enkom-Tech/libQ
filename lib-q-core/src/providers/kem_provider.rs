@@ -4,22 +4,12 @@
 //! with proper security validation and algorithm routing.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
-use crate::api::{
-    Algorithm,
-    KemOperations,
-};
+use crate::api::{Algorithm, KemOperations};
 use crate::error::Result;
 use crate::security::SecurityValidator;
-use crate::traits::{
-    KemKeypair,
-    KemPublicKey,
-    KemSecretKey,
-};
+use crate::traits::{KemKeypair, KemPublicKey, KemSecretKey};
 
 /// lib-Q KEM provider implementation
 ///

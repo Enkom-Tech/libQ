@@ -5,11 +5,7 @@ use lib_q_aead::create_aead;
 #[cfg(target_arch = "wasm32")]
 use lib_q_aead::security::timing::TimingProtection;
 #[cfg(target_arch = "wasm32")]
-use lib_q_core::{
-    AeadKey,
-    Algorithm,
-    Nonce,
-};
+use lib_q_core::{AeadKey, Algorithm, Nonce};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::*;
 

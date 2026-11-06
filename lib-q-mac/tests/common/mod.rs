@@ -1,13 +1,7 @@
 //! Shared KAT helpers.
 
-use lib_q_mac::{
-    QcwMac,
-    QcwMacKey,
-};
-use lib_q_random::{
-    LibQRng,
-    new_deterministic_rng,
-};
+use lib_q_mac::{QcwMac, QcwMacKey};
+use lib_q_random::{LibQRng, new_deterministic_rng};
 
 const KAT_SEED: [u8; 32] = [
     0x71, 0x63, 0x77, 0x2D, 0x6D, 0x61, 0x63, 0x2D, 0x76, 0x31, 0x2D, 0x6B, 0x61, 0x74, 0x2D, 0x73,

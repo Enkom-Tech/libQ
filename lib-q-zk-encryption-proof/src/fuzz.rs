@@ -7,43 +7,20 @@
 //!
 //! A deliberate canary AIR with one unconstrained column verifies the harness actually works.
 
-use lib_q_stark::{
-    DebugConstraintBuilder,
-    check_constraints,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark::{DebugConstraintBuilder, check_constraints};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::ConfigVal;
 
 use crate::sponge_air::{
-    ShakeSpongeAir,
-    encap_preimage,
-    generate_sponge_air_trace,
-    sponge_public_values,
+    ShakeSpongeAir, encap_preimage, generate_sponge_air_trace, sponge_public_values,
 };
 use crate::zq::{
-    DotFoldAir,
-    EncodeMuFoldAir,
-    MSG_BITS,
-    ModReduceAir,
-    Q,
-    RelationCheckAir,
-    generate_dot_trace,
-    generate_encode_mu_trace,
-    generate_modreduce_trace,
-    generate_relation_trace,
+    DotFoldAir, EncodeMuFoldAir, MSG_BITS, ModReduceAir, Q, RelationCheckAir, generate_dot_trace,
+    generate_encode_mu_trace, generate_modreduce_trace, generate_relation_trace,
 };
 
 // ---------------------------------------------------------------------------

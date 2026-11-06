@@ -12,17 +12,10 @@
 
 use alloc::vec::Vec;
 
-use itertools::{
-    Itertools,
-    izip,
-};
+use itertools::{Itertools, izip};
 use lib_q_stark_dft::TwoAdicSubgroupDft;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-    TwoAdicField,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing, TwoAdicField};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_util::log2_strict_usize;
@@ -205,10 +198,7 @@ impl Mersenne31Dft {
 mod tests {
     use lib_q_random::new_deterministic_rng;
     use rand::RngExt;
-    use rand::distr::{
-        Distribution,
-        StandardUniform,
-    };
+    use rand::distr::{Distribution, StandardUniform};
 
     use super::*;
     use crate::Mersenne31ComplexRadix2Dit;

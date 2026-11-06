@@ -5,14 +5,8 @@
 use std::vec::Vec;
 
 use aead::array::Array;
-use aead::{
-    AeadInOut,
-    KeyInit,
-};
-use lib_q_romulus::{
-    RomulusM,
-    RomulusN,
-};
+use aead::{AeadInOut, KeyInit};
+use lib_q_romulus::{RomulusM, RomulusN};
 
 const KAT_N: &str = include_str!(concat!(
     env!("CARGO_MANIFEST_DIR"),

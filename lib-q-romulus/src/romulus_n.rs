@@ -4,30 +4,13 @@
 
 use aead::consts::U16;
 use aead::inout::InOutBuf;
-use aead::{
-    AeadCore,
-    AeadInOut,
-    Error,
-    Key,
-    KeyInit,
-    KeySizeUser,
-    Nonce,
-    Tag,
-    TagPosition,
-};
+use aead::{AeadCore, AeadInOut, Error, Key, KeyInit, KeySizeUser, Nonce, Tag, TagPosition};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 use crate::backend::{
-    AD_BLK_EVN,
-    AD_BLK_ODD,
-    MSG_BLK,
-    ad_encryption,
-    g8a,
-    lfsr_gf56,
-    msg_encryption_n_inplace,
-    nonce_encryption,
-    reset_lfsr_gf56,
+    AD_BLK_EVN, AD_BLK_ODD, MSG_BLK, ad_encryption, g8a, lfsr_gf56, msg_encryption_n_inplace,
+    nonce_encryption, reset_lfsr_gf56,
 };
 
 /// Romulus-N AEAD with 128-bit key, 128-bit nonce, 128-bit tag.

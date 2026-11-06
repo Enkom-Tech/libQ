@@ -13,11 +13,7 @@
 // process (observed here as a clean panic+exit(101), but the audit finding describes a
 // stack-overflow abort on some configurations) -- isolating it in its own process means a
 // crash here cannot take down the enclosing `cargo test` harness.
-use lib_q_fn_dsa::{
-    FnDsa512,
-    FnDsa1024,
-    Signature,
-};
+use lib_q_fn_dsa::{FnDsa512, FnDsa1024, Signature};
 
 fn main() {
     let fn_dsa_1024 = FnDsa1024::new();

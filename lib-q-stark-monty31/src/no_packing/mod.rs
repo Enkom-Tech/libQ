@@ -1,16 +1,8 @@
 //! A couple of simple functions needed in the case that this is compiled without architecture optimizations available.
 
-use lib_q_stark_field::extension::{
-    octic_mul,
-    quartic_mul,
-    quintic_mul,
-};
+use lib_q_stark_field::extension::{octic_mul, quartic_mul, quintic_mul};
 
-use crate::{
-    BinomialExtensionData,
-    FieldParameters,
-    MontyField31,
-};
+use crate::{BinomialExtensionData, FieldParameters, MontyField31};
 
 /// If no packings are available, we use the generic binomial extension multiplication functions.
 #[inline]

@@ -6,29 +6,10 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_random::{
-    LibQRng,
-    new_deterministic_rng,
-};
-use lib_q_slh_dsa::{
-    ParameterSet,
-    Shake128f,
-    Shake192f,
-    Shake256f,
-    SigningKey,
-    VerifyingKey,
-};
-use signature::{
-    Keypair,
-    RandomizedSigner,
-    Verifier,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use lib_q_random::{LibQRng, new_deterministic_rng};
+use lib_q_slh_dsa::{ParameterSet, Shake128f, Shake192f, Shake256f, SigningKey, VerifyingKey};
+use signature::{Keypair, RandomizedSigner, Verifier};
 
 /// Helper function to create a deterministic RNG for benchmarks
 /// This ensures consistent benchmark results and proper error handling

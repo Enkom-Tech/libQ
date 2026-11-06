@@ -22,12 +22,7 @@
 //! `g = q = (p-1)/2`, an odd divisor of `p-1` suitable for the power-residue PRF construction.
 
 use crypto_bigint::modular::MontyParams;
-use crypto_bigint::{
-    NonZero,
-    Odd,
-    U256,
-    U512,
-};
+use crypto_bigint::{NonZero, Odd, U256, U512};
 
 /// Parameters for the Legendre PRF over \(\mathbb{F}_p\) with `p` a safe prime.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -99,11 +99,7 @@ compile_error!(
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    sync::Arc,
-    vec::Vec,
-};
+use alloc::{boxed::Box, sync::Arc, vec::Vec};
 
 pub use error::*;
 // Re-export HPKE types that users need
@@ -125,10 +121,7 @@ pub mod kem;
 pub mod protocol;
 pub mod security;
 
-pub use hpke_session::{
-    HpkeReceiverContext,
-    HpkeSenderContext,
-};
+pub use hpke_session::{HpkeReceiverContext, HpkeSenderContext};
 
 #[cfg(feature = "wasm")]
 mod wasm;
@@ -139,22 +132,11 @@ mod security_tests;
 
 // Imports used in conditionally compiled code
 #[allow(unused_imports)]
-use lib_q_core::{
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-    Result,
-};
+use lib_q_core::{KemContext, KemPublicKey, KemSecretKey, Result};
 #[allow(unused_imports)]
-use providers::{
-    post_quantum::PostQuantumProvider,
-    traits::HpkeCryptoProvider,
-};
+use providers::{post_quantum::PostQuantumProvider, traits::HpkeCryptoProvider};
 
-use crate::security::{
-    CryptoRng,
-    EntropyCryptoRng,
-};
+use crate::security::{CryptoRng, EntropyCryptoRng};
 
 /// HPKE Context that integrates with lib-q's provider pattern
 ///

@@ -1,9 +1,5 @@
 use core::marker::PhantomData;
-use core::ops::{
-    Add,
-    Mul,
-    Sub,
-};
+use core::ops::{Add, Mul, Sub};
 
 use lib_q_stark_field::Field;
 

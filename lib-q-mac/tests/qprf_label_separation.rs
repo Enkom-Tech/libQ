@@ -69,10 +69,7 @@ fn qprf_label_length_prefix_does_not_wrap() {
 /// `dead_code` warning in this standalone test binary, which only needs `kat_key`).
 #[test]
 fn qprf_v1_outputs_are_unchanged_for_short_labels() {
-    use lib_q_mac::{
-        QcwMac,
-        QcwMacKey,
-    };
+    use lib_q_mac::{QcwMac, QcwMacKey};
 
     const KAT_SEED: [u8; 32] = [
         0x71, 0x63, 0x77, 0x2D, 0x6D, 0x61, 0x63, 0x2D, 0x76, 0x31, 0x2D, 0x6B, 0x61, 0x74, 0x2D,

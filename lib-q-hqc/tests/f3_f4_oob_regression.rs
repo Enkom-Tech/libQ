@@ -17,10 +17,7 @@ use lib_q_hqc::Hqc128Kem;
 // x86_64-only for the same reason; F3 is architecture-independent and always runs.
 #[cfg(target_arch = "x86_64")]
 use lib_q_hqc::simd::Avx2;
-use lib_q_hqc::simd::{
-    PolynomialOps,
-    Portable,
-};
+use lib_q_hqc::simd::{PolynomialOps, Portable};
 
 /// F3 red/green target: `test_vect_add` must reject a `len` that exceeds any of the three
 /// buffers, rather than silently reading/writing past their end.

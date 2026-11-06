@@ -1,10 +1,7 @@
 use lib_q_intrinsics::*;
 
 use crate::simd::avx2::rejection_sample::shuffle_table::SHUFFLE_TABLE;
-use crate::simd::avx2::{
-    Eta,
-    encoding,
-};
+use crate::simd::avx2::{Eta, encoding};
 
 // TODO: This code seems to slow the implementation down, but stabilizes
 // benchmarks. Revisit this once the other functions are vectorized.

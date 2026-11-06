@@ -4,13 +4,7 @@
 //! algorithm implementations, and plugin architecture.
 
 use lib_q_aead::*;
-use lib_q_core::{
-    AeadKey,
-    Algorithm,
-    AlgorithmCategory,
-    Error,
-    Nonce,
-};
+use lib_q_core::{AeadKey, Algorithm, AlgorithmCategory, Error, Nonce};
 
 /// Generate a proper test key with good entropy (32 bytes; typical lib-q AEADs).
 fn create_test_key() -> AeadKey {
@@ -452,10 +446,10 @@ fn test_aead_performance_tier() {
         let tier = metadata.performance_tier();
         assert!(matches!(
             tier,
-            lib_q_aead::PerformanceTier::UltraSecure |
-                lib_q_aead::PerformanceTier::Balanced |
-                lib_q_aead::PerformanceTier::Performance |
-                lib_q_aead::PerformanceTier::Hybrid
+            lib_q_aead::PerformanceTier::UltraSecure
+                | lib_q_aead::PerformanceTier::Balanced
+                | lib_q_aead::PerformanceTier::Performance
+                | lib_q_aead::PerformanceTier::Hybrid
         ));
     }
 }

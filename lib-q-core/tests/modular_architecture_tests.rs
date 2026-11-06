@@ -3,17 +3,10 @@
 //! This module tests the new modular architecture including providers,
 //! security validation, and context management.
 
-use lib_q_core::api::{
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-};
+use lib_q_core::api::{Algorithm, AlgorithmCategory, CryptoProvider};
 use lib_q_core::providers::LibQCryptoProvider;
 use lib_q_core::security::SecurityValidator;
-use lib_q_core::traits::{
-    AeadKey,
-    Nonce,
-};
+use lib_q_core::traits::{AeadKey, Nonce};
 
 /// Test the main LibQCryptoProvider
 #[cfg(feature = "std")]

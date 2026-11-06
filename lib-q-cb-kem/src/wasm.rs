@@ -9,22 +9,12 @@ use alloc::string::String;
 use js_sys::Uint8Array;
 use lib_q_random::LibQRng;
 use serde::Serialize;
-use wasm_bindgen::prelude::{
-    JsValue,
-    wasm_bindgen,
-};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 use zeroize::Zeroizing;
 
 use crate::{
-    CRYPTO_CIPHERTEXTBYTES,
-    CRYPTO_PUBLICKEYBYTES,
-    CRYPTO_SECRETKEYBYTES,
-    Ciphertext,
-    PublicKey,
-    SecretKey,
-    decapsulate_boxed,
-    encapsulate_boxed,
-    keypair_boxed,
+    CRYPTO_CIPHERTEXTBYTES, CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES, Ciphertext, PublicKey,
+    SecretKey, decapsulate_boxed, encapsulate_boxed, keypair_boxed,
 };
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {

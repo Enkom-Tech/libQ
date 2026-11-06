@@ -1,11 +1,6 @@
 use crate::arithmetic::shift_left_then_reduce;
 use crate::constants::BITS_IN_LOWER_PART_OF_T;
-use crate::ntt::{
-    invert_ntt_montgomery,
-    ntt,
-    ntt_multiply_montgomery,
-    reduce,
-};
+use crate::ntt::{invert_ntt_montgomery, ntt, ntt_multiply_montgomery, reduce};
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
 

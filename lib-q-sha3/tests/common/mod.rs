@@ -8,10 +8,7 @@
 use std::time::Duration;
 
 use blobby::parse_into_vec;
-use digest::common::hazmat::{
-    SerializableState,
-    SerializedState,
-};
+use digest::common::hazmat::{SerializableState, SerializedState};
 
 pub fn kat_blobs(data: &'static [u8]) -> Vec<&'static [u8]> {
     match parse_into_vec(data) {

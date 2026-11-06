@@ -1,13 +1,6 @@
 //! Public API behaviour shared by every AEAD type in the crate.
 
-use lib_q_aegis::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-};
+use lib_q_aegis::{Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce};
 
 fn exercise<A: Aead + AeadDecryptSemantic>(a: A, key_len: usize, nonce_len: usize, tag_len: usize) {
     let key = AeadKey::new(vec![0x33; key_len]);
@@ -73,10 +66,7 @@ fn exercise<A: Aead + AeadDecryptSemantic>(a: A, key_len: usize, nonce_len: usiz
 
 #[test]
 fn aegis256_api() {
-    use lib_q_aegis::{
-        Aegis256,
-        Aegis256Tag128,
-    };
+    use lib_q_aegis::{Aegis256, Aegis256Tag128};
     exercise(Aegis256::new(), 32, 32, 32);
     exercise(Aegis256Tag128::new(), 32, 32, 16);
     assert_eq!(Aegis256::TAG_SIZE, 32);
@@ -86,10 +76,7 @@ fn aegis256_api() {
 #[test]
 fn tag_lengths_are_domain_separated() {
     // The 128-bit tag is not a prefix of the 256-bit tag (RFC 10032 Section 4.9).
-    use lib_q_aegis::{
-        Aegis256,
-        Aegis256Tag128,
-    };
+    use lib_q_aegis::{Aegis256, Aegis256Tag128};
     let (k, n) = ([1u8; 32], [2u8; 32]);
     let mut a = *b"abc";
     let mut b = *b"abc";

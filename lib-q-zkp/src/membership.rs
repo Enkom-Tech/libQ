@@ -30,45 +30,22 @@ extern crate alloc;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 use lib_q_poseidon::PoseidonField;
 
 pub use crate::air::unlinkable_membership::MEMBERSHIP_DOMAIN_STR;
 use crate::air::unlinkable_membership::{
-    CTX_ELEMS,
-    SECRET_T_ELEMS,
-    UnlinkableMembershipAir,
-    generate_membership_trace,
-    membership_leaf,
-    membership_nullifier,
-    membership_public_values,
+    CTX_ELEMS, SECRET_T_ELEMS, UnlinkableMembershipAir, generate_membership_trace, membership_leaf,
+    membership_nullifier, membership_public_values,
 };
-use crate::air::wide_hash::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-};
-use crate::air::{
-    next_power_of_two,
-    poseidon_field_to_bytes,
-};
+use crate::air::wide_hash::{WIDE_DIGEST_ELEMS, WideDigest};
+use crate::air::{next_power_of_two, poseidon_field_to_bytes};
 use crate::merkle::wide_node_hash;
 use crate::stark::{
-    MembershipConfig,
-    MembershipZkConfig,
-    StarkProver,
-    StarkVerifier,
-    membership_config,
-    membership_zk_config_with_params,
-    membership_zk_config_with_seed_bytes,
+    MembershipConfig, MembershipZkConfig, StarkProver, StarkVerifier, membership_config,
+    membership_zk_config_with_params, membership_zk_config_with_seed_bytes,
 };
-use crate::{
-    ProofMetadata,
-    ProofType,
-    ZkpProof,
-};
+use crate::{ProofMetadata, ProofType, ZkpProof};
 
 /// Maximum supported tree depth (matches the wide Merkle tree).
 pub const MAX_DEPTH: usize = 64;

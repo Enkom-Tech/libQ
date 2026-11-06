@@ -4,33 +4,16 @@
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 #[cfg(feature = "alloc")]
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
 use zeroize::Zeroizing;
 
-use crate::crypto::{
-    decrypt as tweak_decrypt,
-    decrypt_semantic_outcome,
-    encrypt as tweak_encrypt,
-};
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    TAG_BYTES,
-};
+use crate::crypto::{decrypt as tweak_decrypt, decrypt_semantic_outcome, encrypt as tweak_encrypt};
+use crate::params::{KEY_BYTES, NONCE_BYTES, TAG_BYTES};
 
 /// Tweakable-block CTR AEAD (32-byte blocks, Keccak-f\[1600\] keystream, 32-byte tag).
 pub struct TweakAead;

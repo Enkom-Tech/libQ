@@ -12,19 +12,9 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use crate::hqc_kem::{
-    HqcKem,
-    HqcKemCiphertext,
-    HqcKemError,
-    HqcKemPublicKey,
-    HqcKemSecretKey,
-    HqcKemSharedSecret,
+    HqcKem, HqcKemCiphertext, HqcKemError, HqcKemPublicKey, HqcKemSecretKey, HqcKemSharedSecret,
 };
-use crate::params::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use crate::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
 /// HQC core trait following libQ patterns
 pub trait HqcCore<P: HqcParams>: Clone + fmt::Debug + PartialEq {

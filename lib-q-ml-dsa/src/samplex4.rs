@@ -1,14 +1,8 @@
 use crate::constants::Eta;
-use crate::hash_functions::{
-    shake128,
-    shake256,
-};
+use crate::hash_functions::{shake128, shake256};
 use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
-use crate::sample::{
-    sample_four_error_ring_elements,
-    sample_up_to_four_ring_elements_flat,
-};
+use crate::sample::{sample_four_error_ring_elements, sample_up_to_four_ring_elements_flat};
 use crate::simd::traits::Operations;
 
 /// The x4 sampling implementation that is selected during multiplexing.

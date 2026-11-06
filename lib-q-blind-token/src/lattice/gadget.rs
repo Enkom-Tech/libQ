@@ -11,10 +11,7 @@
 //! Correctness (`g·z ≡ u`) is exact and unit-tested; the Gaussian distribution is what the security
 //! argument relies on and is the part that needs RED-zone scrutiny.
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 /// Modulus `q` as an `i64` (from the self-contained ring).
 pub const Q: i64 = super::ring::Q;

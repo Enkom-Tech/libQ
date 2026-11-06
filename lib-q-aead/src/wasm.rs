@@ -11,17 +11,10 @@ use alloc::string::String;
 use alloc::vec::Vec;
 
 use lib_q_core::api::AeadOperations;
-use lib_q_core::{
-    AeadKey,
-    Nonce,
-};
+use lib_q_core::{AeadKey, Nonce};
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    Algorithm,
-    AlgorithmCategory,
-    LibQAeadProvider,
-};
+use crate::{Algorithm, AlgorithmCategory, LibQAeadProvider};
 
 fn js_err(msg: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_AEAD", msg)

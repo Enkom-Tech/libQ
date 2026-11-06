@@ -44,14 +44,7 @@
 //! Of course, for small sizes we just explicitly write out the O(n^2)
 //! approach.
 
-use core::ops::{
-    Add,
-    AddAssign,
-    Neg,
-    ShrAssign,
-    Sub,
-    SubAssign,
-};
+use core::ops::{Add, AddAssign, Neg, ShrAssign, Sub, SubAssign};
 
 /// This trait collects the operations needed by `Convolve` below.
 ///

@@ -1,10 +1,6 @@
 #[cfg(hax)]
 use crate::simd::traits::specs::*;
-use crate::simd::traits::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    Operations,
-    SIMD_UNITS_IN_RING_ELEMENT,
-};
+use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, Operations, SIMD_UNITS_IN_RING_ELEMENT};
 
 #[derive(Clone, Copy)]
 #[hax_lib::fstar::after("open Libcrux_ml_dsa.Simd.Traits.Specs")]

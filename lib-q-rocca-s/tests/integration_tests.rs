@@ -1,13 +1,7 @@
 //! Integration tests for the Rocca-S AEAD public API.
 
 use lib_q_rocca_s::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    RoccaSAead,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, RoccaSAead,
 };
 
 fn aead() -> RoccaSAead {

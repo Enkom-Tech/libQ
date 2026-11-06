@@ -9,50 +9,23 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use lib_q_plonky_uni_stark::{
-    StarkConfig,
-    prove,
-    prove_with_preprocessed,
-    setup_preprocessed,
-    verify,
+    StarkConfig, prove, prove_with_preprocessed, setup_preprocessed, verify,
     verify_with_preprocessed,
 };
-use lib_q_stark_air::{
-    Air,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, BaseAir, WindowAccess};
 use lib_q_stark_challenger::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
-    Shake256Challenger32,
+    CanObserve, CanSample, CanSampleBits, FieldChallenger, GrindingChallenger, Shake256Challenger32,
 };
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeField32,
-};
-use lib_q_stark_fri::{
-    TwoAdicFriPcs,
-    create_test_fri_params,
-};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeField32};
+use lib_q_stark_fri::{TwoAdicFriPcs, create_test_fri_params};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    Hash,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, Hash, SerializingHasher};
 
 type Val = Complex<Mersenne31>;
 type MyHash = SerializingHasher<Shake256Hash>;

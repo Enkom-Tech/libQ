@@ -1,50 +1,17 @@
 use core::marker::PhantomData;
 
 use hybrid_array::typenum::U32;
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
-use subtle::{
-    Choice,
-    ConstantTimeEq,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-    Zeroizing,
-};
+use rand_core::{CryptoRng, Rng};
+use subtle::{Choice, ConstantTimeEq};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-use crate::crypto::{
-    G,
-    H,
-    J,
-    rand,
-};
-use crate::param::{
-    DecapsulationKeySize,
-    EncapsulationKeySize,
-    EncodedCiphertext,
-    KemParams,
-};
-use crate::pke::{
-    DecryptionKey,
-    EncryptionKey,
-};
-use crate::util::{
-    B32,
-    SecretB32,
-};
+use crate::crypto::{G, H, J, rand};
+use crate::param::{DecapsulationKeySize, EncapsulationKeySize, EncodedCiphertext, KemParams};
+use crate::pke::{DecryptionKey, EncryptionKey};
+use crate::util::{B32, SecretB32};
 // Re-export traits from our own implementation
-pub use crate::{
-    Decapsulate,
-    Encapsulate,
-};
-use crate::{
-    Encoded,
-    EncodedSizeUser,
-    Seed,
-};
+pub use crate::{Decapsulate, Encapsulate};
+use crate::{Encoded, EncodedSizeUser, Seed};
 
 /// A shared key resulting from an ML-KEM transaction
 pub(crate) type SharedKey = B32;
@@ -74,8 +41,8 @@ where
         self.dk_pke
             .as_bytes()
             .as_slice()
-            .ct_eq(other.dk_pke.as_bytes().as_slice()) &
-            self.z.as_slice().ct_eq(other.z.as_slice())
+            .ct_eq(other.dk_pke.as_bytes().as_slice())
+            & self.z.as_slice().ct_eq(other.z.as_slice())
     }
 }
 
@@ -435,13 +402,7 @@ mod test {
     #[cfg(feature = "random")]
     use super::*;
     #[cfg(feature = "random")]
-    use crate::{
-        Decapsulate,
-        Encapsulate,
-        MlKem512Params,
-        MlKem768Params,
-        MlKem1024Params,
-    };
+    use crate::{Decapsulate, Encapsulate, MlKem512Params, MlKem768Params, MlKem1024Params};
 
     #[cfg(feature = "random")]
     fn round_trip_test<P>()
@@ -580,12 +541,7 @@ mod test {
     fn seed_matches_deterministic() {
         use crate::param::KemParams;
         use crate::util::B32;
-        use crate::{
-            MlKem512Params,
-            MlKem768Params,
-            MlKem1024Params,
-            Seed,
-        };
+        use crate::{MlKem512Params, MlKem768Params, MlKem1024Params, Seed};
 
         fn check<P: KemParams>() {
             let mut seed = Seed::default();

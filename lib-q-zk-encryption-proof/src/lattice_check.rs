@@ -61,11 +61,7 @@
 //! and the ZK/hiding-FRI path is exercised on a subset of the test matrix (see `encryption_proof.rs`'s
 //! module doc for the full crate-level status).
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir};
 
 use crate::zq::RelationCheckAir;
 
@@ -119,19 +115,11 @@ impl<AB: AirBuilder> Air<AB> for LatticeCheckAir {
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
-    use lib_q_zkp::stark::{
-        ConfigVal,
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{ConfigVal, StarkProver, StarkVerifier, default_config};
 
     use super::*;
     use crate::test_macros::assert_air_rejects;
-    use crate::zq::{
-        Q,
-        generate_relation_trace,
-    };
+    use crate::zq::{Q, generate_relation_trace};
 
     /// Build a genuine R3a-shaped relation (`MU = 6` `e_r` folds + `KAPPA = 9` `f`-role folds, the
     /// live `encryption_proof.rs` shape) and confirm the `LatticeCheckAir` surface proves and verifies

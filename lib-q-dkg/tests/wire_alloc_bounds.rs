@@ -13,32 +13,14 @@
 //! This binary deliberately contains exactly ONE `#[test]`: the counters are process-global, so a
 //! second test running concurrently on another harness thread would pollute the measurement.
 
-use std::alloc::{
-    GlobalAlloc,
-    Layout,
-    System,
-};
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
-use lib_q_dkg::lattice::bdlop::{
-    Commitment,
-    MU,
-};
-use lib_q_dkg::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-};
+use lib_q_dkg::lattice::bdlop::{Commitment, MU};
+use lib_q_dkg::lattice::ring::{RQ_BYTES, Rq};
 use lib_q_dkg::{
-    CoeffCommitments,
-    MAX_ROUND1_COMMITMENTS,
-    MAX_WIRE_RQ_VEC_LEN,
-    decode_complaint,
-    decode_round1_commitments,
-    decode_share_evaluation,
-    encode_round1_commitments,
+    CoeffCommitments, MAX_ROUND1_COMMITMENTS, MAX_WIRE_RQ_VEC_LEN, decode_complaint,
+    decode_round1_commitments, decode_share_evaluation, encode_round1_commitments,
 };
 
 /// The largest commitment count the protocol admits.

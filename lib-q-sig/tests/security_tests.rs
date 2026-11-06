@@ -10,16 +10,9 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
-use lib_q_core::{
-    Error,
-    SigPublicKey,
-    Signature,
-};
+use lib_q_core::{Error, SigPublicKey, Signature};
 #[cfg(feature = "fn-dsa")]
 use lib_q_sig::fn_dsa::FnDsa512;
 use lib_q_sig::ml_dsa::MlDsa;

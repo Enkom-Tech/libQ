@@ -5,10 +5,7 @@
 
 #![cfg(all(feature = "random", feature = "acvp"))]
 
-use lib_q_ml_dsa::{
-    Zeroizing,
-    *,
-};
+use lib_q_ml_dsa::{Zeroizing, *};
 
 #[cfg(feature = "fips-mode")]
 mod fips_mode_tests {

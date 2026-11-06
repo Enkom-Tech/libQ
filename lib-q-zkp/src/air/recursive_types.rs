@@ -12,21 +12,11 @@
 extern crate alloc;
 
 use alloc::format;
-use alloc::string::{
-    String,
-    ToString,
-};
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 
-use lib_q_stark::{
-    Proof as StarkProof,
-    StarkGenericConfig,
-    Val,
-};
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_stark::{Proof as StarkProof, StarkGenericConfig, Val};
+use lib_q_stark_field::{ExtensionField, Field};
 use lib_q_stark_fri::FriDataExtractor;
 use serde::Serialize;
 
@@ -390,11 +380,7 @@ where
 /// for consistency; this function uses SHAKE256 for all configs. Fixed output size prevents DoS.
 fn hash_commitment<Com: Serialize>(commitment: &Com) -> [u8; COMMITMENT_HASH_SIZE] {
     use lib_q_sha3::Shake256;
-    use lib_q_sha3::digest::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
     // Serialize the commitment
     let serialized = match postcard::to_allocvec(commitment) {
@@ -473,27 +459,12 @@ mod tests {
     use serde::Serialize;
 
     use super::{
-        COMMITMENT_HASH_SIZE,
-        MAX_FINAL_POLY_LOG_LEN,
-        MAX_FRI_ROUNDS,
-        MAX_QUOTIENT_CHUNKS,
-        MAX_TRACE_WIDTH,
-        RecursiveStarkInput,
-        SerializedFriRound,
-        SerializedStarkProof,
-        hash_commitment,
-        recursive_stark_input_from_proof,
-        serialize_stark_proof,
+        COMMITMENT_HASH_SIZE, MAX_FINAL_POLY_LOG_LEN, MAX_FRI_ROUNDS, MAX_QUOTIENT_CHUNKS,
+        MAX_TRACE_WIDTH, RecursiveStarkInput, SerializedFriRound, SerializedStarkProof,
+        hash_commitment, recursive_stark_input_from_proof, serialize_stark_proof,
     };
-    use crate::air::{
-        ArithmeticAir,
-        TraceGenerator,
-    };
-    use crate::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use crate::air::{ArithmeticAir, TraceGenerator};
+    use crate::stark::{StarkProver, StarkVerifier, default_config};
 
     type TestField = Complex<Mersenne31>;
 

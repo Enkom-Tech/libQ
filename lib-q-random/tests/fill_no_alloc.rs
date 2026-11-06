@@ -26,19 +26,9 @@
 
 #![allow(clippy::unwrap_used, clippy::expect_used)]
 
-use std::alloc::{
-    GlobalAlloc,
-    Layout,
-    System,
-};
-use std::sync::atomic::{
-    AtomicUsize,
-    Ordering,
-};
-use std::sync::{
-    Mutex,
-    MutexGuard,
-};
+use std::alloc::{GlobalAlloc, Layout, System};
+use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::{Mutex, MutexGuard};
 
 use lib_q_random::LibQRng;
 

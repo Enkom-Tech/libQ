@@ -50,29 +50,14 @@
 
 use alloc::vec::Vec;
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
-use subtle::{
-    Choice,
-    ConditionallySelectable,
-    ConstantTimeEq,
-};
+use rand_core::{CryptoRng, Rng};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 use zeroize::Zeroize;
 
 use crate::error::MaulError;
 use crate::params::N;
-use crate::pke::{
-    self,
-    PkeKey,
-    PkeSecret,
-    PublicParams,
-};
-use crate::{
-    codec,
-    hash,
-};
+use crate::pke::{self, PkeKey, PkeSecret, PublicParams};
+use crate::{codec, hash};
 
 /// The left public key. Distinct from [`RightPublicKey`] so the two cannot be swapped by accident:
 /// the CK-FO transform is **asymmetric** (only the right ciphertext is masked, and only the left
@@ -455,12 +440,7 @@ fn unpack_vec(src: &[u8], bits: u32, k: usize) -> Option<Vec<[u32; N]>> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::params::{
-        ALL,
-        MAUL512,
-        MAUL768,
-        ParamSet,
-    };
+    use crate::params::{ALL, MAUL512, MAUL768, ParamSet};
 
     struct Fixture {
         pp: PublicParams,

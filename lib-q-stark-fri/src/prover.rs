@@ -2,45 +2,17 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::iter;
 
-use itertools::{
-    Itertools,
-    izip,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-    GrindingChallenger,
-};
-use lib_q_stark_commit::{
-    BatchOpening,
-    Mmcs,
-};
-use lib_q_stark_dft::{
-    Radix2DFTSmallBatch,
-    TwoAdicSubgroupDft,
-};
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    TwoAdicField,
-};
+use itertools::{Itertools, izip};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger, GrindingChallenger};
+use lib_q_stark_commit::{BatchOpening, Mmcs};
+use lib_q_stark_dft::{Radix2DFTSmallBatch, TwoAdicSubgroupDft};
+use lib_q_stark_field::{ExtensionField, Field, TwoAdicField};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-use lib_q_stark_util::{
-    log2_strict_usize,
-    reverse_slice_index_bits,
-};
-use tracing::{
-    debug_span,
-    info_span,
-    instrument,
-};
+use lib_q_stark_util::{log2_strict_usize, reverse_slice_index_bits};
+use tracing::{debug_span, info_span, instrument};
 
 use crate::{
-    CommitPhaseProofStep,
-    FriFoldingStrategy,
-    FriParameters,
-    FriProof,
-    ProverDataWithOpeningPoints,
+    CommitPhaseProofStep, FriFoldingStrategy, FriParameters, FriProof, ProverDataWithOpeningPoints,
     QueryProof,
 };
 

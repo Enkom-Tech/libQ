@@ -13,21 +13,13 @@ use alloc::boxed::Box;
 use core::fmt;
 
 #[cfg(feature = "alloc")]
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{TryCryptoRng, TryRng};
 
 #[cfg(feature = "alloc")]
 use crate::Result;
 #[cfg(feature = "alloc")]
 use crate::traits::{
-    EntropySource,
-    ProviderCapabilities,
-    RngConfig,
-    RngProvider,
-    SecureRng,
-    SecurityLevel,
+    EntropySource, ProviderCapabilities, RngConfig, RngProvider, SecureRng, SecurityLevel,
 };
 #[cfg(feature = "alloc")]
 use crate::validation::EntropyValidator;
@@ -310,14 +302,14 @@ impl LibQRng {
             crate::traits::EntropySourceType::OperatingSystem => {
                 SecurityLevel::CryptographicallySecure
             }
-            crate::traits::EntropySourceType::Deterministic |
-            crate::traits::EntropySourceType::User => SecurityLevel::Deterministic,
+            crate::traits::EntropySourceType::Deterministic
+            | crate::traits::EntropySourceType::User => SecurityLevel::Deterministic,
         };
 
         let deterministic = matches!(
             entropy_source.source_type(),
-            crate::traits::EntropySourceType::Deterministic |
-                crate::traits::EntropySourceType::User
+            crate::traits::EntropySourceType::Deterministic
+                | crate::traits::EntropySourceType::User
         );
 
         Self {
@@ -892,7 +884,7 @@ mod tests {
         let mut seed = [0u8; 32];
         seed[..4].copy_from_slice(&[1, 2, 3, 4]);
         let rng = LibQRng::new_deterministic(seed);
-        assert!(!rng.entropy_source_name().is_empty());
+        assert_ne!(rng.entropy_source_name(), "");
         assert_eq!(
             rng.entropy_source_type(),
             crate::traits::EntropySourceType::Deterministic

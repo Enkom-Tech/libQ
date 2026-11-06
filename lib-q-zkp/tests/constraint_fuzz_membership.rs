@@ -65,39 +65,20 @@
 #![cfg(feature = "zkp")]
 
 use lib_q_poseidon::PoseidonField;
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    RowWindow,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, RowWindow};
 // --- Arm B (BabyBear / Poseidon2) analogues. ---
 use lib_q_stark_baby_bear::BabyBear;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_zkp::air::unlinkable_membership::{
-    CTX_ELEMS,
-    MEMBERSHIP_ROW_WIDTH,
-    SECRET_T_ELEMS,
-    UnlinkableMembershipAir,
-    generate_membership_trace,
-    membership_leaf,
-    membership_nullifier,
-    membership_public_values,
+    CTX_ELEMS, MEMBERSHIP_ROW_WIDTH, SECRET_T_ELEMS, UnlinkableMembershipAir,
+    generate_membership_trace, membership_leaf, membership_nullifier, membership_public_values,
 };
 use lib_q_zkp::air::unlinkable_membership_baby_bear::{
-    CTX_ELEMS as CTX_ELEMS_BB,
-    MEMBERSHIP_ROW_WIDTH as MEMBERSHIP_ROW_WIDTH_BB,
-    SECRET_T_ELEMS as SECRET_T_ELEMS_BB,
-    UnlinkableMembershipBbAir,
-    generate_membership_trace_bb,
-    membership_leaf_bb,
-    membership_nullifier_bb,
-    membership_public_values_bb,
+    CTX_ELEMS as CTX_ELEMS_BB, MEMBERSHIP_ROW_WIDTH as MEMBERSHIP_ROW_WIDTH_BB,
+    SECRET_T_ELEMS as SECRET_T_ELEMS_BB, UnlinkableMembershipBbAir, generate_membership_trace_bb,
+    membership_leaf_bb, membership_nullifier_bb, membership_public_values_bb,
 };
 use lib_q_zkp::air::wide_hash::WideDigest;
 use lib_q_zkp::air::wide_merkle_path_baby_bear::WideDigestBb;

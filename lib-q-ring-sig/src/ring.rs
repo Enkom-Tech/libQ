@@ -4,11 +4,7 @@ use alloc::vec::Vec;
 
 use lib_q_lattice_zkp::AjtaiCommitment;
 use lib_q_lattice_zkp::serialize::write_module_vec;
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
 
 /// Ordered federation members (commitment images under a shared CRS).
 #[derive(Clone, Debug, Eq, PartialEq)]

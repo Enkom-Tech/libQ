@@ -2,16 +2,8 @@
 
 mod common;
 
-use common::{
-    det_rng,
-    issue,
-};
-use lib_q_blind_token::{
-    decode_token_value,
-    encode_token_value,
-    redeem,
-    verify,
-};
+use common::{det_rng, issue};
+use lib_q_blind_token::{decode_token_value, encode_token_value, redeem, verify};
 
 #[test]
 fn token_value_roundtrip_is_stable_and_verifies() {

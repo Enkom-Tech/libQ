@@ -8,17 +8,10 @@ use std::hint::black_box;
 
 #[cfg(feature = "slh-dsa")]
 use criterion::BenchmarkId;
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 #[cfg(feature = "slh-dsa")]
 use lib_q_core::SigSecretKey;
-use lib_q_core::{
-    Algorithm,
-    SignatureOperations,
-};
+use lib_q_core::{Algorithm, SignatureOperations};
 use lib_q_sig::LibQSignatureProvider;
 
 /// Key-generation entropy for SLH-DSA (3×N with N ≤ 32).

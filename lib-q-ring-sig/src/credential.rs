@@ -4,19 +4,10 @@ use alloc::vec::Vec;
 
 use lib_q_lattice_zkp::serialize::write_module_vec;
 use lib_q_lattice_zkp::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    OpeningProof,
-    VerifyError,
-    leaf_hash,
-    verify_opening,
+    AjtaiCommitment, AjtaiCommitmentKey, OpeningProof, VerifyError, leaf_hash, verify_opening,
 };
 
-use crate::dualring_lb::{
-    DualRingLbSignature,
-    dualring_lb_signing_context,
-    verify_dualring_lb,
-};
+use crate::dualring_lb::{DualRingLbSignature, dualring_lb_signing_context, verify_dualring_lb};
 use crate::sign::federation_signing_context;
 #[cfg(feature = "federation-opening")]
 use crate::verify::verify_federation_opening_scan;

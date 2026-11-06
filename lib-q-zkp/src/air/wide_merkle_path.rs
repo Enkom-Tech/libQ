@@ -44,29 +44,15 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_poseidon::PoseidonField;
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
 use super::poseidon_to_field;
-use super::wide_hash::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-};
+use super::wide_hash::{WIDE_DIGEST_ELEMS, WideDigest};
 use super::wide_sponge::{
-    constrain_wide_sponge,
-    generate_wide_sponge_cells,
-    wide_sponge_interm_cols,
+    constrain_wide_sponge, generate_wide_sponge_cells, wide_sponge_interm_cols,
 };
 
 /// A wide node absorbs `2 × WIDE_DIGEST_ELEMS` = 10 input elements (`left ‖ right`).
@@ -384,11 +370,7 @@ mod tests {
     /// (not just `check_constraints`) before the membership AIR (M3) composes on it.
     #[test]
     fn path_air_real_prover_round_trip_depth4() {
-        use crate::stark::{
-            StarkProver,
-            StarkVerifier,
-            fast_proof_config,
-        };
+        use crate::stark::{StarkProver, StarkVerifier, fast_proof_config};
 
         // 16 leaves → padded depth 4 → trace height 4 (power of two).
         let leaves: Vec<WideDigest> = (0..16u8).map(leaf_digest).collect();
@@ -415,11 +397,7 @@ mod tests {
     /// The real prover/verifier must REJECT a path proven against the wrong public root.
     #[test]
     fn path_air_real_prover_rejects_wrong_root() {
-        use crate::stark::{
-            StarkProver,
-            StarkVerifier,
-            fast_proof_config,
-        };
+        use crate::stark::{StarkProver, StarkVerifier, fast_proof_config};
 
         let leaves: Vec<WideDigest> = (0..16u8).map(leaf_digest).collect();
         let tree = WidePoseidonMerkleTree::from_leaf_digests(&leaves).expect("tree");

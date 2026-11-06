@@ -1,9 +1,6 @@
 //! SIMD helpers and optimized kernels for Saturnin.
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 
 pub mod runtime;
 
@@ -301,9 +298,9 @@ mod tests {
         let core = SimdOptimizedCore::new(10, 1)?;
         let caps = core.simd_capabilities();
         assert!(
-            caps.best_simd() == "AVX2" ||
-                caps.best_simd() == "NEON" ||
-                caps.best_simd() == "Scalar"
+            caps.best_simd() == "AVX2"
+                || caps.best_simd() == "NEON"
+                || caps.best_simd() == "Scalar"
         );
         Ok(())
     }

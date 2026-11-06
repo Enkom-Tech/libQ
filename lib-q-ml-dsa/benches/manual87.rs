@@ -1,12 +1,5 @@
-use lib_q_ml_dsa::ml_dsa_87::{
-    self,
-    MLDSA87KeyPair,
-    MLDSA87Signature,
-};
-use lib_q_ml_dsa::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+use lib_q_ml_dsa::ml_dsa_87::{self, MLDSA87KeyPair, MLDSA87Signature};
+use lib_q_ml_dsa::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 
 mod bench_utils;
 

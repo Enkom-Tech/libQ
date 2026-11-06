@@ -70,27 +70,15 @@
 //! [`EncProofError::ProofRejected`] on failure, so a caller structurally cannot decapsulate an
 //! unverified ciphertext.
 
-use lib_q_threshold_kem_lattice::auth_encap::{
-    AuthKey,
-    AuthenticatedCiphertext,
-};
+use lib_q_threshold_kem_lattice::auth_encap::{AuthKey, AuthenticatedCiphertext};
 use lib_q_threshold_kem_lattice::kem::Ciphertext;
 use lib_q_threshold_kem_lattice::threshold::{
-    DecapBudget,
-    ZeroShareSeeds,
-    partial_decap_masked,
-    partial_decap_masked_budgeted,
+    DecapBudget, ZeroShareSeeds, partial_decap_masked, partial_decap_masked_budgeted,
 };
 use lib_q_threshold_kem_lattice::{
-    PartialDecap,
-    SecretShare,
-    ThresholdKemError,
-    ThresholdKemLatticePublicKey,
+    PartialDecap, SecretShare, ThresholdKemError, ThresholdKemLatticePublicKey,
 };
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use crate::error::EncProofError;
 
@@ -236,10 +224,7 @@ where
 #[cfg(test)]
 mod tests {
     use lib_q_dkg::lattice::bdlop::MU;
-    use lib_q_dkg::lattice::ring::{
-        N,
-        Rq,
-    };
+    use lib_q_dkg::lattice::ring::{N, Rq};
     use lib_q_random::new_deterministic_rng;
     use lib_q_threshold_kem_lattice::kem::encapsulate_derand;
     use zeroize::Zeroizing;

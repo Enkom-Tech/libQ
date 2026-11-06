@@ -10,19 +10,8 @@
 
 use std::time::Instant;
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContext,
-    HpkeKdf,
-    HpkeKem,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeContext, HpkeKdf, HpkeKem};
 use lib_q_kem::LibQKemProvider;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

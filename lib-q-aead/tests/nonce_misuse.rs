@@ -64,12 +64,7 @@
 
 #![cfg(feature = "alloc")]
 
-use lib_q_aead::{
-    Aead,
-    AeadKey,
-    AeadWithMetadata,
-    Nonce,
-};
+use lib_q_aead::{Aead, AeadKey, AeadWithMetadata, Nonce};
 
 /// Deterministic xorshift64* — test-only, not a CSPRNG.
 struct Rng(u64);

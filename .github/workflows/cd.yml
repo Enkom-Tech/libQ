@@ -135,7 +135,7 @@ jobs:
           # Same pin as ci.yml's "Core validation" step and for the identical reason: rust-build's
           # "stable" default bypasses rust-toolchain.toml's pin entirely (an explicit `toolchain:`
           # input always wins over file auto-detection), and fmt disagrees between the two.
-          rust-version: "nightly-2026-07-24"
+          rust-version: "1.99.1"
           # Clippy and tests run once below (workspace --all-features) to avoid triple compile/test.
           run-clippy: "false"
           run-tests: "false"
@@ -182,7 +182,7 @@ jobs:
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
           # Match rust-toolchain.toml (directory override), same as ci.yml's aarch64-qemu-execution.
-          toolchain: nightly
+          toolchain: 1.99.1
           components: rust-src
 
       - name: Install aarch64 std for override toolchain

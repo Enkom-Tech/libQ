@@ -18,26 +18,13 @@ use alloc::vec::Vec;
 
 use lib_q_aead::create_aead;
 // Use lib-q abstractions instead of direct algorithm coupling
-use lib_q_core::{
-    Aead as CoreAead,
-    AeadKey,
-    Algorithm,
-    Hash as CoreHash,
-    KemOperations,
-    Nonce,
-};
+use lib_q_core::{Aead as CoreAead, AeadKey, Algorithm, Hash as CoreHash, KemOperations, Nonce};
 use lib_q_hash::digest::Digest;
-use lib_q_hash::{
-    HashAlgorithm,
-    create_hash,
-};
+use lib_q_hash::{HashAlgorithm, create_hash};
 use lib_q_kem::LibQKemProvider;
 use zeroize::Zeroizing;
 
-use crate::error::{
-    AeadOperation,
-    HpkeError,
-};
+use crate::error::{AeadOperation, HpkeError};
 use crate::kdf::hkdf::HkdfImpl;
 use crate::providers::traits::*;
 use crate::security::CryptoRng;
@@ -358,10 +345,10 @@ impl KdfProvider for PostQuantumProvider {
 
     fn supports_kdf(&self, kdf: HpkeKdf) -> bool {
         match kdf {
-            HpkeKdf::HkdfShake128 |
-            HpkeKdf::HkdfShake256 |
-            HpkeKdf::HkdfSha3_256 |
-            HpkeKdf::HkdfSha3_512 => {
+            HpkeKdf::HkdfShake128
+            | HpkeKdf::HkdfShake256
+            | HpkeKdf::HkdfSha3_256
+            | HpkeKdf::HkdfSha3_512 => {
                 // Check if we can create a hash instance for this KDF
                 Self::create_hash_instance(kdf).is_ok()
             }
@@ -540,9 +527,9 @@ mod tests {
 
         // Should have some supported algorithms
         assert!(
-            !algorithms.kems.is_empty() ||
-                !algorithms.kdfs.is_empty() ||
-                !algorithms.aeads.is_empty()
+            !algorithms.kems.is_empty()
+                || !algorithms.kdfs.is_empty()
+                || !algorithms.aeads.is_empty()
         );
     }
 

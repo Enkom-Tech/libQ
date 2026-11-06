@@ -3,10 +3,7 @@
 use alloc::vec::Vec;
 
 use lib_q_ring::Poly;
-use subtle::{
-    Choice,
-    ConstantTimeEq,
-};
+use subtle::{Choice, ConstantTimeEq};
 
 use crate::error::VerifyError;
 

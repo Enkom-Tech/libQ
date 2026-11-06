@@ -1,9 +1,6 @@
 //! Interoperability tests ensuring wire-format compatibility between modes
 
-use lib_q_ml_dsa::{
-    Zeroizing,
-    *,
-};
+use lib_q_ml_dsa::{Zeroizing, *};
 
 #[test]
 fn test_baseline_mode_equivalence() {

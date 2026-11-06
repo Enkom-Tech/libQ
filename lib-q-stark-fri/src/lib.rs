@@ -15,12 +15,6 @@ pub mod verifier;
 pub use config::*;
 pub use extractor::*;
 pub use hiding_pcs::*;
-pub use proof::{
-    SiblingValueRef,
-    *,
-};
+pub use proof::{SiblingValueRef, *};
 pub use two_adic_pcs::*;
-pub use verifier::{
-    FriInitialEval,
-    FriReducedOpenings,
-};
+pub use verifier::{FriInitialEval, FriReducedOpenings};

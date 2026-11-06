@@ -8,17 +8,10 @@
 //! for random number generation in the libQ ecosystem.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    collections::BTreeMap,
-    string::String,
-};
+use alloc::{boxed::Box, collections::BTreeMap, string::String};
 use core::fmt;
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use crate::Result;
 

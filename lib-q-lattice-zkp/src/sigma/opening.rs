@@ -2,49 +2,24 @@
 
 use alloc::vec::Vec;
 
-use lib_q_ring::{
-    ModuleMatrix,
-    ModuleVec,
-    Poly,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_ring::{ModuleMatrix, ModuleVec, Poly};
+use rand_core::{CryptoRng, Rng};
 
-use crate::commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-};
-use crate::error::{
-    ProofError,
-    VerifyError,
-};
+use crate::commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening};
+use crate::error::{ProofError, VerifyError};
 use crate::serialize::write_module_vec;
 #[cfg(not(feature = "hardened"))]
 use crate::sigma::secrets::accumulate_response_z;
 #[cfg(feature = "hardened")]
+use crate::sigma::secrets::{MaskedWitness, accumulate_response_z_masked};
 use crate::sigma::secrets::{
-    MaskedWitness,
-    accumulate_response_z_masked,
-};
-use crate::sigma::secrets::{
-    SecretMaskVec,
-    SecretWitnessVec,
-    scrub_rejected_dual_ring_parts,
-    scrub_rejected_opening_parts,
-    zeroize_module_vec,
-    zeroize_polys,
+    SecretMaskVec, SecretWitnessVec, scrub_rejected_dual_ring_parts, scrub_rejected_opening_parts,
+    zeroize_module_vec, zeroize_polys,
 };
 #[cfg(not(feature = "hardened"))]
 use crate::util::module_infinity_norm;
 use crate::util::{
-    module_add,
-    module_norm_within_bound,
-    module_ring_mul_challenge,
-    module_sub,
-    polys_ct_eq,
+    module_add, module_norm_within_bound, module_ring_mul_challenge, module_sub, polys_ct_eq,
 };
 
 /// Mask `w = A·y` and response `z = y + c·wit`.
@@ -229,9 +204,9 @@ pub fn prove_opening<R: Rng + CryptoRng>(
     max_attempts: usize,
 ) -> Result<OpeningProof, ProofError> {
     let p = &key.params;
-    if opening.message.0.len() != p.module_rank ||
-        opening.randomness.0.len() != p.randomness_dimension ||
-        com.value.0.len() != p.module_rank
+    if opening.message.0.len() != p.module_rank
+        || opening.randomness.0.len() != p.randomness_dimension
+        || com.value.0.len() != p.module_rank
     {
         return Err(ProofError::InvalidParameters);
     }
@@ -239,8 +214,8 @@ pub fn prove_opening<R: Rng + CryptoRng>(
     let matrix = ModuleMatrix::expand_from_seed(&key.seed, p.module_rank, p.witness_len());
 
     let expected_com = matrix.mul_vec_polys(&wit_vec);
-    if expected_com.0.len() != com.value.0.len() ||
-        !bool::from(polys_ct_eq(&expected_com.0, &com.value.0))
+    if expected_com.0.len() != com.value.0.len()
+        || !bool::from(polys_ct_eq(&expected_com.0, &com.value.0))
     {
         return Err(ProofError::InvalidParameters);
     }
@@ -343,9 +318,9 @@ pub fn verify_opening(
     z_inf_bound: i32,
 ) -> Result<(), VerifyError> {
     let p = &key.params;
-    if proof.w.0.len() != p.module_rank ||
-        proof.z.0.len() != p.witness_len() ||
-        com.value.0.len() != p.module_rank
+    if proof.w.0.len() != p.module_rank
+        || proof.z.0.len() != p.witness_len()
+        || com.value.0.len() != p.module_rank
     {
         return Err(VerifyError::InvalidFormat);
     }
@@ -398,9 +373,9 @@ pub fn prove_dual_ring_opening<R: Rng + CryptoRng>(
     if ring.is_empty() || signer_idx >= ring.len() {
         return Err(ProofError::InvalidParameters);
     }
-    if opening.message.0.len() != p.module_rank ||
-        opening.randomness.0.len() != p.randomness_dimension ||
-        ring[signer_idx].value.0.len() != p.module_rank
+    if opening.message.0.len() != p.module_rank
+        || opening.randomness.0.len() != p.randomness_dimension
+        || ring[signer_idx].value.0.len() != p.module_rank
     {
         return Err(ProofError::InvalidParameters);
     }
@@ -413,8 +388,8 @@ pub fn prove_dual_ring_opening<R: Rng + CryptoRng>(
     let wit_vec = witness_vec(opening);
     let matrix = ModuleMatrix::expand_from_seed(&key.seed, p.module_rank, p.witness_len());
     let expected_com = matrix.mul_vec_polys(&wit_vec);
-    if expected_com.0.len() != ring[signer_idx].value.0.len() ||
-        !bool::from(polys_ct_eq(&expected_com.0, &ring[signer_idx].value.0))
+    if expected_com.0.len() != ring[signer_idx].value.0.len()
+        || !bool::from(polys_ct_eq(&expected_com.0, &ring[signer_idx].value.0))
     {
         return Err(ProofError::InvalidParameters);
     }

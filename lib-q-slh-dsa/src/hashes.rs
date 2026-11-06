@@ -6,26 +6,11 @@ mod shake;
 
 use core::fmt::Debug;
 
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
-pub use shake::{
-    Shake,
-    Shake128f,
-    Shake128s,
-    Shake192f,
-    Shake192s,
-    Shake256f,
-    Shake256s,
-};
+use hybrid_array::{Array, ArraySize};
+pub use shake::{Shake, Shake128f, Shake128s, Shake192f, Shake192s, Shake256f, Shake256s};
 
 use crate::address::Address;
-use crate::{
-    PkSeed,
-    SkPrf,
-    SkSeed,
-};
+use crate::{PkSeed, SkPrf, SkSeed};
 
 /// A trait specifying the hash functions described in FIPS-205 section 10
 ///

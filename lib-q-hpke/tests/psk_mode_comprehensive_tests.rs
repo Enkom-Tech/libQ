@@ -6,17 +6,8 @@
 #![cfg(feature = "std")]
 #![allow(unused_imports, unused_variables, unused_mut, clippy::useless_vec)]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
-use lib_q_hpke::{
-    HpkeContext,
-    HpkeMode,
-    HpkePskWireFormat,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
+use lib_q_hpke::{HpkeContext, HpkeMode, HpkePskWireFormat};
 use lib_q_kem::LibQKemProvider;
 
 /// Test PSK mode basic functionality

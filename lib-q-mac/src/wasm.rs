@@ -9,14 +9,8 @@ use lib_q_random::new_secure_rng;
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
 
-use crate::profile::{
-    QCW_MAC_KEY_BYTES,
-    QCW_MAC_TAG_BYTES,
-};
-use crate::{
-    QcwMac,
-    QcwMacKey,
-};
+use crate::profile::{QCW_MAC_KEY_BYTES, QCW_MAC_TAG_BYTES};
+use crate::{QcwMac, QcwMacKey};
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_MAC", e)

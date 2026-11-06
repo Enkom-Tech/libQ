@@ -12,44 +12,15 @@ use core::marker::PhantomData;
 use block_buffer::BlockSizes;
 use digest::array::ArraySize;
 use digest::block_api::{
-    AlgorithmName,
-    Block,
-    BlockSizeUser,
-    Buffer,
-    BufferKindUser,
-    Eager,
-    ExtendableOutputCore,
-    FixedOutputCore,
-    OutputSizeUser,
-    Reset,
-    UpdateCore,
-    XofReaderCore,
+    AlgorithmName, Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore,
+    FixedOutputCore, OutputSizeUser, Reset, UpdateCore, XofReaderCore,
 };
-use digest::common::hazmat::{
-    DeserializeStateError,
-    SerializableState,
-    SerializedState,
-};
-use digest::typenum::{
-    IsLessOrEqual,
-    True,
-    U0,
-    U200,
-};
-use digest::{
-    HashMarker,
-    Output,
-};
+use digest::common::hazmat::{DeserializeStateError, SerializableState, SerializedState};
+use digest::typenum::{IsLessOrEqual, True, U0, U200};
+use digest::{HashMarker, Output};
 
-pub use crate::cshake::{
-    CShake128Core,
-    CShake256Core,
-};
-use crate::{
-    DEFAULT_ROUND_COUNT,
-    PLEN,
-    xor_block,
-};
+pub use crate::cshake::{CShake128Core, CShake256Core};
+use crate::{DEFAULT_ROUND_COUNT, PLEN, xor_block};
 
 /// Pre-FIPS Keccak **padding nibble** for raw Keccak *fixed* digests (not FIPS 202 SHA-3 padding).
 /// Used by the `lib-q-keccak-digest` crate with [`SpongeHasherCore`]; do not substitute SHA-3 padding in protocols.

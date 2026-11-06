@@ -1,13 +1,7 @@
 //! Portable duplex AEAD (scalar Keccak-f\[1600\]).
 
-use crate::crypto::{
-    decrypt as core_decrypt,
-    encrypt as core_encrypt,
-};
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-};
+use crate::crypto::{decrypt as core_decrypt, encrypt as core_encrypt};
+use crate::params::{KEY_BYTES, NONCE_BYTES};
 use crate::simd::traits::DuplexAeadOps;
 
 /// Portable implementation marker (zero-sized).

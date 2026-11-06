@@ -1,56 +1,23 @@
 #![allow(clippy::clone_on_copy)]
 
-use itertools::{
-    Itertools,
-    izip,
-};
+use itertools::{Itertools, izip};
 use lib_q_random::DeterministicRng;
 use lib_q_stark_challenger::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
-    Shake256Challenger32,
+    CanObserve, CanSample, CanSampleBits, FieldChallenger, GrindingChallenger, Shake256Challenger32,
 };
-use lib_q_stark_commit::{
-    ExtensionMmcs,
-    Pcs,
-    PolynomialSpace,
-};
+use lib_q_stark_commit::{ExtensionMmcs, Pcs, PolynomialSpace};
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    ExtensionField,
-    Field,
-    PrimeField32,
-};
-use lib_q_stark_fri::{
-    FriParameters,
-    TwoAdicFriPcs,
-};
+use lib_q_stark_field::{BasedVectorSpace, ExtensionField, Field, PrimeField32};
+use lib_q_stark_fri::{FriParameters, TwoAdicFriPcs};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    Hash,
-    SerializingHasher,
-};
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
-use rand::{
-    Rng,
-    RngExt,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, Hash, SerializingHasher};
+use rand::distr::{Distribution, StandardUniform};
+use rand::{Rng, RngExt};
 
 fn seeded_rng() -> impl Rng {
     DeterministicRng::seed_from_u64(0)

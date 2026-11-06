@@ -6,12 +6,7 @@
 //! also be caught.
 
 use lib_q_hqc::hqc_pke::HqcPke;
-use lib_q_hqc::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
 const SEED_EK_BYTES: usize = 32;
 

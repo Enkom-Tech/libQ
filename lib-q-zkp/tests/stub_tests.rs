@@ -7,31 +7,18 @@
 #![cfg(feature = "zkp")]
 #![allow(clippy::field_reassign_with_default)]
 
-use std::panic::{
-    AssertUnwindSafe,
-    catch_unwind,
-};
+use std::panic::{AssertUnwindSafe, catch_unwind};
 
 use lib_q_stark_matrix::Matrix;
 use lib_q_zkp::air::TraceGenerator;
 use lib_q_zkp::air::state_transition::{
-    MAX_TRANSACTION_SIZE,
-    STATE_HASH_SIZE,
-    StateTransitionAir,
-    StateTransitionInput,
+    MAX_TRANSACTION_SIZE, STATE_HASH_SIZE, StateTransitionAir, StateTransitionInput,
     TransitionConstraints,
 };
 use lib_q_zkp::air::transaction::{
-    SignatureMode,
-    TransactionAir,
-    TransactionInput,
-    TransactionType,
+    SignatureMode, TransactionAir, TransactionInput, TransactionType,
 };
-use lib_q_zkp::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-};
+use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
 /// Asserts that the trace has valid dimensions for STARK proving (non-empty).
 fn assert_valid_trace_dimensions<F, M>(trace: &M)

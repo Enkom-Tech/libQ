@@ -5,17 +5,8 @@
 //!
 //! Note: This example requires the "no-std" feature to be enabled.
 
-use lib_q_aead::security::validation::{
-    validate_key,
-    validate_nonce,
-};
-use lib_q_aead::{
-    AeadKey,
-    AeadWithMetadata,
-    Algorithm,
-    Nonce,
-    create_aead,
-};
+use lib_q_aead::security::validation::{validate_key, validate_nonce};
+use lib_q_aead::{AeadKey, AeadWithMetadata, Algorithm, Nonce, create_aead};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("lib-q-aead No-Std Example");
@@ -224,10 +215,7 @@ mod embedded_hal {
     use core::result::Result;
     #[allow(clippy::disallowed_types)]
     use std::collections::HashMap;
-    use std::sync::{
-        LazyLock,
-        Mutex,
-    };
+    use std::sync::{LazyLock, Mutex};
 
     // Simulated flash memory storage
     #[allow(clippy::disallowed_types)]
@@ -279,8 +267,8 @@ mod embedded_hal {
             }
 
             // Simulate flash read operation using a HashMap
-            if let Ok(storage) = FLASH_STORAGE.lock() &&
-                let Some(data) = storage.get(&address)
+            if let Ok(storage) = FLASH_STORAGE.lock()
+                && let Some(data) = storage.get(&address)
             {
                 return Ok(data.clone());
             }
@@ -374,10 +362,7 @@ mod embedded_hal {
 
 // Example of how to use lib-q-aead in a real embedded system
 mod embedded_usage {
-    use embedded_hal::{
-        FlashMemory,
-        Uart,
-    };
+    use embedded_hal::{FlashMemory, Uart};
 
     use super::*;
 

@@ -20,52 +20,29 @@ use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_mersenne31::Mersenne31;
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_zkp::aggregation::{
-    AggregationConfig,
-    verify_aggregated_proof,
-};
-use lib_q_zkp::aggregation::{
-    ProofAggregator,
-    verify_batch,
-};
+use lib_q_zkp::aggregation::{AggregationConfig, verify_aggregated_proof};
+use lib_q_zkp::aggregation::{ProofAggregator, verify_batch};
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::air::recursive_types::serialize_stark_proof;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::air::stark_verifier::{
-    StarkVerifierAir,
-    build_recursive_verification_input_from_proof_with_poseidon,
+    StarkVerifierAir, build_recursive_verification_input_from_proof_with_poseidon,
     debug_one_fri_round,
 };
-use lib_q_zkp::air::{
-    ArithmeticAir,
-    TraceGenerator,
-};
+use lib_q_zkp::air::{ArithmeticAir, TraceGenerator};
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::air::{
-    MerkleInclusionAir,
-    MerkleProofInput,
-    merkle_root_from_bytes,
-    poseidon_to_field,
+    MerkleInclusionAir, MerkleProofInput, merkle_root_from_bytes, poseidon_to_field,
 };
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_zkp::api::{
-    build_merkle_tree,
-    merkle_path_from_tree,
-};
+use lib_q_zkp::api::{build_merkle_tree, merkle_path_from_tree};
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::check_constraints;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_zkp::stark::FriQueryParams;
-use lib_q_zkp::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-};
+use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_zkp::stark::{
-    poseidon_config,
-    poseidon_test_config,
-};
+use lib_q_zkp::stark::{poseidon_config, poseidon_test_config};
 
 type Val = lib_q_stark_field::extension::Complex<Mersenne31>;
 
@@ -270,11 +247,7 @@ fn test_aggregate_rejects_invalid_second_proof() {
 #[cfg(feature = "recursive-proofs-experimental")]
 fn test_aggregate_merkle_root_covers_all_proofs() {
     use lib_q_sha3::Shake256;
-    use lib_q_sha3::digest::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
     let config = poseidon_test_config();
     let agg_cfg = aggregation_poseidon_test_match();

@@ -7,10 +7,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 
 /// Saturnin block cipher core implementation
 ///

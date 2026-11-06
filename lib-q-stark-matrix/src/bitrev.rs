@@ -1,18 +1,8 @@
-use lib_q_stark_util::{
-    log2_strict_usize,
-    reverse_bits_len,
-};
+use lib_q_stark_util::{log2_strict_usize, reverse_bits_len};
 
 use crate::Matrix;
-use crate::dense::{
-    DenseMatrix,
-    DenseStorage,
-    RowMajorMatrix,
-};
-use crate::row_index_mapped::{
-    RowIndexMap,
-    RowIndexMappedView,
-};
+use crate::dense::{DenseMatrix, DenseStorage, RowMajorMatrix};
+use crate::row_index_mapped::{RowIndexMap, RowIndexMappedView};
 use crate::util::reverse_matrix_index_bits;
 
 /// A trait for matrices that support *bit-reversed row reordering*.

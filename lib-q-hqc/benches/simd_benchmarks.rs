@@ -31,22 +31,13 @@ extern crate alloc;
 use std::hint::black_box;
 
 #[cfg(feature = "alloc")]
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
 #[cfg(all(feature = "alloc", feature = "simd-avx2", target_arch = "x86_64"))]
 use lib_q_hqc::simd::Avx2;
 #[cfg(feature = "alloc")]
 use lib_q_hqc::simd::{
     Portable,
-    traits::{
-        PolynomialOps,
-        SyndromeOps,
-    },
+    traits::{PolynomialOps, SyndromeOps},
 };
 
 /// Benchmark polynomial multiplication (sparse-dense).
@@ -264,11 +255,7 @@ fn benchmark_error_correction(c: &mut Criterion) {
 /// Benchmark HQC parameter set operations
 #[cfg(feature = "alloc")]
 fn benchmark_hqc_parameter_sets(c: &mut Criterion) {
-    use lib_q_hqc::params::{
-        Hqc1Params,
-        Hqc3Params,
-        Hqc5Params,
-    };
+    use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params};
 
     let mut group = c.benchmark_group("hqc_parameter_sets");
 
@@ -352,10 +339,7 @@ fn benchmark_throughput(c: &mut Criterion) {
 #[cfg(all(feature = "simd-avx2", feature = "alloc", target_arch = "x86_64"))]
 fn benchmark_vect_mul_avx2_vs_schoolbook(c: &mut Criterion) {
     use lib_q_hqc::hqc_pke::schoolbook_vect_mul_mod_xnm1;
-    use lib_q_hqc::params::{
-        Hqc1Params,
-        HqcParams,
-    };
+    use lib_q_hqc::params::{Hqc1Params, HqcParams};
     use lib_q_hqc::simd::avx2::gf2x::avx2_vect_mul_mod_xnm1;
 
     let n = Hqc1Params::VEC_N_SIZE_64;

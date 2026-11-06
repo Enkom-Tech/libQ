@@ -6,12 +6,7 @@
 //! constant-time decrypt contract documented in `SECURITY.md`.
 
 use lib_q_rocca_s::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Nonce,
-    RoccaSAead,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Nonce, RoccaSAead,
 };
 
 #[test]

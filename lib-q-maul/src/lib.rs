@@ -15,25 +15,9 @@ pub mod sample;
 
 pub use error::MaulError;
 pub use kem::{
-    Ciphertext,
-    LeftPublicKey,
-    LeftSecretKey,
-    RightPublicKey,
-    RightSecretKey,
-    SharedSecret,
-    decapsulate,
-    encapsulate,
-    encapsulate_with_messages,
-    generate_left,
-    generate_right,
-    keygen_left,
-    keygen_right,
+    Ciphertext, LeftPublicKey, LeftSecretKey, RightPublicKey, RightSecretKey, SharedSecret,
+    decapsulate, encapsulate, encapsulate_with_messages, generate_left, generate_right,
+    keygen_left, keygen_right,
 };
-pub use params::{
-    ALL,
-    MAUL512,
-    MAUL768,
-    MAUL1024,
-    ParamSet,
-};
+pub use params::{ALL, MAUL512, MAUL768, MAUL1024, ParamSet};
 pub use pke::PublicParams;

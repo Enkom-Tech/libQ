@@ -6,23 +6,11 @@
 //! the error variant that says so, and a count inconsistent with the bytes present must be refused
 //! as truncation.
 
-use lib_q_dkg::lattice::bdlop::{
-    Commitment,
-    MU,
-};
-use lib_q_dkg::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-};
+use lib_q_dkg::lattice::bdlop::{Commitment, MU};
+use lib_q_dkg::lattice::ring::{RQ_BYTES, Rq};
 use lib_q_dkg::{
-    CoeffCommitments,
-    DkgError,
-    MAX_ROUND1_COMMITMENTS,
-    MAX_WIRE_RQ_VEC_LEN,
-    decode_complaint,
-    decode_round1_commitments,
-    decode_share_evaluation,
-    encode_round1_commitments,
+    CoeffCommitments, DkgError, MAX_ROUND1_COMMITMENTS, MAX_WIRE_RQ_VEC_LEN, decode_complaint,
+    decode_round1_commitments, decode_share_evaluation, encode_round1_commitments,
 };
 
 /// Header of every V1 payload: version, profile.

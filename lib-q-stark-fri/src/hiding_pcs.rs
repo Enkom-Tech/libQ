@@ -3,58 +3,23 @@ use core::cell::RefCell;
 use core::fmt::Debug;
 
 use itertools::Itertools;
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-    GrindingChallenger,
-};
-use lib_q_stark_commit::{
-    BatchOpening,
-    Mmcs,
-    OpenedValues,
-    Pcs,
-    PolynomialSpace,
-};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger, GrindingChallenger};
+use lib_q_stark_commit::{BatchOpening, Mmcs, OpenedValues, Pcs, PolynomialSpace};
 use lib_q_stark_dft::TwoAdicSubgroupDft;
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    TwoAdicField,
-    batch_multiplicative_inverse,
-};
+use lib_q_stark_field::{ExtensionField, Field, TwoAdicField, batch_multiplicative_inverse};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::bitrev::{
-    BitReversalPerm,
-    BitReversibleMatrix,
-};
-use lib_q_stark_matrix::dense::{
-    DenseMatrix,
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_matrix::bitrev::{BitReversalPerm, BitReversibleMatrix};
+use lib_q_stark_matrix::dense::{DenseMatrix, RowMajorMatrix, RowMajorMatrixView};
 use lib_q_stark_matrix::horizontally_truncated::HorizontallyTruncated;
 use lib_q_stark_matrix::row_index_mapped::RowIndexMappedView;
 use lib_q_stark_util::zip_eq::zip_eq;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
-use rand::{
-    Rng,
-    RngExt,
-};
-use tracing::{
-    info_span,
-    instrument,
-};
+use rand::distr::{Distribution, StandardUniform};
+use rand::{Rng, RngExt};
+use tracing::{info_span, instrument};
 
 use crate::verifier::FriError;
-use crate::{
-    FriParameters,
-    FriProof,
-    TwoAdicFriPcs,
-};
+use crate::{FriParameters, FriProof, TwoAdicFriPcs};
 
 /// A hiding FRI PCS. Both MMCSs must also be hiding; this is not enforced at compile time so it's
 /// the user's responsibility to configure.

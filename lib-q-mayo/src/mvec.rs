@@ -32,10 +32,10 @@ pub fn m_vec_mul_add(input: &[u64], a: u8, acc: &mut [u64]) {
     let acc: &mut [u64; M_VEC_LIMBS] = (&mut acc[..M_VEC_LIMBS]).try_into().unwrap();
     let tab = mul_table(a);
     for i in 0..M_VEC_LIMBS {
-        acc[i] ^= ((input[i] & LSB) * ((tab & 0xFF) as u64)) ^
-            (((input[i] >> 1) & LSB) * (((tab >> 8) & 0xF) as u64)) ^
-            (((input[i] >> 2) & LSB) * (((tab >> 16) & 0xF) as u64)) ^
-            (((input[i] >> 3) & LSB) * (((tab >> 24) & 0xF) as u64));
+        acc[i] ^= ((input[i] & LSB) * ((tab & 0xFF) as u64))
+            ^ (((input[i] >> 1) & LSB) * (((tab >> 8) & 0xF) as u64))
+            ^ (((input[i] >> 2) & LSB) * (((tab >> 16) & 0xF) as u64))
+            ^ (((input[i] >> 3) & LSB) * (((tab >> 24) & 0xF) as u64));
     }
 }
 

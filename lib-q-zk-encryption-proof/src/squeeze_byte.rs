@@ -45,34 +45,15 @@
 //! disables the limb Send).
 
 #[cfg(not(feature = "std"))]
-use alloc::{
-    vec,
-    vec::Vec,
-};
+use alloc::{vec, vec::Vec};
 
-use lib_q_plonky_lookup::{
-    Direction,
-    Kind,
-    Lookup,
-    LookupAir,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_plonky_lookup::{Direction, Kind, Lookup, LookupAir};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_zkp::stark::ConfigVal;
 
-use crate::logup_join::{
-    SQUEEZE_LIMB_BUS,
-    XOF_STREAM_BUS,
-    fc,
-    mcol,
-    sconst,
-};
+use crate::logup_join::{SQUEEZE_LIMB_BUS, XOF_STREAM_BUS, fc, mcol, sconst};
 
 // Column layout.
 //
@@ -311,11 +292,7 @@ pub fn generate_squeeze_byte_trace_partial(
 
 /// Reference SHAKE-256 XOF of `input` (`n` bytes) — the ground-truth squeeze stream.
 fn shake256_xof(input: &[u8], n: usize) -> Vec<u8> {
-    use lib_q_sha3::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_sha3::{ExtendableOutput, Update, XofReader};
     let mut h = lib_q_sha3::Shake256::default();
     h.update(input);
     let mut rd = h.finalize_xof();
@@ -335,20 +312,13 @@ fn bit(b: u64) -> ConfigVal {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_plonky_lookup::debug_util::{
-        LookupDebugInstance,
-        check_lookups,
-    };
+    use lib_q_plonky_lookup::debug_util::{LookupDebugInstance, check_lookups};
     use lib_q_stark::check_constraints;
 
     use super::*;
     use crate::sampler::{
-        BOUNDED_WIDTH,
-        SAMPLER_WIDTH,
-        bounded_receive_lookup,
-        generate_bounded_trace,
-        generate_ternary_trace,
-        ternary_receive_lookup,
+        BOUNDED_WIDTH, SAMPLER_WIDTH, bounded_receive_lookup, generate_bounded_trace,
+        generate_ternary_trace, ternary_receive_lookup,
     };
 
     fn active_rows(trace: &RowMajorMatrix<ConfigVal>, width: usize, active_col: usize) -> usize {
@@ -458,18 +428,11 @@ mod tests {
     /// chosen by the prover. A tampered squeeze limb unbalances the join.
     #[test]
     fn sponge_limb_send_binds_squeeze_byte_table() {
-        use lib_q_plonky_keccak_air::{
-            NUM_KECCAK_COLS,
-            NUM_ROUNDS,
-        };
+        use lib_q_plonky_keccak_air::{NUM_KECCAK_COLS, NUM_ROUNDS};
         use lib_q_stark_air::BaseAir;
 
         use crate::sponge::RATE_BYTES;
-        use crate::sponge_air::{
-            ShakeSpongeAir,
-            encap_preimage,
-            generate_provable_sponge_trace,
-        };
+        use crate::sponge_air::{ShakeSpongeAir, encap_preimage, generate_provable_sponge_trace};
 
         let pk = [0xA1u8; 32];
         let mu = [0x33u8; 32];
@@ -544,22 +507,13 @@ mod tests {
     /// the case that the single-`active`-gate design could not handle.
     #[test]
     fn two_bus_balance_full_squeeze_partial_consumption() {
-        use lib_q_plonky_keccak_air::{
-            NUM_KECCAK_COLS,
-            NUM_ROUNDS,
-        };
+        use lib_q_plonky_keccak_air::{NUM_KECCAK_COLS, NUM_ROUNDS};
         use lib_q_stark_air::BaseAir;
 
-        use crate::sampler::{
-            SAMPLER_WIDTH,
-            generate_ternary_trace,
-            ternary_receive_lookup,
-        };
+        use crate::sampler::{SAMPLER_WIDTH, generate_ternary_trace, ternary_receive_lookup};
         use crate::sponge::RATE_BYTES;
         use crate::sponge_air::{
-            ShakeSpongeAir,
-            encap_preimage,
-            generate_provable_sponge_trace,
+            ShakeSpongeAir, encap_preimage, generate_provable_sponge_trace,
             sponge_limb_send_lookups,
         };
 

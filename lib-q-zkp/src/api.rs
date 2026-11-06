@@ -12,11 +12,7 @@ use alloc::vec::Vec;
 
 use lib_q_core::Result;
 
-use crate::{
-    ZkpProof,
-    ZkpProver,
-    ZkpVerifier,
-};
+use crate::{ZkpProof, ZkpProver, ZkpVerifier};
 
 /// Merkle path for inclusion proofs
 #[derive(Debug, Clone)]
@@ -105,11 +101,7 @@ pub fn prove_membership_with_config(
     config: crate::stark::DefaultConfig,
 ) -> Result<ZkpProof> {
     use crate::ProofMetadata;
-    use crate::air::{
-        MerkleInclusionAir,
-        MerkleProofInput,
-        TraceGenerator,
-    };
+    use crate::air::{MerkleInclusionAir, MerkleProofInput, TraceGenerator};
     use crate::stark::StarkProver;
 
     if path.path_bits.len() > 64 {
@@ -209,10 +201,7 @@ pub fn verify_membership_with_depth_and_config(
     config: crate::stark::DefaultConfig,
 ) -> Result<bool> {
     use crate::ProofMetadata;
-    use crate::air::{
-        MerkleInclusionAir,
-        poseidon_slice_to_field,
-    };
+    use crate::air::{MerkleInclusionAir, poseidon_slice_to_field};
     use crate::stark::StarkVerifier;
 
     if proof.proof_type != crate::ProofType::Stark {
@@ -224,8 +213,8 @@ pub fn verify_membership_with_depth_and_config(
     }
 
     // Validate tree depth against proof metadata if present
-    if let ProofMetadata::MerkleInclusion { tree_depth } = &proof.metadata &&
-        *tree_depth as usize != expected_tree_depth
+    if let ProofMetadata::MerkleInclusion { tree_depth } = &proof.metadata
+        && *tree_depth as usize != expected_tree_depth
     {
         // Tree depth mismatch - reject to prevent depth confusion
         return Ok(false);
@@ -306,10 +295,7 @@ pub fn verify_membership_with_config(
     config: crate::stark::DefaultConfig,
 ) -> Result<bool> {
     use crate::ProofMetadata;
-    use crate::air::{
-        MerkleInclusionAir,
-        poseidon_slice_to_field,
-    };
+    use crate::air::{MerkleInclusionAir, poseidon_slice_to_field};
     use crate::stark::StarkVerifier;
 
     if proof.proof_type != crate::ProofType::Stark {
@@ -434,11 +420,7 @@ mod tests {
     use alloc::vec;
 
     use super::*;
-    use crate::{
-        ProofMetadata,
-        ProofType,
-        ZkpProof,
-    };
+    use crate::{ProofMetadata, ProofType, ZkpProof};
 
     fn empty_stark_proof_with_metadata(metadata: ProofMetadata) -> ZkpProof {
         ZkpProof {

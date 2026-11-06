@@ -27,9 +27,7 @@ use lib_q_stark_baby_bear::BabyBear;
 use lib_q_stark_field::PrimeCharacteristicRing;
 
 use crate::air::poseidon2_gadget::{
-    POSEIDON2_PERM_INTERM_COLS,
-    constrain_permutation,
-    generate_permutation_cells_and_output,
+    POSEIDON2_PERM_INTERM_COLS, constrain_permutation, generate_permutation_cells_and_output,
 };
 
 /// Sponge state width (= Poseidon2 width).
@@ -147,11 +145,7 @@ pub fn poseidon2_wide_hash_bb(input: &[BabyBear]) -> [BabyBear; WIDE_DIGEST_ELEM
 
 #[cfg(test)]
 mod tests {
-    use lib_q_stark_air::{
-        Air,
-        BaseAir,
-        WindowAccess,
-    };
+    use lib_q_stark_air::{Air, BaseAir, WindowAccess};
     use lib_q_stark_matrix::dense::RowMajorMatrix;
 
     use super::*;
@@ -300,10 +294,7 @@ mod tests {
     /// chaining (the running capacity is carried between permutations).
     #[test]
     fn under_constraint_audit_every_column() {
-        use std::panic::{
-            AssertUnwindSafe,
-            catch_unwind,
-        };
+        use std::panic::{AssertUnwindSafe, catch_unwind};
         let input: Vec<BabyBear> = (0..14u32).map(|i| fe(i * 7 + 3)).collect();
         let (air, trace) = fixture_row(&input);
         let width = trace.values.len(); // single row

@@ -2,21 +2,12 @@
 
 #![cfg(feature = "zkp")]
 
-use std::path::{
-    Path,
-    PathBuf,
-};
+use std::path::{Path, PathBuf};
 
 use lib_q_zkp::air::RECOVERY_POLICY_AIR_ID;
 use lib_q_zkp::air::recovery_policy_hybrid::RECOVERY_POLICY_HYBRID_AIR_ID;
-use lib_q_zkp::ip::{
-    verify_recovery_policy_envelope,
-    verify_recovery_policy_hybrid_envelope,
-};
-use lib_q_zkp::wire::{
-    decode_recovery_zk_proof_v0,
-    decode_recovery_zk_proof_v1,
-};
+use lib_q_zkp::ip::{verify_recovery_policy_envelope, verify_recovery_policy_hybrid_envelope};
+use lib_q_zkp::wire::{decode_recovery_zk_proof_v0, decode_recovery_zk_proof_v1};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]

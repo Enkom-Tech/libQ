@@ -1,25 +1,10 @@
 use core::mem::ManuallyDrop;
-use core::ops::{
-    Deref,
-    Div,
-    Mul,
-    Rem,
-};
+use core::ops::{Deref, Div, Mul, Rem};
 use core::ptr;
 
-use hybrid_array::typenum::operator_aliases::{
-    Prod,
-    Quot,
-};
-use hybrid_array::typenum::{
-    U0,
-    U32,
-    Unsigned,
-};
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use hybrid_array::typenum::operator_aliases::{Prod, Quot};
+use hybrid_array::typenum::{U0, U32, Unsigned};
+use hybrid_array::{Array, ArraySize};
 
 /// A 32-byte array, defined here for brevity because it is used several times
 pub type B32 = Array<u8, U32>;

@@ -147,28 +147,28 @@ impl Algorithm {
             Algorithm::CbKem8192128 => 5,
 
             // Hash algorithms don't have security levels
-            Algorithm::Shake128 |
-            Algorithm::Shake256 |
-            Algorithm::CShake128 |
-            Algorithm::CShake256 |
-            Algorithm::Sha3_224 |
-            Algorithm::Sha3_256 |
-            Algorithm::Sha3_384 |
-            Algorithm::Sha3_512 |
-            Algorithm::Keccak224 |
-            Algorithm::Keccak256 |
-            Algorithm::Keccak384 |
-            Algorithm::Keccak512 |
-            Algorithm::Kt128 |
-            Algorithm::Kt256 |
-            Algorithm::TurboShake128 |
-            Algorithm::TurboShake256 |
-            Algorithm::Kmac128 |
-            Algorithm::Kmac256 |
-            Algorithm::TupleHash128 |
-            Algorithm::TupleHash256 |
-            Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 => 0,
+            Algorithm::Shake128
+            | Algorithm::Shake256
+            | Algorithm::CShake128
+            | Algorithm::CShake256
+            | Algorithm::Sha3_224
+            | Algorithm::Sha3_256
+            | Algorithm::Sha3_384
+            | Algorithm::Sha3_512
+            | Algorithm::Keccak224
+            | Algorithm::Keccak256
+            | Algorithm::Keccak384
+            | Algorithm::Keccak512
+            | Algorithm::Kt128
+            | Algorithm::Kt256
+            | Algorithm::TurboShake128
+            | Algorithm::TurboShake256
+            | Algorithm::Kmac128
+            | Algorithm::Kmac256
+            | Algorithm::TupleHash128
+            | Algorithm::TupleHash256
+            | Algorithm::ParallelHash128
+            | Algorithm::ParallelHash256 => 0,
 
             // AEAD algorithms
             Algorithm::Saturnin => 1,
@@ -179,14 +179,14 @@ impl Algorithm {
             Algorithm::RomulusM => 1,
             Algorithm::RoccaS => 1,
 
-            Algorithm::LatticeRingSignature |
-            Algorithm::LatticeBlindIssuance |
-            Algorithm::LatticeAnonymousToken |
-            Algorithm::LatticeNullifierRegistry |
-            Algorithm::LatticeWitnessNullifier |
-            Algorithm::LatticeDualRingLb |
-            Algorithm::MixOnionRouting |
-            Algorithm::SessionResumptionBinding => 3,
+            Algorithm::LatticeRingSignature
+            | Algorithm::LatticeBlindIssuance
+            | Algorithm::LatticeAnonymousToken
+            | Algorithm::LatticeNullifierRegistry
+            | Algorithm::LatticeWitnessNullifier
+            | Algorithm::LatticeDualRingLb
+            | Algorithm::MixOnionRouting
+            | Algorithm::SessionResumptionBinding => 3,
 
             // Reserved diversity signature (Level 3 ≈ ML-DSA-65 class)
             Algorithm::FaestReserved => 3,
@@ -196,68 +196,68 @@ impl Algorithm {
     /// Get the algorithm category
     pub fn category(&self) -> AlgorithmCategory {
         match self {
-            Algorithm::MlKem512 |
-            Algorithm::MlKem768 |
-            Algorithm::MlKem1024 |
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 |
-            Algorithm::Hqc128 |
-            Algorithm::Hqc192 |
-            Algorithm::Hqc256 => AlgorithmCategory::Kem,
+            Algorithm::MlKem512
+            | Algorithm::MlKem768
+            | Algorithm::MlKem1024
+            | Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128
+            | Algorithm::Hqc128
+            | Algorithm::Hqc192
+            | Algorithm::Hqc256 => AlgorithmCategory::Kem,
 
-            Algorithm::MlDsa44 |
-            Algorithm::MlDsa65 |
-            Algorithm::MlDsa87 |
-            Algorithm::FnDsa |
-            Algorithm::FnDsa512 |
-            Algorithm::FnDsa1024 |
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => AlgorithmCategory::Signature,
+            Algorithm::MlDsa44
+            | Algorithm::MlDsa65
+            | Algorithm::MlDsa87
+            | Algorithm::FnDsa
+            | Algorithm::FnDsa512
+            | Algorithm::FnDsa1024
+            | Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => AlgorithmCategory::Signature,
 
-            Algorithm::Shake128 |
-            Algorithm::Shake256 |
-            Algorithm::CShake128 |
-            Algorithm::CShake256 |
-            Algorithm::Sha3_224 |
-            Algorithm::Sha3_256 |
-            Algorithm::Sha3_384 |
-            Algorithm::Sha3_512 |
-            Algorithm::Keccak224 |
-            Algorithm::Keccak256 |
-            Algorithm::Keccak384 |
-            Algorithm::Keccak512 |
-            Algorithm::Kt128 |
-            Algorithm::Kt256 |
-            Algorithm::TurboShake128 |
-            Algorithm::TurboShake256 |
-            Algorithm::Kmac128 |
-            Algorithm::Kmac256 |
-            Algorithm::TupleHash128 |
-            Algorithm::TupleHash256 |
-            Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 => AlgorithmCategory::Hash,
+            Algorithm::Shake128
+            | Algorithm::Shake256
+            | Algorithm::CShake128
+            | Algorithm::CShake256
+            | Algorithm::Sha3_224
+            | Algorithm::Sha3_256
+            | Algorithm::Sha3_384
+            | Algorithm::Sha3_512
+            | Algorithm::Keccak224
+            | Algorithm::Keccak256
+            | Algorithm::Keccak384
+            | Algorithm::Keccak512
+            | Algorithm::Kt128
+            | Algorithm::Kt256
+            | Algorithm::TurboShake128
+            | Algorithm::TurboShake256
+            | Algorithm::Kmac128
+            | Algorithm::Kmac256
+            | Algorithm::TupleHash128
+            | Algorithm::TupleHash256
+            | Algorithm::ParallelHash128
+            | Algorithm::ParallelHash256 => AlgorithmCategory::Hash,
 
             // AEAD algorithms
-            Algorithm::Saturnin |
-            Algorithm::Shake256Aead |
-            Algorithm::DuplexSpongeAead |
-            Algorithm::TweakAead |
-            Algorithm::RomulusN |
-            Algorithm::RomulusM |
-            Algorithm::RoccaS => AlgorithmCategory::Aead,
+            Algorithm::Saturnin
+            | Algorithm::Shake256Aead
+            | Algorithm::DuplexSpongeAead
+            | Algorithm::TweakAead
+            | Algorithm::RomulusN
+            | Algorithm::RomulusM
+            | Algorithm::RoccaS => AlgorithmCategory::Aead,
 
-            Algorithm::LatticeRingSignature |
-            Algorithm::LatticeBlindIssuance |
-            Algorithm::LatticeAnonymousToken |
-            Algorithm::LatticeNullifierRegistry |
-            Algorithm::LatticeWitnessNullifier |
-            Algorithm::LatticeDualRingLb |
-            Algorithm::MixOnionRouting |
-            Algorithm::SessionResumptionBinding => AlgorithmCategory::PrivacyProtocol,
+            Algorithm::LatticeRingSignature
+            | Algorithm::LatticeBlindIssuance
+            | Algorithm::LatticeAnonymousToken
+            | Algorithm::LatticeNullifierRegistry
+            | Algorithm::LatticeWitnessNullifier
+            | Algorithm::LatticeDualRingLb
+            | Algorithm::MixOnionRouting
+            | Algorithm::SessionResumptionBinding => AlgorithmCategory::PrivacyProtocol,
 
             // Reserved diversity signature
             Algorithm::FaestReserved => AlgorithmCategory::Signature,
@@ -268,70 +268,70 @@ impl Algorithm {
     pub fn supports_category(&self, category: AlgorithmCategory) -> bool {
         match self {
             // Pure KEM algorithms
-            Algorithm::MlKem512 |
-            Algorithm::MlKem768 |
-            Algorithm::MlKem1024 |
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 |
-            Algorithm::Hqc128 |
-            Algorithm::Hqc192 |
-            Algorithm::Hqc256 => category == AlgorithmCategory::Kem,
+            Algorithm::MlKem512
+            | Algorithm::MlKem768
+            | Algorithm::MlKem1024
+            | Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128
+            | Algorithm::Hqc128
+            | Algorithm::Hqc192
+            | Algorithm::Hqc256 => category == AlgorithmCategory::Kem,
 
             // Pure signature algorithms
-            Algorithm::MlDsa44 |
-            Algorithm::MlDsa65 |
-            Algorithm::MlDsa87 |
-            Algorithm::FnDsa |
-            Algorithm::FnDsa512 |
-            Algorithm::FnDsa1024 |
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => category == AlgorithmCategory::Signature,
+            Algorithm::MlDsa44
+            | Algorithm::MlDsa65
+            | Algorithm::MlDsa87
+            | Algorithm::FnDsa
+            | Algorithm::FnDsa512
+            | Algorithm::FnDsa1024
+            | Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => category == AlgorithmCategory::Signature,
 
             // Pure hash algorithms
-            Algorithm::Shake128 |
-            Algorithm::Shake256 |
-            Algorithm::CShake128 |
-            Algorithm::CShake256 |
-            Algorithm::Sha3_224 |
-            Algorithm::Sha3_256 |
-            Algorithm::Sha3_384 |
-            Algorithm::Sha3_512 |
-            Algorithm::Keccak224 |
-            Algorithm::Keccak256 |
-            Algorithm::Keccak384 |
-            Algorithm::Keccak512 |
-            Algorithm::Kt128 |
-            Algorithm::Kt256 |
-            Algorithm::TurboShake128 |
-            Algorithm::TurboShake256 |
-            Algorithm::Kmac128 |
-            Algorithm::Kmac256 |
-            Algorithm::TupleHash128 |
-            Algorithm::TupleHash256 |
-            Algorithm::ParallelHash128 |
-            Algorithm::ParallelHash256 => category == AlgorithmCategory::Hash,
+            Algorithm::Shake128
+            | Algorithm::Shake256
+            | Algorithm::CShake128
+            | Algorithm::CShake256
+            | Algorithm::Sha3_224
+            | Algorithm::Sha3_256
+            | Algorithm::Sha3_384
+            | Algorithm::Sha3_512
+            | Algorithm::Keccak224
+            | Algorithm::Keccak256
+            | Algorithm::Keccak384
+            | Algorithm::Keccak512
+            | Algorithm::Kt128
+            | Algorithm::Kt256
+            | Algorithm::TurboShake128
+            | Algorithm::TurboShake256
+            | Algorithm::Kmac128
+            | Algorithm::Kmac256
+            | Algorithm::TupleHash128
+            | Algorithm::TupleHash256
+            | Algorithm::ParallelHash128
+            | Algorithm::ParallelHash256 => category == AlgorithmCategory::Hash,
 
             // Pure AEAD algorithms
-            Algorithm::Saturnin |
-            Algorithm::Shake256Aead |
-            Algorithm::DuplexSpongeAead |
-            Algorithm::TweakAead |
-            Algorithm::RomulusN |
-            Algorithm::RomulusM |
-            Algorithm::RoccaS => category == AlgorithmCategory::Aead,
+            Algorithm::Saturnin
+            | Algorithm::Shake256Aead
+            | Algorithm::DuplexSpongeAead
+            | Algorithm::TweakAead
+            | Algorithm::RomulusN
+            | Algorithm::RomulusM
+            | Algorithm::RoccaS => category == AlgorithmCategory::Aead,
 
-            Algorithm::LatticeRingSignature |
-            Algorithm::LatticeBlindIssuance |
-            Algorithm::LatticeAnonymousToken |
-            Algorithm::LatticeNullifierRegistry |
-            Algorithm::LatticeWitnessNullifier |
-            Algorithm::LatticeDualRingLb |
-            Algorithm::MixOnionRouting |
-            Algorithm::SessionResumptionBinding => category == AlgorithmCategory::PrivacyProtocol,
+            Algorithm::LatticeRingSignature
+            | Algorithm::LatticeBlindIssuance
+            | Algorithm::LatticeAnonymousToken
+            | Algorithm::LatticeNullifierRegistry
+            | Algorithm::LatticeWitnessNullifier
+            | Algorithm::LatticeDualRingLb
+            | Algorithm::MixOnionRouting
+            | Algorithm::SessionResumptionBinding => category == AlgorithmCategory::PrivacyProtocol,
 
             // Reserved diversity signature
             Algorithm::FaestReserved => category == AlgorithmCategory::Signature,

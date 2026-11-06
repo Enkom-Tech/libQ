@@ -256,26 +256,14 @@ mod tests {
     use core::marker::PhantomData;
 
     use lib_q_stark_baby_bear::BabyBear;
-    use lib_q_stark_challenger::{
-        CanSample,
-        Shake128Challenger32,
-    };
-    use lib_q_stark_dft::{
-        NaiveDft,
-        TwoAdicSubgroupDft,
-    };
+    use lib_q_stark_challenger::{CanSample, Shake128Challenger32};
+    use lib_q_stark_dft::{NaiveDft, TwoAdicSubgroupDft};
     use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
-    use lib_q_stark_field::{
-        PrimeCharacteristicRing,
-        TwoAdicField,
-    };
+    use lib_q_stark_field::{PrimeCharacteristicRing, TwoAdicField};
     use lib_q_stark_shake128::Shake128Hash;
 
     use super::*;
-    use crate::testing::{
-        TrivialPcs,
-        eval_coeffs_at_pt,
-    };
+    use crate::testing::{TrivialPcs, eval_coeffs_at_pt};
 
     type F = BabyBear;
     type Challenge = F;

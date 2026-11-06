@@ -7,23 +7,9 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_random::entropy::{
-    DeterministicEntropySource,
-    UserEntropySource,
-};
-use lib_q_random::{
-    EntropySource,
-    LibQRng,
-    SecureRng,
-    new_deterministic_rng,
-    new_secure_rng,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use lib_q_random::entropy::{DeterministicEntropySource, UserEntropySource};
+use lib_q_random::{EntropySource, LibQRng, SecureRng, new_deterministic_rng, new_secure_rng};
 use rand_core::Rng;
 
 fn benchmark_deterministic_rng_creation(c: &mut Criterion) {

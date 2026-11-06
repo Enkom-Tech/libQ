@@ -9,10 +9,7 @@
 #![cfg(all(feature = "wasm", feature = "ml-dsa", target_arch = "wasm32"))]
 
 use js_sys::Uint8Array;
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 use lib_q_sig::ml_dsa::MlDsa;
 use wasm_bindgen_test::*;
 

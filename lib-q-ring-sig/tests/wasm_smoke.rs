@@ -1,26 +1,15 @@
 //! wasm-bindgen-test smoke: DualRing-LB pilot singleton on wasm32.
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AjtaiParameters,
-    commit,
-};
+use lib_q_lattice_zkp::{AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters, commit};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use lib_q_random::new_deterministic_rng;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use lib_q_random::new_secure_rng;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_ring::{ModuleVec, Poly};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_ring_sig::dualring_lb::{
-    sign_dualring_lb,
-    verify_dualring_lb,
-};
+use lib_q_ring_sig::dualring_lb::{sign_dualring_lb, verify_dualring_lb};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use rand_core::TryRng;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]

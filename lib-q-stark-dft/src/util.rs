@@ -1,15 +1,8 @@
 use core::borrow::BorrowMut;
 
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    DenseMatrix,
-    DenseStorage,
-    RowMajorMatrix,
-};
+use lib_q_stark_matrix::dense::{DenseMatrix, DenseStorage, RowMajorMatrix};
 use lib_q_stark_util::log2_strict_usize;
 use tracing::instrument;
 

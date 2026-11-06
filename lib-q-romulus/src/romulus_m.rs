@@ -4,33 +4,13 @@
 
 use aead::consts::U16;
 use aead::inout::InOutBuf;
-use aead::{
-    AeadCore,
-    AeadInOut,
-    Error,
-    Key,
-    KeyInit,
-    KeySizeUser,
-    Nonce,
-    Tag,
-    TagPosition,
-};
+use aead::{AeadCore, AeadInOut, Error, Key, KeyInit, KeySizeUser, Nonce, Tag, TagPosition};
 use subtle::ConstantTimeEq;
 use zeroize::Zeroize;
 
 use crate::backend::{
-    AD_BLK_EVN,
-    AD_BLK_ODD,
-    MSG_BLK,
-    ad_encryption,
-    ad2msg_encryption,
-    g8a,
-    lfsr_gf56,
-    msg_decryption_m_inplace,
-    msg_encryption_m_inplace,
-    nonce_encryption,
-    reset_lfsr_gf56,
-    rho,
+    AD_BLK_EVN, AD_BLK_ODD, MSG_BLK, ad_encryption, ad2msg_encryption, g8a, lfsr_gf56,
+    msg_decryption_m_inplace, msg_encryption_m_inplace, nonce_encryption, reset_lfsr_gf56, rho,
     romulus_m_compute_w,
 };
 

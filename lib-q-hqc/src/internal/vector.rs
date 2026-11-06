@@ -107,9 +107,9 @@ pub fn vect_fixed_weight(
                 j = 0;
             }
 
-            random_data = ((random_bytes[j] as u32) << 16) |
-                ((random_bytes[j + 1] as u32) << 8) |
-                (random_bytes[j + 2] as u32);
+            random_data = ((random_bytes[j] as u32) << 16)
+                | ((random_bytes[j + 1] as u32) << 8)
+                | (random_bytes[j + 2] as u32);
             j += 3;
 
             let pos = random_data % (result.len() as u32);

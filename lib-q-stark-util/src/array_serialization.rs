@@ -1,17 +1,9 @@
 use alloc::vec::Vec;
 use core::marker::PhantomData;
 
-use serde::de::{
-    SeqAccess,
-    Visitor,
-};
+use serde::de::{SeqAccess, Visitor};
 use serde::ser::SerializeTuple;
-use serde::{
-    Deserialize,
-    Deserializer,
-    Serialize,
-    Serializer,
-};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub fn serialize<S: Serializer, T: Serialize, const N: usize>(
     data: &[T; N],
@@ -61,10 +53,7 @@ where
 
 #[cfg(test)]
 mod tests {
-    use serde::{
-        Deserialize,
-        Serialize,
-    };
+    use serde::{Deserialize, Serialize};
     use serde_json;
 
     use super::*;

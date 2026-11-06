@@ -4,19 +4,9 @@
 //! [`FixedMontyForm`] operations from `crypto-bigint`, which are intended to be constant-time with
 //! respect to the **values**, not the modulus bit length (see upstream docs on `exponent_bits`).
 
-use crypto_bigint::modular::{
-    FixedMontyForm,
-    FixedMontyParams,
-};
-use crypto_bigint::{
-    Choice as CtChoice,
-    CtEq,
-    Uint,
-};
-use subtle::{
-    Choice,
-    ConditionallySelectable,
-};
+use crypto_bigint::modular::{FixedMontyForm, FixedMontyParams};
+use crypto_bigint::{Choice as CtChoice, CtEq, Uint};
+use subtle::{Choice, ConditionallySelectable};
 
 use crate::error::PrfError;
 

@@ -5,19 +5,10 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    Algorithm,
-    DecryptSemanticOutcome,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, Algorithm, DecryptSemanticOutcome, Nonce, Result,
 };
 
-use crate::metadata::{
-    AeadMetadata,
-    AeadWithMetadata,
-};
+use crate::metadata::{AeadMetadata, AeadWithMetadata};
 
 /// Duplex-sponge AEAD (Keccak-f\[1600\]) — registry / HPKE-facing type.
 pub struct DuplexSpongeAead {

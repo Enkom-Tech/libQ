@@ -10,12 +10,7 @@ use alloc::vec::Vec;
 
 #[cfg(feature = "alloc")]
 use lib_q_core::api::{
-    AeadOperations,
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-    HashOperations,
-    KemOperations,
+    AeadOperations, Algorithm, AlgorithmCategory, CryptoProvider, HashOperations, KemOperations,
     SignatureOperations,
 };
 #[cfg(feature = "alloc")]
@@ -23,16 +18,10 @@ use lib_q_core::error::Result;
 #[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
 #[cfg(feature = "alloc")]
-use lib_q_core::traits::{
-    AeadKey,
-    Nonce,
-};
+use lib_q_core::traits::{AeadKey, Nonce};
 
 #[cfg(feature = "alloc")]
-use crate::{
-    Aead,
-    create_aead,
-};
+use crate::{Aead, create_aead};
 
 /// Registry-backed AEAD provider for integration with `lib-q-core` contexts.
 #[cfg(feature = "alloc")]
@@ -143,10 +132,7 @@ mod tests {
     #[cfg(not(feature = "std"))]
     use alloc::vec;
 
-    use lib_q_core::{
-        Algorithm,
-        Error,
-    };
+    use lib_q_core::{Algorithm, Error};
 
     use super::*;
 

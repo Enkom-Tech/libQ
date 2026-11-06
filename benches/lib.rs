@@ -5,19 +5,10 @@ use std::hint::black_box;
 // The `mut` keyword is required for the benchmark groups because criterion's
 // `bench_function` method requires a mutable reference, even though the linter
 // doesn't detect this requirement. We suppress the warnings with #[allow(unused_mut)].
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 // These imports are used within conditional compilation blocks
 #[allow(unused_imports)]
-use libq::{
-    Algorithm,
-    KemContext,
-    LibQCryptoProvider,
-    SignatureContext,
-};
+use libq::{Algorithm, KemContext, LibQCryptoProvider, SignatureContext};
 
 fn bench_key_generation(c: &mut Criterion) {
     #[allow(unused_mut)]

@@ -10,11 +10,7 @@
 //! elsewhere in this repo) would fail these on OUTPUT alone -- that is what
 //! `tag_mismatch_rejected_at_every_position` is built to catch.
 
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
+use lib_q_core::{Aead, AeadKey, Nonce};
 use lib_q_tweak_aead::TweakAead;
 use lib_q_tweak_aead::params::TAG_BYTES;
 

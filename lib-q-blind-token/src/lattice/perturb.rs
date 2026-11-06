@@ -36,18 +36,10 @@
 
 use alloc::vec::Vec;
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use super::gadget::GADGET_LEN;
-use super::ring::{
-    N,
-    Rq,
-    centered_coeffs,
-    poly_from_i64,
-};
+use super::ring::{N, Rq, centered_coeffs, poly_from_i64};
 
 /// Rounding width for the convolution (must exceed the smoothing parameter of `Z`).
 pub const ROUND_WIDTH: f64 = 3.0;
@@ -328,10 +320,10 @@ impl PerturbSampler {
 fn std_normal<R: CryptoRng + Rng>(rng: &mut R) -> f64 {
     let mut b = [0u8; 16];
     rng.fill_bytes(&mut b);
-    let u1 = ((u64::from_le_bytes(b[0..8].try_into().unwrap()) >> 11) as f64) *
-        (1.0 / ((1u64 << 53) as f64));
-    let u2 = ((u64::from_le_bytes(b[8..16].try_into().unwrap()) >> 11) as f64) *
-        (1.0 / ((1u64 << 53) as f64));
+    let u1 = ((u64::from_le_bytes(b[0..8].try_into().unwrap()) >> 11) as f64)
+        * (1.0 / ((1u64 << 53) as f64));
+    let u2 = ((u64::from_le_bytes(b[8..16].try_into().unwrap()) >> 11) as f64)
+        * (1.0 / ((1u64 << 53) as f64));
     let u1 = u1.max(f64::MIN_POSITIVE);
     (-2.0 * u1.ln()).sqrt() * (2.0 * core::f64::consts::PI * u2).cos()
 }

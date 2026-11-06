@@ -6,22 +6,13 @@ use alloc::format;
 use alloc::vec::Vec;
 
 #[cfg(feature = "ml-kem")]
-use lib_q_core::{
-    Algorithm,
-    KemOperations,
-};
+use lib_q_core::{Algorithm, KemOperations};
 #[cfg(feature = "ml-kem")]
-use lib_q_kem::{
-    LibQKemProvider,
-    available_algorithms,
-};
+use lib_q_kem::{LibQKemProvider, available_algorithms};
 #[cfg(feature = "alloc")]
 use zeroize::Zeroizing;
 
-use crate::error::{
-    HpkeError,
-    KemOperation,
-};
+use crate::error::{HpkeError, KemOperation};
 use crate::kem::traits::Kem;
 use crate::types::*;
 

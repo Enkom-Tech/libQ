@@ -40,9 +40,7 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
 mod tests {
     use super::*;
     use crate::simd::traits::Operations;
-    use crate::simd::{
-        self,
-    };
+    use crate::simd::{self};
 
     fn test_serialize_generic<SIMDUnit: Operations>() {
         // Test the case where GAMMA1 = 2^{19}

@@ -130,8 +130,9 @@ fn core_constants_are_derived_not_hand_written() {
             if got != want {
                 // Name the transposition explicitly when that is what it is — it is the failure
                 // mode this test was written for, and it is invisible in a raw hex diff.
-                let transposed = got.len() == want.len() &&
-                    got.as_chunks::<2>()
+                let transposed = got.len() == want.len()
+                    && got
+                        .as_chunks::<2>()
                         .0
                         .iter()
                         .zip(want.as_chunks::<2>().0.iter())

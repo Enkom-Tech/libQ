@@ -2,17 +2,8 @@
 
 use lib_q_keccak::f1600;
 
-use crate::params::{
-    BLOCK_BYTES,
-    KEY_BYTES,
-    NONCE_BYTES,
-    PLEN,
-    RATE_BYTES,
-};
-use crate::sponge::{
-    first_32_from_state,
-    xor_into_rate,
-};
+use crate::params::{BLOCK_BYTES, KEY_BYTES, NONCE_BYTES, PLEN, RATE_BYTES};
+use crate::sponge::{first_32_from_state, xor_into_rate};
 
 /// One block of keystream for 256-bit counter `block_index`.
 pub fn keystream_block(

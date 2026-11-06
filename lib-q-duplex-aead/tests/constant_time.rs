@@ -10,11 +10,7 @@
 //! only inspected a prefix of the tag -- that is exactly what `tag_mismatch_rejected_at_every_position`
 //! is built to catch.
 
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
+use lib_q_core::{Aead, AeadKey, Nonce};
 use lib_q_duplex_aead::DuplexSpongeAead;
 
 fn setup() -> (DuplexSpongeAead, AeadKey, Nonce, Vec<u8>) {

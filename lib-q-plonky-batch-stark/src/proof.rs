@@ -2,17 +2,9 @@ use alloc::vec::Vec;
 
 use lib_q_plonky_lookup::LookupData;
 use lib_q_plonky_uni_stark::OpenedValues;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use crate::config::{
-    Challenge,
-    Commitment,
-    PcsProof,
-    StarkGenericConfig,
-};
+use crate::config::{Challenge, Commitment, PcsProof, StarkGenericConfig};
 
 #[derive(Serialize, Deserialize)]
 #[serde(bound = "")]

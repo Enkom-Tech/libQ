@@ -1,10 +1,7 @@
 use crate::constants::COEFFICIENTS_IN_RING_ELEMENT;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
-use crate::{
-    VerificationError,
-    encoding,
-};
+use crate::{VerificationError, encoding};
 
 #[cfg_attr(tarpaulin, inline(never))]
 #[cfg_attr(not(tarpaulin), inline(always))]
@@ -102,8 +99,8 @@ pub(crate) fn deserialize<SIMDUnit: Operations>(
         // `hint_serialized[j]` -- a byte, so up to 254 -- into a buffer of length omega + k.
         // Attacker-supplied signature bytes therefore panic the verifier out of bounds
         // (reproduced in release: "the len is 61 but the index is 61" for ML-DSA-65).
-        if (current_true_hints_seen < previous_true_hints_seen) ||
-            (current_true_hints_seen > max_ones_in_hint)
+        if (current_true_hints_seen < previous_true_hints_seen)
+            || (current_true_hints_seen > max_ones_in_hint)
         {
             // the true hints seen should be increasing
             return Err(VerificationError::MalformedHintError);
@@ -158,13 +155,8 @@ macro_rules! malformed_hint_coverage_for {
             use super::*;
             use crate::constants::gamma1_ring_element_size;
             use crate::constants::$param_mod::{
-                BITS_PER_GAMMA1_COEFFICIENT,
-                COLUMNS_IN_A,
-                COMMITMENT_HASH_SIZE,
-                GAMMA1_EXPONENT,
-                MAX_ONES_IN_HINT,
-                ROWS_IN_A,
-                SIGNATURE_SIZE,
+                BITS_PER_GAMMA1_COEFFICIENT, COLUMNS_IN_A, COMMITMENT_HASH_SIZE, GAMMA1_EXPONENT,
+                MAX_ONES_IN_HINT, ROWS_IN_A, SIGNATURE_SIZE,
             };
             use crate::polynomial::PolynomialRingElement;
             use crate::simd::portable::PortableSIMDUnit;

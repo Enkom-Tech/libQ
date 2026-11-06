@@ -21,21 +21,11 @@
 //! check that the masking has not regressed into an actual branch (e.g. an early
 //! return, or a length check on `e`/`s` that only fires one way).
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
 use lib_q_cb_kem::{
-    CRYPTO_BYTES,
-    CRYPTO_CIPHERTEXTBYTES,
-    CRYPTO_PUBLICKEYBYTES,
-    CRYPTO_SECRETKEYBYTES,
-    Ciphertext,
-    LibQRng,
-    decapsulate,
-    encapsulate,
-    keypair,
+    CRYPTO_BYTES, CRYPTO_CIPHERTEXTBYTES, CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES, Ciphertext,
+    LibQRng, decapsulate, encapsulate, keypair,
 };
 
 /// Keygen is the expensive part of Classical McEliece; decapsulation is cheap.

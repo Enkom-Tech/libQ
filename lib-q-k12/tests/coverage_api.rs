@@ -1,21 +1,11 @@
 //! Exercises `AlgorithmName` and `Debug` on public types (often missed when tests only use
 //! `finalize_boxed` / `ExtendableOutput` helpers).
 
-use core::fmt::{
-    self,
-    Display,
-};
+use core::fmt::{self, Display};
 
 use lib_q_k12::digest::block_api::AlgorithmName;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use lib_q_k12::{
-    Kt128,
-    Kt256,
-};
+use lib_q_k12::digest::{ExtendableOutput, Update, XofReader};
+use lib_q_k12::{Kt128, Kt256};
 
 struct AlgNameKt128;
 impl Display for AlgNameKt128 {

@@ -2,11 +2,7 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lib_q_mayo::mayo_2;
 
 fn bench_mayo2(c: &mut Criterion) {

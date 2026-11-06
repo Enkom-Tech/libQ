@@ -18,21 +18,11 @@
 //! deterministic sources for testing.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    vec::Vec,
-};
+use alloc::{boxed::Box, vec::Vec};
 
 use crate::kt128_expander::Kt128Expander;
-use crate::traits::{
-    EntropyConfig,
-    EntropySource,
-    EntropySourceType,
-};
-use crate::{
-    Error,
-    Result,
-};
+use crate::traits::{EntropyConfig, EntropySource, EntropySourceType};
+use crate::{Error, Result};
 
 /// Operating system entropy source
 ///
@@ -582,14 +572,8 @@ impl NistAes256CtrDrbg {
     ///
     /// Encrypts a 128-bit plaintext using AES256-ECB mode.
     fn aes256_ecb(key: &[u8; 32], ctr: &[u8; 16], buffer: &mut [u8; 16]) {
-        use aes::cipher::{
-            BlockCipherEncrypt,
-            KeyInit,
-        };
-        use aes::{
-            Aes256,
-            Block,
-        };
+        use aes::cipher::{BlockCipherEncrypt, KeyInit};
+        use aes::{Aes256, Block};
         let cipher = Aes256::new_from_slice(key).expect("32-byte key");
         buffer.copy_from_slice(ctr);
         let mut block = Block::from(*buffer);
@@ -795,20 +779,17 @@ mod tests {
     use alloc::vec;
 
     use super::*;
-    use crate::kt128_expander::{
-        KT128_DET_GOLDEN_U64_SEED_64,
-        KT128_DET_GOLDEN_ZERO_SEED_64,
-    };
+    use crate::kt128_expander::{KT128_DET_GOLDEN_U64_SEED_64, KT128_DET_GOLDEN_ZERO_SEED_64};
 
     #[test]
     fn test_os_entropy_source_creation() {
         let source = OsEntropySource::new();
-        assert!(!source.name().is_empty());
+        assert_ne!(source.name(), "");
         assert_eq!(source.source_type(), EntropySourceType::OperatingSystem);
 
         // Test that platform is detected and used in name
         let platform = source.platform();
-        assert!(!platform.is_empty());
+        assert_ne!(platform, "");
         assert!(source.name().contains(platform));
 
         // Test that quality is set based on platform
@@ -819,7 +800,7 @@ mod tests {
     #[test]
     fn test_hardware_entropy_source_creation() {
         let source = HardwareEntropySource::new();
-        assert!(!source.name().is_empty());
+        assert_ne!(source.name(), "");
         assert_eq!(source.source_type(), EntropySourceType::Hardware);
     }
 
@@ -841,7 +822,7 @@ mod tests {
         let mut seed = [0u8; 32];
         seed[..8].copy_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
         let source = DeterministicEntropySource::new(seed);
-        assert!(!source.name().is_empty());
+        assert_ne!(source.name(), "");
         assert_eq!(source.source_type(), EntropySourceType::Deterministic);
         #[allow(clippy::float_cmp)]
         {
@@ -886,7 +867,7 @@ mod tests {
     fn test_user_entropy_source_creation() {
         let entropy_data = vec![1, 2, 3, 4, 5, 6, 7, 8];
         let source = UserEntropySource::new(entropy_data);
-        assert!(!source.name().is_empty());
+        assert_ne!(source.name(), "");
         assert_eq!(source.source_type(), EntropySourceType::User);
     }
 
@@ -1064,7 +1045,7 @@ mod tests {
         }
 
         // Test that platform is still accessible and used in name
-        assert!(!platform.is_empty());
+        assert_ne!(platform, "");
         assert!(os_source.name().contains(platform));
     }
 }

@@ -40,15 +40,8 @@
 //!
 //! [`MerkleInclusionAir`]: crate::air::MerkleInclusionAir
 
-use lib_q_poseidon::{
-    Poseidon128,
-    PoseidonField,
-    PoseidonPermutation,
-};
-use lib_q_stark_merkle::{
-    MerkleTreeMmcs,
-    PoseidonHasher,
-};
+use lib_q_poseidon::{Poseidon128, PoseidonField, PoseidonPermutation};
+use lib_q_stark_merkle::{MerkleTreeMmcs, PoseidonHasher};
 use lib_q_stark_symmetric::PseudoCompressionFunction;
 
 /// Node compression matching `MerkleInclusionAir`: one Poseidon-128 permutation of
@@ -108,10 +101,7 @@ mod tests {
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;
-    use crate::air::merkle_inclusion::{
-        MerkleHash,
-        compute_merkle_root,
-    };
+    use crate::air::merkle_inclusion::{MerkleHash, compute_merkle_root};
 
     fn fe(a: u32, b: u32) -> PoseidonField {
         PoseidonField::new_complex(Mersenne31::new(a), Mersenne31::new(b))
@@ -152,10 +142,7 @@ mod tests {
     /// outlive it. Keeping a published footgun alive just to host its own negative control would
     /// have been the wrong trade.
     fn old_sponge_node(l: PoseidonField, r: PoseidonField) -> PoseidonField {
-        use lib_q_poseidon::{
-            Poseidon,
-            Poseidon128,
-        };
+        use lib_q_poseidon::{Poseidon, Poseidon128};
         Poseidon128.hash_single(&[l, r])
     }
 

@@ -114,13 +114,13 @@ pub fn modq_decode(d: &[u8], h: &mut [u16]) -> Option<usize> {
         return None;
     }
     let mut ov = 0xFFFF;
-    let x = ((d[0] as u64) << 48) |
-        ((d[1] as u64) << 40) |
-        ((d[2] as u64) << 32) |
-        ((d[3] as u64) << 24) |
-        ((d[4] as u64) << 16) |
-        ((d[5] as u64) << 8) |
-        (d[6] as u64);
+    let x = ((d[0] as u64) << 48)
+        | ((d[1] as u64) << 40)
+        | ((d[2] as u64) << 32)
+        | ((d[3] as u64) << 24)
+        | ((d[4] as u64) << 16)
+        | ((d[5] as u64) << 8)
+        | (d[6] as u64);
     let h0 = ((x >> 42) as u32) & 0x3FFF;
     let h1 = ((x >> 28) as u32) & 0x3FFF;
     let h2 = ((x >> 14) as u32) & 0x3FFF;

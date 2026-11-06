@@ -12,10 +12,7 @@ use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    Poseidon,
-    Poseidon128,
-};
+use crate::{Poseidon, Poseidon128};
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_POSEIDON", e)

@@ -8,40 +8,17 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_ring::ModuleVec;
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 use subtle::ConstantTimeEq;
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
-use crate::commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    commit,
-};
-use crate::error::{
-    ProofError,
-    VerifyError,
-};
+use crate::commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening, commit};
+use crate::error::{ProofError, VerifyError};
 use crate::params::AjtaiParameters;
 use crate::profile::LatticeZkpProfileV0;
 use crate::serialize::write_module_vec;
-use crate::sigma::opening::{
-    OpeningProof,
-    prove_opening,
-    sample_random_opening,
-    verify_opening,
-};
+use crate::sigma::opening::{OpeningProof, prove_opening, sample_random_opening, verify_opening};
 
 /// Fiat–Shamir label binding the issuer attestation to the blinded commitment bytes.
 pub const BLIND_ISSUER_FS_LABEL: &[u8] = b"blind-issuer-v1";

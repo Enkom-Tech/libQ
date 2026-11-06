@@ -3,39 +3,14 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use digest::block_api::{
-    AlgorithmName,
-    Block,
-    BlockSizeUser,
-    Buffer,
-    BufferKindUser,
-    Eager,
-    ExtendableOutputCore,
-    UpdateCore,
-    XofReaderCore,
+    AlgorithmName, Block, BlockSizeUser, Buffer, BufferKindUser, Eager, ExtendableOutputCore,
+    UpdateCore, XofReaderCore,
 };
-use digest::consts::{
-    U128,
-    U136,
-    U168,
-};
-use digest::{
-    ExtendableOutputReset,
-    HashMarker,
-    Reset,
-    Update,
-    XofReader,
-};
+use digest::consts::{U128, U136, U168};
+use digest::{ExtendableOutputReset, HashMarker, Reset, Update, XofReader};
 #[cfg(feature = "alloc")]
-use lib_q_sha3::parallel::{
-    turbo_shake128_x4,
-    turbo_shake256_x4,
-};
-use lib_q_sha3::{
-    TurboShake128,
-    TurboShake128Reader,
-    TurboShake256,
-    TurboShake256Reader,
-};
+use lib_q_sha3::parallel::{turbo_shake128_x4, turbo_shake256_x4};
+use lib_q_sha3::{TurboShake128, TurboShake128Reader, TurboShake256, TurboShake256Reader};
 
 const CHUNK_SIZE: usize = 8192;
 /// Number of leaves hashed together by the AVX2-accelerated batched path.

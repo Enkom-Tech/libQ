@@ -1,11 +1,7 @@
 use core::marker::PhantomData;
 use core::ops::Range;
 
-use lib_q_stark_air::{
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{AirBuilder, BaseAir, WindowAccess};
 
 /// A column-restricted view over a trace window.
 ///

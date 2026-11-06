@@ -4,19 +4,10 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    Algorithm,
-    DecryptSemanticOutcome,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, Algorithm, DecryptSemanticOutcome, Nonce, Result,
 };
 
-use crate::metadata::{
-    AeadMetadata,
-    AeadWithMetadata,
-};
+use crate::metadata::{AeadMetadata, AeadWithMetadata};
 
 /// Romulus-M (nonce-misuse-resistant AEAD) for the lib-Q AEAD registry.
 pub struct RomulusMAead {

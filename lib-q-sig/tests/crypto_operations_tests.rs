@@ -9,18 +9,10 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-use lib_q_core::{
-    Algorithm,
-    SigPublicKey,
-    Signature,
-    SignatureOperations,
-};
+use lib_q_core::{Algorithm, SigPublicKey, Signature, SignatureOperations};
 use lib_q_sig::LibQSignatureProvider;
 #[cfg(feature = "fn-dsa")]
-use lib_q_sig::fn_dsa::{
-    FnDsa512,
-    FnDsa1024,
-};
+use lib_q_sig::fn_dsa::{FnDsa512, FnDsa1024};
 use lib_q_sig::ml_dsa::MlDsa;
 #[cfg(all(feature = "slh-dsa-std", feature = "std"))]
 use lib_q_sig::slh_dsa::SlhDsa;
@@ -801,10 +793,7 @@ mod security_tests {
 /// Performance and timing tests
 #[cfg(feature = "alloc")]
 mod performance_tests {
-    use std::time::{
-        Duration,
-        Instant,
-    };
+    use std::time::{Duration, Instant};
 
     use super::*;
 

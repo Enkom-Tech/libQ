@@ -1,19 +1,8 @@
 #![cfg(feature = "std")]
 #![allow(clippy::assertions_on_constants)]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContext,
-    HpkeKdf,
-    HpkeKem,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeContext, HpkeKdf, HpkeKem};
 use lib_q_kem::LibQKemProvider;
 
 /// Test that HPKE context can be created with proper KEM provider
@@ -172,9 +161,9 @@ fn test_error_handling_no_provider() {
         Err(e) => format!("{}", e),
     };
     assert!(
-        error_msg.contains("no provider configured") ||
-            error_msg.contains("provider not configured") ||
-            error_msg.contains("NotImplemented"),
+        error_msg.contains("no provider configured")
+            || error_msg.contains("provider not configured")
+            || error_msg.contains("NotImplemented"),
         "Error should indicate missing provider: {}",
         error_msg
     );

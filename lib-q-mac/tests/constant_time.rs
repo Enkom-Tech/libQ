@@ -10,10 +10,7 @@
 //! than an unwritten assumption -- exactly the kind of regression fixed at ed104c2 for the
 //! seven short-circuiting `PartialEq` impls elsewhere in this repo.
 
-use lib_q_mac::{
-    QcwMac,
-    QcwMacKey,
-};
+use lib_q_mac::{QcwMac, QcwMacKey};
 
 fn key() -> QcwMacKey {
     QcwMacKey::from_bytes([0x42; 32])

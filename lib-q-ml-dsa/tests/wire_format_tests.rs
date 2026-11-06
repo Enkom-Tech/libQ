@@ -2,10 +2,7 @@
 
 use std::fs;
 
-use lib_q_ml_dsa::{
-    Zeroizing,
-    *,
-};
+use lib_q_ml_dsa::{Zeroizing, *};
 
 #[test]
 fn test_verification_key_serialization_stable() {

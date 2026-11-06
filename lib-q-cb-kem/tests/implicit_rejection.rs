@@ -16,15 +16,8 @@
 //! boundary where a must-reject case belongs.
 
 use lib_q_cb_kem::{
-    CRYPTO_BYTES,
-    CRYPTO_CIPHERTEXTBYTES,
-    CRYPTO_PUBLICKEYBYTES,
-    CRYPTO_SECRETKEYBYTES,
-    Ciphertext,
-    LibQRng,
-    decapsulate,
-    encapsulate,
-    keypair,
+    CRYPTO_BYTES, CRYPTO_CIPHERTEXTBYTES, CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES, Ciphertext,
+    LibQRng, decapsulate, encapsulate, keypair,
 };
 
 /// `SecretKey` borrows its buffer, so the caller owns the storage and this fills it in place.

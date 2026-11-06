@@ -21,46 +21,20 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_random::Kt128Rng;
-use lib_q_stark::{
-    Proof as StarkProof,
-    ProverError,
-    StarkConfig,
-    prove,
-    verify,
-};
-use lib_q_stark_baby_bear::{
-    BabyBear,
-    BabyBearDft,
-};
+use lib_q_stark::{Proof as StarkProof, ProverError, StarkConfig, prove, verify};
+use lib_q_stark_baby_bear::{BabyBear, BabyBearDft};
 use lib_q_stark_challenger::Shake256Challenger32;
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::BinomialExtensionField;
-use lib_q_stark_field::{
-    PrimeCharacteristicRing,
-    PrimeField32,
-};
-use lib_q_stark_fri::{
-    FriParameters,
-    HidingFriPcs,
-    TwoAdicFriPcs,
-};
-use lib_q_stark_merkle::{
-    MerkleTreeHidingMmcs,
-    MerkleTreeMmcs,
-};
+use lib_q_stark_field::{PrimeCharacteristicRing, PrimeField32};
+use lib_q_stark_fri::{FriParameters, HidingFriPcs, TwoAdicFriPcs};
+use lib_q_stark_merkle::{MerkleTreeHidingMmcs, MerkleTreeMmcs};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 
 use crate::air::unlinkable_membership_baby_bear::{
-    CTX_ELEMS,
-    SECRET_T_ELEMS,
-    UnlinkableMembershipBbAir,
-    generate_membership_trace_bb,
-    membership_nullifier_bb,
-    membership_public_values_bb,
+    CTX_ELEMS, SECRET_T_ELEMS, UnlinkableMembershipBbAir, generate_membership_trace_bb,
+    membership_nullifier_bb, membership_public_values_bb,
 };
 use crate::air::wide_merkle_path_baby_bear::WideDigestBb;
 use crate::air::wide_sponge_baby_bear::WIDE_DIGEST_ELEMS;
@@ -748,17 +722,12 @@ mod tests {
         use lib_q_stark_mersenne31::Mersenne31;
 
         use crate::air::unlinkable_membership::{
-            CTX_ELEMS as A_CTX,
-            SECRET_T_ELEMS as A_T,
-            membership_leaf,
+            CTX_ELEMS as A_CTX, SECRET_T_ELEMS as A_T, membership_leaf,
         };
         use crate::air::wide_hash::WideDigest as AWideDigest;
         use crate::membership::{
-            MembershipWitness,
-            prove_unlinkable_membership,
-            prove_unlinkable_membership_zk,
-            verify_unlinkable_membership,
-            verify_unlinkable_membership_zk,
+            MembershipWitness, prove_unlinkable_membership, prove_unlinkable_membership_zk,
+            verify_unlinkable_membership, verify_unlinkable_membership_zk,
         };
         use crate::merkle::wide_node_hash;
 

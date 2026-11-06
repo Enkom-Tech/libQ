@@ -11,29 +11,13 @@ use core::arch::x86::*;
 use core::arch::x86_64::*;
 use core::mem::transmute;
 
-use super::mp31::{
-    PRIMES,
-    mp_mmul,
-    mp_sub,
-};
-use super::poly_avx2::{
-    mp_add_x8,
-    mp_half_x8,
-    mp_mmul_x8,
-    mp_sub_x8,
-};
+use super::mp31::{PRIMES, mp_mmul, mp_sub};
+use super::poly_avx2::{mp_add_x8, mp_half_x8, mp_mmul_x8, mp_sub_x8};
 // Most of the zint31 functions do not have AVX2-optimized versions, so we
 // re-export the plain ones.
 pub(crate) use crate::zint31::{
-    bitlength,
-    zint_add_mul_small,
-    zint_add_scaled_mul_small,
-    zint_bezout,
-    zint_mod_small_signed,
-    zint_mod_small_unsigned,
-    zint_mul_small,
-    zint_norm_zero,
-    zint_sub_scaled,
+    bitlength, zint_add_mul_small, zint_add_scaled_mul_small, zint_bezout, zint_mod_small_signed,
+    zint_mod_small_unsigned, zint_mul_small, zint_norm_zero, zint_sub_scaled,
 };
 
 // Parallel version of zint_mod_small_unsigned()

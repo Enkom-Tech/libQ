@@ -23,39 +23,17 @@ use core::cmp::Reverse;
 use core::marker::PhantomData;
 
 use itertools::Itertools;
-use lib_q_stark_commit::{
-    BatchOpening,
-    BatchOpeningRef,
-    Mmcs,
-};
+use lib_q_stark_commit::{BatchOpening, BatchOpeningRef, Mmcs};
 use lib_q_stark_field::PackedValue;
-use lib_q_stark_matrix::{
-    Dimensions,
-    Matrix,
-};
-use lib_q_stark_symmetric::{
-    CryptographicHasher,
-    Hash,
-    PseudoCompressionFunction,
-};
-use lib_q_stark_util::{
-    log2_ceil_usize,
-    log2_strict_usize,
-};
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use lib_q_stark_matrix::{Dimensions, Matrix};
+use lib_q_stark_symmetric::{CryptographicHasher, Hash, PseudoCompressionFunction};
+use lib_q_stark_util::{log2_ceil_usize, log2_strict_usize};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::MerkleTree;
 use crate::MerkleTreeError::{
-    EmptyBatch,
-    IncompatibleHeights,
-    IndexOutOfBounds,
-    RootMismatch,
-    WrongBatchSize,
-    WrongHeight,
+    EmptyBatch, IncompatibleHeights, IndexOutOfBounds, RootMismatch, WrongBatchSize, WrongHeight,
 };
 
 /// A Merkle Tree-based commitment scheme for multiple matrices of potentially differing heights.
@@ -159,8 +137,8 @@ where
         &self,
         inputs: Vec<M>,
     ) -> (Self::Commitment, Self::ProverData<M>) {
-        if let Some(max_height) = inputs.iter().map(|m| m.height()).max() &&
-            max_height > 0
+        if let Some(max_height) = inputs.iter().map(|m| m.height()).max()
+            && max_height > 0
         {
             let log_max_height = log2_ceil_usize(max_height);
             // Non-power-of-two matrix heights: support by placing leaves at appropriate tree levels
@@ -367,24 +345,12 @@ mod tests {
     use itertools::Itertools;
     use lib_q_random::DeterministicRng;
     use lib_q_stark_commit::Mmcs;
-    use lib_q_stark_field::{
-        Field,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_field::{Field, PrimeCharacteristicRing};
     use lib_q_stark_matrix::dense::RowMajorMatrix;
-    use lib_q_stark_matrix::{
-        Dimensions,
-        Matrix,
-    };
-    use lib_q_stark_mersenne31::{
-        Mersenne31,
-        TestPermutation,
-    };
+    use lib_q_stark_matrix::{Dimensions, Matrix};
+    use lib_q_stark_mersenne31::{Mersenne31, TestPermutation};
     use lib_q_stark_symmetric::{
-        CryptographicHasher,
-        PaddingFreeSponge,
-        PseudoCompressionFunction,
-        TruncatedPermutation,
+        CryptographicHasher, PaddingFreeSponge, PseudoCompressionFunction, TruncatedPermutation,
     };
 
     use super::MerkleTreeMmcs;

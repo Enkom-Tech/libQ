@@ -6,32 +6,18 @@ use core::iter;
 
 use itertools::Itertools;
 use lib_q_stark_field::{
-    Field,
-    TwoAdicField,
-    assert_two_adic_bits,
-    assert_two_adic_fft_height,
+    Field, TwoAdicField, assert_two_adic_bits, assert_two_adic_fft_height,
     scale_slice_in_place_single_core,
 };
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixViewMut,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixViewMut};
 use lib_q_stark_matrix::util::reverse_matrix_index_bits;
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_util::{
-    as_base_slice,
-    log2_strict_usize,
-    reverse_slice_index_bits,
-};
+use lib_q_stark_util::{as_base_slice, log2_strict_usize, reverse_slice_index_bits};
 use spin::RwLock;
 
 use crate::{
-    Butterfly,
-    DifButterfly,
-    DifButterflyZeros,
-    DitButterfly,
-    TwiddleFreeButterfly,
+    Butterfly, DifButterfly, DifButterflyZeros, DitButterfly, TwiddleFreeButterfly,
     TwoAdicSubgroupDft,
 };
 

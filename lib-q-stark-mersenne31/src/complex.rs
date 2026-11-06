@@ -5,11 +5,7 @@
 //! kronecker(-1, p) = -1, that is, -1 is not square in F_p.
 
 use lib_q_stark_field::PrimeCharacteristicRing;
-use lib_q_stark_field::extension::{
-    Complex,
-    ComplexExtendable,
-    HasTwoAdicBinomialExtension,
-};
+use lib_q_stark_field::extension::{Complex, ComplexExtendable, HasTwoAdicBinomialExtension};
 
 use crate::Mersenne31;
 
@@ -51,10 +47,7 @@ impl HasTwoAdicBinomialExtension<2> for Mersenne31 {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_stark_field::{
-        ExtensionField,
-        PrimeField32,
-    };
+    use lib_q_stark_field::{ExtensionField, PrimeField32};
     // Note: lib_q_stark_field_testing crate not available in lib-Q
     // Field property tests are implemented manually below
     use num_bigint::BigUint;
@@ -184,10 +177,7 @@ mod tests {
     }
 
     use lib_q_stark_field_testing::{
-        test_extension_field,
-        test_field,
-        test_packed_extension_field,
-        test_two_adic_field,
+        test_extension_field, test_field, test_packed_extension_field, test_two_adic_field,
     };
 
     test_field!(

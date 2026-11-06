@@ -24,11 +24,7 @@
 use alloc::vec::Vec;
 
 #[cfg(feature = "poseidon")]
-use lib_q_poseidon::{
-    Poseidon,
-    Poseidon128,
-    PoseidonField,
-};
+use lib_q_poseidon::{Poseidon, Poseidon128, PoseidonField};
 use lib_q_stark_symmetric::CryptographicHasher;
 
 /// Hasher that hashes sequences of PoseidonField to a single digest via Poseidon128.

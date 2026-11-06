@@ -44,10 +44,7 @@
 
 use std::collections::BTreeSet;
 use std::fs;
-use std::path::{
-    Path,
-    PathBuf,
-};
+use std::path::{Path, PathBuf};
 
 /// The feature under guard.
 const FEATURE: &str = "shake256x4";
@@ -359,8 +356,8 @@ mod resolution {
     fn forwards(features: &str) -> bool {
         let m = manifest(features);
         let enabled = resolve_feature(&m, FEATURE).expect("feature is declared");
-        enabled.contains(&format!("comm/{FEATURE}")) ||
-            enabled.contains(&format!("comm?/{FEATURE}"))
+        enabled.contains(&format!("comm/{FEATURE}"))
+            || enabled.contains(&format!("comm?/{FEATURE}"))
     }
 
     /// The defect that was live on main: declared, forwards nothing. MUST still be caught.

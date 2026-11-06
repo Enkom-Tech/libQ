@@ -11,17 +11,10 @@ use alloc::vec::Vec;
 use lib_q_ring::Poly;
 use zeroize::Zeroizing;
 
-use crate::commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-};
+use crate::commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening};
 use crate::error::VerifyError;
 use crate::serialize::append_module_vec;
-use crate::sigma::opening::{
-    OpeningProof,
-    verify_opening,
-};
+use crate::sigma::opening::{OpeningProof, verify_opening};
 
 /// Fixed layout: first message polynomial carries serial, origin tag, and epoch LE.
 pub const TOKEN_SERIAL_LEN: usize = 32;
@@ -164,10 +157,7 @@ impl AnonymousToken {
 mod to_bytes_tests {
     use alloc::vec;
 
-    use lib_q_ring::{
-        ModuleVec,
-        Poly,
-    };
+    use lib_q_ring::{ModuleVec, Poly};
 
     use super::*;
     use crate::serialize::write_module_vec;

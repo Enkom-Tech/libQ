@@ -9,17 +9,9 @@
 //! A pin change is a WIRE BREAK: it must be intentional, reviewed, and versioned (`v1` → `v2`).
 
 use lib_q_random::new_deterministic_rng;
-use lib_q_threshold_kem_lattice::threshold::{
-    ZeroShareSeeds,
-    partial_decap_masked,
-};
+use lib_q_threshold_kem_lattice::threshold::{ZeroShareSeeds, partial_decap_masked};
 use lib_q_threshold_kem_lattice::{
-    Ciphertext,
-    SecretShare,
-    ThresholdKemLatticePublicKey,
-    combine,
-    decapsulate_reference,
-    kem,
+    Ciphertext, SecretShare, ThresholdKemLatticePublicKey, combine, decapsulate_reference, kem,
     setup,
 };
 use zeroize::Zeroizing;

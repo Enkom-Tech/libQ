@@ -38,15 +38,8 @@
 #![cfg(all(feature = "alloc", feature = "aead", feature = "hash"))]
 
 use lib_q_saturnin::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    SaturninAead,
-    SaturninAeadCtx,
-    SaturninHash,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, SaturninAead,
+    SaturninAeadCtx, SaturninHash,
 };
 
 const B: usize = 32;

@@ -3,11 +3,7 @@
 //! These tests ensure complete coverage of the optimization-specific functionality
 //! in lib-q-keccak.
 
-use lib_q_keccak::{
-    OptimizationLevel,
-    fast_loop_absorb_optimized,
-    p1600_optimized,
-};
+use lib_q_keccak::{OptimizationLevel, fast_loop_absorb_optimized, p1600_optimized};
 
 #[test]
 fn test_optimization_level_best_available() {

@@ -7,16 +7,10 @@ compile_error!(
 
 #[cfg(feature = "parallel")]
 pub mod prelude {
-    use core::marker::{
-        Send,
-        Sync,
-    };
+    use core::marker::{Send, Sync};
 
     pub use rayon::prelude::*;
-    pub use rayon::{
-        current_num_threads,
-        join,
-    };
+    pub use rayon::{current_num_threads, join};
 
     /// `identity()` MUST be a genuine identity element for `reduce_op`, i.e.
     /// `reduce_op(identity(), x) == x` for every reachable `x` — the same contract
@@ -51,10 +45,7 @@ pub mod prelude {
 
 #[cfg(feature = "parallel")]
 pub mod iter {
-    pub use rayon::iter::{
-        repeat,
-        repeat_n,
-    };
+    pub use rayon::iter::{repeat, repeat_n};
 }
 
 #[cfg(not(feature = "parallel"))]
@@ -63,13 +54,9 @@ mod serial;
 #[cfg(not(feature = "parallel"))]
 pub mod prelude {
     pub use core::iter::{
-        ExactSizeIterator as IndexedParallelIterator,
-        Iterator as ParallelIterator,
+        ExactSizeIterator as IndexedParallelIterator, Iterator as ParallelIterator,
     };
-    use core::marker::{
-        Send,
-        Sync,
-    };
+    use core::marker::{Send, Sync};
 
     pub use super::serial::*;
 
@@ -107,8 +94,5 @@ pub mod prelude {
 
 #[cfg(not(feature = "parallel"))]
 pub mod iter {
-    pub use core::iter::{
-        repeat,
-        repeat_n,
-    };
+    pub use core::iter::{repeat, repeat_n};
 }

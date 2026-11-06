@@ -16,15 +16,9 @@
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use lib_q_random::{
-    new_deterministic_rng,
-    new_secure_rng,
-};
+use lib_q_random::{new_deterministic_rng, new_secure_rng};
 #[cfg(not(feature = "alloc"))]
-use lib_q_random::{
-    new_deterministic_rng_no_std,
-    new_secure_rng_no_std,
-};
+use lib_q_random::{new_deterministic_rng_no_std, new_secure_rng_no_std};
 use rand_core::Rng;
 
 /// Test basic RNG creation and functionality
@@ -156,10 +150,7 @@ fn test_rng_error_handling() {
 fn test_rng_traits() {
     #[cfg(all(not(feature = "alloc"), feature = "getrandom"))]
     {
-        use rand_core::{
-            CryptoRng,
-            Rng,
-        };
+        use rand_core::{CryptoRng, Rng};
 
         let mut rng = new_secure_rng_no_std().unwrap();
 

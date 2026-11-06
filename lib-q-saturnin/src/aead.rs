@@ -80,31 +80,16 @@
 //! an integrated TBC mode rather than a generic composition.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::core::SaturninCore;
 #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
-use crate::simd::{
-    encrypt_blocks8_dispatch,
-    simd_xor,
-};
+use crate::simd::{encrypt_blocks8_dispatch, simd_xor};
 
 /// Pre-built Saturnin cores for CTR-Cascade AEAD (10 super-rounds, domains 1–5).
 ///

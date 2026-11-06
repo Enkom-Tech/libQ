@@ -9,10 +9,7 @@ extern crate alloc;
 use alloc::{
     boxed::Box,
     format,
-    string::{
-        String,
-        ToString,
-    },
+    string::{String, ToString},
     vec::Vec,
 };
 
@@ -25,24 +22,12 @@ use serde_wasm_bindgen;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-use crate::api::{
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-};
-use crate::contexts::{
-    AeadContext,
-    HashContext,
-    KemContext,
-    SignatureContext,
-};
+use crate::api::{Algorithm, AlgorithmCategory, CryptoProvider};
+use crate::contexts::{AeadContext, HashContext, KemContext, SignatureContext};
 // use crate::error::Result;
 use crate::providers::LibQCryptoProvider;
 use crate::security::SecurityValidator;
-use crate::traits::{
-    AeadKey,
-    Nonce,
-};
+use crate::traits::{AeadKey, Nonce};
 // Import secure error handling
 use crate::wasm::conversions::WASM_SIGNATURE_ALGORITHM_IDS;
 use crate::wasm::error::{
@@ -1146,9 +1131,9 @@ mod tests {
         if let Err(error) = result {
             let error_str = error.as_string().unwrap_or_default();
             assert!(
-                error_str.contains("Provider not configured") ||
-                    error_str.contains("NotImplemented") ||
-                    error_str.contains("WASM")
+                error_str.contains("Provider not configured")
+                    || error_str.contains("NotImplemented")
+                    || error_str.contains("WASM")
             );
         }
     }

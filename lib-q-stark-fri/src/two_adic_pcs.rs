@@ -18,63 +18,25 @@ use alloc::vec::Vec;
 use core::fmt::Debug;
 use core::marker::PhantomData;
 
-use itertools::{
-    Itertools,
-    izip,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-    GrindingChallenger,
-};
-use lib_q_stark_commit::{
-    BatchOpening,
-    Mmcs,
-    OpenedValues,
-    Pcs,
-};
+use itertools::{Itertools, izip};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger, GrindingChallenger};
+use lib_q_stark_commit::{BatchOpening, Mmcs, OpenedValues, Pcs};
 use lib_q_stark_dft::TwoAdicSubgroupDft;
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
 use lib_q_stark_field::{
-    ExtensionField,
-    PackedFieldExtension,
-    TwoAdicField,
-    batch_multiplicative_inverse,
-    dot_product,
+    ExtensionField, PackedFieldExtension, TwoAdicField, batch_multiplicative_inverse, dot_product,
 };
 use lib_q_stark_interpolation::interpolate_coset_with_precomputation;
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::bitrev::{
-    BitReversedMatrixView,
-    BitReversibleMatrix,
-};
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_matrix::bitrev::{BitReversedMatrixView, BitReversibleMatrix};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_util::linear_map::LinearMap;
-use lib_q_stark_util::{
-    log2_strict_usize,
-    reverse_bits_len,
-    reverse_slice_index_bits,
-};
-use tracing::{
-    info_span,
-    instrument,
-};
+use lib_q_stark_util::{log2_strict_usize, reverse_bits_len, reverse_slice_index_bits};
+use tracing::{info_span, instrument};
 
-use crate::verifier::{
-    self,
-    FriError,
-    FriInitialEval,
-};
-use crate::{
-    FriFoldingStrategy,
-    FriParameters,
-    FriProof,
-    prover,
-};
+use crate::verifier::{self, FriError, FriInitialEval};
+use crate::{FriFoldingStrategy, FriParameters, FriProof, prover};
 
 /// A polynomial commitment scheme using FRI to generate opening proofs.
 ///

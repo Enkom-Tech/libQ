@@ -1,17 +1,9 @@
 use core::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use lib_q_stark_util::reverse_slice_index_bits;
 use rand::rngs::SmallRng;
-use rand::{
-    RngExt,
-    SeedableRng,
-};
+use rand::{RngExt, SeedableRng};
 
 fn bench_reverse_slice_index_bits(c: &mut Criterion) {
     let mut group = c.benchmark_group("reverse_slice_index_bits");

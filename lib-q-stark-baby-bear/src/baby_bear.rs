@@ -5,13 +5,8 @@
 //! (run it to regenerate / re-verify against the canonical Plonky3 reference values).
 
 use lib_q_stark_monty31::{
-    BarrettParameters,
-    BinomialExtensionData,
-    FieldParameters,
-    MontyField31,
-    MontyParameters,
-    PackedMontyParameters,
-    TwoAdicData,
+    BarrettParameters, BinomialExtensionData, FieldParameters, MontyField31, MontyParameters,
+    PackedMontyParameters, TwoAdicData,
 };
 
 /// The BabyBear field `F_p`, `p = 2^31 - 2^27 + 1`.
@@ -186,11 +181,7 @@ impl BinomialExtensionData<5> for BabyBearParameters {
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field_testing::{
-        test_field,
-        test_prime_field,
-        test_prime_field_32,
-        test_prime_field_64,
-        test_two_adic_field,
+        test_field, test_prime_field, test_prime_field_32, test_prime_field_64, test_two_adic_field,
     };
     use num_bigint::BigUint;
 
@@ -225,10 +216,7 @@ mod tests {
 /// `test_two_adic_extension_field!` macro's internal `test_two_adic_field` import does not clash.
 #[cfg(test)]
 mod ext4_tests {
-    use lib_q_stark_field_testing::{
-        test_extension_field,
-        test_two_adic_extension_field,
-    };
+    use lib_q_stark_field_testing::{test_extension_field, test_two_adic_extension_field};
 
     type EF4 = lib_q_stark_field::extension::BinomialExtensionField<crate::BabyBear, 4>;
 

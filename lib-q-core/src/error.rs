@@ -9,10 +9,7 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 #[allow(unused_imports)]
 use alloc::{
-    string::{
-        String,
-        ToString,
-    },
+    string::{String, ToString},
     vec::Vec,
 };
 

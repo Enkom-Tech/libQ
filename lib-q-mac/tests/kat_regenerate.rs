@@ -5,14 +5,8 @@ mod common;
 use std::fs;
 use std::path::Path;
 
-use common::{
-    kat_key,
-    kat_positive_cases,
-};
-use lib_q_mac::{
-    QCW_MAC_KAT_SCHEMA,
-    QcwMac,
-};
+use common::{kat_key, kat_positive_cases};
+use lib_q_mac::{QCW_MAC_KAT_SCHEMA, QcwMac};
 use serde_json::json;
 
 #[test]

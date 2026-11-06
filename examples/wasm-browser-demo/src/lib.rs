@@ -3,15 +3,8 @@
 //! This crate exists as an integration example, not as a general-purpose signing API.
 
 use lib_q_ml_dsa::Zeroizing;
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
-use lib_q_ml_dsa::ml_dsa_44::portable::{
-    generate_key_pair_from_seed,
-    sign,
-    verify,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+use lib_q_ml_dsa::ml_dsa_44::portable::{generate_key_pair_from_seed, sign, verify};
 use wasm_bindgen::prelude::*;
 
 /// Run a fixed-seed ML-DSA-44 sign/verify round-trip; returns `true` on success.

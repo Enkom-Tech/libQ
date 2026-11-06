@@ -6,16 +6,9 @@
 
 use std::collections::BTreeSet;
 
-use lib_q_poseidon::{
-    Poseidon,
-    Poseidon128,
-    Poseidon256,
-};
+use lib_q_poseidon::{Poseidon, Poseidon128, Poseidon256};
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    PrimeCharacteristicRing,
-    PrimeField32,
-};
+use lib_q_stark_field::{PrimeCharacteristicRing, PrimeField32};
 use lib_q_stark_mersenne31::Mersenne31;
 
 type F = Complex<Mersenne31>;

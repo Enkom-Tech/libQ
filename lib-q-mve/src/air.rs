@@ -25,37 +25,16 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_poseidon::PoseidonField;
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::air::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-    constrain_wide_sponge,
-    generate_wide_sponge_cells,
-    next_power_of_two,
-    poseidon_to_field,
-    poseidon256_wide_hash,
-    wide_sponge_interm_cols,
+    WIDE_DIGEST_ELEMS, WideDigest, constrain_wide_sponge, generate_wide_sponge_cells,
+    next_power_of_two, poseidon_to_field, poseidon256_wide_hash, wide_sponge_interm_cols,
 };
 
-use crate::{
-    KEY_ELEMS,
-    Key,
-    SS_ELEMS,
-    Wrap,
-    ss_to_felts,
-};
+use crate::{KEY_ELEMS, Key, SS_ELEMS, Wrap, ss_to_felts};
 
 /// Minimum trace height (power of two) — clears the FRI blowup / ZK minimum.
 pub const MVE_MIN_ROWS: usize = 8;

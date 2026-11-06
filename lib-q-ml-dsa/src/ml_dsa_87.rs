@@ -1,17 +1,11 @@
 use zeroize::Zeroizing;
 
 pub use crate::constants::ml_dsa_87::{
-    MLDSA87KeyPair,
-    MLDSA87Signature,
-    MLDSA87SigningKey,
-    MLDSA87VerificationKey,
+    MLDSA87KeyPair, MLDSA87Signature, MLDSA87SigningKey, MLDSA87VerificationKey,
 };
 use crate::constants::*;
 use crate::types::*;
-use crate::{
-    SigningError,
-    VerificationError,
-};
+use crate::{SigningError, VerificationError};
 
 // Instantiate the different functions.
 macro_rules! instantiate {

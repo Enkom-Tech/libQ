@@ -11,17 +11,8 @@ use alloc::vec;
 use lib_q_core::Result;
 
 use crate::ZkpProof;
-use crate::air::{
-    IdentityProofAir,
-    IdentityProofInput,
-    MlDsaLevel,
-    TraceGenerator,
-};
-use crate::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-};
+use crate::air::{IdentityProofAir, IdentityProofInput, MlDsaLevel, TraceGenerator};
+use crate::stark::{StarkProver, StarkVerifier, default_config};
 
 /// Identity Token (IT) - 128-bit identifier
 pub type IdentityToken = [u8; 16];
@@ -45,18 +36,12 @@ fn ml_dsa_level_for_private_key_len(byte_len: usize) -> MlDsaLevel {
 /// verification after proving with that secret.
 #[doc(hidden)]
 pub fn identity_token_from_secret(secret: &[u8]) -> IdentityToken {
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
-    };
+    use lib_q_poseidon::{Poseidon, Poseidon128};
     use lib_q_stark_field::PrimeCharacteristicRing;
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
-    use crate::air::{
-        bytes_to_poseidon_field,
-        poseidon_field_to_bytes,
-    };
+    use crate::air::{bytes_to_poseidon_field, poseidon_field_to_bytes};
 
     let mut secret_fields = bytes_to_poseidon_field(secret);
     if !secret_fields.len().is_multiple_of(2) {
@@ -214,11 +199,7 @@ pub fn verify_it_ownership(proof: &ZkpProof, it: &IdentityToken) -> Result<bool>
 mod tests {
     use super::*;
     use crate::air::MlDsaLevel;
-    use crate::{
-        ProofMetadata,
-        ProofType,
-        ZkpProof,
-    };
+    use crate::{ProofMetadata, ProofType, ZkpProof};
 
     #[test]
     fn test_ml_dsa_level_for_private_key_len_buckets() {

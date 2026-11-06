@@ -65,36 +65,13 @@ mod sampler;
 
 // Re-export useful types, constants and functions.
 pub use fn_dsa_comm::{
-    CryptoRng,
-    DOMAIN_NONE,
-    DomainContext,
-    FN_DSA_LOGN_512,
-    FN_DSA_LOGN_1024,
-    HASH_ID_RAW,
-    HASH_ID_SHA3_256,
-    HASH_ID_SHA3_384,
-    HASH_ID_SHA3_512,
-    HASH_ID_SHAKE128,
-    HASH_ID_SHAKE256,
-    HashIdentifier,
-    Rng,
-    RngError,
-    UnsupportedHashIdentifier,
-    sign_key_size,
-    signature_size,
+    CryptoRng, DOMAIN_NONE, DomainContext, FN_DSA_LOGN_512, FN_DSA_LOGN_1024, HASH_ID_RAW,
+    HASH_ID_SHA3_256, HASH_ID_SHA3_384, HASH_ID_SHA3_512, HASH_ID_SHAKE128, HASH_ID_SHAKE256,
+    HashIdentifier, Rng, RngError, UnsupportedHashIdentifier, sign_key_size, signature_size,
     vrfy_key_size,
 };
-use fn_dsa_comm::{
-    PRNG,
-    codec,
-    hash_to_point,
-    mq,
-    shake,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use fn_dsa_comm::{PRNG, codec, hash_to_point, mq, shake};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Signing key handler and temporary buffers.
 ///
@@ -824,11 +801,7 @@ pub(crate) mod tests {
     // the main code, then we must define a custom one here.
     #[cfg(feature = "shake256x4")]
     pub(crate) use fn_dsa_comm::shake::SHAKE256x4;
-    use fn_dsa_comm::{
-        Infallible,
-        TryCryptoRng,
-        TryRng,
-    };
+    use fn_dsa_comm::{Infallible, TryCryptoRng, TryRng};
 
     use super::*;
 
@@ -981,12 +954,12 @@ pub(crate) mod tests {
                     ));
                 }
                 state[14] = state[14].wrapping_add(
-                    u32::from_le_bytes(*<&[u8; 4]>::try_from(&self.state[40..44]).unwrap()) ^
-                        (cc as u32),
+                    u32::from_le_bytes(*<&[u8; 4]>::try_from(&self.state[40..44]).unwrap())
+                        ^ (cc as u32),
                 );
                 state[15] = state[15].wrapping_add(
-                    u32::from_le_bytes(*<&[u8; 4]>::try_from(&self.state[44..48]).unwrap()) ^
-                        ((cc >> 32) as u32),
+                    u32::from_le_bytes(*<&[u8; 4]>::try_from(&self.state[44..48]).unwrap())
+                        ^ ((cc >> 32) as u32),
                 );
                 cc += 1;
 

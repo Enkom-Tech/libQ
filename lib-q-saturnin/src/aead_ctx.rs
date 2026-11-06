@@ -224,24 +224,12 @@
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::aead::SaturninAead;
-use crate::commit::{
-    CASCADE_CTX_LABEL_V0,
-    ctx_tag,
-};
+use crate::commit::{CASCADE_CTX_LABEL_V0, ctx_tag};
 use crate::hash::SaturninHash;
 
 /// CTX-committed AEAD on Saturnin CTR-Cascade.

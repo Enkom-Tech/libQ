@@ -79,96 +79,45 @@
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use lib_q_dkg::lattice::bdlop::{
-    KAPPA,
-    MU,
-    key,
-};
-use lib_q_dkg::lattice::ring::{
-    N,
-    Rq,
-};
-use lib_q_plonky_keccak_air::{
-    NUM_KECCAK_COLS,
-    NUM_ROUNDS,
-};
+use lib_q_dkg::lattice::bdlop::{KAPPA, MU, key};
+use lib_q_dkg::lattice::ring::{N, Rq};
+use lib_q_plonky_keccak_air::{NUM_KECCAK_COLS, NUM_ROUNDS};
 use lib_q_plonky_lookup::Lookup;
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_threshold_kem_lattice::kem::{
-    Ciphertext,
-    E_TERNARY_ATTEMPTS,
-    bounded_attempts,
-    encapsulate_derand,
-    fo_expand_witness,
+    Ciphertext, E_TERNARY_ATTEMPTS, bounded_attempts, encapsulate_derand, fo_expand_witness,
 };
 use lib_q_zkp::stark::ConfigVal;
 use zeroize::Zeroizing;
 
 use crate::compose::EncProofAir;
 use crate::error::EncProofError;
-use crate::logup_join::{
-    COEFF_E_BUS,
-    COEFF_F_BUS,
-    COEFF_G_BUS,
-    FOLD_E_BUS,
-    fc,
-};
-use crate::mu_bits::{
-    MuBitsAir,
-    generate_mu_bits_trace,
-    mu_bits_lookups,
-};
+use crate::logup_join::{COEFF_E_BUS, COEFF_F_BUS, COEFF_G_BUS, FOLD_E_BUS, fc};
+use crate::mu_bits::{MuBitsAir, generate_mu_bits_trace, mu_bits_lookups};
 use crate::relation_assembly::{
-    combine_public_multipliers,
-    corr_negacyclic,
-    dot_zq,
-    rq_coeffs_zq,
-    statement_kappas,
+    combine_public_multipliers, corr_negacyclic, dot_zq, rq_coeffs_zq, statement_kappas,
     statement_rhos,
 };
 use crate::sampler::{
-    BOUNDED_WIDTH,
-    BoundedSamplerAir,
-    SAMPLER_WIDTH,
-    TernarySamplerAir,
-    bounded_coeff_send_lookups_col,
-    bounded_public_values,
-    bounded_receive_lookup_at,
-    generate_bounded_trace,
-    generate_ternary_trace,
-    ternary_coeff_send_lookups_at,
-    ternary_public_values,
-    ternary_receive_lookup,
+    BOUNDED_WIDTH, BoundedSamplerAir, SAMPLER_WIDTH, TernarySamplerAir,
+    bounded_coeff_send_lookups_col, bounded_public_values, bounded_receive_lookup_at,
+    generate_bounded_trace, generate_ternary_trace, ternary_coeff_send_lookups_at,
+    ternary_public_values, ternary_receive_lookup,
 };
 use crate::sponge::RATE_BYTES;
 use crate::sponge_air::{
-    ShakeSpongeAir,
-    encap_preimage,
-    generate_provable_sponge_trace,
-    sponge_limb_send_lookups,
-    sponge_mu_limb_send_lookups,
-    sponge_public_values,
+    ShakeSpongeAir, encap_preimage, generate_provable_sponge_trace, sponge_limb_send_lookups,
+    sponge_mu_limb_send_lookups, sponge_public_values,
 };
 use crate::squeeze_byte::{
-    SqueezeByteAir,
-    generate_squeeze_byte_trace_partial,
-    squeeze_byte_limb_receive_lookup,
+    SqueezeByteAir, generate_squeeze_byte_trace_partial, squeeze_byte_limb_receive_lookup,
     squeeze_byte_send_lookup,
 };
 use crate::zq::{
-    DotFoldAir,
-    EncodeMuFoldAir,
-    MSG_BITS,
-    Q,
-    REL_MAX_TERMS,
-    RelationCheckAir,
-    encode_mu_bit_receive_lookup,
-    fold_coeff_receive_lookups_at,
-    fold_result_send_lookups_at,
-    generate_dot_trace,
-    generate_encode_mu_trace,
-    generate_relation_trace,
+    DotFoldAir, EncodeMuFoldAir, MSG_BITS, Q, REL_MAX_TERMS, RelationCheckAir,
+    encode_mu_bit_receive_lookup, fold_coeff_receive_lookups_at, fold_result_send_lookups_at,
+    generate_dot_trace, generate_encode_mu_trace, generate_relation_trace,
 };
 
 /// The **public** shape parameters of a byte-provenance proof: the sizes the prover chose (sponge
@@ -1467,11 +1416,7 @@ fn full_public_values(
 /// Reference SHAKE-256 XOF of `input` (`n` bytes) — the ground-truth squeeze stream the sampler and
 /// squeeze-byte table consume.
 fn shake256_xof(input: &[u8], n: usize) -> Vec<u8> {
-    use lib_q_sha3::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_sha3::{ExtendableOutput, Update, XofReader};
     let mut h = lib_q_sha3::Shake256::default();
     h.update(input);
     let mut rd = h.finalize_xof();
@@ -1493,31 +1438,16 @@ fn sponge_squeeze_blocks(height: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use lib_q_plonky_batch_stark::{
-        CommonData,
-        ProverData,
-        ProverOnlyData,
-        StarkInstance,
-        prove_batch,
-        verify_batch,
+        CommonData, ProverData, ProverOnlyData, StarkInstance, prove_batch, verify_batch,
     };
     use lib_q_plonky_uni_stark::StarkConfig;
-    use lib_q_stark_challenger::{
-        ComplexFieldChallenger,
-        Shake256Challenger32,
-    };
-    use lib_q_stark_fri::{
-        FriParameters,
-        create_test_fri_params,
-    };
+    use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
+    use lib_q_stark_fri::{FriParameters, create_test_fri_params};
     use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_shake256::Shake256Hash;
     use lib_q_threshold_kem_lattice::kem::encode_msg;
     use lib_q_zkp::stark::{
-        ConfigChallenge,
-        ConfigDft,
-        DefaultValMmcs,
-        MembershipChallengeMmcs,
-        MembershipPcs,
+        ConfigChallenge, ConfigDft, DefaultValMmcs, MembershipChallengeMmcs, MembershipPcs,
     };
 
     use super::*;
@@ -1592,10 +1522,7 @@ mod tests {
         SC: lib_q_plonky_uni_stark::StarkGenericConfig,
         A: BaseAir<lib_q_plonky_uni_stark::Val<SC>>,
     {
-        use lib_q_plonky_batch_stark::common::{
-            GlobalPreprocessed,
-            PreprocessedInstanceMeta,
-        };
+        use lib_q_plonky_batch_stark::common::{GlobalPreprocessed, PreprocessedInstanceMeta};
         use lib_q_stark_commit::Pcs;
 
         let pcs = config.pcs();

@@ -8,28 +8,11 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use crate::dkg::{
-    CoeffCommitments,
-    Complaint,
-    ShareEvaluation,
-};
+use crate::dkg::{CoeffCommitments, Complaint, ShareEvaluation};
 use crate::error::DkgError;
-use crate::lattice::bdlop::{
-    Commitment,
-    KAPPA,
-    MU,
-    ShareProof,
-};
-use crate::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-    rq_from_le_bytes,
-    rq_to_le_bytes,
-};
-use crate::profile::{
-    PROFILE_ID_V1,
-    PROFILE_MAX_PARTIES_V1,
-};
+use crate::lattice::bdlop::{Commitment, KAPPA, MU, ShareProof};
+use crate::lattice::ring::{RQ_BYTES, Rq, rq_from_le_bytes, rq_to_le_bytes};
+use crate::profile::{PROFILE_ID_V1, PROFILE_MAX_PARTIES_V1};
 
 /// Wire version byte.
 pub const WIRE_VERSION_V1: u8 = 1;

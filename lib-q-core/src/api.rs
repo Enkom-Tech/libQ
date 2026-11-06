@@ -12,20 +12,12 @@ use crate::traits::*;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    format,
-    string::String,
-    vec::Vec,
-};
+use alloc::{format, string::String, vec::Vec};
 
 #[cfg(feature = "getrandom")]
 #[allow(unused_imports)] // Used in getrandom::fill() call
 use getrandom;
-pub use lib_q_types::{
-    Algorithm,
-    AlgorithmCategory,
-    SecurityLevel,
-};
+pub use lib_q_types::{Algorithm, AlgorithmCategory, SecurityLevel};
 // Hash function imports
 // #[cfg(feature = "hash")]
 // use lib_q_sha3::{
@@ -386,10 +378,7 @@ impl Utils {
 mod tests {
     use super::*;
     #[cfg(feature = "alloc")]
-    use crate::contexts::{
-        HashContext,
-        SignatureContext,
-    };
+    use crate::contexts::{HashContext, SignatureContext};
 
     #[test]
     fn test_provider_architecture() {
@@ -676,10 +665,7 @@ mod tests {
     #[test]
     #[cfg(feature = "alloc")]
     fn test_hex_to_bytes_decode_errors() {
-        use crate::error::{
-            Error,
-            HexDecodeError,
-        };
+        use crate::error::{Error, HexDecodeError};
 
         assert_eq!(
             Utils::hex_to_bytes("123").unwrap_err(),

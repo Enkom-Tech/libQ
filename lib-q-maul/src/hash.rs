@@ -11,12 +11,7 @@
 //! what ePrint 2025/1755 §2 requires: "we implicitly refer to an injective concatenation of
 //! `x_1, ..., x_n`, meaning that the original components can be unambiguously recovered from it".
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Shake256,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::{ExtendableOutput, Shake256, Update, XofReader};
 
 use crate::params::ParamSet;
 
@@ -210,10 +205,7 @@ pub fn standard_pp_seed(p: &ParamSet) -> [u8; 32] {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::params::{
-        MAUL512,
-        MAUL768,
-    };
+    use crate::params::{MAUL512, MAUL768};
 
     #[test]
     fn length_prefixing_separates_a_field_boundary_shift() {

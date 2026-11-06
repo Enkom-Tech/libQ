@@ -1,20 +1,9 @@
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    AirBuilder,
-    RowWindow,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PackedField,
-};
+use lib_q_stark_air::{AirBuilder, RowWindow};
+use lib_q_stark_field::{BasedVectorSpace, PackedField};
 
-use crate::{
-    PackedChallenge,
-    PackedVal,
-    StarkGenericConfig,
-    Val,
-};
+use crate::{PackedChallenge, PackedVal, StarkGenericConfig, Val};
 
 /// Handles constraint accumulation for the prover in a STARK system.
 ///

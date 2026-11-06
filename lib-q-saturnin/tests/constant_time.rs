@@ -6,12 +6,7 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
-use lib_q_core::{
-    AeadKey,
-    Nonce,
-    Result,
-    Utils,
-};
+use lib_q_core::{AeadKey, Nonce, Result, Utils};
 use lib_q_saturnin::*;
 
 /// Test that Utils::constant_time_compare behaves correctly (equal, unequal, different lengths).

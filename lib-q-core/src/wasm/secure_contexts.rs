@@ -21,12 +21,7 @@ use crate::api::{
     // Algorithm,
     AlgorithmCategory,
 };
-use crate::contexts::{
-    AeadContext,
-    HashContext,
-    KemContext,
-    SignatureContext,
-};
+use crate::contexts::{AeadContext, HashContext, KemContext, SignatureContext};
 // use crate::error::Result;
 use crate::providers::LibQCryptoProvider;
 use crate::security::SecurityValidator;

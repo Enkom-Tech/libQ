@@ -19,25 +19,14 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_baby_bear::BabyBear;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use crate::air::wide_sponge_baby_bear::{
-    WIDE_DIGEST_ELEMS,
-    constrain_wide_sponge_bb,
-    generate_wide_sponge_bb_cells,
-    poseidon2_wide_hash_bb,
-    wide_sponge_bb_interm_cols,
+    WIDE_DIGEST_ELEMS, constrain_wide_sponge_bb, generate_wide_sponge_bb_cells,
+    poseidon2_wide_hash_bb, wide_sponge_bb_interm_cols,
 };
 
 /// A wide digest: `WIDE_DIGEST_ELEMS` BabyBear cells.
@@ -322,10 +311,7 @@ mod tests {
     /// free witness — the classic STARK soundness hole. Covers all columns, not a sample.
     #[test]
     fn under_constraint_audit_every_column() {
-        use std::panic::{
-            AssertUnwindSafe,
-            catch_unwind,
-        };
+        use std::panic::{AssertUnwindSafe, catch_unwind};
         let (leaf, bits, sibs, root) = build_tree_and_path(4, 3);
         let trace = generate_path_trace_bb(&leaf, &bits, &sibs);
         let pubs = path_public_values_bb(&leaf, &root);

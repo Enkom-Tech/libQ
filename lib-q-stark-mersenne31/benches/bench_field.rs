@@ -1,25 +1,12 @@
-use criterion::{
-    BatchSize,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_field_testing::bench_func::{
-    benchmark_add_latency,
-    benchmark_add_throughput,
-    benchmark_inv,
-    benchmark_iter_sum,
-    benchmark_sub_latency,
-    benchmark_sub_throughput,
-    benchmark_sum_array,
+    benchmark_add_latency, benchmark_add_throughput, benchmark_inv, benchmark_iter_sum,
+    benchmark_sub_latency, benchmark_sub_throughput, benchmark_sum_array,
 };
 use lib_q_stark_mersenne31::Mersenne31;
 use rand::rngs::SmallRng;
-use rand::{
-    RngExt,
-    SeedableRng,
-};
+use rand::{RngExt, SeedableRng};
 
 type F = Mersenne31;
 

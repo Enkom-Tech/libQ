@@ -10,19 +10,9 @@ use alloc::vec::Vec;
 
 use lib_q_core::Result;
 
-use crate::air::merkle_inclusion::{
-    MAX_TREE_DEPTH,
-    MerkleHash,
-};
-use crate::air::wide_hash::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-    poseidon256_wide_hash,
-};
-use crate::air::{
-    merkle_root_to_bytes,
-    next_power_of_two,
-};
+use crate::air::merkle_inclusion::{MAX_TREE_DEPTH, MerkleHash};
+use crate::air::wide_hash::{WIDE_DIGEST_ELEMS, WideDigest, poseidon256_wide_hash};
+use crate::air::{merkle_root_to_bytes, next_power_of_two};
 
 /// Canonical hash for empty/padding leaves (Poseidon-128 of empty input).
 fn empty_leaf_hash() -> MerkleHash {
@@ -457,11 +447,7 @@ mod tests {
 
     // ---- Wide-digest tree (Poseidon-256) ----
 
-    use crate::air::wide_hash::{
-        WIDE_DIGEST_ELEMS,
-        WideDigest,
-        poseidon256_wide_hash,
-    };
+    use crate::air::wide_hash::{WIDE_DIGEST_ELEMS, WideDigest, poseidon256_wide_hash};
 
     fn leaf_digest(seed: u8) -> WideDigest {
         use lib_q_stark_field::extension::Complex;

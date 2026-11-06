@@ -16,23 +16,13 @@
 //!
 //! Run with `--release` (the dealerless DKG's FS proofs are Gaussian-masking heavy).
 
-use lib_q_dkg::{
-    dkg_run_honest,
-    setup as dkg_setup,
-};
+use lib_q_dkg::{dkg_run_honest, setup as dkg_setup};
 use lib_q_random::new_deterministic_rng;
 use lib_q_threshold_raccoon::threshold::{
-    ZeroShareSeeds,
-    aggregate_commitment,
-    sign_round1,
-    sign_round1_reveal,
-    sign_round2,
+    ZeroShareSeeds, aggregate_commitment, sign_round1, sign_round1_reveal, sign_round2,
 };
 use lib_q_threshold_raccoon::{
-    SecretShare,
-    ShareVerifier,
-    ThresholdRaccoonPublicKey,
-    group_commitment,
+    SecretShare, ShareVerifier, ThresholdRaccoonPublicKey, group_commitment,
 };
 
 #[test]

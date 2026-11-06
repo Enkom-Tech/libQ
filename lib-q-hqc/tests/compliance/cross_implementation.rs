@@ -2,12 +2,7 @@ use lib_q_hqc::hqc_kem::HqcKem;
 use lib_q_hqc::hqc_pke::HqcPke;
 use lib_q_hqc::internal::shake256::Shake256Xof;
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;
-use lib_q_hqc::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
 /// Cross-implementation tests to compare our implementation against reference behavior
 ///

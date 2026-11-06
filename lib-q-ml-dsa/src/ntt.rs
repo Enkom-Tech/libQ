@@ -178,10 +178,7 @@ mod tests {
 
     #[cfg(not(all(feature = "simd256", target_arch = "x86_64")))]
     mod portable {
-        use super::{
-            test_invert_ntt_montgomery_generic,
-            test_ntt_generic,
-        };
+        use super::{test_invert_ntt_montgomery_generic, test_ntt_generic};
         use crate::polynomial::PolynomialRingElement;
 
         #[test]
@@ -250,10 +247,7 @@ mod tests {
 
     #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     mod avx2 {
-        use super::{
-            test_invert_ntt_montgomery_generic,
-            test_ntt_generic,
-        };
+        use super::{test_invert_ntt_montgomery_generic, test_ntt_generic};
 
         #[test]
         fn test_ntt() {

@@ -16,11 +16,7 @@
 //! Every domain here is small enough to check exhaustively (256, or 256*256 pairs), so exhaustive
 //! is the standard used throughout, not a sample.
 
-use lib_q_hqc::gf::{
-    gf_inverse,
-    gf_mul,
-    gf_square,
-};
+use lib_q_hqc::gf::{gf_inverse, gf_mul, gf_square};
 
 const GF_M: u32 = 8;
 const GF_POLY: u16 = 0x11D;

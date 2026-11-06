@@ -43,12 +43,7 @@
 //! assertion below compares a full computed output, not merely that the call returned.
 
 #[cfg(target_arch = "x86_64")]
-use lib_q_hqc::simd::{
-    Avx2,
-    PolynomialOps,
-    Portable,
-    SyndromeOps,
-};
+use lib_q_hqc::simd::{Avx2, PolynomialOps, Portable, SyndromeOps};
 
 /// `sparse_dense_mul`: non-trivial sparse/dense inputs, `n_bits` not byte-aligned so the
 /// cyclic-wrap tail path is exercised too.

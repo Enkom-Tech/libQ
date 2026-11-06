@@ -12,20 +12,12 @@ use alloc::vec::Vec;
 
 use itertools::izip;
 use lib_q_stark_field::{
-    Field,
-    PackedFieldPow2,
-    PackedValue,
-    PrimeCharacteristicRing,
-    TwoAdicField,
+    Field, PackedFieldPow2, PackedValue, PrimeCharacteristicRing, TwoAdicField,
 };
 use lib_q_stark_util::log2_strict_usize;
 
 use crate::utils::monty_reduce;
-use crate::{
-    FieldParameters,
-    MontyField31,
-    TwoAdicData,
-};
+use crate::{FieldParameters, MontyField31, TwoAdicData};
 
 impl<MP: FieldParameters + TwoAdicData> MontyField31<MP> {
     /// Given a field element `gen` of order n where `n = 2^lg_n`,

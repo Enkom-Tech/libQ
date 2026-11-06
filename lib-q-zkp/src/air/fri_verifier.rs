@@ -20,35 +20,15 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
-use super::recursive_types::{
-    MAX_FINAL_POLY_LOG_LEN,
-    MAX_FRI_ROUNDS,
-    SerializedFriRound,
-};
-use super::{
-    AirError,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
-};
+use super::recursive_types::{MAX_FINAL_POLY_LOG_LEN, MAX_FRI_ROUNDS, SerializedFriRound};
+use super::{AirError, TraceGenerator, next_power_of_two, validate_trace_dimensions};
 
 /// Maximum number of query proofs
 pub const MAX_FRI_QUERIES: usize = 1000;
@@ -228,15 +208,15 @@ impl FriVerifierAir {
 
             // e0 = (1 - parity)*current + parity*sibling, e1 = parity*current + (1 - parity)*sibling
             let p = AB::Expr::from(parity);
-            let e0 = (one_expr.clone() - p.clone()) * AB::Expr::from(current_eval) +
-                p.clone() * AB::Expr::from(sibling_eval);
-            let e1 = p.clone() * AB::Expr::from(current_eval) +
-                (one_expr.clone() - p) * AB::Expr::from(sibling_eval);
+            let e0 = (one_expr.clone() - p.clone()) * AB::Expr::from(current_eval)
+                + p.clone() * AB::Expr::from(sibling_eval);
+            let e1 = p.clone() * AB::Expr::from(current_eval)
+                + (one_expr.clone() - p) * AB::Expr::from(sibling_eval);
             let diff = e1 - e0.clone();
-            let fold_part = e0 +
-                (AB::Expr::from(beta) - AB::Expr::from(x0)) *
-                    diff *
-                    AB::Expr::from(domain_point_inv);
+            let fold_part = e0
+                + (AB::Expr::from(beta) - AB::Expr::from(x0))
+                    * diff
+                    * AB::Expr::from(domain_point_inv);
             let expected_folded =
                 fold_part + AB::Expr::from(beta) * AB::Expr::from(beta) * AB::Expr::from(roll_in);
             builder.assert_eq(AB::Expr::from(folded_eval), expected_folded);
@@ -269,8 +249,8 @@ impl FriVerifierAir {
             for i in 1..final_poly_len {
                 let prev_horner = local[horner_start + i - 1];
                 let coeff = local[coeff_start + final_poly_len - 1 - i];
-                let expected = AB::Expr::from(prev_horner) * AB::Expr::from(eval_point) +
-                    AB::Expr::from(coeff);
+                let expected = AB::Expr::from(prev_horner) * AB::Expr::from(eval_point)
+                    + AB::Expr::from(coeff);
                 builder.assert_eq(local[horner_start + i].into(), expected);
             }
 

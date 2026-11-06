@@ -1,11 +1,7 @@
 //! wasm-bindgen-test smoke: qCW-MAC JS API on wasm32.
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_mac::wasm::{
-    qcw_mac_generate_key,
-    qcw_mac_sign,
-    qcw_mac_verify,
-};
+use lib_q_mac::wasm::{qcw_mac_generate_key, qcw_mac_sign, qcw_mac_verify};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 

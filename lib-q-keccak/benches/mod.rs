@@ -36,11 +36,7 @@ fn b_p1600_16(b: &mut test::Bencher) {
 
 #[cfg(all(test, feature = "nightly", feature = "simd", keccak_portable_simd))]
 mod simd {
-    use lib_q_keccak::simd_parallel::{
-        p1600_parallel_2x,
-        p1600_parallel_4x,
-        p1600_parallel_8x,
-    };
+    use lib_q_keccak::simd_parallel::{p1600_parallel_2x, p1600_parallel_4x, p1600_parallel_8x};
 
     #[bench]
     fn b_p1600_parallel_2x(b: &mut test::Bencher) {

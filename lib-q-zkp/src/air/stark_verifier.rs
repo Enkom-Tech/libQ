@@ -25,28 +25,15 @@ extern crate alloc;
 #[cfg(feature = "recursive-proofs-experimental")]
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_poseidon::PoseidonField;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark::SymbolicAirBuilder;
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_stark::{
-    Proof as StarkProof,
-    StarkGenericConfig,
-    Val,
-    VerificationError,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark::{Proof as StarkProof, StarkGenericConfig, Val, VerificationError};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_commit::BatchOpening;
 #[cfg(feature = "recursive-proofs-experimental")]
@@ -62,10 +49,7 @@ use lib_q_stark_fri::FriDataExtractor;
 #[cfg(feature = "recursive-proofs-experimental")]
 use lib_q_stark_fri::FriInitialEval;
 #[cfg(feature = "recursive-proofs-experimental")]
-use lib_q_stark_fri::{
-    FriProof,
-    SiblingValueRef,
-};
+use lib_q_stark_fri::{FriProof, SiblingValueRef};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
@@ -77,35 +61,17 @@ use super::PoseidonCommitmentRoot;
 #[cfg(feature = "recursive-proofs-experimental")]
 use super::air_poseidon_mmcs::AirPoseidonMmcs;
 use super::recursive_types::{
-    MAX_FRI_ROUNDS,
-    MAX_QUOTIENT_CHUNKS,
-    MAX_TRACE_WIDTH,
-    SerializedStarkProof,
+    MAX_FRI_ROUNDS, MAX_QUOTIENT_CHUNKS, MAX_TRACE_WIDTH, SerializedStarkProof,
 };
 use super::{
-    AirError,
-    CommitmentVerificationInput,
-    CommitmentVerifierAir,
-    ConstraintVerificationInput,
-    ConstraintVerifierAir,
-    FriVerificationInput,
-    FriVerifierAir,
-    OpeningVerificationInput,
-    OpeningVerifierAir,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
+    AirError, CommitmentVerificationInput, CommitmentVerifierAir, ConstraintVerificationInput,
+    ConstraintVerifierAir, FriVerificationInput, FriVerifierAir, OpeningVerificationInput,
+    OpeningVerifierAir, TraceGenerator, next_power_of_two, validate_trace_dimensions,
 };
 #[cfg(feature = "recursive-proofs-experimental")]
-use super::{
-    MerkleHash,
-    MerkleProofInput,
-};
+use super::{MerkleHash, MerkleProofInput};
 #[cfg(feature = "recursive-proofs-experimental")]
-use crate::stark::{
-    FriQueryParams,
-    StarkVerifier,
-};
+use crate::stark::{FriQueryParams, StarkVerifier};
 
 /// Stub when recursive-proofs-experimental is off: any type satisfies the bound; real impls are feature-gated.
 #[cfg(not(feature = "recursive-proofs-experimental"))]
@@ -219,10 +185,7 @@ impl InputProofMerkleExtractable for Vec<BatchOpening<PoseidonField, AirPoseidon
                 if sibling_row.len() == 1 {
                     Some(MerkleHash::from_field(sibling_row[0]))
                 } else {
-                    use lib_q_poseidon::{
-                        Poseidon,
-                        Poseidon128,
-                    };
+                    use lib_q_poseidon::{Poseidon, Poseidon128};
                     let hash_output = Poseidon128.hash(sibling_row);
                     let first = hash_output.into_iter().next().unwrap_or_default();
                     Some(MerkleHash::from_field(first))
@@ -251,10 +214,7 @@ impl InputProofMerkleExtractable for Vec<BatchOpening<PoseidonField, AirPoseidon
         // Mirror MMCS verifier: verify_batch hashes opened_values with hash_iter_slices (flatten
         // of slices). For one matrix that is hash(row). PoseidonHasher::hash_iter uses
         // Poseidon128.hash(&vec). Leaf layer uses unpacked row when PW::WIDTH is 1 (PoseidonField).
-        use lib_q_poseidon::{
-            Poseidon,
-            Poseidon128,
-        };
+        use lib_q_poseidon::{Poseidon, Poseidon128};
         let out = Poseidon128.hash(row.as_slice());
         Some(super::merkle_root_to_bytes(&out[0]))
     }
@@ -433,12 +393,12 @@ impl<F: Field, Ch: Field> StarkVerifierAir<F, Ch> {
         // Public values: expected vs actual
         let public_values_width = self.serialized_proof.expected_public_values.len() * 2;
 
-        metadata_width +
-            commitment_width +
-            fri_width +
-            constraint_width +
-            opening_width +
-            public_values_width
+        metadata_width
+            + commitment_width
+            + fri_width
+            + constraint_width
+            + opening_width
+            + public_values_width
     }
 }
 
@@ -939,11 +899,11 @@ pub fn debug_one_fri_round<F>(
 ) where
     F: Field + TwoAdicField + core::fmt::Debug,
 {
-    if round_idx >= num_rounds ||
-        round_current_evals.len() <= round_idx ||
-        round_sibling_evals.len() <= round_idx ||
-        round_domain_point_inverses.len() <= round_idx ||
-        round_betas.len() <= round_idx
+    if round_idx >= num_rounds
+        || round_current_evals.len() <= round_idx
+        || round_sibling_evals.len() <= round_idx
+        || round_domain_point_inverses.len() <= round_idx
+        || round_betas.len() <= round_idx
     {
         return;
     }
@@ -1634,10 +1594,10 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
             let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
             let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
             const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
-            let level_width = 1 +
-                HASH_SIZE_FIELD_ELEMENTS +
-                HASH_SIZE_FIELD_ELEMENTS +
-                PoseidonGadget::COLUMNS_PER_HASH;
+            let level_width = 1
+                + HASH_SIZE_FIELD_ELEMENTS
+                + HASH_SIZE_FIELD_ELEMENTS
+                + PoseidonGadget::COLUMNS_PER_HASH;
 
             for commit_idx in 0..num_commitments {
                 let per_commitment_start_local = commit_idx * per_commitment_width;
@@ -1719,10 +1679,10 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
             let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
             let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
             const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
-            let level_width = 1 +
-                HASH_SIZE_FIELD_ELEMENTS +
-                HASH_SIZE_FIELD_ELEMENTS +
-                PoseidonGadget::COLUMNS_PER_HASH;
+            let level_width = 1
+                + HASH_SIZE_FIELD_ELEMENTS
+                + HASH_SIZE_FIELD_ELEMENTS
+                + PoseidonGadget::COLUMNS_PER_HASH;
 
             for commit_idx in 0..num_commitments {
                 let per_commitment_start = commitment_offset + commit_idx * per_commitment_width;
@@ -1761,10 +1721,10 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
             let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
             let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
             const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
-            let level_width = 1 +
-                HASH_SIZE_FIELD_ELEMENTS +
-                HASH_SIZE_FIELD_ELEMENTS +
-                PoseidonGadget::COLUMNS_PER_HASH;
+            let level_width = 1
+                + HASH_SIZE_FIELD_ELEMENTS
+                + HASH_SIZE_FIELD_ELEMENTS
+                + PoseidonGadget::COLUMNS_PER_HASH;
 
             for commit_idx in 0..num_commitments {
                 let per_commitment_start = commitment_offset + commit_idx * per_commitment_width;
@@ -1814,10 +1774,10 @@ impl<F: Field + lib_q_stark_field::BasedVectorSpace<Mersenne31>, Ch: Field>
             let merkle_width = <super::MerkleInclusionAir as BaseAir<Val>>::width(&merkle_air);
             let per_commitment_width = COMMITMENT_HASH_SIZE + merkle_width + 1;
             const HASH_SIZE_FIELD_ELEMENTS: usize = 1;
-            let level_width = 1 +
-                HASH_SIZE_FIELD_ELEMENTS +
-                HASH_SIZE_FIELD_ELEMENTS +
-                PoseidonGadget::COLUMNS_PER_HASH;
+            let level_width = 1
+                + HASH_SIZE_FIELD_ELEMENTS
+                + HASH_SIZE_FIELD_ELEMENTS
+                + PoseidonGadget::COLUMNS_PER_HASH;
 
             for commit_idx in 0..num_commitments {
                 let per_commitment_start = commitment_offset + commit_idx * per_commitment_width;
@@ -1967,17 +1927,9 @@ mod tests {
     use lib_q_stark_matrix::Matrix;
     use lib_q_stark_mersenne31::Mersenne31;
 
-    use super::super::recursive_types::{
-        SerializedFriRound,
-        SerializedStarkProof,
-    };
+    use super::super::recursive_types::{SerializedFriRound, SerializedStarkProof};
     use super::*;
-    use crate::air::{
-        MerkleHash,
-        MerkleInclusionAir,
-        MerkleProofInput,
-        merkle_root_to_bytes,
-    };
+    use crate::air::{MerkleHash, MerkleInclusionAir, MerkleProofInput, merkle_root_to_bytes};
 
     type TestField = Complex<Mersenne31>;
 

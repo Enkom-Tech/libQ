@@ -5,10 +5,7 @@
 
 #![cfg(feature = "fips-mode")]
 
-use lib_q_ml_dsa::{
-    Zeroizing,
-    *,
-};
+use lib_q_ml_dsa::{Zeroizing, *};
 
 /// Test FIPS mode determinism - same inputs must produce identical outputs
 #[test]

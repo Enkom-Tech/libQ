@@ -5,10 +5,7 @@
 //! induce modular bias. Here the domain is full `u32` words: accept only
 //! `r < floor(2^32/q)*q`, then map with `r % q`.
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use crate::constants::FIELD_MODULUS;
 

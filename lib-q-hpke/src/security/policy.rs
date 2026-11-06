@@ -3,10 +3,7 @@
 #[cfg(feature = "alloc")]
 use alloc::format;
 
-use crate::error::{
-    HpkeError,
-    SecurityValidation,
-};
+use crate::error::{HpkeError, SecurityValidation};
 
 /// Security policy configuration for HPKE operations
 #[derive(Debug, Clone, PartialEq)]

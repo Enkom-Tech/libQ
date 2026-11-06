@@ -1,16 +1,9 @@
 use fn_dsa_comm::shake::SHAKE256;
-use fn_dsa_comm::{
-    Infallible,
-    TryCryptoRng,
-    TryRng,
-};
+use fn_dsa_comm::{Infallible, TryCryptoRng, TryRng};
 
 #[cfg(target_arch = "x86")]
 pub fn core_cycles() -> u64 {
-    use core::arch::x86::{
-        _mm_lfence,
-        _rdtsc,
-    };
+    use core::arch::x86::{_mm_lfence, _rdtsc};
     unsafe {
         _mm_lfence();
         _rdtsc()
@@ -19,10 +12,7 @@ pub fn core_cycles() -> u64 {
 
 #[cfg(target_arch = "x86_64")]
 pub fn core_cycles() -> u64 {
-    use core::arch::x86_64::{
-        _mm_lfence,
-        _rdtsc,
-    };
+    use core::arch::x86_64::{_mm_lfence, _rdtsc};
     unsafe {
         _mm_lfence();
         _rdtsc()

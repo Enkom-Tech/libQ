@@ -3,13 +3,7 @@
 //! This module provides metadata structures for AEAD algorithms, including
 //! key sizes, nonce sizes, tag sizes, and other algorithm properties.
 
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Algorithm,
-    Nonce,
-    Result,
-};
+use lib_q_core::{Aead, AeadKey, Algorithm, Nonce, Result};
 
 /// Performance tier for AEAD algorithms
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

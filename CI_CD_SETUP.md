@@ -65,7 +65,7 @@ consumer source rather than substituting upstream test results.
 ### Test Coverage (`.github/workflows/coverage.yml`)
 
 - **Triggers**: Pushes to `main`, PRs to `main` when certain paths change (`lib-q-keccak`, `lib-q-core`, or this workflow), and weekly schedule.
-- **Behavior**: `cargo-tarpaulin`, stable and nightly matrix, line coverage threshold (see `COVERAGE_THRESHOLD` in the workflow).
+- **Behavior**: `cargo-tarpaulin` (pinned 0.37.6), stable toolchain only, line coverage threshold (see `COVERAGE_THRESHOLD` in the workflow).
 
 ### Security-critical coverage (`.github/workflows/security-critical-coverage.yml`)
 

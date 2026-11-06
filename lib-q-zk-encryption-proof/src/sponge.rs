@@ -18,19 +18,12 @@
 use alloc::vec::Vec;
 
 use lib_q_plonky_keccak_air::{
-    KeccakColsRef,
-    NUM_KECCAK_COLS,
-    NUM_ROUNDS,
-    U64_LIMBS,
-    generate_trace_rows,
+    KeccakColsRef, NUM_KECCAK_COLS, NUM_ROUNDS, U64_LIMBS, generate_trace_rows,
 };
 use lib_q_stark_field::PrimeField64;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
-use lib_q_stark_symmetric::{
-    KeccakF,
-    Permutation,
-};
+use lib_q_stark_symmetric::{KeccakF, Permutation};
 
 /// SHAKE-256 rate in bytes (`r = 1088 bits`).
 pub const RATE_BYTES: usize = 136;
@@ -207,11 +200,7 @@ pub fn extract_squeeze<F: PrimeField64>(
 
 #[cfg(test)]
 mod tests {
-    use lib_q_sha3::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_sha3::{ExtendableOutput, Update, XofReader};
 
     use super::*;
 

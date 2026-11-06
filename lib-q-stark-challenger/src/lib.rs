@@ -17,11 +17,7 @@ pub use complex_field_challenger::ComplexFieldChallenger;
 pub use duplex_challenger::*;
 pub use grinding_challenger::*;
 pub use hash_challenger::*;
-use lib_q_stark_field::{
-    Algebra,
-    BasedVectorSpace,
-    Field,
-};
+use lib_q_stark_field::{Algebra, BasedVectorSpace, Field};
 use lib_q_stark_sha3_256::Sha3_256Hash;
 // Convenience type aliases for hash-based challengers
 use lib_q_stark_shake128::Shake128Hash;

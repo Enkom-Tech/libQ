@@ -52,10 +52,7 @@ fn test_hash_i_kat_against_reference() {
 /// our SHA3-512 output for this input remains stable across changes.
 #[test]
 fn test_sha3_512_seed_kem_determinism() {
-    use lib_q_sha3::{
-        Digest,
-        Sha3_512,
-    };
+    use lib_q_sha3::{Digest, Sha3_512};
 
     // seed_kem from reference intermediates (32 bytes); domain = I_DOMAIN_SEPARATOR
     let seed_kem: [u8; 32] = [

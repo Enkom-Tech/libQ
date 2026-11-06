@@ -34,41 +34,18 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_dkg::lattice::bdlop::{
-    self,
-    Commitment,
-    KAPPA,
-};
+use lib_q_dkg::lattice::bdlop::{self, Commitment, KAPPA};
 use lib_q_dkg::lattice::ring::{
-    N,
-    Q,
-    Rq,
-    centered_coeffs,
-    ring_add,
-    ring_mul,
-    ring_sub,
-    sample_discrete_gaussian_block,
-    sample_uniform_poly,
-    scalar_mul,
+    N, Q, Rq, centered_coeffs, ring_add, ring_mul, ring_sub, sample_discrete_gaussian_block,
+    sample_uniform_poly, scalar_mul,
 };
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 use subtle::ConstantTimeEq;
 
 use crate::SecretShare;
 use crate::error::RaccoonError;
-use crate::signer::{
-    S_SIGN,
-    Signature,
-    challenge,
-};
+use crate::signer::{S_SIGN, Signature, challenge};
 
 /// Symmetric pairwise seeds for additive zero-sharing (one per unordered party pair).
 ///

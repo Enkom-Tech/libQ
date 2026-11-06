@@ -3684,8 +3684,8 @@ mod tests {
         // reference code, which were initially computed with Sage with
         // large precision.
         assert!(
-            buf[..] ==
-                hex::decode("f45a496cf56ccc6e3e3395a20209206d81d71a7905a661447bd5bc0e24e0af1e")
+            buf[..]
+                == hex::decode("f45a496cf56ccc6e3e3395a20209206d81d71a7905a661447bd5bc0e24e0af1e")
                     .unwrap()
         );
     }

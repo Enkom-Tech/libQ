@@ -4,36 +4,15 @@
 //! generic [`TwoAdicSubgroupDft`] on raw `Mersenne31`; use [`Complex<Mersenne31>`] or
 //! [`Mersenne31Dft`] instead (see `lib-q-stark-mersenne31::dft`).
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_stark_dft::{
-    Radix2Bowers,
-    Radix2Dit,
-    Radix2DitParallel,
-    TwoAdicSubgroupDft,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
+use lib_q_stark_dft::{Radix2Bowers, Radix2Dit, Radix2DitParallel, TwoAdicSubgroupDft};
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Algebra,
-    BasedVectorSpace,
-    TwoAdicField,
-};
+use lib_q_stark_field::{Algebra, BasedVectorSpace, TwoAdicField};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-    Mersenne31Dft,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit, Mersenne31Dft};
 use lib_q_stark_util::pretty_name;
 use rand::SeedableRng;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 use rand::rngs::SmallRng;
 
 fn bench_fft(c: &mut Criterion) {

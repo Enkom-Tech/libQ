@@ -1,17 +1,8 @@
 //! Criterion throughput: HiAE in place (detached tag), dispatched backend, plus the
 //! portable constant-time backend for reference.
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_hiae::{
-    _internals,
-    Hiae,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use lib_q_hiae::{_internals, Hiae};
 
 const SIZES: &[usize] = &[64, 1200, 16384];
 

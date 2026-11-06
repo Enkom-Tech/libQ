@@ -3,11 +3,7 @@
 //! Uses RFC 9861 KT128 as an XOF with explicit domain separation labels.
 
 use lib_q_k12::Kt128;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_k12::digest::{ExtendableOutput, Update, XofReader};
 
 /// Domain label for general lib-Q deterministic RNG (`new_deterministic`, etc.).
 pub const DOMAIN_LIBQ_DET_RNG: &[u8] = b"libQ-DET-RNG-v1";

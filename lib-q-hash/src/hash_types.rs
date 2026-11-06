@@ -2,44 +2,14 @@
 
 use alloc::vec::Vec;
 
-use digest::{
-    CustomizedInit,
-    Digest,
-    ExtendableOutput,
-    ExtendableOutputReset,
-    Update,
-    XofReader,
-};
-use lib_q_core::{
-    Error,
-    Hash,
-    Result,
-};
+use digest::{CustomizedInit, Digest, ExtendableOutput, ExtendableOutputReset, Update, XofReader};
+use lib_q_core::{Error, Hash, Result};
 
 use crate::utils::MAX_SP800185_FIXED_OUTPUT_BYTES;
 use crate::{
-    CShake128,
-    CShake256,
-    Keccak224,
-    Keccak256,
-    Keccak384,
-    Keccak512,
-    Kmac128,
-    Kmac256,
-    Kt128,
-    Kt256,
-    ParallelHash128,
-    ParallelHash256,
-    Sha3_224,
-    Sha3_256,
-    Sha3_384,
-    Sha3_512,
-    Shake128,
-    Shake256,
-    TupleHash128,
-    TupleHash256,
-    TurboShake128,
-    TurboShake256,
+    CShake128, CShake256, Keccak224, Keccak256, Keccak384, Keccak512, Kmac128, Kmac256, Kt128,
+    Kt256, ParallelHash128, ParallelHash256, Sha3_224, Sha3_256, Sha3_384, Sha3_512, Shake128,
+    Shake256, TupleHash128, TupleHash256, TurboShake128, TurboShake256,
 };
 
 /// Wrapper for cSHAKE128 that implements lib-q-core Hash trait

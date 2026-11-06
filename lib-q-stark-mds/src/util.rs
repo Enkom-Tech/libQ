@@ -1,13 +1,7 @@
-use core::ops::{
-    AddAssign,
-    Mul,
-};
+use core::ops::{AddAssign, Mul};
 
 use lib_q_stark_dft::TwoAdicSubgroupDft;
-use lib_q_stark_field::{
-    PrimeCharacteristicRing,
-    TwoAdicField,
-};
+use lib_q_stark_field::{PrimeCharacteristicRing, TwoAdicField};
 
 // NB: These are all MDS for M31, Mersenne31 and Goldilocks
 // const MATRIX_CIRC_MDS_8_2EXP: [u64; 8] = [1, 1, 2, 1, 8, 32, 4, 256];

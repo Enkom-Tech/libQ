@@ -1,62 +1,22 @@
 //! Cross-crate smoke tests for privacy protocol building blocks (lattice ZKP, ring signatures).
 
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AjtaiParameters,
-    AnonymousToken,
-    BlindIssuance,
-    BlindIssuerKeypair,
-    BlindRequest,
-    BlindSignature,
-    IssuerCommitmentParams,
-    LatticeZkpProfileV0,
-    MerklePath,
-    ProofError,
-    TOKEN_EPOCH_LEN,
-    TOKEN_ORIGIN_LEN,
-    TOKEN_SERIAL_LEN,
-    UnblindedBlindSignature,
-    amortise,
-    commit,
-    encode_pvtn_leaf,
-    leaf_hash,
-    node_hash,
-    opening_ctx_with_nullifier,
-    opening_from_token_fields,
-    prove_level_membership,
-    prove_nullifier_opening,
-    prove_opening,
-    prove_private_membership,
-    prove_witness_nullifier_opening,
-    registry_nullifier,
-    uniqueness_amortisation_label,
-    verify_aggregate,
-    verify_level_membership,
-    verify_nullifier_opening,
-    verify_private_membership,
-    verify_witness_nullifier_opening,
-    witness_nullifier,
+    AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters, AnonymousToken, BlindIssuance,
+    BlindIssuerKeypair, BlindRequest, BlindSignature, IssuerCommitmentParams, LatticeZkpProfileV0,
+    MerklePath, ProofError, TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN, TOKEN_SERIAL_LEN,
+    UnblindedBlindSignature, amortise, commit, encode_pvtn_leaf, leaf_hash, node_hash,
+    opening_ctx_with_nullifier, opening_from_token_fields, prove_level_membership,
+    prove_nullifier_opening, prove_opening, prove_private_membership,
+    prove_witness_nullifier_opening, registry_nullifier, uniqueness_amortisation_label,
+    verify_aggregate, verify_level_membership, verify_nullifier_opening, verify_private_membership,
+    verify_witness_nullifier_opening, witness_nullifier,
 };
-use lib_q_random::{
-    new_deterministic_rng,
-    new_deterministic_rng_from_u64,
-};
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_random::{new_deterministic_rng, new_deterministic_rng_from_u64};
+use lib_q_ring::{ModuleVec, Poly};
 use lib_q_ring_sig::{
-    CredentialPresentation,
-    FederationRing,
-    MemberIssuerKey,
-    RingSigParams,
-    attribute_message_digest,
-    sign_dualring_lb,
-    sign_federation_message,
-    verify_credential_presentation,
-    verify_dualring_lb,
-    verify_federation_opening,
+    CredentialPresentation, FederationRing, MemberIssuerKey, RingSigParams,
+    attribute_message_digest, sign_dualring_lb, sign_federation_message,
+    verify_credential_presentation, verify_dualring_lb, verify_federation_opening,
 };
 
 #[inline]

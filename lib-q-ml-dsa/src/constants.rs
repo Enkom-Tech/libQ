@@ -1,7 +1,4 @@
-pub(crate) use lib_q_ring::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    FIELD_MODULUS,
-};
+pub(crate) use lib_q_ring::constants::{COEFFICIENTS_IN_RING_ELEMENT, FIELD_MODULUS};
 
 pub(crate) const FIELD_MODULUS_MINUS_ONE_BIT_LENGTH: usize = 23;
 
@@ -271,20 +268,20 @@ pub(crate) const fn signing_key_size(
     columns_in_a: usize,
     error_ring_element_size: usize,
 ) -> usize {
-    SEED_FOR_A_SIZE +
-        SEED_FOR_SIGNING_SIZE +
-        BYTES_FOR_VERIFICATION_KEY_HASH +
-        (rows_in_a + columns_in_a) * error_ring_element_size +
-        rows_in_a * RING_ELEMENT_OF_T0S_SIZE
+    SEED_FOR_A_SIZE
+        + SEED_FOR_SIGNING_SIZE
+        + BYTES_FOR_VERIFICATION_KEY_HASH
+        + (rows_in_a + columns_in_a) * error_ring_element_size
+        + rows_in_a * RING_ELEMENT_OF_T0S_SIZE
 }
 
 #[hax_lib::requires(rows_in_a <= 8)]
 pub(crate) const fn verification_key_size(rows_in_a: usize) -> usize {
-    SEED_FOR_A_SIZE +
-        (COEFFICIENTS_IN_RING_ELEMENT *
-            rows_in_a *
-            (FIELD_MODULUS_MINUS_ONE_BIT_LENGTH - BITS_IN_LOWER_PART_OF_T)) /
-            8
+    SEED_FOR_A_SIZE
+        + (COEFFICIENTS_IN_RING_ELEMENT
+            * rows_in_a
+            * (FIELD_MODULUS_MINUS_ONE_BIT_LENGTH - BITS_IN_LOWER_PART_OF_T))
+            / 8
 }
 
 #[hax_lib::requires(rows_in_a <= 8 && columns_in_a <= 7 && max_ones_in_hint <= 80 && commitment_hash_size <= 64 && bits_per_gamma1_coefficient <= 20)]
@@ -295,8 +292,8 @@ pub(crate) const fn signature_size(
     commitment_hash_size: usize,
     bits_per_gamma1_coefficient: usize,
 ) -> usize {
-    commitment_hash_size +
-        (columns_in_a * gamma1_ring_element_size(bits_per_gamma1_coefficient)) +
-        max_ones_in_hint +
-        rows_in_a
+    commitment_hash_size
+        + (columns_in_a * gamma1_ring_element_size(bits_per_gamma1_coefficient))
+        + max_ones_in_hint
+        + rows_in_a
 }

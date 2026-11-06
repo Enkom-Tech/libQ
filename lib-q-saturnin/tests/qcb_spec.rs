@@ -57,14 +57,7 @@
 
 #![cfg(all(feature = "alloc", feature = "qcb"))]
 
-use lib_q_saturnin::{
-    Aead,
-    AeadKey,
-    Nonce,
-    SaturninHash,
-    SaturninQcb,
-    SaturninTbc,
-};
+use lib_q_saturnin::{Aead, AeadKey, Nonce, SaturninHash, SaturninQcb, SaturninTbc};
 
 /// Saturnin block size in bytes (256-bit block).
 const B: usize = 32;

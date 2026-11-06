@@ -2,12 +2,7 @@
 
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 use lib_q_hqc::simd::Avx2;
-use lib_q_hqc::simd::{
-    PolynomialOps,
-    Portable,
-    SyndromeOps,
-    runtime,
-};
+use lib_q_hqc::simd::{PolynomialOps, Portable, SyndromeOps, runtime};
 
 /// Test that SIMD infrastructure compiles and basic functions work
 #[test]

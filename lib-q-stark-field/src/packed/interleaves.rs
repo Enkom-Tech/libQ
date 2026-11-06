@@ -3,10 +3,7 @@
 
 #[cfg(all(target_arch = "aarch64", target_feature = "neon"))]
 pub mod interleave {
-    use core::arch::aarch64::{
-        self,
-        uint32x4_t,
-    };
+    use core::arch::aarch64::{self, uint32x4_t};
 
     #[inline]
     #[must_use]
@@ -56,10 +53,7 @@ pub mod interleave {
     not(target_feature = "avx512f")
 ))]
 pub mod interleave {
-    use core::arch::x86_64::{
-        self,
-        __m256i,
-    };
+    use core::arch::x86_64::{self, __m256i};
 
     #[inline]
     #[must_use]
@@ -156,12 +150,7 @@ pub mod interleave {
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f"))]
 pub mod interleave {
-    use core::arch::x86_64::{
-        self,
-        __m512i,
-        __mmask8,
-        __mmask16,
-    };
+    use core::arch::x86_64::{self, __m512i, __mmask8, __mmask16};
     use core::mem::transmute;
 
     const EVENS: __mmask16 = 0b0101010101010101;

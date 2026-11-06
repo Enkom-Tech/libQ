@@ -2,18 +2,10 @@ use alloc::vec::Vec;
 
 use itertools::Itertools;
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    TwoAdicField,
-    batch_multiplicative_inverse,
-};
+use lib_q_stark_field::{ExtensionField, Field, TwoAdicField, batch_multiplicative_inverse};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-use lib_q_stark_util::{
-    log2_ceil_usize,
-    log2_strict_usize,
-};
+use lib_q_stark_util::{log2_ceil_usize, log2_strict_usize};
 
 /// Given a `PolynomialSpace`, `S`, and a subset `R`, a Lagrange selector `P_R` is
 /// a polynomial which is not equal to `0` for every element in `R` but is equal
@@ -334,10 +326,7 @@ impl<Val: TwoAdicField> PolynomialSpace for TwoAdicMultiplicativeCoset<Val> {
 #[cfg(test)]
 mod tests {
     use lib_q_stark_baby_bear::BabyBear;
-    use lib_q_stark_field::{
-        PrimeCharacteristicRing,
-        PrimeField32,
-    };
+    use lib_q_stark_field::{PrimeCharacteristicRing, PrimeField32};
 
     use super::*;
 
@@ -415,8 +404,8 @@ mod tests {
     fn vanishing_poly_negative_control_distinguishes_in_from_out_of_domain() {
         let c = coset(F::new(9), 4);
         let on_domain_is_zero =
-            PolynomialSpace::vanishing_poly_at_point::<F>(&c, PolynomialSpace::first_point(&c)) ==
-                F::ZERO;
+            PolynomialSpace::vanishing_poly_at_point::<F>(&c, PolynomialSpace::first_point(&c))
+                == F::ZERO;
         let disjoint = PolynomialSpace::create_disjoint_domain(&c, PolynomialSpace::size(&c));
         let off_domain_is_zero = PolynomialSpace::vanishing_poly_at_point::<F>(
             &c,

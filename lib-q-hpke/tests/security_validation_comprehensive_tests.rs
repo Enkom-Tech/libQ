@@ -6,33 +6,12 @@
 #![cfg(feature = "std")]
 #![allow(unused_imports, unused_variables, clippy::useless_vec)]
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
-use lib_q_hpke::providers::{
-    AeadProvider,
-    KemProvider,
-};
-use lib_q_hpke::security::prng::{
-    CryptoRng,
-    Kt128Rng,
-};
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContext,
-    HpkeKdf,
-    HpkeKem,
-    HpkeMode,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
+use lib_q_hpke::providers::{AeadProvider, KemProvider};
+use lib_q_hpke::security::prng::{CryptoRng, Kt128Rng};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeContext, HpkeKdf, HpkeKem, HpkeMode};
 use lib_q_kem::LibQKemProvider;
 
 /// B14 interim fix: Auth mode does not currently bind the sender's static secret key into the

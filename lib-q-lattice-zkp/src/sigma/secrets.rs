@@ -25,22 +25,11 @@ use alloc::vec::Vec;
 
 #[cfg(feature = "hardened")]
 use lib_q_ring::reduce_element;
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_ring::{ModuleVec, Poly};
 #[cfg(feature = "hardened")]
-use lib_q_sha3::{
-    ExtendableOutput,
-    Shake256,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::{ExtendableOutput, Shake256, Update, XofReader};
 #[cfg(feature = "hardened")]
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 use zeroize::Zeroize;
 
 #[cfg(feature = "hardened")]

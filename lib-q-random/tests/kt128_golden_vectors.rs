@@ -7,9 +7,7 @@
 
 use hex::FromHex;
 use lib_q_random::{
-    KT128_DET_GOLDEN_U64_SEED_64,
-    KT128_DET_GOLDEN_ZERO_SEED_64,
-    new_deterministic_rng,
+    KT128_DET_GOLDEN_U64_SEED_64, KT128_DET_GOLDEN_ZERO_SEED_64, new_deterministic_rng,
     new_deterministic_rng_from_u64,
 };
 use rand_core::Rng;

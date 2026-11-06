@@ -1,26 +1,9 @@
 use core::array;
-use core::iter::{
-    Product,
-    Sum,
-};
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
+use core::iter::{Product, Sum};
+use core::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use crate::batch_inverse::batch_multiplicative_inverse_general;
-use crate::{
-    Algebra,
-    Field,
-    PackedValue,
-    PrimeCharacteristicRing,
-};
+use crate::{Algebra, Field, PackedValue, PrimeCharacteristicRing};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 #[repr(transparent)] // Needed to make `transmute`s safe.

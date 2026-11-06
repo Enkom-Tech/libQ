@@ -59,10 +59,7 @@
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 
 use crate::core::SaturninCore;
 #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]

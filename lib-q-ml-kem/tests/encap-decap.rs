@@ -67,10 +67,7 @@ fn verify_decap<K: KemCore>(tc: &acvp::DecapTestCase, dk_slice: &[u8]) {
 }
 
 mod acvp {
-    use serde::{
-        Deserialize,
-        Serialize,
-    };
+    use serde::{Deserialize, Serialize};
 
     #[derive(Deserialize, Serialize)]
     pub struct TestVectorFile {

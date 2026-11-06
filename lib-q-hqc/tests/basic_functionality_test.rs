@@ -2,11 +2,7 @@
 //!
 //! This test verifies that the basic HQC types can be created and compiled.
 
-use lib_q_hqc::hqc_core::{
-    Hqc128Kem,
-    Hqc192Kem,
-    Hqc256Kem,
-};
+use lib_q_hqc::hqc_core::{Hqc128Kem, Hqc192Kem, Hqc256Kem};
 
 #[test]
 fn test_hqc_types_compile() {

@@ -11,20 +11,9 @@ use alloc::vec::Vec;
 use core::ops::Deref;
 
 use lib_q_plonky_lookup::AirWithLookups;
-use lib_q_plonky_lookup::lookup_traits::{
-    Lookup,
-    LookupGadget,
-};
-use lib_q_stark_air::{
-    AirBuilder,
-    ExtensionBuilder,
-    PermutationAirBuilder,
-    RowWindow,
-};
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_plonky_lookup::lookup_traits::{Lookup, LookupGadget};
+use lib_q_stark_air::{AirBuilder, ExtensionBuilder, PermutationAirBuilder, RowWindow};
+use lib_q_stark_field::{ExtensionField, Field};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 

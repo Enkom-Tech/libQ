@@ -24,19 +24,9 @@
 
 use alloc::vec::Vec;
 
-use crate::arith::{
-    self,
-    Modulus,
-};
-use crate::params::{
-    N,
-    ParamSet,
-    Poly,
-};
-use crate::{
-    codec,
-    sample,
-};
+use crate::arith::{self, Modulus};
+use crate::params::{N, ParamSet, Poly};
+use crate::{codec, sample};
 
 /// Public parameters: the seed for `A` and the expanded matrix.
 #[derive(Clone, Debug)]
@@ -210,10 +200,7 @@ pub fn decrypt_side(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::params::{
-        MAUL512,
-        MAUL768,
-    };
+    use crate::params::{MAUL512, MAUL768};
 
     fn setup(p: &'static ParamSet) -> (PublicParams, PkeKey, PkeSecret, PkeKey, PkeSecret) {
         let pp = PublicParams::standard(p);

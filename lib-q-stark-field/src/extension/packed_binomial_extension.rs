@@ -1,54 +1,19 @@
 use alloc::vec::Vec;
 use core::array;
 use core::fmt::Debug;
-use core::iter::{
-    Product,
-    Sum,
-};
-use core::ops::{
-    Add,
-    AddAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
+use core::iter::{Product, Sum};
+use core::ops::{Add, AddAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use itertools::Itertools;
-use lib_q_stark_util::{
-    flatten_to_base,
-    reconstitute_from_base,
-};
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use lib_q_stark_util::{flatten_to_base, reconstitute_from_base};
+use rand::distr::{Distribution, StandardUniform};
+use serde::{Deserialize, Serialize};
 
-use super::{
-    BinomialExtensionField,
-    binomial_mul,
-    vector_add,
-    vector_sub,
-};
-use crate::extension::{
-    BinomiallyExtendable,
-    binomial_square,
-};
+use super::{BinomialExtensionField, binomial_mul, vector_add, vector_sub};
+use crate::extension::{BinomiallyExtendable, binomial_square};
 use crate::{
-    Algebra,
-    BasedVectorSpace,
-    Field,
-    PackedField,
-    PackedFieldExtension,
-    PackedValue,
-    Powers,
-    PrimeCharacteristicRing,
-    field_to_array,
+    Algebra, BasedVectorSpace, Field, PackedField, PackedFieldExtension, PackedValue, Powers,
+    PrimeCharacteristicRing, field_to_array,
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize, PartialOrd, Ord)]

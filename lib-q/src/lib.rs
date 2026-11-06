@@ -150,29 +150,18 @@ pub use lib_q_core::{
     version,
 };
 // Re-export specific items from lib-q-core to avoid conflicts
-pub use lib_q_core::{
-    LibQCryptoProvider,
-    Utils,
-    create_kem_context,
-};
+pub use lib_q_core::{LibQCryptoProvider, Utils, create_kem_context};
 #[cfg(feature = "alloc")]
 pub use lib_q_hash::LibQHashProvider;
 #[cfg(feature = "hqc")]
 pub use lib_q_hqc::LibQHqcProvider;
 // Re-export from other crates for convenience
 #[cfg(any(feature = "ml-kem", feature = "hqc"))]
-pub use lib_q_kem::{
-    LibQKemProvider,
-    available_algorithms,
-};
+pub use lib_q_kem::{LibQKemProvider, available_algorithms};
 // Re-export lib-q-random for random number generation
 #[cfg(feature = "random")]
 pub use lib_q_random::{
-    EntropyQuality,
-    EntropyValidator,
-    LibQRng,
-    new_custom_rng,
-    new_deterministic_rng,
+    EntropyQuality, EntropyValidator, LibQRng, new_custom_rng, new_deterministic_rng,
     new_secure_rng,
 };
 // Note: random-no-std feature integration requires proper feature alignment
@@ -183,23 +172,16 @@ pub use lib_q_random::{
 #[cfg(feature = "random-custom-entropy")]
 pub use lib_q_random::{
     custom_entropy::{
-        CustomEntropyConfig,
-        CustomEntropySource,
-        EntropyContext,
+        CustomEntropyConfig, CustomEntropySource, EntropyContext,
         EntropyQuality as CustomEntropyQuality,
     },
-    get_custom_entropy_source_info,
-    has_custom_entropy_source,
-    register_custom_entropy_source,
+    get_custom_entropy_source_info, has_custom_entropy_source, register_custom_entropy_source,
     unregister_custom_entropy_source,
 };
 /// Legacy boxed `Signature` factory (`std` only; matches `lib-q-sig` / `Box<dyn Signature>`).
 #[cfg(feature = "std")]
 pub use lib_q_sig::create_signature;
-pub use lib_q_sig::{
-    LibQSignatureProvider,
-    available_algorithms as sig_available_algorithms,
-};
+pub use lib_q_sig::{LibQSignatureProvider, available_algorithms as sig_available_algorithms};
 
 /// Create a [`SignatureContext`] with [`LibQSignatureProvider`]
 /// already installed (ML-DSA and SLH-DSA from `lib-q-sig` defaults; FN-DSA when the `fn-dsa`
@@ -236,22 +218,12 @@ pub mod zkp {
     //! Re-exports from `lib-q-zkp` for convenient top-level access.
 
     pub use lib_q_zkp::api::{
-        MerklePath,
-        prove_membership,
-        prove_preimage,
-        verify_membership,
-        verify_membership_with_depth,
-        verify_preimage,
+        MerklePath, prove_membership, prove_preimage, verify_membership,
+        verify_membership_with_depth, verify_preimage,
     };
-    pub use lib_q_zkp::circuit::{
-        ArithmeticCircuit,
-        CircuitAir,
-        CircuitBuilder,
-    };
+    pub use lib_q_zkp::circuit::{ArithmeticCircuit, CircuitAir, CircuitBuilder};
     pub use lib_q_zkp::ip::credential::{
-        IpCredential,
-        compute_credential_commitment,
-        prove_credential_attributes,
+        IpCredential, compute_credential_commitment, prove_credential_attributes,
         verify_credential_proof,
     };
     /// Plonky3-derived STARK components (batch/uni STARK, Keccak AIR, lookup, multilinear util).
@@ -265,19 +237,8 @@ pub mod zkp {
         feature = "zkp-plonky-batch-stark",
     ))]
     pub use lib_q_zkp::plonky;
-    pub use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
-    pub use lib_q_zkp::{
-        ProofMetadata,
-        ProofType,
-        ZkpField,
-        ZkpProof,
-        ZkpProver,
-        ZkpVerifier,
-    };
+    pub use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
+    pub use lib_q_zkp::{ProofMetadata, ProofType, ZkpField, ZkpProof, ZkpProver, ZkpVerifier};
 }
 
 // Note: hash, aead, and utils features are handled by individual crates
@@ -297,15 +258,9 @@ pub mod wasm {
     #[cfg(not(feature = "std"))]
     use alloc::boxed::Box;
     #[cfg(not(feature = "std"))]
-    use alloc::string::{
-        String,
-        ToString,
-    };
+    use alloc::string::{String, ToString};
     #[cfg(feature = "std")]
-    use std::string::{
-        String,
-        ToString,
-    };
+    use std::string::{String, ToString};
 
     pub use lib_q_core::wasm::*;
     use wasm_bindgen::prelude::*;
@@ -619,10 +574,7 @@ mod tests {
         #[cfg(not(feature = "std"))]
         use alloc::vec;
 
-        use lib_q_core::traits::{
-            AeadKey,
-            Nonce,
-        };
+        use lib_q_core::traits::{AeadKey, Nonce};
         // Generate proper random key and nonce that pass security validation
         let mut key_bytes = vec![0u8; 32];
         let mut nonce_bytes = vec![0u8; 16]; // Saturnin requires 16-byte nonce
@@ -678,10 +630,7 @@ mod tests {
     #[cfg(feature = "alloc")]
     #[test]
     fn test_create_aead_context_shake256_roundtrip() {
-        use lib_q_core::traits::{
-            AeadKey,
-            Nonce,
-        };
+        use lib_q_core::traits::{AeadKey, Nonce};
 
         let mut key_bytes = vec![0u8; 32];
         let mut nonce_bytes = vec![0u8; 16];
@@ -724,10 +673,7 @@ mod tests {
     #[cfg(all(feature = "alloc", feature = "duplex-sponge-aead"))]
     #[test]
     fn test_create_aead_context_duplex_sponge_roundtrip() {
-        use lib_q_core::traits::{
-            AeadKey,
-            Nonce,
-        };
+        use lib_q_core::traits::{AeadKey, Nonce};
 
         let mut key_bytes = vec![0u8; 32];
         let mut nonce_bytes = vec![0u8; 16];
@@ -770,10 +716,7 @@ mod tests {
     #[cfg(all(feature = "alloc", feature = "tweak-aead"))]
     #[test]
     fn test_create_aead_context_tweak_aead_roundtrip() {
-        use lib_q_core::traits::{
-            AeadKey,
-            Nonce,
-        };
+        use lib_q_core::traits::{AeadKey, Nonce};
 
         let mut key_bytes = vec![0u8; 32];
         let mut nonce_bytes = vec![0u8; 16];
@@ -816,10 +759,7 @@ mod tests {
     #[cfg(all(feature = "alloc", feature = "romulus"))]
     #[test]
     fn test_create_aead_context_romulus_n_roundtrip() {
-        use lib_q_core::traits::{
-            AeadKey,
-            Nonce,
-        };
+        use lib_q_core::traits::{AeadKey, Nonce};
 
         let mut key_bytes = vec![0u8; 16];
         let mut nonce_bytes = vec![0u8; 16];
@@ -862,10 +802,7 @@ mod tests {
     #[cfg(all(feature = "alloc", feature = "romulus"))]
     #[test]
     fn test_create_aead_context_romulus_m_roundtrip() {
-        use lib_q_core::traits::{
-            AeadKey,
-            Nonce,
-        };
+        use lib_q_core::traits::{AeadKey, Nonce};
 
         let mut key_bytes = vec![0u8; 16];
         let mut nonce_bytes = vec![0u8; 16];

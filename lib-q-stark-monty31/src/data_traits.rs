@@ -1,10 +1,7 @@
 use core::fmt::Debug;
 use core::hash::Hash;
 
-use lib_q_stark_field::{
-    Algebra,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Algebra, PrimeCharacteristicRing};
 
 use crate::MontyField31;
 

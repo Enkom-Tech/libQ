@@ -5,21 +5,12 @@
 
 use core::fmt;
 
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{TryCryptoRng, TryRng};
 
 #[cfg(feature = "custom-entropy")]
-use crate::custom_entropy::{
-    generate_custom_entropy,
-    has_custom_entropy_source,
-};
+use crate::custom_entropy::{generate_custom_entropy, has_custom_entropy_source};
 use crate::kt128_expander::Kt128Expander;
-use crate::{
-    Error,
-    Result,
-};
+use crate::{Error, Result};
 
 /// A `no_std` compatible random number generator
 ///

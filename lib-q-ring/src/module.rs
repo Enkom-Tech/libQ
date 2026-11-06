@@ -3,10 +3,7 @@
 use alloc::vec::Vec;
 
 use crate::field::reduce_poly_simd;
-use crate::poly::{
-    NttPoly,
-    Poly,
-};
+use crate::poly::{NttPoly, Poly};
 
 /// Column vector of ring elements (time domain).
 #[derive(Clone, Debug, PartialEq, Eq, zeroize::Zeroize, zeroize::ZeroizeOnDrop)]

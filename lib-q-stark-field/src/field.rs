@@ -1,50 +1,21 @@
 use alloc::vec;
 use alloc::vec::Vec;
-use core::fmt::{
-    Debug,
-    Display,
-};
+use core::fmt::{Debug, Display};
 use core::hash::Hash;
-use core::iter::{
-    Product,
-    Sum,
-};
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    DivAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
-use core::{
-    array,
-    slice,
-};
+use core::iter::{Product, Sum};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
+use core::{array, slice};
 
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_util::{
-    flatten_to_base,
-    iter_array_chunks_padded,
-};
+use lib_q_stark_util::{flatten_to_base, iter_array_chunks_padded};
 use num_bigint::BigUint;
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 
 use crate::exponentiation::bits_u64;
-use crate::integers::{
-    QuotientMap,
-    from_integer_types,
-};
+use crate::integers::{QuotientMap, from_integer_types};
 use crate::packed::PackedField;
-use crate::{
-    Packable,
-    PackedFieldExtension,
-    PackedValue,
-};
+use crate::{Packable, PackedFieldExtension, PackedValue};
 
 /// A commutative ring, `R`, with prime characteristic, `p`.
 ///

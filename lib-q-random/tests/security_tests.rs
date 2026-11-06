@@ -16,15 +16,9 @@ extern crate alloc;
 
 // Conditional imports based on feature flags
 #[cfg(feature = "alloc")]
-use lib_q_random::{
-    new_deterministic_rng,
-    new_secure_rng,
-};
+use lib_q_random::{new_deterministic_rng, new_secure_rng};
 #[cfg(not(feature = "alloc"))]
-use lib_q_random::{
-    new_deterministic_rng_no_std,
-    new_secure_rng_no_std,
-};
+use lib_q_random::{new_deterministic_rng_no_std, new_secure_rng_no_std};
 use rand_core::Rng;
 
 fn pad_label(s: &[u8]) -> [u8; 32] {

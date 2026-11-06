@@ -660,10 +660,7 @@ mod tests {
     fn test_reed_muller_encode_decode_roundtrip_hqc3_and_hqc5() {
         use alloc::vec::Vec;
 
-        use crate::params::{
-            Hqc3Params,
-            Hqc5Params,
-        };
+        use crate::params::{Hqc3Params, Hqc5Params};
 
         // HQC-3: N1 = 56, multiplicity = ceil(640/128) = 5.
         let rm3 = ReedMuller::<Hqc3Params>::new();

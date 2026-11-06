@@ -2,10 +2,7 @@
 
 use lib_q_ring::encoding::simple_bit_pack_len;
 
-use crate::profile::{
-    LatticeZkpProfileV0,
-    RQ_COEFF_PACK_BITS,
-};
+use crate::profile::{LatticeZkpProfileV0, RQ_COEFF_PACK_BITS};
 
 /// Rough byte accounting for batched presentations.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -73,9 +70,9 @@ impl AmortisationBudget {
 pub fn measured_opening_wire_body_bytes(profile: &LatticeZkpProfileV0) -> usize {
     let rq_len = simple_bit_pack_len(usize::from(RQ_COEFF_PACK_BITS));
     let z_len = simple_bit_pack_len(usize::from(profile.z_pack_bits));
-    2 + profile.mask_poly_count().saturating_mul(rq_len) +
-        2 +
-        profile.witness_poly_count().saturating_mul(z_len)
+    2 + profile.mask_poly_count().saturating_mul(rq_len)
+        + 2
+        + profile.witness_poly_count().saturating_mul(z_len)
 }
 
 #[cfg(test)]

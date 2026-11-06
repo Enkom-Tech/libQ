@@ -2,20 +2,8 @@
 
 mod common;
 
-use common::{
-    EPOCH,
-    ISSUER_KEY_ID,
-    det_rng,
-    issue,
-};
-use lib_q_blind_token::{
-    blind,
-    blind_sign,
-    keygen_issuer,
-    redeem,
-    unblind,
-    verify,
-};
+use common::{EPOCH, ISSUER_KEY_ID, det_rng, issue};
+use lib_q_blind_token::{blind, blind_sign, keygen_issuer, redeem, unblind, verify};
 
 #[test]
 fn honest_roundtrip_verifies() {

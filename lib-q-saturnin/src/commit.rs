@@ -320,10 +320,7 @@
 use alloc::vec::Vec;
 
 use lib_q_core::Result;
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::hash::SaturninHash;
 

@@ -1,7 +1,4 @@
-use crate::constants::{
-    GAMMA2_V95_232,
-    GAMMA2_V261_888,
-};
+use crate::constants::{GAMMA2_V95_232, GAMMA2_V261_888};
 use crate::simd::traits::*;
 
 fn test_decompose_generic<SIMDUnit: Operations>() {
@@ -81,10 +78,7 @@ fn test_power2round_generic<SIMDUnit: Operations>() {
 
 #[cfg(not(all(feature = "simd256", target_arch = "x86_64")))]
 mod portable {
-    use super::{
-        test_decompose_generic,
-        test_power2round_generic,
-    };
+    use super::{test_decompose_generic, test_power2round_generic};
 
     #[test]
     fn test_decompose() {
@@ -98,10 +92,7 @@ mod portable {
 
 #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 mod avx2 {
-    use super::{
-        test_decompose_generic,
-        test_power2round_generic,
-    };
+    use super::{test_decompose_generic, test_power2round_generic};
 
     #[test]
     fn test_decompose() {
@@ -120,10 +111,7 @@ mod avx2 {
 mod avx2_vs_portable {
     use crate::simd::avx2::AVX2SIMDUnit;
     use crate::simd::portable::PortableSIMDUnit;
-    use crate::simd::traits::{
-        COEFFICIENTS_IN_SIMD_UNIT as N,
-        Operations,
-    };
+    use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT as N, Operations};
 
     // Deterministic SplitMix64 — reproducible pseudo-random inputs without an rng dep.
     fn next(state: &mut u64) -> u64 {

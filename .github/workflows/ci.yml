@@ -302,7 +302,7 @@ jobs:
           # Confirmed 2026-09-20: cargo fmt --all -- --check is clean under the pin but fails
           # under stable (lib-q-stark-fri/src/config.rs reformats differently), which broke CI on
           # every push to main until this was pinned explicitly (run 35502428327 and others).
-          rust-version: "nightly-2026-07-24"
+          rust-version: "1.99.1"
           # Clippy runs once below (workspace, all features) to avoid compiling twice.
           run-clippy: "false"
           run-tests: "false"
@@ -1243,7 +1243,7 @@ jobs:
           toolchain: stable
           targets: wasm32-unknown-unknown,thumbv7em-none-eabi
 
-      # `rust-toolchain.toml` forces nightly; dtolnay only augments `stable`, so install std for
+      # `rust-toolchain.toml` forces the pinned stable; dtolnay only augments `stable`, so install std for
       # the directory override (see targets in rust-toolchain.toml) before cross builds.
       - name: Install wasm/thumb std for override toolchain
         run: |
@@ -1326,7 +1326,7 @@ jobs:
         with:
           # Match rust-toolchain.toml (directory override); stable + cross without
           # .cargo linkers used host `cc` and rust-lld (elf64-x86-64 vs aarch64 objects).
-          toolchain: nightly
+          toolchain: 1.99.1
           components: rustfmt, clippy, rust-src
 
       - name: Install cross-compiler toolchains (Ubuntu)
@@ -1522,11 +1522,11 @@ jobs:
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
-          # Match rust-toolchain.toml (directory override), same as cross-platform above.
-          toolchain: nightly
+          # Match rust-toolchain.toml (directory override), same as cross-platform above (stable 1.99.1).
+          toolchain: 1.99.1
           components: rust-src
 
-      # dtolnay only augments `nightly`; the directory override in rust-toolchain.toml is the
+      # The directory override in rust-toolchain.toml is the
       # toolchain cargo actually uses, so add the target there.
       - name: Install aarch64 std for override toolchain
         run: rustup target add aarch64-unknown-linux-gnu
@@ -1731,10 +1731,13 @@ jobs:
           # No token left in .git/config: a snapshot's own code runs in these jobs.
           persist-credentials: false
 
+      # docs.rs builds with nightly, and `--cfg docsrs` turns on `#![feature(doc_cfg)]`
+      # (lib-q-aegis, lib-q-hiae), which stable rustdoc rejects. So this job runs on the
+      # same dated nightly as the keccak SIMD job, not the stable toolchain file.
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
         with:
-          toolchain: stable
+          toolchain: nightly-2026-11-01
           components: rust-src
 
       - name: Cargo.lock fingerprint (SHA3-256)
@@ -1749,9 +1752,9 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-docs-${{ steps.lockfp24.outputs.hash }}
+          key: ${{ runner.os }}-docs-nightly-2026-11-01-${{ steps.lockfp24.outputs.hash }}
           restore-keys: |
-            ${{ runner.os }}-docs-
+            ${{ runner.os }}-docs-nightly-2026-11-01-
       
       # docs.rs builds every published crate with `--all-features` AND `--cfg docsrs`
       # (see each crate's `[package.metadata.docs.rs]`). Without `--cfg docsrs` here,
@@ -1763,6 +1766,8 @@ jobs:
       - name: Generate documentation
         env:
           RUSTDOCFLAGS: --cfg docsrs
+          # Overrides rust-toolchain.toml (stable) for this step only; see "Setup Rust" above.
+          RUSTUP_TOOLCHAIN: nightly-2026-11-01
         run: |
           cargo doc --all-features --no-deps
           cargo doc --all-features --no-deps --document-private-items
@@ -1795,7 +1800,8 @@ jobs:
             action: test-keccak
             working-directory: lib-q-keccak
             features: "asm,simd"
-            rust-version: "nightly"
+            rust-version: "1.99.1"
+            run-simd: "true"
             run-benchmarks: "false"
             test-algorithms: ""
           - name: "SHA3"
@@ -1921,6 +1927,7 @@ jobs:
           rust-version: ${{ matrix.rust-version }}
           run-benchmarks: ${{ matrix.run-benchmarks }}
           test-algorithms: ${{ matrix.test-algorithms }}
+          run-simd: ${{ matrix.run-simd }}
       
       - name: Run SHA3 tests
         uses: ./.github/actions/test-sha3

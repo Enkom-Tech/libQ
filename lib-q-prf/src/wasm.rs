@@ -10,11 +10,7 @@ use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
 
 use crate::{
-    GoldKey256,
-    GoldPrfParams256,
-    LegendreKey256,
-    LegendrePrfParams256,
-    gold_prf_u256,
+    GoldKey256, GoldPrfParams256, LegendreKey256, LegendrePrfParams256, gold_prf_u256,
     legendre_prf_u256,
 };
 

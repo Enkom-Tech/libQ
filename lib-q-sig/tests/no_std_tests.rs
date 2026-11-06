@@ -13,10 +13,7 @@ use lib_q_core::Signature;
 #[cfg(feature = "slh-dsa")]
 use lib_q_core::api::Algorithm;
 #[cfg(feature = "ml-dsa")]
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 #[cfg(feature = "ml-dsa")]
 use lib_q_sig::ml_dsa::MlDsa;
 #[cfg(feature = "slh-dsa")]

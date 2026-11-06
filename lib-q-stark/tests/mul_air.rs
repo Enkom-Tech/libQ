@@ -5,57 +5,22 @@ use core::fmt::Debug;
 use itertools::Itertools;
 use lib_q_random::DeterministicRng;
 use lib_q_stark::{
-    PcsError,
-    StarkConfig,
-    StarkGenericConfig,
-    Val,
-    VerificationError,
-    prove,
-    verify,
+    PcsError, StarkConfig, StarkGenericConfig, Val, VerificationError, prove, verify,
 };
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_challenger::{
-    ComplexFieldChallenger,
-    Shake256Challenger32,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
 // p3_circle::CirclePcs removed: non-NIST hash
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-    TwoAdicField,
-};
-use lib_q_stark_fri::{
-    FriParameters,
-    HidingFriPcs,
-    TwoAdicFriPcs,
-    create_test_fri_params_zk,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing, TwoAdicField};
+use lib_q_stark_fri::{FriParameters, HidingFriPcs, TwoAdicFriPcs, create_test_fri_params_zk};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
-use lib_q_stark_merkle::{
-    MerkleTreeHidingMmcs,
-    MerkleTreeMmcs,
-};
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_merkle::{MerkleTreeHidingMmcs, MerkleTreeMmcs};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 use rand::RngExt;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 
 /// How many `a * b = c` operations to do per row in the AIR.
 const REPETITIONS: usize = 20; // This should be < 255 so it can fit into a u8.

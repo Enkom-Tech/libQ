@@ -9,11 +9,7 @@
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use lib_q_core::error::Error;
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_core::wasm::error::{
-    error_to_js_value,
-    parse_algorithm_wasm,
-    secure_serialize,
-};
+use lib_q_core::wasm::error::{error_to_js_value, parse_algorithm_wasm, secure_serialize};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 

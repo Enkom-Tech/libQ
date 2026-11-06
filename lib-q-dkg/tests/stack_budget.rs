@@ -28,12 +28,7 @@
 mod common;
 
 use common::det_rng;
-use lib_q_dkg::{
-    dkg_eval_share,
-    dkg_round1_commit,
-    dkg_verify_share,
-    setup,
-};
+use lib_q_dkg::{dkg_eval_share, dkg_round1_commit, dkg_verify_share, setup};
 
 /// One full prover+verifier pass through the BDLOP-heavy ceremony path. Returns `true` iff the
 /// binding share verifies — i.e. the deep `prove_share`/`recompute_w` chain ran to completion.

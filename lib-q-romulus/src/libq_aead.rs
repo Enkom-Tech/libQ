@@ -8,29 +8,13 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 
 use aead::array::Array;
-use aead::{
-    AeadInOut,
-    KeyInit,
-};
+use aead::{AeadInOut, KeyInit};
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use zeroize::{Zeroize, Zeroizing};
 
-use crate::{
-    RomulusM,
-    RomulusN,
-    stack_secret,
-};
+use crate::{RomulusM, RomulusN, stack_secret};
 
 /// Stateless Romulus-N facade using [`lib_q_core::Aead`].
 pub struct RomulusNAead;

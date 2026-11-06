@@ -1,18 +1,8 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    ExtensionBuilder,
-    PermutationAirBuilder,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    Algebra,
-    ExtensionField,
-    Field,
-};
+use lib_q_stark_air::{Air, AirBuilder, ExtensionBuilder, PermutationAirBuilder, WindowAccess};
+use lib_q_stark_field::{Algebra, ExtensionField, Field};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_util::log2_ceil_usize;
 use tracing::instrument;

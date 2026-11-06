@@ -1,20 +1,13 @@
 //! Integration tests for the pilot insecure PRF transcript (not a ring signature).
 
 use lib_q_prf::{
-    GoldKey256,
-    GoldPrfParams256,
-    LegendreKey256,
-    LegendrePrfParams256,
-    u256_to_le_bytes,
+    GoldKey256, GoldPrfParams256, LegendreKey256, LegendrePrfParams256, u256_to_le_bytes,
 };
 use lib_q_random::new_deterministic_rng;
 use lib_q_ring_sig::dualring_prf::verify_dualring_prf_batch_u256;
 use lib_q_ring_sig::pilot_insecure_prf_transcript::{
-    PilotPrfTranscriptError,
-    PilotPrfTranscriptMemberSecrets256,
-    pilot_prf_transcript_sign_u256,
-    pilot_prf_transcript_verify_batch_u256,
-    pilot_prf_transcript_verify_u256,
+    PilotPrfTranscriptError, PilotPrfTranscriptMemberSecrets256, pilot_prf_transcript_sign_u256,
+    pilot_prf_transcript_verify_batch_u256, pilot_prf_transcript_verify_u256,
 };
 
 fn member_from_seed(

@@ -52,34 +52,16 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_poseidon::PoseidonField;
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
-use super::wide_hash::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-    poseidon256_wide_hash,
-};
+use super::wide_hash::{WIDE_DIGEST_ELEMS, WideDigest, poseidon256_wide_hash};
 use super::wide_sponge::{
-    constrain_wide_sponge,
-    generate_wide_sponge_cells,
-    wide_sponge_interm_cols,
+    constrain_wide_sponge, generate_wide_sponge_cells, wide_sponge_interm_cols,
 };
-use super::{
-    bytes_to_poseidon_field,
-    poseidon_to_field,
-};
+use super::{bytes_to_poseidon_field, poseidon_to_field};
 
 /// Secret-trapdoor length (field elements). 3 × ~62-bit ≈ 186-bit min-entropy ≥ 128-bit.
 pub const SECRET_T_ELEMS: usize = 3;
@@ -202,14 +184,14 @@ where
         let mut node_input: Vec<AB::Expr> = Vec::with_capacity(NODE_INPUT_LEN);
         for i in 0..WIDE_DIGEST_ELEMS {
             node_input.push(
-                m_running[i].clone() +
-                    m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()),
+                m_running[i].clone()
+                    + m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()),
             );
         }
         for i in 0..WIDE_DIGEST_ELEMS {
             node_input.push(
-                m_sibling[i].clone() +
-                    m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()),
+                m_sibling[i].clone()
+                    + m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()),
             );
         }
         let parent = match constrain_wide_sponge(builder, &node_input, M_INTERM_START) {
@@ -552,11 +534,7 @@ mod tests {
     /// AIR is mechanically ZK-compatible before a production ZK config is wired.
     #[test]
     fn membership_zk_config_round_trip() {
-        use crate::stark::{
-            StarkProver,
-            StarkVerifier,
-            zk_config_with_params,
-        };
+        use crate::stark::{StarkProver, StarkVerifier, zk_config_with_params};
 
         // The Poseidon x⁵ S-box (constraint degree 5) needs the hiding LDE at log_blowup >= 3
         // under ZK (the trace is randomized to ~2·height degree). Height 4 is also below the ZK
@@ -598,11 +576,7 @@ mod tests {
     /// (wrong nullifier) against the REAL prover/verifier.
     #[test]
     fn membership_real_prover_round_trip_and_negative() {
-        use crate::stark::{
-            StarkProver,
-            StarkVerifier,
-            fast_proof_config,
-        };
+        use crate::stark::{StarkProver, StarkVerifier, fast_proof_config};
 
         let (tree, secrets) = build_tree();
         let index = 11;

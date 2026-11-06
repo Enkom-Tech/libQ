@@ -1,13 +1,7 @@
 //! Shared fixtures for the blind-token integration tests.
 
 use lib_q_blind_token::{
-    Credential,
-    IssuerPublic,
-    IssuerSecret,
-    blind,
-    blind_sign,
-    keygen_issuer,
-    unblind,
+    Credential, IssuerPublic, IssuerSecret, blind, blind_sign, keygen_issuer, unblind,
 };
 
 /// Issuer key identifier used across the tests / KAT.

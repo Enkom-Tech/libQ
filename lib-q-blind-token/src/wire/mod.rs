@@ -13,12 +13,8 @@ pub const WIRE_BUDGET_BLIND_TOKEN_BYTES: usize = 524_288;
 
 #[cfg(feature = "std")]
 pub use imp::{
-    decode_issue_request,
-    decode_issue_response,
-    decode_token_value,
-    encode_issue_request,
-    encode_issue_response,
-    encode_token_value,
+    decode_issue_request, decode_issue_response, decode_token_value, encode_issue_request,
+    encode_issue_response, encode_token_value,
 };
 
 #[cfg(feature = "std")]
@@ -27,22 +23,10 @@ mod imp {
 
     use alloc::vec::Vec;
 
-    use super::{
-        WIRE_BUDGET_BLIND_TOKEN_BYTES,
-        WIRE_VERSION_V1,
-    };
+    use super::{WIRE_BUDGET_BLIND_TOKEN_BYTES, WIRE_VERSION_V1};
     use crate::error::BlindTokenError;
-    use crate::lattice::ring::{
-        N,
-        Q,
-        Rq,
-    };
-    use crate::lattice::scheme::{
-        IssueRequest,
-        IssueResponse,
-        TokenProof,
-        WITNESS_LEN,
-    };
+    use crate::lattice::ring::{N, Q, Rq};
+    use crate::lattice::scheme::{IssueRequest, IssueResponse, TokenProof, WITNESS_LEN};
     use crate::lattice::trapdoor::PREIMAGE_LEN;
     use crate::profile::PROFILE_ID_V1;
 
@@ -270,16 +254,9 @@ mod issuance_wire_tests {
     use lib_q_random::new_deterministic_rng;
 
     use super::{
-        decode_issue_request,
-        decode_issue_response,
-        encode_issue_request,
-        encode_issue_response,
+        decode_issue_request, decode_issue_response, encode_issue_request, encode_issue_response,
     };
-    use crate::{
-        blind,
-        blind_sign,
-        keygen_issuer,
-    };
+    use crate::{blind, blind_sign, keygen_issuer};
 
     #[test]
     fn issue_request_and_response_round_trip() {

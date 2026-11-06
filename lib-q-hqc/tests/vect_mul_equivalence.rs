@@ -2,16 +2,8 @@
 
 use std::collections::BTreeSet;
 
-use lib_q_hqc::hqc_pke::{
-    HqcPke,
-    schoolbook_vect_mul_mod_xnm1,
-};
-use lib_q_hqc::params::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::hqc_pke::{HqcPke, schoolbook_vect_mul_mod_xnm1};
+use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 use lib_q_hqc::simd::Avx2;
 use lib_q_hqc::simd::Portable;

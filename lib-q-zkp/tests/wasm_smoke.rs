@@ -1,10 +1,7 @@
 //! wasm-bindgen-test smoke for wasm32 (ZKP wasm stack).
 
 #[cfg(target_arch = "wasm32")]
-use lib_q_zkp::api::{
-    prove_preimage,
-    verify_preimage,
-};
+use lib_q_zkp::api::{prove_preimage, verify_preimage};
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen_test::*;
 

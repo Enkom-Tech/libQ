@@ -40,24 +40,12 @@ pub mod wasm;
 
 // Re-exports
 #[cfg(feature = "alloc")]
-pub use aead_semantic::{
-    AeadDecryptSemantic,
-    DecryptSemanticOutcome,
-};
+pub use aead_semantic::{AeadDecryptSemantic, DecryptSemanticOutcome};
 pub use algorithm_registry::*;
 pub use api::*;
 #[cfg(feature = "alloc")]
-pub use contexts::{
-    AeadContext,
-    HashContext,
-    KemContext,
-    SignatureContext,
-};
-pub use error::{
-    Error,
-    HexDecodeError,
-    Result,
-};
+pub use contexts::{AeadContext, HashContext, KemContext, SignatureContext};
+pub use error::{Error, HexDecodeError, Result};
 // Re-export new modular components
 #[cfg(feature = "alloc")]
 pub use providers::LibQCryptoProvider;

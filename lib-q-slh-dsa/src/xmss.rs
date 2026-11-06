@@ -1,19 +1,10 @@
 use core::fmt::Debug;
 
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use hybrid_array::{Array, ArraySize};
 use typenum::Unsigned;
 
-use crate::wots::{
-    WotsParams,
-    WotsSig,
-};
-use crate::{
-    SkSeed,
-    address,
-};
+use crate::wots::{WotsParams, WotsSig};
+use crate::{SkSeed, address};
 
 #[derive(Clone, Debug)]
 pub struct XmssSig<P: XmssParams> {
@@ -65,8 +56,8 @@ impl<P: XmssParams> TryFrom<&[u8]> for XmssSig<P> {
         let mut auth = Array::<Array<u8, P::N>, P::HPrime>::default();
         for i in 0..P::HPrime::USIZE {
             auth[i].copy_from_slice(
-                &value[WotsSig::<P>::SIZE + i * P::N::USIZE..
-                    WotsSig::<P>::SIZE + (i + 1) * P::N::USIZE],
+                &value[WotsSig::<P>::SIZE + i * P::N::USIZE
+                    ..WotsSig::<P>::SIZE + (i + 1) * P::N::USIZE],
             );
         }
         Ok(XmssSig { sig, auth })
@@ -163,16 +154,10 @@ mod tests {
     use typenum::Unsigned;
 
     use crate::address::WotsHash;
-    use crate::hashes::{
-        HashSuite,
-        Shake128f,
-    };
+    use crate::hashes::{HashSuite, Shake128f};
     use crate::util::macros::test_parameter_sets;
     use crate::xmss::XmssParams;
-    use crate::{
-        PkSeed,
-        SkSeed,
-    };
+    use crate::{PkSeed, SkSeed};
 
     #[test]
     fn test_xmss_node_shake128f_kat() {

@@ -18,10 +18,7 @@
 use std::fs;
 use std::path::Path;
 
-use crate::report::{
-    Channel,
-    EvaluationReport,
-};
+use crate::report::{Channel, EvaluationReport};
 
 /// Errors raised while ingesting external trace files.
 #[derive(Debug)]

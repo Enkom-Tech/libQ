@@ -384,10 +384,10 @@ impl<T: PRNG> Sampler<T> {
             let f = (z0 as u64) * (y0 as u64);
             let a = (z0 as u64) * (y1 as u64) + (f >> 32);
             let b = (z1 as u64) * (y0 as u64);
-            let c = (a >> 32) +
-                (b >> 32) +
-                ((((a as u32) as u64) + ((b as u32) as u64)) >> 32) +
-                (z1 as u64) * (y1 as u64);
+            let c = (a >> 32)
+                + (b >> 32)
+                + ((((a as u32) as u64) + ((b as u32) as u64)) >> 32)
+                + (z1 as u64) * (y1 as u64);
             y = Flr::EXPM_COEFFS[i].wrapping_sub(c);
         }
         let (w0, w1) = (w as u32, (w >> 32) as u32);
@@ -395,10 +395,10 @@ impl<T: PRNG> Sampler<T> {
         let f = (w0 as u64) * (y0 as u64);
         let a = (w0 as u64) * (y1 as u64) + (f >> 32);
         let b = (w1 as u64) * (y0 as u64);
-        let y = (a >> 32) +
-            (b >> 32) +
-            ((((a as u32) as u64) + ((b as u32) as u64)) >> 32) +
-            (w1 as u64) * (y1 as u64);
+        let y = (a >> 32)
+            + (b >> 32)
+            + ((((a as u32) as u64) + ((b as u32) as u64)) >> 32)
+            + (w1 as u64) * (y1 as u64);
         y
     }
 

@@ -12,24 +12,11 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec;
 
-use lib_q_random::{
-    LibQRng,
-    new_deterministic_rng,
-};
+use lib_q_random::{LibQRng, new_deterministic_rng};
 use lib_q_slh_dsa::{
-    ParameterSet,
-    Shake128f,
-    Shake192f,
-    Shake256f,
-    Signature,
-    SigningKey,
-    VerifyingKey,
+    ParameterSet, Shake128f, Shake192f, Shake256f, Signature, SigningKey, VerifyingKey,
 };
-use signature::{
-    Keypair,
-    RandomizedSigner,
-    Verifier,
-};
+use signature::{Keypair, RandomizedSigner, Verifier};
 
 #[inline]
 fn test_rng_from_material(seed: &[u8]) -> LibQRng {

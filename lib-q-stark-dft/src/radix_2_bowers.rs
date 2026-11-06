@@ -1,32 +1,15 @@
 use alloc::vec::Vec;
 
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-    TwoAdicField,
-    assert_two_adic_fft_height,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing, TwoAdicField, assert_two_adic_fft_height};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixViewMut,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixViewMut};
 use lib_q_stark_matrix::util::reverse_matrix_index_bits;
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_util::{
-    flatten_to_base,
-    log2_strict_usize,
-    reverse_slice_index_bits,
-};
+use lib_q_stark_util::{flatten_to_base, log2_strict_usize, reverse_slice_index_bits};
 use tracing::instrument;
 
 use crate::TwoAdicSubgroupDft;
-use crate::butterflies::{
-    Butterfly,
-    DifButterfly,
-    DitButterfly,
-    TwiddleFreeButterfly,
-};
+use crate::butterflies::{Butterfly, DifButterfly, DitButterfly, TwiddleFreeButterfly};
 use crate::util::divide_by_height;
 
 /// The Bowers G FFT algorithm.

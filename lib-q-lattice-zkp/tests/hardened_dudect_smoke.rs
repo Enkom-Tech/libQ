@@ -1,19 +1,9 @@
 #![cfg(feature = "hardened")]
 
-use lib_q_lattice_zkp::hardened::{
-    TEST_FIXED_PROVE_ATTEMPTS,
-    new_secure_rng,
-};
+use lib_q_lattice_zkp::hardened::{TEST_FIXED_PROVE_ATTEMPTS, new_secure_rng};
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    LatticeZkpProfileV0,
-    TOKEN_EPOCH_LEN,
-    TOKEN_ORIGIN_LEN,
-    TOKEN_SERIAL_LEN,
-    commit,
-    opening_from_token_fields,
-    prove_opening,
-    verify_opening,
+    AjtaiCommitmentKey, LatticeZkpProfileV0, TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN, TOKEN_SERIAL_LEN,
+    commit, opening_from_token_fields, prove_opening, verify_opening,
 };
 use lib_q_sca_test::dudect::timing_passes_loose;
 

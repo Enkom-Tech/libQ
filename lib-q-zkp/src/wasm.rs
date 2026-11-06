@@ -10,12 +10,7 @@ extern crate alloc;
 use wasm_bindgen::prelude::*;
 
 use crate::ZkpProof;
-use crate::api::{
-    prove_preimage,
-    prove_preimage_nist,
-    verify_preimage,
-    verify_preimage_nist,
-};
+use crate::api::{prove_preimage, prove_preimage_nist, verify_preimage, verify_preimage_nist};
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_ZKP", e)

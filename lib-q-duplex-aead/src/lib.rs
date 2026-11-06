@@ -28,9 +28,4 @@ mod aead;
 
 #[cfg(feature = "alloc")]
 pub use aead::DuplexSpongeAead;
-pub use params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    RATE_BYTES,
-    TAG_BYTES,
-};
+pub use params::{KEY_BYTES, NONCE_BYTES, RATE_BYTES, TAG_BYTES};

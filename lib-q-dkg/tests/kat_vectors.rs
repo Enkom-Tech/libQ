@@ -5,32 +5,13 @@
 
 mod common;
 
-use common::{
-    PARTIES,
-    THRESHOLD,
-    det_rng,
-};
+use common::{PARTIES, THRESHOLD, det_rng};
 use lib_q_dkg::lattice::bdlop::pow_mod_q;
-use lib_q_dkg::lattice::ring::{
-    Q,
-    Rq,
-    centered_coeffs,
-    ring_add,
-    scalar_mul,
-};
+use lib_q_dkg::lattice::ring::{Q, Rq, centered_coeffs, ring_add, scalar_mul};
 use lib_q_dkg::{
-    dkg_assemble_vk_set,
-    dkg_build_complaint,
-    dkg_check_complaint,
-    dkg_eval_share,
-    dkg_finalize_share,
-    dkg_reshare,
-    dkg_round1_commit,
-    dkg_run_honest,
-    dkg_verify_share,
-    lagrange_coeff_at_zero,
-    setup,
-    signing_share_commitment,
+    dkg_assemble_vk_set, dkg_build_complaint, dkg_check_complaint, dkg_eval_share,
+    dkg_finalize_share, dkg_reshare, dkg_round1_commit, dkg_run_honest, dkg_verify_share,
+    lagrange_coeff_at_zero, setup, signing_share_commitment,
 };
 
 #[test]

@@ -24,10 +24,7 @@
 //! mis-split, because the caller must already hand over two separately-labeled slices. The tests
 //! below are the permanent positive/negative controls for the two-class API — a leak detector
 //! with no positive control is the same defect one level up.
-use lib_q_sca_test::dudect::{
-    timing_passes_loose,
-    timing_t_statistic,
-};
+use lib_q_sca_test::dudect::{timing_passes_loose, timing_t_statistic};
 
 const THRESHOLD: f64 = 8.0;
 

@@ -20,17 +20,8 @@
 //! `kats-manifest.toml`. A regeneration that changes any existing line is a WIRE-FORMAT BREAK,
 //! not a test fix.
 
-use lib_q_maul::params::{
-    ALL,
-    ParamSet,
-};
-use lib_q_maul::{
-    PublicParams,
-    decapsulate,
-    encapsulate_with_messages,
-    keygen_left,
-    keygen_right,
-};
+use lib_q_maul::params::{ALL, ParamSet};
+use lib_q_maul::{PublicParams, decapsulate, encapsulate_with_messages, keygen_left, keygen_right};
 
 const VECTORS: &str = include_str!("vectors/maul_kat.txt");
 

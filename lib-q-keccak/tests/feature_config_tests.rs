@@ -4,22 +4,14 @@
 //! capabilities in lib-q-keccak.
 
 use lib_q_keccak::{
-    FeatureConfig,
-    OptimizationLevel,
-    detection,
-    get_global_config,
-    reset_global_config,
+    FeatureConfig, OptimizationLevel, detection, get_global_config, reset_global_config,
     set_global_config,
 };
 
 /// Serialize tests that mutate [`set_global_config`] / [`reset_global_config`].
 #[cfg(feature = "std")]
 mod global_config_test_sync {
-    use std::sync::{
-        Mutex,
-        MutexGuard,
-        OnceLock,
-    };
+    use std::sync::{Mutex, MutexGuard, OnceLock};
 
     pub fn lock() -> MutexGuard<'static, ()> {
         static LOCK: OnceLock<Mutex<()>> = OnceLock::new();
@@ -68,8 +60,8 @@ fn test_parallel_available() {
     // Check if it's consistent with the configuration
     assert_eq!(
         config.parallel_available(),
-        cfg!(all(feature = "simd", keccak_portable_simd)) &&
-            config.optimization_level != OptimizationLevel::Reference
+        cfg!(all(feature = "simd", keccak_portable_simd))
+            && config.optimization_level != OptimizationLevel::Reference
     );
 
     // Test when disabled by optimization level
@@ -101,8 +93,8 @@ fn test_advanced_simd_available() {
     // Check if it's consistent with the configuration
     assert_eq!(
         config.advanced_simd_available(),
-        cfg!(all(feature = "simd", keccak_portable_simd)) &&
-            config.optimization_level != OptimizationLevel::Reference
+        cfg!(all(feature = "simd", keccak_portable_simd))
+            && config.optimization_level != OptimizationLevel::Reference
     );
 
     // Test when disabled by optimization level
@@ -248,8 +240,8 @@ fn test_description() {
 
     // The exact string may depend on runtime detection
     assert!(
-        config_platform_parallel.description().contains("parallel") ||
-            config_platform_parallel.description().contains("platform")
+        config_platform_parallel.description().contains("parallel")
+            || config_platform_parallel.description().contains("platform")
     );
 }
 
@@ -295,10 +287,7 @@ fn test_global_config_set_get_reset() {
 fn test_global_config_concurrent_access() {
     let _guard = global_config_test_sync::lock();
 
-    use std::sync::{
-        Arc,
-        Barrier,
-    };
+    use std::sync::{Arc, Barrier};
     use std::thread;
 
     const THREADS: usize = 8;
@@ -330,10 +319,10 @@ fn test_global_config_concurrent_access() {
                 // value must be a valid full config snapshot.
                 assert!(matches!(
                     observed.optimization_level,
-                    OptimizationLevel::Reference |
-                        OptimizationLevel::Basic |
-                        OptimizationLevel::Advanced |
-                        OptimizationLevel::Maximum
+                    OptimizationLevel::Reference
+                        | OptimizationLevel::Basic
+                        | OptimizationLevel::Advanced
+                        | OptimizationLevel::Maximum
                 ));
 
                 if (thread_id + i) % 17 == 0 {
@@ -341,10 +330,10 @@ fn test_global_config_concurrent_access() {
                     let snapshot = get_global_config();
                     assert!(matches!(
                         snapshot.optimization_level,
-                        OptimizationLevel::Reference |
-                            OptimizationLevel::Basic |
-                            OptimizationLevel::Advanced |
-                            OptimizationLevel::Maximum
+                        OptimizationLevel::Reference
+                            | OptimizationLevel::Basic
+                            | OptimizationLevel::Advanced
+                            | OptimizationLevel::Maximum
                     ));
                 }
             }
@@ -400,12 +389,12 @@ fn test_feature_report_summary() {
         assert!(summary.contains("AArch64"));
     }
 
-    if !report.x86_64 &&
-        !report.aarch64 &&
-        !report.avx2 &&
-        !report.avx512f &&
-        !report.sha3_intrinsics &&
-        !report.simd_support
+    if !report.x86_64
+        && !report.aarch64
+        && !report.avx2
+        && !report.avx512f
+        && !report.sha3_intrinsics
+        && !report.simd_support
     {
         assert_eq!(summary, "No special features available");
     }

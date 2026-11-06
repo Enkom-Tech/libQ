@@ -1361,10 +1361,7 @@ pub(crate) unsafe fn poly_sub_kfg_scaled_depth1(
 
 #[cfg(test)]
 mod tests {
-    use lib_q_sha3::{
-        Digest,
-        Sha3_256,
-    };
+    use lib_q_sha3::{Digest, Sha3_256};
 
     use super::*;
 

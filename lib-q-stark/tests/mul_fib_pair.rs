@@ -3,39 +3,19 @@
 use core::borrow::Borrow;
 
 use lib_q_stark::{
-    StarkConfig,
-    prove_with_preprocessed,
-    setup_preprocessed,
-    verify_with_preprocessed,
+    StarkConfig, prove_with_preprocessed, setup_preprocessed, verify_with_preprocessed,
 };
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_challenger::{
-    ComplexFieldChallenger,
-    Shake256Challenger32,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::Field;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_fri::{
-    TwoAdicFriPcs,
-    create_test_fri_params,
-};
+use lib_q_stark_fri::{TwoAdicFriPcs, create_test_fri_params};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 
 pub struct MulFibPAir {
     num_rows: usize,
@@ -118,8 +98,8 @@ pub fn generate_trace_rows<F: Field>(a: u64, b: u64, n: usize) -> RowMajorMatrix
 
     for i in 1..n {
         rows[i].a = rows[i - 1].b;
-        rows[i].b = prep_rows[i - 1].prod_coeff * rows[i - 1].a * rows[i - 1].b +
-            prep_rows[i - 1].sum_coeff * (rows[i - 1].a + rows[i - 1].b);
+        rows[i].b = prep_rows[i - 1].prod_coeff * rows[i - 1].a * rows[i - 1].b
+            + prep_rows[i - 1].sum_coeff * (rows[i - 1].a + rows[i - 1].b);
     }
 
     trace

@@ -6,8 +6,7 @@ use alloc::vec::Vec;
 
 use crate::air::AirError;
 use crate::air::recovery_policy_hybrid::{
-    RECOVERY_HYBRID_PUBLIC_INPUTS_LEN,
-    RECOVERY_POLICY_HYBRID_AIR_ID,
+    RECOVERY_HYBRID_PUBLIC_INPUTS_LEN, RECOVERY_POLICY_HYBRID_AIR_ID,
     RecoveryPolicyHybridPublicInputs,
 };
 use crate::wire::RECOVERY_ZK_MAX_ENVELOPE;

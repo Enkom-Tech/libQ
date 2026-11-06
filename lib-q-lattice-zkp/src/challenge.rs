@@ -8,10 +8,7 @@ use alloc::vec::Vec;
 
 use lib_q_ring::constants::COEFFICIENTS_IN_RING_ELEMENT;
 use lib_q_ring::encoding::simple_bit_pack_len;
-use lib_q_ring::{
-    Poly,
-    sample_in_ball,
-};
+use lib_q_ring::{Poly, sample_in_ball};
 
 /// Sparse ternary challenge polynomial plus a packed bit representation.
 #[derive(Clone, Debug)]

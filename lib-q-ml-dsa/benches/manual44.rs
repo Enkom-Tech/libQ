@@ -1,12 +1,5 @@
-use lib_q_ml_dsa::ml_dsa_44::{
-    self,
-    MLDSA44KeyPair,
-    MLDSA44Signature,
-};
-use lib_q_ml_dsa::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+use lib_q_ml_dsa::ml_dsa_44::{self, MLDSA44KeyPair, MLDSA44Signature};
+use lib_q_ml_dsa::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 
 mod bench_utils;
 

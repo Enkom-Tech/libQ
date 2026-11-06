@@ -1,38 +1,16 @@
 //! Reference wire-budget scenarios: prove/verify, encoded sizes, and CI gates.
 
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AmortisationBudget,
-    AnonymousToken,
-    LatticeZkpProfileV0,
-    MerklePath,
-    SpendingProof,
-    TOKEN_EPOCH_LEN,
-    TOKEN_ORIGIN_LEN,
-    TOKEN_SERIAL_LEN,
-    WIRE_BUDGET_PRESENTATION_BYTES,
-    WIRE_BUDGET_PVTN_MEMBERSHIP_BYTES,
-    amortise,
-    commit,
-    encode_opening_proof_v0,
-    encode_private_membership_proof_v0,
-    encode_pvtn_leaf,
-    encode_spending_proof_v0,
-    leaf_hash,
-    measured_opening_wire_body_bytes,
-    node_hash,
-    opening_from_token_fields,
-    prove_opening,
-    prove_private_membership,
-    verify_opening,
+    AjtaiCommitmentKey, AjtaiOpening, AmortisationBudget, AnonymousToken, LatticeZkpProfileV0,
+    MerklePath, SpendingProof, TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN, TOKEN_SERIAL_LEN,
+    WIRE_BUDGET_PRESENTATION_BYTES, WIRE_BUDGET_PVTN_MEMBERSHIP_BYTES, amortise, commit,
+    encode_opening_proof_v0, encode_private_membership_proof_v0, encode_pvtn_leaf,
+    encode_spending_proof_v0, leaf_hash, measured_opening_wire_body_bytes, node_hash,
+    opening_from_token_fields, prove_opening, prove_private_membership, verify_opening,
     verify_private_membership,
 };
 use lib_q_random::new_deterministic_rng;
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_ring::{ModuleVec, Poly};
 
 const KAT_SEED: [u8; 32] = [
     0x6C, 0x61, 0x74, 0x74, 0x69, 0x63, 0x65, 0x2D, 0x7A, 0x6B, 0x70, 0x2D, 0x76, 0x30, 0x2D, 0x6B,

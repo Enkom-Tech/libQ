@@ -35,29 +35,13 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_dkg::lattice::bdlop::{
-    self,
-    KAPPA,
-    MU,
-};
+use lib_q_dkg::lattice::bdlop::{self, KAPPA, MU};
 use lib_q_dkg::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-    ring_add,
-    rq_from_le_bytes,
-    rq_write_le_bytes,
-    sample_secret_poly,
-    sample_uniform_poly,
-    scalar_mul,
+    RQ_BYTES, Rq, ring_add, rq_from_le_bytes, rq_write_le_bytes, sample_secret_poly,
+    sample_uniform_poly, scalar_mul,
 };
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use rand_core::{CryptoRng, Rng};
+use zeroize::{Zeroize, Zeroizing};
 
 pub mod auth_encap;
 pub mod error;
@@ -69,28 +53,17 @@ pub mod threshold;
 pub mod wasm;
 
 pub use auth_encap::{
-    AUTH_TAG_BYTES,
-    AuthKey,
-    AuthenticatedCiphertext,
-    authenticated_encapsulate,
+    AUTH_TAG_BYTES, AuthKey, AuthenticatedCiphertext, authenticated_encapsulate,
     verify_authenticator,
 };
 pub use error::ThresholdKemError;
 pub use kem::{
-    Ciphertext,
-    ENC_ERROR_BOUND,
-    FLOOD_BOUND,
-    MALFORMED_PROBE_SAFE_DECAPS,
-    MESSAGE_BITS,
+    Ciphertext, ENC_ERROR_BOUND, FLOOD_BOUND, MALFORMED_PROBE_SAFE_DECAPS, MESSAGE_BITS,
     RECOMMENDED_DECAP_BUDGET,
 };
 pub use profile::{
-    PARAMETER_SET_CANONICAL_BLOB_V1,
-    PROFILE_ID_V1,
-    PROFILE_MAX_PARTIES_V1,
-    ThresholdKemLatticeProfileV1,
-    WIRE_VERSION_V1,
-    setup,
+    PARAMETER_SET_CANONICAL_BLOB_V1, PROFILE_ID_V1, PROFILE_MAX_PARTIES_V1,
+    ThresholdKemLatticeProfileV1, WIRE_VERSION_V1, setup,
 };
 pub use threshold::DecapBudget;
 
@@ -381,9 +354,9 @@ pub(crate) fn validate_share_subset(
     share: &SecretShare,
     subset: &[u8],
 ) -> Result<(), ThresholdKemError> {
-    if share.index == 0 ||
-        subset.len() < usize::from(share.threshold) ||
-        !subset.contains(&share.index)
+    if share.index == 0
+        || subset.len() < usize::from(share.threshold)
+        || !subset.contains(&share.index)
     {
         return Err(ThresholdKemError::InvalidSubset);
     }

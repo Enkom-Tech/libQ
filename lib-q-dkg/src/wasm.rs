@@ -16,11 +16,7 @@ use alloc::vec::Vec;
 use lib_q_random::new_secure_rng;
 use wasm_bindgen::prelude::*;
 
-use crate::{
-    decode_round1_commitments,
-    dkg_run_honest,
-    setup,
-};
+use crate::{decode_round1_commitments, dkg_run_honest, setup};
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_DKG", e)

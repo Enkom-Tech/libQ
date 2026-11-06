@@ -15,17 +15,9 @@ extern crate alloc;
 use std::hint::black_box;
 
 #[cfg(feature = "alloc")]
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 #[cfg(feature = "alloc")]
-use lib_q_hqc::params::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-};
+use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params};
 
 /// Benchmark HQC KEM operations for different security levels.
 ///

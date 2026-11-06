@@ -2,15 +2,8 @@
 //!
 //! Demonstrates cSHAKE128/cSHAKE256 via `lib-q-hash` and an optional `HashContext` call.
 
-use lib_q_core::{
-    Algorithm,
-    Hash,
-    HashContext,
-};
-use lib_q_hash::{
-    CShake128Hash,
-    CShake256Hash,
-};
+use lib_q_core::{Algorithm, Hash, HashContext};
+use lib_q_hash::{CShake128Hash, CShake256Hash};
 
 fn bytes_to_hex(bytes: &[u8]) -> String {
     bytes.iter().map(|b| format!("{b:02x}")).collect()

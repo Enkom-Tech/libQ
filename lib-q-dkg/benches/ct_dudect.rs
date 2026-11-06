@@ -17,23 +17,10 @@
 //! If timing depended on the secret value (data-dependent branch, early-out, table index, …) the
 //! Right class would diverge from Left. Constant-time ⇒ the two distributions stay indistinguishable.
 
-use dudect_bencher::rand::{
-    Rng,
-    RngExt,
-};
-use dudect_bencher::{
-    BenchRng,
-    Class,
-    CtRunner,
-    ctbench_main,
-};
+use dudect_bencher::rand::{Rng, RngExt};
+use dudect_bencher::{BenchRng, Class, CtRunner, ctbench_main};
 use lib_q_dkg::lattice::gaussian::sample_secret_coeff_ct;
-use lib_q_dkg::lattice::ring::{
-    Rq,
-    ring_mul,
-    sample_in_ball,
-    sample_secret_poly,
-};
+use lib_q_dkg::lattice::ring::{Rq, ring_mul, sample_in_ball, sample_secret_poly};
 use lib_q_random::new_deterministic_rng;
 
 /// How many primitive ops to fold into one timed sample (amplifies a per-op signal above the

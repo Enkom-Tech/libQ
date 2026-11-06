@@ -8,12 +8,7 @@
 
 #![cfg(feature = "std")]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
 use lib_q_hpke::HpkeContext;
 use lib_q_kem::LibQKemProvider;
 

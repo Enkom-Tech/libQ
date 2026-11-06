@@ -20,36 +20,17 @@
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    ExtensionBuilder,
-    PermutationAirBuilder,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{ExtensionBuilder, PermutationAirBuilder, WindowAccess};
+use lib_q_stark_field::{ExtensionField, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use lib_q_stark_matrix::stack::VerticalPair;
 use tracing::instrument;
 
 use crate::lookup_traits::{
-    Kind,
-    Lookup,
-    LookupData,
-    LookupGadget,
-    LookupTraceBuilder,
-    symbolic_to_expr,
+    Kind, Lookup, LookupData, LookupGadget, LookupTraceBuilder, symbolic_to_expr,
 };
-use crate::types::{
-    LookupError,
-    LookupEvaluator,
-};
+use crate::types::{LookupError, LookupEvaluator};
 
 /// Core LogUp gadget implementing lookup arguments via logarithmic derivatives.
 ///
@@ -481,8 +462,8 @@ impl LookupGadget for LogUpGadget {
                 let permutation_counter = lookups[..=lookup_idx]
                     .iter()
                     .filter(|l| matches!(l.kind, Kind::Global(_)))
-                    .count() -
-                    1;
+                    .count()
+                    - 1;
                 lookup_data[permutation_counter].expected_cumulated = prefix[height - 1];
             }
         }

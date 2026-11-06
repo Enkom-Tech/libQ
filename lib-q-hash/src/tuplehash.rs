@@ -6,46 +6,13 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 
-use digest::block_api::{
-    AlgorithmName,
-    Block,
-    BlockSizeUser,
-    BufferKindUser,
-    Eager,
-    UpdateCore,
-};
-use digest::common::hazmat::{
-    DeserializeStateError,
-    SerializableState,
-    SerializedState,
-};
-use digest::consts::{
-    U16,
-    U32,
-    U136,
-    U168,
-    U400,
-};
-use digest::{
-    CollisionResistance,
-    ExtendableOutput,
-    HashMarker,
-    Reset,
-    Update,
-    XofReader,
-};
+use digest::block_api::{AlgorithmName, Block, BlockSizeUser, BufferKindUser, Eager, UpdateCore};
+use digest::common::hazmat::{DeserializeStateError, SerializableState, SerializedState};
+use digest::consts::{U16, U32, U136, U168, U400};
+use digest::{CollisionResistance, ExtendableOutput, HashMarker, Reset, Update, XofReader};
 
-use crate::cshake::{
-    CShake128,
-    CShake128Reader,
-    CShake256,
-    CShake256Reader,
-};
-use crate::utils::{
-    MAX_SP800185_FIXED_OUTPUT_BYTES,
-    left_encode,
-    right_encode,
-};
+use crate::cshake::{CShake128, CShake128Reader, CShake256, CShake256Reader};
+use crate::utils::{MAX_SP800185_FIXED_OUTPUT_BYTES, left_encode, right_encode};
 
 /// TupleHash128 implementation
 #[derive(Clone)]

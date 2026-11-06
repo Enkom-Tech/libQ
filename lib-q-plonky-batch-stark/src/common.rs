@@ -2,20 +2,11 @@ use alloc::collections::BTreeMap;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_plonky_lookup::lookup_traits::{
-    Kind,
-    Lookup,
-    LookupGadget,
-};
+use lib_q_plonky_lookup::lookup_traits::{Kind, Lookup, LookupGadget};
 use lib_q_stark_challenger::FieldChallenger;
 use lib_q_stark_commit::Pcs;
 
-use crate::config::{
-    Challenge,
-    Commitment,
-    StarkGenericConfig as SGC,
-    Val,
-};
+use crate::config::{Challenge, Commitment, StarkGenericConfig as SGC, Val};
 
 #[derive(Clone)]
 pub struct PreprocessedInstanceMeta {

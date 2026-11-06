@@ -1,7 +1,4 @@
-use crate::constants::{
-    Eta,
-    Gamma2,
-};
+use crate::constants::{Eta, Gamma2};
 
 // Each field element occupies 32 bits and the size of a simd_unit is 256 bits.
 pub(crate) const COEFFICIENTS_IN_SIMD_UNIT: usize = 8;
@@ -10,10 +7,7 @@ pub(crate) const COEFFICIENTS_IN_SIMD_UNIT: usize = 8;
 //COEFFICIENTS_IN_RING_ELEMENT / COEFFICIENTS_IN_SIMD_UNIT;
 pub(crate) const SIMD_UNITS_IN_RING_ELEMENT: usize = 32;
 
-pub use lib_q_ring::constants::{
-    FIELD_MODULUS,
-    INVERSE_OF_MODULUS_MOD_MONTGOMERY_R,
-};
+pub use lib_q_ring::constants::{FIELD_MODULUS, INVERSE_OF_MODULUS_MOD_MONTGOMERY_R};
 
 /// If 'x' denotes a value of type `fe`, values having this type hold a
 /// representative y ≡ x·MONTGOMERY_R (mod FIELD_MODULUS).

@@ -1,20 +1,6 @@
-use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-};
-use lib_q_tweak_aead::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    TAG_BYTES,
-};
-use lib_q_tweak_aead::{
-    TweakAead,
-    crypto,
-};
+use lib_q_core::{Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce};
+use lib_q_tweak_aead::params::{KEY_BYTES, NONCE_BYTES, TAG_BYTES};
+use lib_q_tweak_aead::{TweakAead, crypto};
 
 #[test]
 fn roundtrip_empty_ad() {

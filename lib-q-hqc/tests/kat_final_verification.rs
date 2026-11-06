@@ -6,10 +6,7 @@
 #[cfg(feature = "aes-drbg")]
 use lib_q_hqc::aes_ctr_drbg::Aes256CtrDrbg;
 #[cfg(feature = "aes-drbg")]
-use lib_q_hqc::{
-    Hqc1Params,
-    hqc_kem::HqcKem,
-};
+use lib_q_hqc::{Hqc1Params, hqc_kem::HqcKem};
 #[cfg(feature = "aes-drbg")]
 use rand_core::Rng;
 

@@ -1,22 +1,10 @@
 //! Integration coverage for portable verify paths that return `Err` (wrong message, tampered bytes).
 
 use lib_q_ml_dsa::Zeroizing;
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
-use lib_q_ml_dsa::ml_dsa_44::{
-    self,
-    MLDSA44Signature,
-};
-use lib_q_ml_dsa::ml_dsa_65::{
-    self,
-    MLDSA65Signature,
-};
-use lib_q_ml_dsa::ml_dsa_87::{
-    self,
-    MLDSA87Signature,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+use lib_q_ml_dsa::ml_dsa_44::{self, MLDSA44Signature};
+use lib_q_ml_dsa::ml_dsa_65::{self, MLDSA65Signature};
+use lib_q_ml_dsa::ml_dsa_87::{self, MLDSA87Signature};
 
 fn kg_seed(b: u8) -> [u8; KEY_GENERATION_RANDOMNESS_SIZE] {
     let mut s = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];

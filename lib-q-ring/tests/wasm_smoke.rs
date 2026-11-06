@@ -1,10 +1,7 @@
 //! wasm-bindgen-test smoke tests for `wasm32-unknown-unknown`.
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_ring::wasm::{
-    ring_coefficient_count,
-    ring_modulus_q,
-};
+use lib_q_ring::wasm::{ring_coefficient_count, ring_modulus_q};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 

@@ -10,12 +10,7 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use crate::providers::traits::HpkeCryptoProvider;
-use crate::types::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContextState,
-    SecretBytes,
-};
+use crate::types::{HpkeAead, HpkeCipherSuite, HpkeContextState, SecretBytes};
 
 /// HPKE sender context (no_std + alloc).
 pub struct HpkeSenderContext {
@@ -96,9 +91,9 @@ impl HpkeSenderContext {
 
     /// Check if the context can be used for encryption
     pub fn can_encrypt(&self) -> bool {
-        self.aead != HpkeAead::Export &&
-            self.state == HpkeContextState::Active &&
-            self.sequence_number < self.max_sequence_number
+        self.aead != HpkeAead::Export
+            && self.state == HpkeContextState::Active
+            && self.sequence_number < self.max_sequence_number
     }
 
     /// Increment sequence number with overflow protection
@@ -197,9 +192,9 @@ impl HpkeReceiverContext {
 
     /// Check if the context can be used for decryption
     pub fn can_decrypt(&self) -> bool {
-        self.aead != HpkeAead::Export &&
-            self.state == HpkeContextState::Active &&
-            self.sequence_number < self.max_sequence_number
+        self.aead != HpkeAead::Export
+            && self.state == HpkeContextState::Active
+            && self.sequence_number < self.max_sequence_number
     }
 
     /// Increment sequence number with overflow protection
@@ -227,20 +222,11 @@ mod tests {
 
     use zeroize::Zeroizing;
 
-    use super::{
-        HpkeReceiverContext,
-        HpkeSenderContext,
-    };
+    use super::{HpkeReceiverContext, HpkeSenderContext};
     use crate::error::HpkeError;
     use crate::providers::post_quantum::PostQuantumProvider;
     use crate::providers::traits::HpkeCryptoProvider;
-    use crate::types::{
-        HpkeAead,
-        HpkeCipherSuite,
-        HpkeContextState,
-        HpkeKdf,
-        HpkeKem,
-    };
+    use crate::types::{HpkeAead, HpkeCipherSuite, HpkeContextState, HpkeKdf, HpkeKem};
 
     #[test]
     fn export_only_context_disallows_payload_ops() {

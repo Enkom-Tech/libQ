@@ -27,25 +27,12 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_poseidon::{
-    Poseidon128,
-    PoseidonField,
-    PoseidonParams,
-};
-use lib_q_stark_air::{
-    AirBuilder,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-};
+use lib_q_poseidon::{Poseidon128, PoseidonField, PoseidonParams};
+use lib_q_stark_air::{AirBuilder, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field};
 use lib_q_stark_mersenne31::Mersenne31;
 
-use super::{
-    AirError,
-    poseidon_to_field,
-};
+use super::{AirError, poseidon_to_field};
 
 /// Round parameters shared across full and partial round constraints (read-only).
 struct PoseidonRoundParams<'a> {

@@ -46,34 +46,14 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 use zeroize::Zeroize;
 
 use super::fmath;
 use super::ring::{
-    N,
-    Q,
-    Rq,
-    RqNtt,
-    centered_coeffs,
-    from_ntt,
-    ntt_mul_acc,
-    ring_add,
-    ring_mul,
-    ring_sub,
-    sample_discrete_gaussian_block,
-    sample_in_ball,
-    sample_ternary_poly,
-    scalar_mul,
-    to_ntt,
+    N, Q, Rq, RqNtt, centered_coeffs, from_ntt, ntt_mul_acc, ring_add, ring_mul, ring_sub,
+    sample_discrete_gaussian_block, sample_in_ball, sample_ternary_poly, scalar_mul, to_ntt,
 };
 
 /// Binding rows of `B0` (height of the `t0` part of a commitment).

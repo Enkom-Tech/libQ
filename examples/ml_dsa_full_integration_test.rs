@@ -7,14 +7,8 @@
 //! Run: `cargo run -p lib-q-examples --example ml_dsa_full_integration_test`
 
 use lib_q_core::Signature;
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
-use lib_q_ml_dsa::{
-    Zeroizing,
-    ml_dsa_65,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+use lib_q_ml_dsa::{Zeroizing, ml_dsa_65};
 use lib_q_sig::ml_dsa::MlDsa;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {

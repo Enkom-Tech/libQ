@@ -3,11 +3,7 @@
 //! All primitives delegate to `subtle`'s `black_box`-fenced internals so the
 //! compiler cannot elide the constant-time property.
 
-pub use subtle::{
-    Choice,
-    ConditionallySelectable,
-    ConstantTimeEq,
-};
+pub use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 /// Constant-time byte-slice equality.
 ///

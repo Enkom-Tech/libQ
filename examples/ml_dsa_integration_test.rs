@@ -1,8 +1,4 @@
-use libq::{
-    Algorithm,
-    AlgorithmCategory,
-    SignatureContext,
-};
+use libq::{Algorithm, AlgorithmCategory, SignatureContext};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Core algorithm registry (lib-q-core): stable ids for all registered schemes.

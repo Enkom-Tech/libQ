@@ -5,10 +5,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use crate::air::{
-    AirError,
-    RECOVERY_POLICY_AIR_ID,
-    RECOVERY_PUBLIC_INPUTS_LEN,
-    RecoveryPolicyPublicInputs,
+    AirError, RECOVERY_POLICY_AIR_ID, RECOVERY_PUBLIC_INPUTS_LEN, RecoveryPolicyPublicInputs,
 };
 
 /// Maximum envelope size (512 KiB).

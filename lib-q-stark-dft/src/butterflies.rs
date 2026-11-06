@@ -1,11 +1,7 @@
 use core::mem::MaybeUninit;
 
 use itertools::izip;
-use lib_q_stark_field::{
-    Field,
-    PackedField,
-    PackedValue,
-};
+use lib_q_stark_field::{Field, PackedField, PackedValue};
 
 /// A butterfly operation used in NTT to combine two values into a new pair.
 ///

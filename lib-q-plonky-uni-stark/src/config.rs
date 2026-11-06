@@ -1,18 +1,8 @@
 use core::marker::PhantomData;
 
-use lib_q_stark_challenger::{
-    CanObserve,
-    CanSample,
-    FieldChallenger,
-};
-use lib_q_stark_commit::{
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-};
+use lib_q_stark_challenger::{CanObserve, CanSample, FieldChallenger};
+use lib_q_stark_commit::{Pcs, PolynomialSpace};
+use lib_q_stark_field::{ExtensionField, Field};
 
 pub type PcsError<SC> = <<SC as StarkGenericConfig>::Pcs as Pcs<
     <SC as StarkGenericConfig>::Challenge,

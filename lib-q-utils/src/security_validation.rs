@@ -28,10 +28,7 @@ use std::collections::HashMap;
 #[cfg(feature = "std")]
 use std::{
     fs,
-    path::{
-        Path,
-        PathBuf,
-    },
+    path::{Path, PathBuf},
 };
 
 /// Security validation result
@@ -949,11 +946,11 @@ impl SecurityValidator {
                 continue;
             }
             let rest = after.trim_start();
-            if rest.starts_with("fn") ||
-                rest.starts_with("impl") ||
-                rest.starts_with("trait") ||
-                rest.starts_with("extern") ||
-                rest.starts_with('{')
+            if rest.starts_with("fn")
+                || rest.starts_with("impl")
+                || rest.starts_with("trait")
+                || rest.starts_with("extern")
+                || rest.starts_with('{')
             {
                 return true;
             }
@@ -1051,10 +1048,10 @@ impl SecurityValidator {
             checked += 1;
 
             let has_constant_time = self.rs_files_in(dir).iter().any(|(_, content)| {
-                content.contains("ct_eq") ||
-                    content.contains("ConstantTimeEq") ||
-                    content.contains("constant_time_compare") ||
-                    content.contains("subtle::")
+                content.contains("ct_eq")
+                    || content.contains("ConstantTimeEq")
+                    || content.contains("constant_time_compare")
+                    || content.contains("subtle::")
             });
             if !has_constant_time {
                 violations.push(format!(
@@ -1144,9 +1141,9 @@ impl SecurityValidator {
         for (path, content) in &files {
             for (lineno, line) in content.lines().enumerate() {
                 let t = line.trim_start();
-                let is_infallible_ctor = t.starts_with("pub fn from_bytes") ||
-                    t.starts_with("pub fn decode") ||
-                    t.starts_with("pub fn deserialize");
+                let is_infallible_ctor = t.starts_with("pub fn from_bytes")
+                    || t.starts_with("pub fn decode")
+                    || t.starts_with("pub fn deserialize");
                 if !is_infallible_ctor {
                     continue;
                 }
@@ -1265,10 +1262,7 @@ pub fn print_report(_report: &SecurityValidationReport) {
 
 #[cfg(all(test, feature = "std"))]
 mod tests {
-    use std::sync::atomic::{
-        AtomicU64,
-        Ordering,
-    };
+    use std::sync::atomic::{AtomicU64, Ordering};
 
     use super::*;
 
@@ -1719,11 +1713,11 @@ mod tests {
     /// Literal markers that indicate real arch-conditional dispatch code somewhere in a crate's
     /// shipped source (as opposed to a comment merely using the word "SIMD").
     fn has_arch_dispatch_marker(content: &str) -> bool {
-        content.contains("core::arch") ||
-            content.contains("std::arch") ||
-            content.contains("target_feature") ||
-            content.contains("is_x86_feature_detected") ||
-            content.contains("is_aarch64_feature_detected")
+        content.contains("core::arch")
+            || content.contains("std::arch")
+            || content.contains("target_feature")
+            || content.contains("is_x86_feature_detected")
+            || content.contains("is_aarch64_feature_detected")
     }
 
     /// Mechanical check: any allowlist entry whose justification claims SIMD/AVX/AES-NI/ARMv8/

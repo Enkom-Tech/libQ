@@ -91,23 +91,10 @@ use std::vec::Vec;
 
 #[cfg(feature = "wasm")]
 use js_sys::Uint8Array;
-use lib_q_core::{
-    Result,
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-    Signature,
-};
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+use lib_q_core::{Result, SigKeypair, SigPublicKey, SigSecretKey, Signature};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 use lib_q_ml_dsa::types::*;
-use lib_q_ml_dsa::{
-    ml_dsa_44,
-    ml_dsa_65,
-    ml_dsa_87,
-};
+use lib_q_ml_dsa::{ml_dsa_44, ml_dsa_65, ml_dsa_87};
 // WASM support
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
@@ -490,10 +477,7 @@ impl MlDsa {
         context: &[u8],
         signature: &[u8],
     ) -> Result<bool> {
-        use lib_q_ml_dsa::types::{
-            MLDSASignature,
-            MLDSAVerificationKey,
-        };
+        use lib_q_ml_dsa::types::{MLDSASignature, MLDSAVerificationKey};
 
         validate_context(context)?;
 
@@ -664,10 +648,7 @@ impl Signature for MlDsa {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_core::{
-        SigPublicKey,
-        SigSecretKey,
-    };
+    use lib_q_core::{SigPublicKey, SigSecretKey};
 
     use super::*;
 

@@ -19,23 +19,11 @@ use alloc::vec::Vec;
 
 pub use lib_q_lattice_zkp::DualRingOpeningProof;
 use lib_q_lattice_zkp::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    ProofError,
-    VerifyError,
-    prove_dual_ring_opening,
-    verify_dual_ring_opening,
+    AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening, ProofError, VerifyError,
+    prove_dual_ring_opening, verify_dual_ring_opening,
 };
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 
 use crate::ring::federation_digest;
 use crate::sign::federation_signing_context;
@@ -184,16 +172,9 @@ pub fn verify_dualring_lb(
 mod tests {
     use alloc::vec;
 
-    use lib_q_lattice_zkp::{
-        AjtaiCommitmentKey,
-        AjtaiOpening,
-        AjtaiParameters,
-    };
+    use lib_q_lattice_zkp::{AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters};
     use lib_q_random::new_deterministic_rng;
-    use lib_q_ring::{
-        ModuleVec,
-        Poly,
-    };
+    use lib_q_ring::{ModuleVec, Poly};
 
     use super::*;
 

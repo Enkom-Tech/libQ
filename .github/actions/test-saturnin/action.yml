@@ -15,7 +15,7 @@ inputs:
     default: "stable"
     required: false
   run-benchmarks:
-    description: Whether to run benchmarks (requires nightly)
+    description: Whether to run benchmarks 
     default: "false"
     required: false
   test-algorithms:
@@ -165,8 +165,8 @@ runs:
         cargo test --features "${{ inputs.features }}" --test integration_tests
         echo "Saturnin integration tests completed"
     
-    - name: Run benchmarks (nightly only)
-      if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
+    - name: Run benchmarks
+      if: inputs.run-benchmarks == 'true'
       shell: bash
       run: |
         echo "Running Saturnin benchmarks..."

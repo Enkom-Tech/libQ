@@ -1,11 +1,7 @@
 //! Epsilon-almost XOR-universal hash used in the Boneh-Zhandry qCW-MAC construction.
 
 use lib_q_sha3::Shake256;
-use lib_q_sha3::digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
 use crate::profile::QCW_MAC_TAG_BYTES;
 

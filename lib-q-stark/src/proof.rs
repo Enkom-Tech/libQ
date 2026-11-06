@@ -1,10 +1,7 @@
 use alloc::vec::Vec;
 
 use lib_q_stark_commit::Pcs;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
 use crate::StarkGenericConfig;
 

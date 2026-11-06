@@ -2,26 +2,11 @@ extern crate std;
 use std::vec;
 use std::vec::Vec;
 
-use super::vector_type::{
-    self,
-    Coefficients,
-};
-use super::{
-    arithmetic,
-    invntt,
-    ntt,
-};
-use crate::ntt::{
-    invert_ntt_montgomery,
-    ntt as poly_ntt,
-    ntt_multiply_montgomery,
-    reduce,
-};
+use super::vector_type::{self, Coefficients};
+use super::{arithmetic, invntt, ntt};
+use crate::ntt::{invert_ntt_montgomery, ntt as poly_ntt, ntt_multiply_montgomery, reduce};
 use crate::polynomial::PolynomialRingElement;
-use crate::simd::traits::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    FIELD_MODULUS,
-};
+use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, FIELD_MODULUS};
 
 type Poly = PolynomialRingElement<Coefficients>;
 
@@ -811,10 +796,7 @@ fn simd_unit_invntt_layer0_deterministic() {
 
 #[test]
 fn portable_operations_decompose_both_gamma2() {
-    use crate::constants::{
-        GAMMA2_V95_232,
-        GAMMA2_V261_888,
-    };
+    use crate::constants::{GAMMA2_V95_232, GAMMA2_V261_888};
     use crate::simd::portable::PortableSIMDUnit;
     use crate::simd::traits::Operations;
 

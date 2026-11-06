@@ -2,11 +2,7 @@
 
 #[cfg(all(test, feature = "simd-avx2", target_arch = "x86_64"))]
 pub mod debug {
-    use lib_q_hqc::simd::{
-        Avx2,
-        PolynomialOps,
-        Portable,
-    };
+    use lib_q_hqc::simd::{Avx2, PolynomialOps, Portable};
 
     /// Compare AVX2 vs Portable element-wise with detailed mismatch reporting
     pub fn verify_sparse_dense_mul(sparse: &[u8], dense: &[u8], weight: u32) -> Result<(), String> {

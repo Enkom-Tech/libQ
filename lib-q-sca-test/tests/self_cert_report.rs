@@ -12,11 +12,7 @@
 
 use std::path::PathBuf;
 
-use lib_q_sca_test::self_cert::{
-    BatteryConfig,
-    run_timing_battery,
-    write_evidence_package,
-};
+use lib_q_sca_test::self_cert::{BatteryConfig, run_timing_battery, write_evidence_package};
 
 #[test]
 fn self_cert_smoke() {

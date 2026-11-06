@@ -1,17 +1,7 @@
 use core::time::Duration;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use lib_q_core::{Aead, AeadKey, Nonce};
 #[cfg(feature = "aead")]
 use lib_q_saturnin::SaturninAead;
 #[cfg(feature = "block-cipher")]

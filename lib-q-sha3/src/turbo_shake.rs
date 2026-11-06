@@ -5,37 +5,15 @@
 use core::fmt;
 
 use digest::block_api::{
-    AlgorithmName,
-    BlockSizeUser,
-    ExtendableOutputCore,
-    Reset,
-    UpdateCore,
-    XofReaderCore,
+    AlgorithmName, BlockSizeUser, ExtendableOutputCore, Reset, UpdateCore, XofReaderCore,
 };
-use digest::block_buffer::{
-    EagerBuffer,
-    ReadBuffer,
-};
-use digest::consts::{
-    U0,
-    U16,
-    U32,
-    U136,
-    U168,
-};
+use digest::block_buffer::{EagerBuffer, ReadBuffer};
+use digest::consts::{U0, U16, U32, U136, U168};
 use digest::{
-    CollisionResistance,
-    ExtendableOutput,
-    ExtendableOutputReset,
-    HashMarker,
-    Update,
-    XofReader,
+    CollisionResistance, ExtendableOutput, ExtendableOutputReset, HashMarker, Update, XofReader,
 };
 
-use crate::{
-    SpongeHasherCore,
-    SpongeReaderCore,
-};
+use crate::{SpongeHasherCore, SpongeReaderCore};
 
 const TURBO_SHAKE_ROUND_COUNT: usize = 12;
 

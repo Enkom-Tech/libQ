@@ -30,19 +30,9 @@
 #![cfg(feature = "std")]
 #![allow(clippy::manual_map, clippy::unnecessary_unwrap)]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
 use lib_q_hpke::HpkeContext;
-use lib_q_hpke::types::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-};
+use lib_q_hpke::types::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem};
 use lib_q_kem::LibQKemProvider;
 
 fn hpke_cipher_suite_from_vector(tv: &HpkeTestVector) -> HpkeCipherSuite {

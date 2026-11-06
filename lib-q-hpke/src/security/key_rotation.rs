@@ -4,11 +4,7 @@
 //! and limit the impact of key compromise.
 
 #[cfg(all(feature = "std", not(target_arch = "wasm32")))]
-use std::time::{
-    Duration,
-    SystemTime,
-    UNIX_EPOCH,
-};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use crate::error::HpkeError;
 use crate::security::CryptoRng;
@@ -74,9 +70,9 @@ impl KeyRotationState {
         let current_time = current_timestamp();
         let elapsed_time = current_time.saturating_sub(self.key_creation_time);
 
-        self.rotation_required = self.message_count >= policy.max_messages ||
-            elapsed_time >= policy.max_duration_secs ||
-            self.data_bytes_processed >= policy.max_data_bytes;
+        self.rotation_required = self.message_count >= policy.max_messages
+            || elapsed_time >= policy.max_duration_secs
+            || self.data_bytes_processed >= policy.max_data_bytes;
     }
 
     /// Reset state after key rotation

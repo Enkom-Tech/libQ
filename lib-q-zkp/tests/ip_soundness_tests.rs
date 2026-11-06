@@ -5,20 +5,13 @@
 
 use lib_q_zkp::air::MerkleHash;
 use lib_q_zkp::api::MerklePath;
-use lib_q_zkp::ip::auth::{
-    prove_group_membership,
-    verify_group_membership,
-};
+use lib_q_zkp::ip::auth::{prove_group_membership, verify_group_membership};
 use lib_q_zkp::ip::credential::{
-    IpCredential,
-    compute_credential_commitment,
-    prove_credential_attributes,
+    IpCredential, compute_credential_commitment, prove_credential_attributes,
     verify_credential_proof,
 };
 use lib_q_zkp::ip::identity::{
-    identity_token_from_secret,
-    prove_it_ownership,
-    verify_it_ownership,
+    identity_token_from_secret, prove_it_ownership, verify_it_ownership,
 };
 
 /// Assert that a verifier *ran to a verdict* and rejected.

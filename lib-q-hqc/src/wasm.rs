@@ -7,12 +7,7 @@ use alloc::format;
 use core::mem;
 
 use lib_q_core::{
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
+    Algorithm, AlgorithmCategory, CryptoProvider, KemContext, KemPublicKey, KemSecretKey,
 };
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;

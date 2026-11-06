@@ -1,18 +1,9 @@
-use lib_q_stark_dft::{
-    NaiveDft,
-    TwoAdicSubgroupDft,
-};
-use lib_q_stark_field::{
-    ExtensionField,
-    TwoAdicField,
-};
+use lib_q_stark_dft::{NaiveDft, TwoAdicSubgroupDft};
+use lib_q_stark_field::{ExtensionField, TwoAdicField};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use rand::SeedableRng;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 use rand::rngs::SmallRng;
 
 pub fn test_dft_matches_naive<F, Dft>()

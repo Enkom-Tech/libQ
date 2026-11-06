@@ -1,11 +1,7 @@
 //! wasm-bindgen-test smoke: ML-DSA-65 JS API on wasm32.
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_ml_dsa::wasm::{
-    generate_key_pair,
-    sign,
-    verify,
-};
+use lib_q_ml_dsa::wasm::{generate_key_pair, sign, verify};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 

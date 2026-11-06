@@ -1,12 +1,7 @@
 mod helpers {
     use lib_q_stark_field::{
-        PrimeCharacteristicRing,
-        add_scaled_slice_in_place,
-        dot_product,
-        field_to_array,
-        par_add_scaled_slice_in_place,
-        reduce_32,
-        split_32,
+        PrimeCharacteristicRing, add_scaled_slice_in_place, dot_product, field_to_array,
+        par_add_scaled_slice_in_place, reduce_32, split_32,
     };
     use lib_q_stark_mersenne31::Mersenne31;
 

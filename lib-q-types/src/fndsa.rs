@@ -11,11 +11,7 @@
 //! value is `2305`. A hand-copied literal can silently drift from the formula; a `const`
 //! initialized directly by calling the formula cannot.
 
-use fn_dsa_comm::{
-    sign_key_size,
-    signature_size,
-    vrfy_key_size,
-};
+use fn_dsa_comm::{sign_key_size, signature_size, vrfy_key_size};
 
 /// FN-DSA-512 (logn = 9) secret (signing) key length.
 pub const FNDSA512_SECRET_KEY_BYTES: usize = sign_key_size(9);

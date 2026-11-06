@@ -21,32 +21,14 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 
-use crate::commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-};
-use crate::error::{
-    ProofError,
-    VerifyError,
-};
+use crate::commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening};
+use crate::error::{ProofError, VerifyError};
 use crate::serialize::write_module_vec;
 use crate::sigma::amortise::BatchPresentationState;
-use crate::sigma::opening::{
-    OpeningProof,
-    prove_opening,
-    verify_opening,
-};
+use crate::sigma::opening::{OpeningProof, prove_opening, verify_opening};
 
 const WITNESS_NULLIFIER_DOMAIN: &[u8] = b"lattice-zkp/witness-null/v1";
 
@@ -240,16 +222,9 @@ mod tests {
     use lib_q_random::new_deterministic_rng;
 
     use super::*;
-    use crate::commitment::{
-        AjtaiCommitmentKey,
-        AjtaiOpening,
-        commit,
-    };
+    use crate::commitment::{AjtaiCommitmentKey, AjtaiOpening, commit};
     use crate::params::AjtaiParameters;
-    use crate::sigma::amortise::{
-        amortise,
-        verify_aggregate,
-    };
+    use crate::sigma::amortise::{amortise, verify_aggregate};
 
     #[inline]
     fn test_seed32(tag: u64) -> [u8; 32] {

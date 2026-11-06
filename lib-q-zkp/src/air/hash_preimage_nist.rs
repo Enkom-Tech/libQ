@@ -29,31 +29,14 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use digest::{
-    ExtendableOutput,
-    Update,
-};
+use digest::{ExtendableOutput, Update};
 use lib_q_sha3::CShake256;
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
-use super::{
-    AirError,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
-};
+use super::{AirError, TraceGenerator, next_power_of_two, validate_trace_dimensions};
 
 /// Domain separation for NIST preimage AIR (cSHAKE256 customization string).
 pub const CSHAKE_DOMAIN: &[u8] = b"HashPreimageNistAir";

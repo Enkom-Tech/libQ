@@ -23,29 +23,15 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use der::asn1::{
-    BitStringRef,
-    OctetStringRef,
-};
+use der::asn1::{BitStringRef, OctetStringRef};
 use der::oid::ObjectIdentifier;
-use der::{
-    Decode,
-    Encode,
-    Sequence,
-};
+use der::{Decode, Encode, Sequence};
 use hybrid_array::typenum::Unsigned;
 use zeroize::Zeroizing;
 
-use crate::kem::{
-    DecapsulationKey,
-    EncapsulationKey,
-};
+use crate::kem::{DecapsulationKey, EncapsulationKey};
 use crate::param::KemParams;
-use crate::{
-    Encoded,
-    EncodedSizeUser,
-    Seed,
-};
+use crate::{Encoded, EncodedSizeUser, Seed};
 
 /// `id-alg-ml-kem-512` (NIST CSOR `2.16.840.1.101.3.4.4.1`).
 const ML_KEM_512_OID: ObjectIdentifier = ObjectIdentifier::new_unwrap("2.16.840.1.101.3.4.4.1");
@@ -235,16 +221,9 @@ where
 mod test {
     use lib_q_random::LibQRng;
 
-    use crate::kem::{
-        DecapsulationKey,
-        EncapsulationKey,
-    };
+    use crate::kem::{DecapsulationKey, EncapsulationKey};
     use crate::param::KemParams;
-    use crate::{
-        MlKem512Params,
-        MlKem768Params,
-        MlKem1024Params,
-    };
+    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
 
     fn pkcs8_round_trip<P>()
     where

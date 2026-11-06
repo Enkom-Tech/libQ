@@ -5,12 +5,7 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use lib_q_fn_dsa::*;
 
 fn bench_key_generation(c: &mut Criterion) {

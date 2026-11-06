@@ -100,7 +100,7 @@ def workspace_members(root: Path) -> list[Path]:
     Parsed rather than obtained from `cargo metadata` ON PURPOSE. This guard runs in
     ci.yml's core-validation, which has no Setup Rust step -- it is a job of static checks
     that never needs a toolchain. Invoking cargo there would make rust-toolchain.toml's
-    pinned nightly-2026-07-24 (plus four cross targets) download on a job that currently
+    pinned stable 1.99.1 (plus four cross targets) download on a job that currently
     needs none of it, to answer a question that is written down in a TOML array.
     """
     text = (root / "Cargo.toml").read_text(encoding="utf-8", errors="replace")

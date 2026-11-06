@@ -39,26 +39,12 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_dkg::lattice::bdlop::{
-    self,
-    Commitment,
-    KAPPA,
-    MU,
-};
+use lib_q_dkg::lattice::bdlop::{self, Commitment, KAPPA, MU};
 use lib_q_dkg::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-    ring_add,
-    rq_from_le_bytes,
-    rq_to_le_bytes,
-    sample_secret_poly,
-    sample_uniform_poly,
-    scalar_mul,
+    RQ_BYTES, Rq, ring_add, rq_from_le_bytes, rq_to_le_bytes, sample_secret_poly,
+    sample_uniform_poly, scalar_mul,
 };
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 use zeroize::Zeroizing;
 
 pub mod error;
@@ -68,24 +54,9 @@ pub mod threshold;
 pub mod wire;
 
 pub use error::RaccoonError;
-pub use profile::{
-    PROFILE_ID_V1,
-    PROFILE_MAX_PARTIES_V1,
-    ThresholdRaccoonProfileV1,
-    setup,
-};
-pub use signer::{
-    MAX_SIGNATURES_PER_KEY,
-    Signature,
-    sign as sign_raw,
-    verify as verify_raw,
-};
-pub use wire::{
-    WIRE_BUDGET_SIGNATURE_BYTES,
-    WIRE_VERSION_V1,
-    decode_signature,
-    encode_signature,
-};
+pub use profile::{PROFILE_ID_V1, PROFILE_MAX_PARTIES_V1, ThresholdRaccoonProfileV1, setup};
+pub use signer::{MAX_SIGNATURES_PER_KEY, Signature, sign as sign_raw, verify as verify_raw};
+pub use wire::{WIRE_BUDGET_SIGNATURE_BYTES, WIRE_VERSION_V1, decode_signature, encode_signature};
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

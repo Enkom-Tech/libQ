@@ -6,10 +6,7 @@
 
 #[cfg(feature = "slh-dsa")]
 use lib_q_core::{
-    api::{
-        Algorithm,
-        SignatureOperations,
-    },
+    api::{Algorithm, SignatureOperations},
     traits::SigSecretKey,
 };
 #[cfg(feature = "slh-dsa")]

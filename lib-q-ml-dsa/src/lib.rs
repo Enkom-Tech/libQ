@@ -45,10 +45,7 @@ pub use types::*;
 /// (see `generate_key_pair_from_seed` in each parameter-set module).
 pub use zeroize::Zeroizing;
 
-pub use crate::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+pub use crate::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 
 #[cfg(feature = "mldsa44")]
 pub mod ml_dsa_44;
@@ -66,32 +63,13 @@ pub mod wasm;
 #[allow(clippy::assertions_on_constants)]
 mod constants_line_coverage {
     use crate::constants::{
-        self,
-        BYTES_FOR_VERIFICATION_KEY_HASH,
-        COEFFICIENTS_IN_RING_ELEMENT,
-        CONTEXT_MAX_LEN,
-        Eta,
-        FIELD_MODULUS,
-        FIELD_MODULUS_MINUS_ONE_BIT_LENGTH,
-        GAMMA2_V95_232,
-        GAMMA2_V261_888,
-        KEY_GENERATION_RANDOMNESS_SIZE,
-        MASK_SEED_SIZE,
-        MESSAGE_REPRESENTATIVE_SIZE,
-        REJECTION_SAMPLE_BOUND_SIGN,
-        RING_ELEMENT_OF_T0S_SIZE,
-        RING_ELEMENT_OF_T1S_SIZE,
-        SEED_FOR_A_SIZE,
-        SEED_FOR_ERROR_VECTORS_SIZE,
-        SEED_FOR_SIGNING_SIZE,
-        SIGNING_RANDOMNESS_SIZE,
-        beta,
-        commitment_ring_element_size,
-        commitment_vector_size,
-        error_ring_element_size,
-        gamma1_ring_element_size,
-        signature_size,
-        signing_key_size,
+        self, BYTES_FOR_VERIFICATION_KEY_HASH, COEFFICIENTS_IN_RING_ELEMENT, CONTEXT_MAX_LEN, Eta,
+        FIELD_MODULUS, FIELD_MODULUS_MINUS_ONE_BIT_LENGTH, GAMMA2_V95_232, GAMMA2_V261_888,
+        KEY_GENERATION_RANDOMNESS_SIZE, MASK_SEED_SIZE, MESSAGE_REPRESENTATIVE_SIZE,
+        REJECTION_SAMPLE_BOUND_SIGN, RING_ELEMENT_OF_T0S_SIZE, RING_ELEMENT_OF_T1S_SIZE,
+        SEED_FOR_A_SIZE, SEED_FOR_ERROR_VECTORS_SIZE, SEED_FOR_SIGNING_SIZE,
+        SIGNING_RANDOMNESS_SIZE, beta, commitment_ring_element_size, commitment_vector_size,
+        error_ring_element_size, gamma1_ring_element_size, signature_size, signing_key_size,
         verification_key_size,
     };
 
@@ -222,10 +200,7 @@ mod constants_line_coverage {
 
 #[cfg(all(test, feature = "zeroize"))]
 mod zeroize_tests {
-    use zeroize::{
-        Zeroize,
-        ZeroizeOnDrop,
-    };
+    use zeroize::{Zeroize, ZeroizeOnDrop};
 
     use crate::MLDSASigningKey;
 
@@ -268,10 +243,7 @@ mod zeroize_tests {
 
 #[cfg(test)]
 mod keygen_entry_point_tests {
-    use crate::{
-        KEY_GENERATION_RANDOMNESS_SIZE,
-        Zeroizing,
-    };
+    use crate::{KEY_GENERATION_RANDOMNESS_SIZE, Zeroizing};
 
     const SEEDS: [[u8; KEY_GENERATION_RANDOMNESS_SIZE]; 3] = [
         [0u8; KEY_GENERATION_RANDOMNESS_SIZE],

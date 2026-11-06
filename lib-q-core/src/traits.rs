@@ -1,10 +1,7 @@
 //! Common traits for lib-Q cryptographic operations
 
 #[cfg(feature = "alloc")]
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::error::Result;
 

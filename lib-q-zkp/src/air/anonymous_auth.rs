@@ -21,22 +21,12 @@ extern crate alloc;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
-use super::merkle_inclusion::{
-    MerkleInclusionAir,
-    MerkleProofInput,
-};
-use super::{
-    AirError,
-    TraceGenerator,
-};
+use super::merkle_inclusion::{MerkleInclusionAir, MerkleProofInput};
+use super::{AirError, TraceGenerator};
 
 /// Maximum group depth (Merkle tree depth)
 pub const MAX_GROUP_DEPTH: usize = 64;
@@ -299,10 +289,7 @@ mod tests {
 
     #[test]
     fn test_anonymous_auth_public_values_match_merkle_air() {
-        use super::super::merkle_inclusion::{
-            MerkleHash,
-            MerkleInclusionAir,
-        };
+        use super::super::merkle_inclusion::{MerkleHash, MerkleInclusionAir};
 
         type Val = Complex<Mersenne31>;
 

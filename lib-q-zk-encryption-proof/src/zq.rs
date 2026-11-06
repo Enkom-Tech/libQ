@@ -34,31 +34,15 @@
 use alloc::vec::Vec;
 use core::array;
 
-use lib_q_plonky_lookup::{
-    Direction,
-    Kind,
-    Lookup,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeCharacteristicRing,
-};
+use lib_q_plonky_lookup::{Direction, Kind, Lookup};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::ConfigVal;
 
 use crate::error::EncProofError;
-use crate::logup_join::{
-    MU_BIT_BUS,
-    mcol,
-    sconst,
-};
+use crate::logup_join::{MU_BIT_BUS, mcol, sconst};
 
 /// Lattice modulus `q = 2^48 − 2^14 + 1`.
 pub const Q: u64 = 281474976694273;
@@ -1351,24 +1335,11 @@ pub fn generate_relation_trace(
 #[cfg(test)]
 mod tests {
     use lib_q_stark::{
-        DebugConstraintBuilder,
-        PcsError,
-        PreprocessedVerifierKey,
-        Proof,
-        ProverConstraintFolder,
-        SymbolicAirBuilder,
-        VerificationError,
-        VerifierConstraintFolder,
-        prove_with_preprocessed,
-        setup_preprocessed,
-        verify_with_preprocessed,
+        DebugConstraintBuilder, PcsError, PreprocessedVerifierKey, Proof, ProverConstraintFolder,
+        SymbolicAirBuilder, VerificationError, VerifierConstraintFolder, prove_with_preprocessed,
+        setup_preprocessed, verify_with_preprocessed,
     };
-    use lib_q_zkp::stark::{
-        DefaultConfig,
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{DefaultConfig, StarkProver, StarkVerifier, default_config};
 
     use super::*;
     use crate::test_macros::assert_air_rejects;

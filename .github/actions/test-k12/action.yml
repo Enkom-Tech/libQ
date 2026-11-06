@@ -170,7 +170,7 @@ runs:
         echo "Feature combination tests completed"
     
     - name: Run benchmarks
-      if: inputs.run-benchmarks == 'true' && inputs.rust-version == 'nightly'
+      if: inputs.run-benchmarks == 'true'
       shell: bash
       run: |
         echo "Running K12 benchmarks..."

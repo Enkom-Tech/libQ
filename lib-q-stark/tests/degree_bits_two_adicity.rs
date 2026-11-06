@@ -19,41 +19,18 @@
 
 #![allow(clippy::clone_on_copy)]
 
-use lib_q_stark::{
-    StarkConfig,
-    VerificationError,
-    prove,
-    verify,
-    verify_with_preprocessed,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_baby_bear::{
-    BabyBear,
-    BabyBearDft,
-};
+use lib_q_stark::{StarkConfig, VerificationError, prove, verify, verify_with_preprocessed};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_baby_bear::{BabyBear, BabyBearDft};
 use lib_q_stark_challenger::Shake256Challenger32;
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::PrimeCharacteristicRing;
-use lib_q_stark_fri::{
-    FriParameters,
-    TwoAdicFriPcs,
-};
+use lib_q_stark_fri::{FriParameters, TwoAdicFriPcs};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
+use rand::distr::{Distribution, StandardUniform};
 
 // BabyBear (TWO_ADICITY = 27), scalar-field config -- mirrors
 // `lib-q-zkp/src/stark_baby_bear.rs::BbConfig`'s proven-working type wiring (leaf type is the

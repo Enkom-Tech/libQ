@@ -9,22 +9,10 @@
 
 use std::time::Instant;
 
-use lib_q_aead::timing::{
-    TimingProtection,
-    protect_timing_with_timing,
-    set_timing_protection,
-};
-use lib_q_aead::validation::{
-    InputValidator,
-    ValidationConfig,
-    set_input_validator,
-};
+use lib_q_aead::timing::{TimingProtection, protect_timing_with_timing, set_timing_protection};
+use lib_q_aead::validation::{InputValidator, ValidationConfig, set_input_validator};
 use lib_q_aead::*;
-use lib_q_core::{
-    AeadKey,
-    Algorithm,
-    Nonce,
-};
+use lib_q_core::{AeadKey, Algorithm, Nonce};
 
 fn test_key_for_security(algorithm: Algorithm) -> AeadKey {
     match algorithm {

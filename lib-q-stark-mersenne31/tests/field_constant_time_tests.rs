@@ -5,9 +5,7 @@
 
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_field::constant_time::{
-    constant_time_eq,
-    constant_time_is_one,
-    constant_time_is_zero,
+    constant_time_eq, constant_time_is_one, constant_time_is_zero,
 };
 use lib_q_stark_mersenne31::Mersenne31;
 

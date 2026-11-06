@@ -6,19 +6,9 @@
 //! scalar `crate::keccak_p`.
 
 #[cfg(all(target_arch = "x86_64", target_feature = "avx2", not(cross_compile)))]
-use core::arch::x86_64::{
-    __m256i,
-    _mm256_loadu_si256,
-    _mm256_storeu_si256,
-    _mm256_xor_si256,
-};
+use core::arch::x86_64::{__m256i, _mm256_loadu_si256, _mm256_storeu_si256, _mm256_xor_si256};
 #[cfg(all(target_arch = "x86_64", target_feature = "avx512f", not(cross_compile)))]
-use core::arch::x86_64::{
-    __m512i,
-    _mm512_loadu_si512,
-    _mm512_storeu_si512,
-    _mm512_xor_si512,
-};
+use core::arch::x86_64::{__m512i, _mm512_loadu_si512, _mm512_storeu_si512, _mm512_xor_si512};
 
 /// AVX2 Keccak-p[1600,24] permutation entrypoint.
 ///

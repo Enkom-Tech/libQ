@@ -3,10 +3,7 @@
 use core::array;
 
 use lib_q_stark_mersenne31::Mersenne31;
-use lib_q_stark_symmetric::{
-    CryptographicHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CryptographicHasher, SerializingHasher};
 
 #[derive(Clone)]
 struct MockHasher;

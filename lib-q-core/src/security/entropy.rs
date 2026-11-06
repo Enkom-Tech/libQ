@@ -205,12 +205,12 @@ impl EntropyValidator {
         let mut hits = 0usize;
 
         for i in 0..windows {
-            let ascending = data[i].wrapping_add(1) == data[i + 1] &&
-                data[i + 1].wrapping_add(1) == data[i + 2] &&
-                data[i + 2].wrapping_add(1) == data[i + 3];
-            let descending = data[i] == data[i + 1].wrapping_add(1) &&
-                data[i + 1] == data[i + 2].wrapping_add(1) &&
-                data[i + 2] == data[i + 3].wrapping_add(1);
+            let ascending = data[i].wrapping_add(1) == data[i + 1]
+                && data[i + 1].wrapping_add(1) == data[i + 2]
+                && data[i + 2].wrapping_add(1) == data[i + 3];
+            let descending = data[i] == data[i + 1].wrapping_add(1)
+                && data[i + 1] == data[i + 2].wrapping_add(1)
+                && data[i + 2] == data[i + 3].wrapping_add(1);
             if ascending || descending {
                 hits += 1;
                 if hits >= threshold {

@@ -10,29 +10,13 @@ use alloc::string::String;
 use lib_q_random::new_secure_rng;
 use rand_core::CryptoRng;
 use serde::Serialize;
-use signature::{
-    Keypair,
-    Signer,
-    Verifier,
-};
-use wasm_bindgen::prelude::{
-    JsValue,
-    wasm_bindgen,
-};
+use signature::{Keypair, Signer, Verifier};
+use wasm_bindgen::prelude::{JsValue, wasm_bindgen};
 use zeroize::Zeroizing;
 
 use crate::{
-    ParameterSet,
-    Shake128f,
-    Shake128s,
-    Shake192f,
-    Shake192s,
-    Shake256f,
-    Shake256s,
-    Signature,
-    SigningKey,
-    VerifyingKey,
-    VerifyingKeyLen,
+    ParameterSet, Shake128f, Shake128s, Shake192f, Shake192s, Shake256f, Shake256s, Signature,
+    SigningKey, VerifyingKey, VerifyingKeyLen,
 };
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {

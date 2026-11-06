@@ -2,15 +2,8 @@
 
 use alloc::vec::Vec;
 
-use lib_q_ring::{
-    ModuleMatrix,
-    ModuleVec,
-    Poly,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use lib_q_ring::{ModuleMatrix, ModuleVec, Poly};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 use crate::params::AjtaiParameters;
 

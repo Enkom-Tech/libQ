@@ -3,12 +3,7 @@
 //! This test verifies that our AEAD implementations work correctly with the HPKE system.
 
 #[cfg(feature = "shake256")]
-use lib_q_aead::{
-    AeadKey,
-    Algorithm,
-    Nonce,
-    create_aead,
-};
+use lib_q_aead::{AeadKey, Algorithm, Nonce, create_aead};
 
 /// Generate a proper test key with good entropy
 fn create_test_key() -> AeadKey {

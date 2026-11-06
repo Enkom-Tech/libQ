@@ -15,37 +15,22 @@ use alloc::vec::Vec;
 #[cfg(feature = "cb-kem")]
 use lib_q_cb_kem::LibQCbKemProvider;
 #[cfg(feature = "alloc")]
-use lib_q_core::api::{
-    Algorithm,
-    CryptoProvider,
-    KemOperations,
-};
+use lib_q_core::api::{Algorithm, CryptoProvider, KemOperations};
 #[cfg(feature = "alloc")]
-use lib_q_core::error::{
-    Error,
-    Result,
-};
+use lib_q_core::error::{Error, Result};
 #[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
 #[cfg(all(feature = "alloc", feature = "ml-kem"))]
 use lib_q_core::traits::Kem;
 #[cfg(feature = "alloc")]
-use lib_q_core::traits::{
-    KemKeypair,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::traits::{KemKeypair, KemPublicKey, KemSecretKey};
 // Import HQC implementations
 #[cfg(feature = "hqc")]
 use lib_q_hqc::LibQHqcProvider;
 
 // Import algorithm implementations
 #[cfg(feature = "ml-kem")]
-use crate::ml_kem::{
-    MlKem512Impl,
-    MlKem768Impl,
-    MlKem1024Impl,
-};
+use crate::ml_kem::{MlKem512Impl, MlKem768Impl, MlKem1024Impl};
 
 /// lib-Q KEM provider implementation
 ///
@@ -126,11 +111,11 @@ impl KemOperations for LibQKemProvider {
 
             // CB-KEM algorithms
             #[cfg(feature = "cb-kem")]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => {
                 let cb_kem_provider = LibQCbKemProvider::new()?;
                 cb_kem_provider.generate_keypair(algorithm, randomness)
             }
@@ -150,11 +135,11 @@ impl KemOperations for LibQKemProvider {
                 })
             }
             #[cfg(not(feature = "cb-kem"))]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: String::from("CB-KEM implementations require 'cb-kem' feature flag"),
             }),
             #[cfg(not(feature = "hqc"))]
@@ -209,11 +194,11 @@ impl KemOperations for LibQKemProvider {
 
             // CB-KEM algorithms
             #[cfg(feature = "cb-kem")]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => {
                 let cb_kem_provider = LibQCbKemProvider::new()?;
                 cb_kem_provider.encapsulate(algorithm, public_key, randomness)
             }
@@ -233,11 +218,11 @@ impl KemOperations for LibQKemProvider {
                 })
             }
             #[cfg(not(feature = "cb-kem"))]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: String::from("CB-KEM implementations require 'cb-kem' feature flag"),
             }),
             #[cfg(not(feature = "hqc"))]
@@ -291,11 +276,11 @@ impl KemOperations for LibQKemProvider {
 
             // CB-KEM algorithms
             #[cfg(feature = "cb-kem")]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => {
                 let cb_kem_provider = LibQCbKemProvider::new()?;
                 cb_kem_provider.decapsulate(algorithm, secret_key, ciphertext)
             }
@@ -315,11 +300,11 @@ impl KemOperations for LibQKemProvider {
                 })
             }
             #[cfg(not(feature = "cb-kem"))]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: String::from("CB-KEM implementations require 'cb-kem' feature flag"),
             }),
             #[cfg(not(feature = "hqc"))]
@@ -369,11 +354,11 @@ impl KemOperations for LibQKemProvider {
 
             // CB-KEM algorithms
             #[cfg(feature = "cb-kem")]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => {
                 let cb_kem_provider = LibQCbKemProvider::new()?;
                 cb_kem_provider.derive_public_key(algorithm, secret_key)
             }
@@ -393,11 +378,11 @@ impl KemOperations for LibQKemProvider {
                 })
             }
             #[cfg(not(feature = "cb-kem"))]
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => Err(Error::NotImplemented {
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => Err(Error::NotImplemented {
                 feature: String::from("CB-KEM implementations require 'cb-kem' feature flag"),
             }),
             #[cfg(not(feature = "hqc"))]

@@ -1,19 +1,9 @@
 #![cfg(feature = "hardened")]
 
-use lib_q_lattice_zkp::hardened::{
-    TEST_FIXED_PROVE_ATTEMPTS,
-    new_secure_rng,
-};
+use lib_q_lattice_zkp::hardened::{TEST_FIXED_PROVE_ATTEMPTS, new_secure_rng};
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    LatticeZkpProfileV0,
-    TOKEN_EPOCH_LEN,
-    TOKEN_ORIGIN_LEN,
-    TOKEN_SERIAL_LEN,
-    commit,
-    opening_from_token_fields,
-    prove_opening,
-    verify_opening,
+    AjtaiCommitmentKey, LatticeZkpProfileV0, TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN, TOKEN_SERIAL_LEN,
+    commit, opening_from_token_fields, prove_opening, verify_opening,
 };
 
 const KEY_SEED: [u8; 32] = [0x42u8; 32];
@@ -115,17 +105,9 @@ fn hardened_first_accept_matches_single_successful_attempt() {
 
 #[test]
 fn hardened_amortise_batch_roundtrip() {
-    use lib_q_lattice_zkp::{
-        AjtaiOpening,
-        AjtaiParameters,
-        amortise,
-        verify_aggregate,
-    };
+    use lib_q_lattice_zkp::{AjtaiOpening, AjtaiParameters, amortise, verify_aggregate};
     use lib_q_random::new_deterministic_rng;
-    use lib_q_ring::{
-        ModuleVec,
-        Poly,
-    };
+    use lib_q_ring::{ModuleVec, Poly};
 
     let params = AjtaiParameters::new(2, 1);
     let key = AjtaiCommitmentKey {

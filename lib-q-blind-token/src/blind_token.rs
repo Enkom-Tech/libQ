@@ -20,32 +20,17 @@
 
 #[cfg(feature = "std")]
 pub use crate::lattice::scheme::{
-    Credential,
-    IssueRequest,
-    IssueResponse,
-    IssueState,
-    IssuerPublic,
-    IssuerSecret,
-    TokenProof,
-    blind,
-    blind_sign,
-    keygen_issuer,
-    unblind,
+    Credential, IssueRequest, IssueResponse, IssueState, IssuerPublic, IssuerSecret, TokenProof,
+    blind, blind_sign, keygen_issuer, unblind,
 };
 
 #[cfg(feature = "std")]
 mod redeem_verify {
     use alloc::vec::Vec;
 
-    use rand_core::{
-        CryptoRng,
-        Rng,
-    };
+    use rand_core::{CryptoRng, Rng};
 
-    use super::{
-        Credential,
-        IssuerPublic,
-    };
+    use super::{Credential, IssuerPublic};
     use crate::error::BlindTokenError;
     use crate::wire;
 
@@ -76,7 +61,4 @@ mod redeem_verify {
 }
 
 #[cfg(feature = "std")]
-pub use redeem_verify::{
-    redeem,
-    verify,
-};
+pub use redeem_verify::{redeem, verify};

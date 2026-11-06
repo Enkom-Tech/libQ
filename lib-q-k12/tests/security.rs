@@ -15,11 +15,7 @@
 use std::collections::HashSet;
 
 use lib_q_k12::Kt128;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Reset,
-    Update,
-};
+use lib_q_k12::digest::{ExtendableOutput, Reset, Update};
 
 /// Test that identical inputs always produce identical outputs (determinism)
 #[test]

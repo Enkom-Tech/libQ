@@ -1,9 +1,5 @@
 #[cfg(feature = "random")]
-use lib_q_ml_dsa::{
-    ml_dsa_44,
-    ml_dsa_65,
-    ml_dsa_87,
-};
+use lib_q_ml_dsa::{ml_dsa_44, ml_dsa_65, ml_dsa_87};
 #[cfg(feature = "random")]
 use lib_q_random::LibQRng;
 #[cfg(feature = "random")]

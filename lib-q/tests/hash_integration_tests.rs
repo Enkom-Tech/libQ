@@ -3,10 +3,7 @@
 //! These tests verify that the hash provider integration works correctly
 //! through the main lib-Q system.
 
-use lib_q_core::api::{
-    Algorithm,
-    AlgorithmCategory,
-};
+use lib_q_core::api::{Algorithm, AlgorithmCategory};
 use lib_q_core::contexts::HashContext;
 use lib_q_core::error::Error;
 #[cfg(feature = "alloc")]

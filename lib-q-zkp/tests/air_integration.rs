@@ -10,26 +10,11 @@ use lib_q_stark_field::extension::Complex;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::air::{
-    AirError,
-    ArithmeticAir,
-    HashPreimageAir,
-    MerkleHash,
-    MerkleInclusionAir,
-    MerkleProofInput,
-    RangeProofAir,
-    TraceGenerator,
+    AirError, ArithmeticAir, HashPreimageAir, MerkleHash, MerkleInclusionAir, MerkleProofInput,
+    RangeProofAir, TraceGenerator,
 };
-use lib_q_zkp::circuit::{
-    ArithmeticCircuit,
-    CircuitAir,
-    CircuitBuilder,
-    Constraint,
-    Wire,
-};
-use lib_q_zkp::stark::{
-    default_config,
-    fast_proof_config,
-};
+use lib_q_zkp::circuit::{ArithmeticCircuit, CircuitAir, CircuitBuilder, Constraint, Wire};
+use lib_q_zkp::stark::{default_config, fast_proof_config};
 
 type TestField = Complex<Mersenne31>;
 
@@ -267,11 +252,7 @@ fn test_circuit_air_trace_generation() {
 
 #[test]
 fn test_circuit_air_e2e_prove_verify() {
-    use lib_q_zkp::{
-        ZkpField,
-        ZkpProver,
-        ZkpVerifier,
-    };
+    use lib_q_zkp::{ZkpField, ZkpProver, ZkpVerifier};
 
     // Build circuit: prove knowledge of a, b such that a * b = public_output
     let mut builder = CircuitBuilder::<ZkpField>::new(2, 1);
@@ -302,11 +283,7 @@ fn test_circuit_air_e2e_prove_verify() {
 
 #[test]
 fn test_circuit_air_soundness_wrong_public_fails() {
-    use lib_q_zkp::{
-        ZkpField,
-        ZkpProver,
-        ZkpVerifier,
-    };
+    use lib_q_zkp::{ZkpField, ZkpProver, ZkpVerifier};
 
     let mut builder = CircuitBuilder::<ZkpField>::new(2, 1);
     let a = builder.wire(0);
@@ -374,10 +351,7 @@ fn test_prove_preimage() {
 
 #[test]
 fn test_verify_preimage() {
-    use lib_q_zkp::api::{
-        prove_preimage,
-        verify_preimage,
-    };
+    use lib_q_zkp::api::{prove_preimage, verify_preimage};
     let secret = b"test secret";
     let proof = prove_preimage(secret).expect("Proof generation should succeed");
 
@@ -391,11 +365,7 @@ fn test_verify_preimage() {
 #[test]
 fn test_poseidon_collision_resistance() {
     // Test that different inputs produce different hash outputs
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
-        PoseidonField,
-    };
+    use lib_q_poseidon::{Poseidon, Poseidon128, PoseidonField};
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
@@ -418,10 +388,7 @@ fn test_poseidon_collision_resistance() {
 #[test]
 fn test_hash_preimage_soundness() {
     // Test that invalid proofs (wrong preimage) fail verification
-    use lib_q_zkp::api::{
-        prove_preimage,
-        verify_preimage,
-    };
+    use lib_q_zkp::api::{prove_preimage, verify_preimage};
 
     // `verify_preimage` takes the *preimage*, not a hash — it reconstructs the public
     // commitment itself. The earlier version of this test passed hash-shaped byte strings and
@@ -444,11 +411,7 @@ fn test_hash_preimage_soundness() {
 #[test]
 fn test_merkle_membership_soundness() {
     // Test that invalid Merkle proofs fail verification
-    use lib_q_zkp::api::{
-        MerklePath,
-        prove_membership_with_config,
-        verify_membership_with_config,
-    };
+    use lib_q_zkp::api::{MerklePath, prove_membership_with_config, verify_membership_with_config};
 
     let cfg = default_config();
     let leaf = b"test leaf";
@@ -475,11 +438,8 @@ fn test_merkle_membership_soundness() {
 fn test_merkle_membership_roundtrip_correct_root() {
     // Build a tree, prove membership, verify with correct root (positive case)
     use lib_q_zkp::api::{
-        build_merkle_tree,
-        merkle_path_from_tree,
-        prove_membership_with_config,
-        verify_membership_with_config,
-        verify_membership_with_depth_and_config,
+        build_merkle_tree, merkle_path_from_tree, prove_membership_with_config,
+        verify_membership_with_config, verify_membership_with_depth_and_config,
     };
 
     let cfg = fast_proof_config();
@@ -508,9 +468,7 @@ fn test_merkle_membership_roundtrip_correct_root() {
 fn test_merkle_membership_with_explicit_depth() {
     // Test verify_membership_with_depth for explicit tree depth verification
     use lib_q_zkp::api::{
-        MerklePath,
-        prove_membership_with_config,
-        verify_membership_with_depth_and_config,
+        MerklePath, prove_membership_with_config, verify_membership_with_depth_and_config,
     };
 
     let cfg = fast_proof_config();
@@ -550,10 +508,7 @@ fn test_merkle_membership_with_explicit_depth() {
 #[test]
 fn test_merkle_proof_depth_stored_in_metadata() {
     // Verify that prove_membership stores tree depth in proof metadata
-    use lib_q_zkp::api::{
-        MerklePath,
-        prove_membership_with_config,
-    };
+    use lib_q_zkp::api::{MerklePath, prove_membership_with_config};
 
     let cfg = fast_proof_config();
     let leaf = b"leaf data";
@@ -586,11 +541,7 @@ fn test_merkle_proof_depth_stored_in_metadata() {
 #[test]
 fn test_poseidon_deterministic() {
     // Test that same input always produces same output
-    use lib_q_poseidon::{
-        Poseidon,
-        Poseidon128,
-        PoseidonField,
-    };
+    use lib_q_poseidon::{Poseidon, Poseidon128, PoseidonField};
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_mersenne31::Mersenne31;
 
@@ -610,10 +561,7 @@ fn test_poseidon_deterministic() {
 
 #[test]
 fn test_prove_membership() {
-    use lib_q_zkp::api::{
-        MerklePath,
-        prove_membership_with_config,
-    };
+    use lib_q_zkp::api::{MerklePath, prove_membership_with_config};
     let cfg = fast_proof_config();
     let leaf = b"test leaf";
     let path = MerklePath {
@@ -733,11 +681,7 @@ fn make_arithmetic_trace_pv_padded(
 
 #[test]
 fn test_arithmetic_air_soundness_zero_product_is_valid() {
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
     let air = ArithmeticAir::new(1).unwrap();
     let (trace, pv) = make_arithmetic_trace_pv_padded(0, 5);
     let proof = StarkProver::new(default_config())
@@ -753,11 +697,7 @@ fn test_arithmetic_air_soundness_zero_product_is_valid() {
 #[test]
 #[cfg(not(debug_assertions))]
 fn test_arithmetic_air_soundness_wrong_product() {
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
     let air = ArithmeticAir::new(1).unwrap();
     let (mut trace, pv) = make_arithmetic_trace_pv_padded(3, 4);
     trace.values[2] = TestField::from(Mersenne31::new(13));
@@ -773,11 +713,7 @@ fn test_arithmetic_air_soundness_wrong_product() {
 
 #[test]
 fn test_range_proof_boundary_value_valid() {
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
     let air = RangeProofAir::new(8).unwrap();
     let inputs = vec![<TestField as PrimeCharacteristicRing>::ZERO];
     let trace = air.generate_trace(&inputs).unwrap();
@@ -795,11 +731,7 @@ fn test_range_proof_boundary_value_valid() {
 #[test]
 #[cfg(not(debug_assertions))]
 fn test_range_proof_non_boolean_bit_rejected() {
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
     let air = RangeProofAir::new(8).unwrap();
     let inputs = vec![<TestField as PrimeCharacteristicRing>::ZERO];
     let mut trace = air.generate_trace(&inputs).unwrap();
@@ -823,16 +755,8 @@ fn test_range_proof_non_boolean_bit_rejected() {
 fn test_merkle_inclusion_constraint_soundness() {
     // Test that the AIR enforces correct Poseidon hash computation
     // This verifies that full constraint system prevents malicious proofs
-    use lib_q_zkp::air::{
-        MerkleInclusionAir,
-        MerkleProofInput,
-        TraceGenerator,
-    };
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::air::{MerkleInclusionAir, MerkleProofInput, TraceGenerator};
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     let air = MerkleInclusionAir::new(2).unwrap();
 
@@ -872,16 +796,8 @@ fn test_merkle_inclusion_constraint_soundness() {
 #[test]
 #[cfg(not(debug_assertions))]
 fn test_merkle_inclusion_soundness_corrupted_sibling() {
-    use lib_q_zkp::air::{
-        MerkleInclusionAir,
-        MerkleProofInput,
-        TraceGenerator,
-    };
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::air::{MerkleInclusionAir, MerkleProofInput, TraceGenerator};
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     let air = MerkleInclusionAir::new(2).unwrap();
     let input = MerkleProofInput {
@@ -915,16 +831,8 @@ fn test_merkle_inclusion_soundness_corrupted_sibling() {
 #[test]
 #[cfg(not(debug_assertions))]
 fn test_merkle_inclusion_soundness_wrong_direction_bit() {
-    use lib_q_zkp::air::{
-        MerkleInclusionAir,
-        MerkleProofInput,
-        TraceGenerator,
-    };
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::air::{MerkleInclusionAir, MerkleProofInput, TraceGenerator};
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     let air = MerkleInclusionAir::new(2).unwrap();
     let input = MerkleProofInput {
@@ -957,15 +865,8 @@ fn test_merkle_inclusion_soundness_wrong_direction_bit() {
 #[test]
 #[cfg(not(debug_assertions))]
 fn test_hash_preimage_soundness_wrong_preimage() {
-    use lib_q_zkp::air::{
-        HashPreimageAir,
-        TraceGenerator,
-    };
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::air::{HashPreimageAir, TraceGenerator};
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     let air = HashPreimageAir::new();
     let preimage = b"hello".to_vec();
@@ -990,16 +891,8 @@ fn test_hash_preimage_soundness_wrong_preimage() {
 #[test]
 #[cfg(not(debug_assertions))]
 fn test_poseidon_gadget_intermediate_states_are_binding() {
-    use lib_q_zkp::air::{
-        MerkleInclusionAir,
-        MerkleProofInput,
-        TraceGenerator,
-    };
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_zkp::air::{MerkleInclusionAir, MerkleProofInput, TraceGenerator};
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     let air = MerkleInclusionAir::new(1).unwrap();
     let input = MerkleProofInput {
@@ -1034,20 +927,9 @@ fn test_poseidon_gadget_intermediate_states_are_binding() {
 /// verifier quotient domain must match prover (see lib-q-stark verifier).
 #[test]
 fn test_stark_layer_wide_trace_regression() {
-    use lib_q_stark::{
-        StarkGenericConfig,
-        get_log_num_quotient_chunks,
-    };
-    use lib_q_zkp::air::{
-        MerkleInclusionAir,
-        MerkleProofInput,
-        TraceGenerator,
-    };
-    use lib_q_zkp::stark::{
-        StarkProver,
-        StarkVerifier,
-        default_config,
-    };
+    use lib_q_stark::{StarkGenericConfig, get_log_num_quotient_chunks};
+    use lib_q_zkp::air::{MerkleInclusionAir, MerkleProofInput, TraceGenerator};
+    use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
     // Depth-1 tree: width = 1 + 1*(1 + 1 + 1 + COLUMNS_PER_HASH) = 1 + 1*579 = 580 (was 576, now 960)
     let air = MerkleInclusionAir::new(1).unwrap();

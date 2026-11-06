@@ -1,8 +1,4 @@
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    RowWindow,
-};
+use lib_q_stark_air::{Air, AirBuilder, RowWindow};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
@@ -173,14 +169,8 @@ where
 mod tests {
     use alloc::vec;
 
-    use lib_q_stark_air::{
-        BaseAir,
-        WindowAccess,
-    };
-    use lib_q_stark_field::{
-        Field,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_air::{BaseAir, WindowAccess};
+    use lib_q_stark_field::{Field, PrimeCharacteristicRing};
     use lib_q_stark_mersenne31::Mersenne31;
 
     use super::*;

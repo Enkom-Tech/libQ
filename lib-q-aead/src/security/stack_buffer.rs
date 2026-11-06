@@ -4,10 +4,7 @@
 //! following libQ's zero dynamic allocation memory model.
 
 use core::mem::MaybeUninit;
-use core::ops::{
-    Deref,
-    DerefMut,
-};
+use core::ops::{Deref, DerefMut};
 
 use crate::security::memory::secure_zero_slice;
 

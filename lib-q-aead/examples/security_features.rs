@@ -7,24 +7,10 @@ use std::time::Instant;
 
 use lib_q_aead::security::constant_time::constant_time_eq;
 use lib_q_aead::security::memory::secure_zero_slice;
-use lib_q_aead::security::timing::{
-    TimingProtection,
-    protect_timing,
-};
-use lib_q_aead::security::validation::{
-    validate_key,
-    validate_nonce,
-};
-use lib_q_aead::security::{
-    SecurityConfig,
-    SecurityContext,
-};
-use lib_q_aead::{
-    AeadKey,
-    Algorithm,
-    Nonce,
-    create_aead,
-};
+use lib_q_aead::security::timing::{TimingProtection, protect_timing};
+use lib_q_aead::security::validation::{validate_key, validate_nonce};
+use lib_q_aead::security::{SecurityConfig, SecurityContext};
+use lib_q_aead::{AeadKey, Algorithm, Nonce, create_aead};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("lib-q-aead Security Features Example");

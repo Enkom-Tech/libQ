@@ -8,10 +8,7 @@ use alloc::vec::Vec;
 
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
 use lib_q_stark_field::{
-    ExtensionField,
-    TwoAdicField,
-    batch_multiplicative_inverse,
-    scale_slice_in_place_single_core,
+    ExtensionField, TwoAdicField, batch_multiplicative_inverse, scale_slice_in_place_single_core,
 };
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_rayon::prelude::*;
@@ -137,20 +134,13 @@ mod tests {
     use lib_q_stark_baby_bear::BabyBear;
     use lib_q_stark_field::extension::BinomialExtensionField;
     use lib_q_stark_field::{
-        Field,
-        PrimeCharacteristicRing,
-        TwoAdicField,
-        batch_multiplicative_inverse,
+        Field, PrimeCharacteristicRing, TwoAdicField, batch_multiplicative_inverse,
     };
     use lib_q_stark_matrix::dense::RowMajorMatrix;
     use lib_q_stark_mersenne31::Mersenne31;
     use lib_q_stark_util::log2_strict_usize;
 
-    use crate::{
-        interpolate_coset,
-        interpolate_coset_with_precomputation,
-        interpolate_subgroup,
-    };
+    use crate::{interpolate_coset, interpolate_coset_with_precomputation, interpolate_subgroup};
 
     #[test]
     fn test_interpolate_subgroup() {

@@ -6,19 +6,12 @@
 #[cfg(feature = "std")]
 mod thread_safety_tests {
     use std::sync::Arc;
-    use std::sync::atomic::{
-        AtomicUsize,
-        Ordering,
-    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
     use std::thread;
     use std::time::Duration;
 
     use lib_q_aead::*;
-    use lib_q_core::{
-        AeadKey,
-        Algorithm,
-        Nonce,
-    };
+    use lib_q_core::{AeadKey, Algorithm, Nonce};
 
     /// Test that multiple threads can safely access the global registry
     #[test]

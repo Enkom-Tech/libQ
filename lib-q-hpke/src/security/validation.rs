@@ -4,10 +4,7 @@
 use alloc::format;
 
 use super::policy::get_default_security_policy;
-use crate::error::{
-    HpkeError,
-    SecurityValidation,
-};
+use crate::error::{HpkeError, SecurityValidation};
 use crate::types::*;
 
 /// Cryptographic validator with security policy enforcement

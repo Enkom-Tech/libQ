@@ -4,18 +4,9 @@
 //! the CryptoProvider trait and delegates to specific operation providers.
 
 #[cfg(feature = "std")]
-use super::{
-    LibQAeadStubProvider,
-    LibQHashProvider,
-    LibQKemProvider,
-    LibQSignatureProvider,
-};
+use super::{LibQAeadStubProvider, LibQHashProvider, LibQKemProvider, LibQSignatureProvider};
 use crate::api::{
-    AeadOperations,
-    CryptoProvider,
-    HashOperations,
-    KemOperations,
-    SignatureOperations,
+    AeadOperations, CryptoProvider, HashOperations, KemOperations, SignatureOperations,
 };
 use crate::error::Result;
 
@@ -164,14 +155,7 @@ use alloc::format;
 use crate::security::SecurityValidator;
 #[cfg(not(feature = "std"))]
 use crate::traits::{
-    AeadKey,
-    KemKeypair,
-    KemPublicKey,
-    KemSecretKey,
-    Nonce,
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
+    AeadKey, KemKeypair, KemPublicKey, KemSecretKey, Nonce, SigKeypair, SigPublicKey, SigSecretKey,
 };
 
 #[cfg(not(feature = "std"))]

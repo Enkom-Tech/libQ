@@ -2,40 +2,19 @@ use alloc::vec::Vec;
 use core::cell::RefCell;
 
 use itertools::Itertools;
-use lib_q_stark_commit::{
-    BatchOpening,
-    BatchOpeningRef,
-    Mmcs,
-};
+use lib_q_stark_commit::{BatchOpening, BatchOpeningRef, Mmcs};
 use lib_q_stark_field::PackedValue;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_matrix::stack::HorizontalPair;
-use lib_q_stark_matrix::{
-    Dimensions,
-    Matrix,
-};
-use lib_q_stark_symmetric::{
-    CryptographicHasher,
-    Hash,
-    PseudoCompressionFunction,
-};
+use lib_q_stark_matrix::{Dimensions, Matrix};
+use lib_q_stark_symmetric::{CryptographicHasher, Hash, PseudoCompressionFunction};
 use lib_q_stark_util::zip_eq::zip_eq;
 use rand::Rng;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 use serde::de::DeserializeOwned;
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use serde::{Deserialize, Serialize};
 
-use crate::{
-    MerkleTree,
-    MerkleTreeError,
-    MerkleTreeMmcs,
-};
+use crate::{MerkleTree, MerkleTreeError, MerkleTreeMmcs};
 
 /// A vector commitment scheme backed by a `MerkleTree`.
 ///
@@ -166,20 +145,11 @@ mod tests {
     use itertools::Itertools;
     use lib_q_random::DeterministicRng;
     use lib_q_stark_commit::Mmcs;
-    use lib_q_stark_field::{
-        Field,
-        PrimeCharacteristicRing,
-    };
+    use lib_q_stark_field::{Field, PrimeCharacteristicRing};
     use lib_q_stark_matrix::Matrix;
     use lib_q_stark_matrix::dense::RowMajorMatrix;
-    use lib_q_stark_mersenne31::{
-        Mersenne31,
-        TestPermutation,
-    };
-    use lib_q_stark_symmetric::{
-        PaddingFreeSponge,
-        TruncatedPermutation,
-    };
+    use lib_q_stark_mersenne31::{Mersenne31, TestPermutation};
+    use lib_q_stark_symmetric::{PaddingFreeSponge, TruncatedPermutation};
 
     use super::MerkleTreeHidingMmcs;
     use crate::MerkleTreeError;

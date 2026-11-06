@@ -6,10 +6,7 @@
 //! lane leaked into another, or the load/store transpose were wrong, at least one
 //! lane would diverge from its scalar reference.
 
-use lib_q_keccak::{
-    p1600,
-    p1600x4,
-};
+use lib_q_keccak::{p1600, p1600x4};
 
 /// Build a deterministic but per-lane-distinct state.
 fn seeded_state(seed: u64) -> [u64; 25] {

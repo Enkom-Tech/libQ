@@ -5,29 +5,13 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    format,
-    string::String,
-    vec,
-    vec::Vec,
-};
+use alloc::{format, string::String, vec, vec::Vec};
 
-use lib_q_core::{
-    Algorithm,
-    CryptoProvider,
-    Error,
-    KemOperations,
-    Result,
-};
+use lib_q_core::{Algorithm, CryptoProvider, Error, KemOperations, Result};
 #[cfg(all(feature = "alloc", feature = "random"))]
 use zeroize::Zeroizing;
 
-use crate::hqc_core::{
-    Hqc1,
-    Hqc3,
-    Hqc5,
-    HqcCore,
-};
+use crate::hqc_core::{Hqc1, Hqc3, Hqc5, HqcCore};
 
 /// RNG for KEM encapsulation: OS CSPRNG by default, or a KAT-compatible SHAKE256 PRNG when
 /// `randomness` is supplied (first up to 48 bytes seed the PRNG; remainder zero-padded).
@@ -140,20 +124,11 @@ impl KemOperations for LibQHqcProvider {
         public_key: &lib_q_core::KemPublicKey,
         randomness: Option<&[u8]>,
     ) -> Result<(Vec<u8>, Vec<u8>)> {
-        use crate::hqc_core::{
-            Hqc1PublicKey,
-            Hqc3PublicKey,
-            Hqc5PublicKey,
-        };
+        use crate::hqc_core::{Hqc1PublicKey, Hqc3PublicKey, Hqc5PublicKey};
         use crate::hqc_kem::HqcKemPublicKey;
         use crate::hqc_pke::HqcPkePublicKey;
         #[allow(unused_imports)] // HqcParams trait needed for associated constants access
-        use crate::params::{
-            Hqc1Params,
-            Hqc3Params,
-            Hqc5Params,
-            HqcParams,
-        };
+        use crate::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
         match algorithm {
             Algorithm::Hqc128 => {
@@ -205,30 +180,13 @@ impl KemOperations for LibQHqcProvider {
         ciphertext: &[u8],
     ) -> Result<Vec<u8>> {
         use crate::hqc_core::{
-            Hqc1Ciphertext,
-            Hqc1SecretKey,
-            Hqc3Ciphertext,
-            Hqc3SecretKey,
-            Hqc5Ciphertext,
+            Hqc1Ciphertext, Hqc1SecretKey, Hqc3Ciphertext, Hqc3SecretKey, Hqc5Ciphertext,
             Hqc5SecretKey,
         };
-        use crate::hqc_kem::{
-            HqcKemCiphertext,
-            HqcKemSecretKey,
-            MAX_SECURITY_BYTES,
-        };
-        use crate::hqc_pke::{
-            HqcPkeCiphertext,
-            HqcPkePublicKey,
-            HqcPkeSecretKey,
-        };
+        use crate::hqc_kem::{HqcKemCiphertext, HqcKemSecretKey, MAX_SECURITY_BYTES};
+        use crate::hqc_pke::{HqcPkeCiphertext, HqcPkePublicKey, HqcPkeSecretKey};
         #[allow(unused_imports)] // HqcParams trait needed for associated constants access
-        use crate::params::{
-            Hqc1Params,
-            Hqc3Params,
-            Hqc5Params,
-            HqcParams,
-        };
+        use crate::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
         match algorithm {
             Algorithm::Hqc128 => {
@@ -397,12 +355,7 @@ impl KemOperations for LibQHqcProvider {
         secret_key: &lib_q_core::KemSecretKey,
     ) -> Result<lib_q_core::KemPublicKey> {
         #[allow(unused_imports)] // HqcParams trait needed for associated constants access
-        use crate::params::{
-            Hqc1Params,
-            Hqc3Params,
-            Hqc5Params,
-            HqcParams,
-        };
+        use crate::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 
         match algorithm {
             Algorithm::Hqc128 => {

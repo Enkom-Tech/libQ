@@ -26,29 +26,13 @@
 //! Challenge bytes are mapped to \(\mathbb{F}_p\) with [`crypto_bigint::U256::rem_vartime`]; that
 //! step is transcript wiring, not a shared-secret comparison primitive.
 
-use crypto_bigint::{
-    CtEq,
-    U256,
-};
+use crypto_bigint::{CtEq, U256};
 use lib_q_prf::{
-    GoldKey256,
-    GoldPrfParams256,
-    LegendreKey256,
-    LegendrePrfParams256,
-    PrfError,
-    gold_prf_u256,
-    legendre_prf_u256,
-    u256_from_le_bytes,
+    GoldKey256, GoldPrfParams256, LegendreKey256, LegendrePrfParams256, PrfError, gold_prf_u256,
+    legendre_prf_u256, u256_from_le_bytes,
 };
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 use subtle::Choice;
 
 /// Errors for the DualRing PRF transcript layer.

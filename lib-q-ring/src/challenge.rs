@@ -1,16 +1,8 @@
 //! Challenge sampling (FIPS 204, Algorithm 29) using SHAKE256 in ML-DSA’s incremental block shape.
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Shake256,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::{ExtendableOutput, Shake256, Update, XofReader};
 
-use crate::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    SHAKE256_BLOCK_SIZE,
-};
+use crate::constants::{COEFFICIENTS_IN_RING_ELEMENT, SHAKE256_BLOCK_SIZE};
 use crate::poly::Poly;
 
 fn inside_out_shuffle(

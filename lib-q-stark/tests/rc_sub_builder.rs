@@ -9,44 +9,18 @@
 //! The sub-AIR enforces the decomposition + booleanity over columns `1..`, while the parent AIR
 //! never touches the bit columns and only reasons about the accumulated sum.
 
-use lib_q_stark::{
-    StarkConfig,
-    SubAirBuilder,
-    SymbolicAirBuilder,
-    prove,
-    verify,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_challenger::{
-    ComplexFieldChallenger,
-    Shake256Challenger32,
-};
+use lib_q_stark::{StarkConfig, SubAirBuilder, SymbolicAirBuilder, prove, verify};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
-use lib_q_stark_fri::{
-    FriParameters,
-    TwoAdicFriPcs,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
+use lib_q_stark_fri::{FriParameters, TwoAdicFriPcs};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 
 const NUM_RANGE_BITS: usize = 4;
 const TRACE_WIDTH: usize = 2 + NUM_RANGE_BITS;

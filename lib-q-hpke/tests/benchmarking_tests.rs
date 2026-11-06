@@ -4,10 +4,7 @@
 #![allow(clippy::absurd_extreme_comparisons, unused_comparisons)]
 
 use lib_q_hpke::benchmarking::{
-    AlgorithmType,
-    OperationType,
-    PerformanceMetrics,
-    PerformanceProfiler,
+    AlgorithmType, OperationType, PerformanceMetrics, PerformanceProfiler,
 };
 
 /// Test basic profiling functionality
@@ -218,8 +215,8 @@ fn test_timing_accuracy() {
     // Allow 20% variance
     let variance = expected_ns / 5;
     assert!(
-        measured_ns >= expected_ns.saturating_sub(variance) &&
-            measured_ns <= expected_ns + variance,
+        measured_ns >= expected_ns.saturating_sub(variance)
+            && measured_ns <= expected_ns + variance,
         "Measured time {}ns not within expected range {}ns ± {}ns",
         measured_ns,
         expected_ns,

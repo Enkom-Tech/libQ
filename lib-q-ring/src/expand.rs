@@ -2,23 +2,12 @@
 
 use alloc::vec::Vec;
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Shake128,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::{ExtendableOutput, Shake128, Update, XofReader};
 
 use crate::constants::{
-    COEFFICIENTS_IN_RING_ELEMENT,
-    FIELD_MODULUS,
-    SHAKE128_BLOCK_SIZE,
-    SHAKE128_FIVE_BLOCKS_SIZE,
+    COEFFICIENTS_IN_RING_ELEMENT, FIELD_MODULUS, SHAKE128_BLOCK_SIZE, SHAKE128_FIVE_BLOCKS_SIZE,
 };
-use crate::poly::{
-    NttPoly,
-    Poly,
-};
+use crate::poly::{NttPoly, Poly};
 
 #[inline]
 fn generate_domain_separator((row, column): (u8, u8)) -> u16 {

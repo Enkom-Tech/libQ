@@ -7,13 +7,8 @@
 #[cfg(all(feature = "simd", keccak_portable_simd))]
 use lib_q_keccak::parallel;
 use lib_q_keccak::{
-    FeatureConfig,
-    OptimizationLevel,
-    detection,
-    fast_loop_absorb_optimized,
-    get_global_config,
-    p1600_optimized,
-    set_global_config,
+    FeatureConfig, OptimizationLevel, detection, fast_loop_absorb_optimized, get_global_config,
+    p1600_optimized, set_global_config,
 };
 
 fn main() {

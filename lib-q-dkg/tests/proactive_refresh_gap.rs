@@ -26,27 +26,13 @@
 
 mod common;
 
-use common::{
-    PARTIES,
-    THRESHOLD,
-    det_rng,
-};
+use common::{PARTIES, THRESHOLD, det_rng};
 use lib_q_dkg::lattice::ring::{
-    RQ_BYTES,
-    Rq,
-    centered_coeffs,
-    ring_add,
-    rq_from_le_bytes,
-    scalar_mul,
+    RQ_BYTES, Rq, centered_coeffs, ring_add, rq_from_le_bytes, scalar_mul,
 };
 use lib_q_dkg::{
-    SigningShare,
-    dkg_eval_share,
-    dkg_round1_commit,
-    dkg_run_honest,
-    dkg_run_honest_refresh,
-    lagrange_coeff_at_zero,
-    setup,
+    SigningShare, dkg_eval_share, dkg_round1_commit, dkg_run_honest, dkg_run_honest_refresh,
+    lagrange_coeff_at_zero, setup,
 };
 
 /// Lagrange-interpolate a subset's finalized share VALUES at `x = 0` to recover the group secret's

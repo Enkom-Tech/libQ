@@ -1,11 +1,6 @@
 //! Wire-format KEM sizes must match `lib_q_types::hqc` (workspace single source of truth).
 
-use lib_q_hqc::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 use lib_q_types::hqc;
 
 #[test]

@@ -1,28 +1,16 @@
 use alloc::collections::BTreeMap;
 use alloc::sync::Arc;
 
-use lib_q_stark_field::{
-    Field,
-    TwoAdicField,
-    assert_two_adic_bits,
-    assert_two_adic_fft_height,
-};
+use lib_q_stark_field::{Field, TwoAdicField, assert_two_adic_bits, assert_two_adic_fft_height};
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixViewMut,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixViewMut};
 use lib_q_stark_matrix::util::reverse_matrix_index_bits;
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_util::log2_strict_usize;
 use spin::RwLock;
 
 use crate::TwoAdicSubgroupDft;
-use crate::butterflies::{
-    Butterfly,
-    DitButterfly,
-    TwiddleFreeButterfly,
-};
+use crate::butterflies::{Butterfly, DitButterfly, TwiddleFreeButterfly};
 
 /// Radix-2 Decimation-in-Time FFT over a two-adic subgroup.
 ///

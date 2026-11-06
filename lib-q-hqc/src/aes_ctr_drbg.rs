@@ -37,15 +37,8 @@ use alloc::string::String;
 #[cfg(feature = "aes-drbg")]
 use aes::Aes256;
 #[cfg(feature = "aes-drbg")]
-use aes::cipher::{
-    Array,
-    BlockCipherEncrypt,
-    KeyInit,
-};
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
+use aes::cipher::{Array, BlockCipherEncrypt, KeyInit};
+use rand_core::{TryCryptoRng, TryRng};
 
 /// AES256-CTR-DRBG state structure
 ///

@@ -3,17 +3,8 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use digest::{
-    ExtendableOutput,
-    Update,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use digest::{ExtendableOutput, Update};
 
 const INPUT_SIZES: &[usize] = &[10, 100, 1_000, 10_000];
 

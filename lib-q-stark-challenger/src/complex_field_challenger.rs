@@ -8,20 +8,11 @@
 extern crate alloc;
 
 use lib_q_stark_field::BasedVectorSpace;
-use lib_q_stark_field::extension::{
-    BinomialExtensionField,
-    Complex,
-};
+use lib_q_stark_field::extension::{BinomialExtensionField, Complex};
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_stark_symmetric::Hash;
 
-use crate::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
-};
+use crate::{CanObserve, CanSample, CanSampleBits, FieldChallenger, GrindingChallenger};
 
 /// Wrapper challenger that implements `FieldChallenger<Complex<Mersenne31>>`
 /// by delegating to a base field challenger and using algebra element methods.

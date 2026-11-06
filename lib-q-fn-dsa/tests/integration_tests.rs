@@ -5,11 +5,7 @@
 
 #![cfg(test)]
 
-use lib_q_core::{
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-};
+use lib_q_core::{SigKeypair, SigPublicKey, SigSecretKey};
 use lib_q_fn_dsa::*;
 
 type TestResult = std::result::Result<(), Box<dyn std::error::Error>>;

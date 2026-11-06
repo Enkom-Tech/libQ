@@ -14,10 +14,7 @@ use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 #[cfg(feature = "poseidon")]
 use lib_q_transcript::PoseidonTranscript;
-use lib_q_transcript::{
-    DuplexTranscript,
-    K12Transcript,
-};
+use lib_q_transcript::{DuplexTranscript, K12Transcript};
 
 #[cfg(feature = "poseidon")]
 fn felts(xs: &[u32]) -> alloc::vec::Vec<PoseidonField> {

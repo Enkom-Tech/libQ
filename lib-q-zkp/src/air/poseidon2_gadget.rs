@@ -24,26 +24,12 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_poseidon::poseidon2_baby_bear::{
-    HALF_FULL_ROUNDS,
-    PARTIAL_ROUNDS,
-    RC_EXTERNAL_FINAL,
-    RC_EXTERNAL_INITIAL,
-    RC_INTERNAL,
-    WIDTH,
-    internal_diag,
-    permute_with_trace,
+    HALF_FULL_ROUNDS, PARTIAL_ROUNDS, RC_EXTERNAL_FINAL, RC_EXTERNAL_INITIAL, RC_INTERNAL, WIDTH,
+    internal_diag, permute_with_trace,
 };
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_baby_bear::BabyBear;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 
 // ---- Column layout ----
 const FULL_ROUND_COLS: usize = 2 * WIDTH; // sbox[16] + post[16]
@@ -368,10 +354,7 @@ mod tests {
     /// witness in the permutation gadget. Covers all columns, not the 5 hand-picked classes above.
     #[test]
     fn under_constraint_audit_every_column() {
-        use std::panic::{
-            AssertUnwindSafe,
-            catch_unwind,
-        };
+        use std::panic::{AssertUnwindSafe, catch_unwind};
         let trace =
             RowMajorMatrix::new(trace_values(&[0, 1, 2, 3, 4, 5, 6, 7]), POSEIDON2_ROW_WIDTH);
         let width = POSEIDON2_ROW_WIDTH;

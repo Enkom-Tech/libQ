@@ -1,22 +1,9 @@
-use lib_q_plonky_uni_stark::{
-    ProverConstraintFolder,
-    VerifierConstraintFolder,
-};
-use lib_q_stark_air::{
-    AirBuilder,
-    ExtensionBuilder,
-    PermutationAirBuilder,
-    RowWindow,
-};
+use lib_q_plonky_uni_stark::{ProverConstraintFolder, VerifierConstraintFolder};
+use lib_q_stark_air::{AirBuilder, ExtensionBuilder, PermutationAirBuilder, RowWindow};
 use lib_q_stark_matrix::dense::RowMajorMatrixView;
 use lib_q_stark_matrix::stack::ViewPair;
 
-use crate::config::{
-    PackedChallenge,
-    PackedVal,
-    StarkGenericConfig,
-    Val,
-};
+use crate::config::{PackedChallenge, PackedVal, StarkGenericConfig, Val};
 
 pub struct ProverConstraintFolderWithLookups<'a, SC: StarkGenericConfig> {
     pub inner: ProverConstraintFolder<'a, SC>,

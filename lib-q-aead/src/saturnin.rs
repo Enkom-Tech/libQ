@@ -7,20 +7,11 @@ use alloc::boxed::Box;
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    Algorithm,
-    DecryptSemanticOutcome,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, Algorithm, DecryptSemanticOutcome, Nonce, Result,
 };
 
 // Plugin trait implementation
-use crate::metadata::{
-    AeadMetadata,
-    AeadWithMetadata,
-};
+use crate::metadata::{AeadMetadata, AeadWithMetadata};
 
 /// Saturnin AEAD implementation wrapper
 pub struct SaturninAead {

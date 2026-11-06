@@ -10,11 +10,7 @@
 #![allow(clippy::assign_op_pattern)] // explicit `r[j] = r[j] - t` mirrors the butterfly notation
 #![allow(clippy::integer_division_remainder_used)] // const-evaluated Barrett constant only
 
-use core::ops::{
-    Add,
-    Mul,
-    Sub,
-};
+use core::ops::{Add, Mul, Sub};
 
 use hybrid_array::Array;
 use hybrid_array::typenum::U256;
@@ -22,24 +18,12 @@ use lib_q_sha3::digest::XofReader;
 use zeroize::Zeroize;
 
 use crate::core_types::ArraySize;
-pub use crate::core_types::{
-    FieldElement,
-    Integer,
-    NttPolynomial,
-    NttVector,
-};
-use crate::crypto::{
-    PRF,
-    PrfOutput,
-    XOF,
-};
+pub use crate::core_types::{FieldElement, Integer, NttPolynomial, NttVector};
+use crate::crypto::{PRF, PrfOutput, XOF};
 #[cfg(not(feature = "hardened"))]
 use crate::encode::Encode;
 use crate::param::CbdSamplingSize;
-use crate::util::{
-    B32,
-    Truncate,
-};
+use crate::util::{B32, Truncate};
 
 impl Zeroize for FieldElement {
     fn zeroize(&mut self) {
@@ -379,13 +363,13 @@ const ZETA_POW_BITREV: [FieldElement; 128] = {
     const ZETA: u64 = 17;
     #[allow(clippy::integer_division_remainder_used)]
     const fn bitrev7(x: usize) -> usize {
-        ((x >> 6) % 2) |
-            (((x >> 5) % 2) << 1) |
-            (((x >> 4) % 2) << 2) |
-            (((x >> 3) % 2) << 3) |
-            (((x >> 2) % 2) << 4) |
-            (((x >> 1) % 2) << 5) |
-            ((x % 2) << 6)
+        ((x >> 6) % 2)
+            | (((x >> 5) % 2) << 1)
+            | (((x >> 4) % 2) << 2)
+            | (((x >> 3) % 2) << 3)
+            | (((x >> 2) % 2) << 4)
+            | (((x >> 1) % 2) << 5)
+            | ((x % 2) << 6)
     }
 
     // Compute the powers of zeta
@@ -782,11 +766,7 @@ impl<K: ArraySize> NttMatrix<K> {
 
 #[cfg(test)]
 mod test {
-    use hybrid_array::typenum::{
-        U2,
-        U3,
-        U8,
-    };
+    use hybrid_array::typenum::{U2, U3, U8};
 
     use super::*;
     use crate::util::Flatten;

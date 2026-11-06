@@ -13,17 +13,8 @@
 #[allow(dead_code)]
 mod common;
 
-use common::{
-    EPOCH,
-    ISSUER_KEY_ID,
-    det_rng,
-};
-use lib_q_blind_token::{
-    blind,
-    blind_sign,
-    keygen_issuer,
-    unblind,
-};
+use common::{EPOCH, ISSUER_KEY_ID, det_rng};
+use lib_q_blind_token::{blind, blind_sign, keygen_issuer, unblind};
 
 /// Baseline: an honestly-issued credential unblinds successfully.
 #[test]

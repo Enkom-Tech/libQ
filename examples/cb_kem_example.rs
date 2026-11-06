@@ -6,10 +6,7 @@
 #[cfg(feature = "cb-kem")]
 use lib_q_cb_kem::LibQCbKemProvider;
 #[cfg(feature = "cb-kem")]
-use lib_q_core::{
-    Algorithm,
-    KemOperations,
-};
+use lib_q_core::{Algorithm, KemOperations};
 
 #[cfg(feature = "cb-kem")]
 fn bytes_to_hex(bytes: &[u8]) -> String {

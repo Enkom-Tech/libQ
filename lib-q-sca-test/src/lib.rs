@@ -86,12 +86,7 @@ mod tests {
 
 #[cfg(all(test, feature = "mlkem"))]
 mod mlkem_smoke {
-    use lib_q_ml_kem::{
-        Decapsulate,
-        Encapsulate,
-        KemCore,
-        MlKem768,
-    };
+    use lib_q_ml_kem::{Decapsulate, Encapsulate, KemCore, MlKem768};
 
     #[test]
     fn kem_round_trip_hardened() {
@@ -107,31 +102,15 @@ mod mlkem_smoke {
 mod privacy_smoke {
     use lib_q_lattice_zkp::sigma::opening::sample_random_opening;
     use lib_q_lattice_zkp::{
-        AjtaiCommitmentKey,
-        AjtaiOpening,
-        AjtaiParameters,
-        BlindIssuance,
-        BlindRequest,
-        IssuerCommitmentParams,
-        LatticeZkpProfileV0,
-        commit,
+        AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters, BlindIssuance, BlindRequest,
+        IssuerCommitmentParams, LatticeZkpProfileV0, commit,
     };
     use lib_q_random::new_deterministic_rng;
-    use lib_q_ring::{
-        ModuleVec,
-        Poly,
-    };
-    use lib_q_ring_sig::{
-        MemberIssuerKey,
-        RingSigParams,
-        sign_federation_message,
-    };
+    use lib_q_ring::{ModuleVec, Poly};
+    use lib_q_ring_sig::{MemberIssuerKey, RingSigParams, sign_federation_message};
 
     use crate::privacy_workloads::{
-        touch_blind_verify,
-        touch_federation_digest,
-        touch_federation_verify,
-        touch_nullifier,
+        touch_blind_verify, touch_federation_digest, touch_federation_verify, touch_nullifier,
         touch_witness_nullifier,
     };
 

@@ -3,24 +3,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use itertools::Itertools;
-use lib_q_stark_air::{
-    Air,
-    RowWindow,
-};
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-};
-use lib_q_stark_commit::{
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-    TwoAdicField,
-};
+use lib_q_stark_air::{Air, RowWindow};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger};
+use lib_q_stark_commit::{Pcs, PolynomialSpace};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing, TwoAdicField};
 use lib_q_stark_matrix::dense::RowMajorMatrixView;
 use lib_q_stark_matrix::stack::VerticalPair;
 use tracing::instrument;
@@ -28,13 +14,7 @@ use tracing::instrument;
 use crate::config::PcsError;
 use crate::symbolic::get_log_num_quotient_chunks;
 use crate::{
-    AirLayout,
-    Domain,
-    PreprocessedVerifierKey,
-    Proof,
-    StarkGenericConfig,
-    SymbolicAirBuilder,
-    Val,
+    AirLayout, Domain, PreprocessedVerifierKey, Proof, StarkGenericConfig, SymbolicAirBuilder, Val,
     VerifierConstraintFolder,
 };
 
@@ -57,8 +37,8 @@ where
                 .enumerate()
                 .filter(|(j, _)| *j != i)
                 .map(|(_, other_domain)| {
-                    other_domain.vanishing_poly_at_point(zeta) *
-                        other_domain
+                    other_domain.vanishing_poly_at_point(zeta)
+                        * other_domain
                             .vanishing_poly_at_point(domain.first_point())
                             .inverse()
                 })
@@ -241,9 +221,9 @@ where
     let (preprocessed_width, preprocessed_commit) =
         process_preprocessed_trace::<SC, A>(air, opened_values, preprocessed_vk)?;
 
-    if let Some(vk) = preprocessed_vk &&
-        preprocessed_width > 0 &&
-        vk.degree_bits != *degree_bits
+    if let Some(vk) = preprocessed_vk
+        && preprocessed_width > 0
+        && vk.degree_bits != *degree_bits
     {
         return Err(VerificationError::InvalidProofShape);
     }
@@ -280,8 +260,8 @@ where
         .map(|domain| pcs.natural_domain_for_degree(domain.size() << (config.is_zk())))
         .collect_vec();
 
-    if (opened_values.random.is_some() != SC::Pcs::ZK) ||
-        (commitments.random.is_some() != SC::Pcs::ZK)
+    if (opened_values.random.is_some() != SC::Pcs::ZK)
+        || (commitments.random.is_some() != SC::Pcs::ZK)
     {
         return Err(VerificationError::RandomizationError);
     }
@@ -297,14 +277,14 @@ where
     } else {
         opened_values.trace_next.is_none()
     };
-    let valid_shape = opened_values.trace_local.len() == air_width &&
-        trace_next_ok &&
-        opened_values.quotient_chunks.len() == num_quotient_chunks &&
-        opened_values
+    let valid_shape = opened_values.trace_local.len() == air_width
+        && trace_next_ok
+        && opened_values.quotient_chunks.len() == num_quotient_chunks
+        && opened_values
             .quotient_chunks
             .iter()
-            .all(|qc| qc.len() == SC::Challenge::DIMENSION) &&
-        opened_values
+            .all(|qc| qc.len() == SC::Challenge::DIMENSION)
+        && opened_values
             .random
             .as_ref()
             .is_none_or(|r_comm| r_comm.len() == SC::Challenge::DIMENSION);

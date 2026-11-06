@@ -14,31 +14,16 @@
 //! The default Shake128f KAT is additionally `#[ignore]` in dev builds only (see `test_kat_shake_128f`).
 #![cfg(feature = "alloc")]
 #![cfg(not(target_arch = "wasm32"))]
-use core::{
-    error,
-    fmt,
-};
+use core::{error, fmt};
 use std::array::from_fn;
 use std::fmt::Write;
 
 use aes::Aes256;
-use cipher::{
-    KeyIvInit,
-    StreamCipher,
-};
+use cipher::{KeyIvInit, StreamCipher};
 use ctr::Ctr128BE;
 use lib_q_slh_dsa::*;
-use rand_core::{
-    Rng,
-    TryCryptoRng,
-    TryRng,
-    UnwrapErr,
-    utils,
-};
-use signature::{
-    Keypair,
-    SignatureEncoding,
-};
+use rand_core::{Rng, TryCryptoRng, TryRng, UnwrapErr, utils};
+use signature::{Keypair, SignatureEncoding};
 use typenum::Unsigned;
 
 /// AES-CTR-DRBG used to reproduce SPHINCS+ reference KAT streams.

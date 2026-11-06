@@ -24,28 +24,14 @@ extern crate alloc;
 use alloc::vec;
 use alloc::vec::Vec;
 
-use lib_q_poseidon::{
-    Poseidon256,
-    PoseidonField,
-};
+use lib_q_poseidon::{Poseidon256, PoseidonField};
 use lib_q_stark_air::AirBuilder;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_mersenne31::Mersenne31;
 
 use super::poseidon_gadget::PoseidonGadget;
-use super::wide_hash::{
-    WIDE_DIGEST_ELEMS,
-    WideDigest,
-};
-use super::{
-    AirError,
-    compute_poseidon_row,
-    poseidon_to_field,
-};
+use super::wide_hash::{WIDE_DIGEST_ELEMS, WideDigest};
+use super::{AirError, compute_poseidon_row, poseidon_to_field};
 
 /// Poseidon-256 sponge geometry.
 pub(crate) const STATE_W: usize = 7;
@@ -156,11 +142,7 @@ pub fn preimage_to_field<F: Field + BasedVectorSpace<Mersenne31>>(
 #[cfg(test)]
 mod tests {
     use lib_q_stark::check_constraints;
-    use lib_q_stark_air::{
-        Air,
-        BaseAir,
-        WindowAccess,
-    };
+    use lib_q_stark_air::{Air, BaseAir, WindowAccess};
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_matrix::dense::RowMajorMatrix;
 

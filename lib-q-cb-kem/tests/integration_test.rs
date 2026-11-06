@@ -14,10 +14,7 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use lib_q_cb_kem::LibQCbKemProvider;
 #[cfg(feature = "alloc")]
-use lib_q_core::api::{
-    Algorithm,
-    KemOperations,
-};
+use lib_q_core::api::{Algorithm, KemOperations};
 
 #[cfg(feature = "alloc")]
 fn compiled_cb_kem_algorithm() -> Algorithm {

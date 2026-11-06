@@ -1,7 +1,4 @@
-use lib_q_stark_field::{
-    Algebra,
-    Field,
-};
+use lib_q_stark_field::{Algebra, Field};
 
 /// DIT butterfly.
 #[inline]

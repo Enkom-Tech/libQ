@@ -4,31 +4,16 @@
 //!
 //! RED — PENDING HUMAN SIGN-OFF (see crate docs / `docs/mve-freeze-gate-review.md`).
 
-use lib_q_core::{
-    Error,
-    Result,
-};
+use lib_q_core::{Error, Result};
 use lib_q_ml_kem::array::Array;
 use lib_q_ml_kem::array::typenum::U32;
-use lib_q_ml_kem::{
-    EncapsulateDeterministic,
-    KemCore,
-    MlKem768,
-};
+use lib_q_ml_kem::{EncapsulateDeterministic, KemCore, MlKem768};
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_zkp::stark::{
-    StarkProver,
-    StarkVerifier,
-    ZkConfig,
-    zk_config_with_params,
-    zk_config_with_seed_bytes,
+    StarkProver, StarkVerifier, ZkConfig, zk_config_with_params, zk_config_with_seed_bytes,
 };
-use lib_q_zkp::{
-    ProofMetadata,
-    ProofType,
-    ZkpProof,
-};
+use lib_q_zkp::{ProofMetadata, ProofType, ZkpProof};
 
 // Hiding-PCS FRI parameters (mirror lib-q-zkp membership ZK): log_blowup >= 3 for the degree-5
 // Poseidon S-box; the trace is padded to >= MVE_MIN_ROWS = 8 to clear the ZK FRI minimum.
@@ -36,22 +21,10 @@ const ZK_LOG_BLOWUP: usize = 3;
 const ZK_NUM_QUERIES: usize = 100;
 const ZK_POW_BITS: usize = 16;
 
-use crate::air::{
-    MveConsistencyAir,
-    generate_mve_trace,
-    mve_public_values,
-    padded_height,
-};
+use crate::air::{MveConsistencyAir, generate_mve_trace, mve_public_values, padded_height};
 use crate::{
-    COMMITMENT_BYTES,
-    Key,
-    MveRekeyEnvelopeV0,
-    RecipientCiphertext,
-    Wrap,
-    check_shape,
-    key_commitment,
-    wrap_key,
-    wrap_to_bytes,
+    COMMITMENT_BYTES, Key, MveRekeyEnvelopeV0, RecipientCiphertext, Wrap, check_shape,
+    key_commitment, wrap_key, wrap_to_bytes,
 };
 
 /// The recipient ML-KEM update key (encapsulation key) — ML-KEM-768 (`kem_id`-negotiated).
@@ -199,16 +172,10 @@ fn padded_wraps(key: &Key, shared_secrets: &[Vec<u8>]) -> Vec<Wrap> {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_ml_kem::{
-        Decapsulate,
-        MlKem768,
-    };
+    use lib_q_ml_kem::{Decapsulate, MlKem768};
 
     use super::*;
-    use crate::{
-        mask_from_shared_secret,
-        unwrap_key,
-    };
+    use crate::{mask_from_shared_secret, unwrap_key};
 
     fn fe(x: u32) -> Val {
         Complex::<Mersenne31>::from(Mersenne31::new(x))

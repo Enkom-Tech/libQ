@@ -1,10 +1,7 @@
 //! SIMD dispatch trait for duplex AEAD (portable path; AVX2 delegates here).
 
 use crate::crypto::DuplexCryptoError;
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-};
+use crate::params::{KEY_BYTES, NONCE_BYTES};
 
 /// Encrypt/decrypt entry points for optional SIMD backends.
 pub trait DuplexAeadOps {

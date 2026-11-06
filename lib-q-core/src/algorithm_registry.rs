@@ -15,10 +15,7 @@ use std::collections::HashMap;
 
 #[cfg(any(feature = "std", feature = "alloc"))]
 use crate::Result;
-use crate::{
-    Algorithm,
-    AlgorithmCategory,
-};
+use crate::{Algorithm, AlgorithmCategory};
 
 /// Algorithm metadata
 #[derive(Debug, Clone)]

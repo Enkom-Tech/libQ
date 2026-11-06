@@ -2,25 +2,13 @@
 use alloc::vec::Vec;
 use core::fmt::Debug;
 
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
-use subtle::{
-    Choice,
-    ConstantTimeEq,
-};
+use hybrid_array::{Array, ArraySize};
+use subtle::{Choice, ConstantTimeEq};
 use typenum::Unsigned;
 
 use crate::hypertree::HypertreeParams;
-use crate::util::{
-    array_u8_try_from_exact,
-    base_2b,
-};
-use crate::{
-    SkSeed,
-    address,
-};
+use crate::util::{array_u8_try_from_exact, base_2b};
+use crate::{SkSeed, address};
 
 #[derive(Clone, Debug)]
 pub struct ForsMTSig<P: ForsParams> {
@@ -366,10 +354,7 @@ mod tests {
     use super::*;
     use crate::hashes::HashSuite;
     use crate::util::macros::test_parameter_sets;
-    use crate::{
-        PkSeed,
-        Shake128f,
-    };
+    use crate::{PkSeed, Shake128f};
 
     #[test]
     #[cfg(feature = "alloc")]
@@ -632,11 +617,11 @@ mod tests {
         let mut msg = Array::<u8, Fors::MD>::default();
         rng.fill_bytes(msg.as_mut_slice());
 
-        let idx_tree = rng.next_u64() %
-            (1u64
+        let idx_tree = rng.next_u64()
+            % (1u64
                 .wrapping_shl(Fors::H::U32 - Fors::HPrime::U32)
-                .wrapping_sub(1) +
-                1);
+                .wrapping_sub(1)
+                + 1);
         let idx_leaf = rng.next_u32() % (1 << (Fors::HPrime::USIZE));
 
         let mut adrs = ForsTree::new(idx_tree, idx_leaf);
@@ -666,11 +651,11 @@ mod tests {
         let mut msg = Array::<u8, Fors::MD>::default();
         rng.fill_bytes(msg.as_mut_slice());
 
-        let idx_tree = rng.next_u64() %
-            (1u64
+        let idx_tree = rng.next_u64()
+            % (1u64
                 .wrapping_shl(Fors::H::U32 - Fors::HPrime::U32)
-                .wrapping_sub(1) +
-                1);
+                .wrapping_sub(1)
+                + 1);
         let idx_leaf = rng.next_u32() % (1 << (Fors::HPrime::USIZE));
 
         let mut adrs = ForsTree::new(idx_tree, idx_leaf);

@@ -5,48 +5,20 @@
 
 #![allow(clippy::clone_on_copy)]
 
-use lib_q_stark::{
-    StarkConfig,
-    prove,
-    verify,
-    verify_from_bytes,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_challenger::{
-    ComplexFieldChallenger,
-    Shake256Challenger32,
-};
+use lib_q_stark::{StarkConfig, prove, verify, verify_from_bytes};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_challenger::{ComplexFieldChallenger, Shake256Challenger32};
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
-use lib_q_stark_fri::{
-    FriParameters,
-    TwoAdicFriPcs,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
+use lib_q_stark_fri::{FriParameters, TwoAdicFriPcs};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 use postcard::to_allocvec;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 
 type Val = Complex<Mersenne31>;
 type Challenge = Val;

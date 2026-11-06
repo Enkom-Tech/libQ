@@ -1,9 +1,6 @@
 use lib_q_intrinsics::*;
 
-use super::{
-    AVX2RingElement,
-    arithmetic,
-};
+use super::{AVX2RingElement, arithmetic};
 use crate::simd::avx2::AVX2SIMDUnit;
 use crate::simd::traits::COEFFICIENTS_IN_SIMD_UNIT;
 

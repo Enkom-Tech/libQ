@@ -3,21 +3,10 @@
 
 #![cfg(feature = "zkp")]
 
-use lib_q_zkp::air::session_key::{
-    MAX_SESSION_KEY_SIZE,
-    MAX_SHARED_SECRET_SIZE,
-};
+use lib_q_zkp::air::session_key::{MAX_SESSION_KEY_SIZE, MAX_SHARED_SECRET_SIZE};
 use lib_q_zkp::air::{
-    AirError,
-    ArithmeticAir,
-    KdfParams,
-    MAX_OPERATIONS,
-    MAX_TRACE_HEIGHT,
-    MAX_TRACE_WIDTH,
-    MerkleInclusionAir,
-    SessionKeyDerivationAir,
-    SessionKeyInput,
-    TraceGenerator,
+    AirError, ArithmeticAir, KdfParams, MAX_OPERATIONS, MAX_TRACE_HEIGHT, MAX_TRACE_WIDTH,
+    MerkleInclusionAir, SessionKeyDerivationAir, SessionKeyInput, TraceGenerator,
     validate_trace_dimensions,
 };
 

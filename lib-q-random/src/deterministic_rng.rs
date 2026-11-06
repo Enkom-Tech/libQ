@@ -5,10 +5,7 @@
 
 use core::convert::Infallible;
 
-use rand_core::{
-    SeedableRng,
-    TryRng,
-};
+use rand_core::{SeedableRng, TryRng};
 
 /// Deterministic xorshift64 RNG.
 ///

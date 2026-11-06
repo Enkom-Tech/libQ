@@ -18,20 +18,10 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 
-use super::gaussian::{
-    sample_discrete_gaussian,
-    sample_secret_coeff_ct,
-};
+use super::gaussian::{sample_discrete_gaussian, sample_secret_coeff_ct};
 
 /// Ring dimension `N` (negacyclic, `X^N + 1`).
 pub const N: usize = 1024;

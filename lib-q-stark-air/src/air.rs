@@ -1,20 +1,8 @@
 use alloc::vec::Vec;
-use core::ops::{
-    Add,
-    Mul,
-    Sub,
-};
+use core::ops::{Add, Mul, Sub};
 
-use lib_q_stark_field::{
-    Algebra,
-    ExtensionField,
-    Field,
-    PrimeCharacteristicRing,
-};
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_field::{Algebra, ExtensionField, Field, PrimeCharacteristicRing};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 
 /// Read access to a pair of trace rows (typically current and next).
 ///

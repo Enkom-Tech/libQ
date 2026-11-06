@@ -12,26 +12,13 @@
 
 use std::sync::Arc;
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-};
+use lib_q_core::{Algorithm, KemContext};
 use lib_q_hpke::hpke_core::{
-    open_with_mode,
-    seal_with_mode,
-    setup_receiver_with_mode,
-    setup_sender_with_mode,
+    open_with_mode, seal_with_mode, setup_receiver_with_mode, setup_sender_with_mode,
 };
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::HpkeCryptoProvider;
-use lib_q_hpke::types::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-    HpkeMode,
-    HpkePskWireFormat,
-};
+use lib_q_hpke::types::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, HpkeMode, HpkePskWireFormat};
 use lib_q_kem::LibQKemProvider;
 
 /// Test Auth mode context setup fails closed (B14)

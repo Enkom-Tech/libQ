@@ -1,8 +1,4 @@
-use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-};
+use lib_q_core::{Aead, AeadKey, Nonce};
 use lib_q_duplex_aead::DuplexSpongeAead;
 
 #[test]

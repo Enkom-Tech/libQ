@@ -2,22 +2,12 @@ use alloc::format;
 use alloc::vec::Vec;
 use core::hint::black_box;
 
-use criterion::{
-    BatchSize,
-    Criterion,
-};
-use lib_q_stark_field::{
-    Algebra,
-    Field,
-    PrimeCharacteristicRing,
-};
+use criterion::{BatchSize, Criterion};
+use lib_q_stark_field::{Algebra, Field, PrimeCharacteristicRing};
 use rand::distr::StandardUniform;
 use rand::prelude::Distribution;
 use rand::rngs::SmallRng;
-use rand::{
-    RngExt,
-    SeedableRng,
-};
+use rand::{RngExt, SeedableRng};
 
 /// Not useful for benchmarking prime fields as multiplication is too fast but
 /// handy for extension fields.

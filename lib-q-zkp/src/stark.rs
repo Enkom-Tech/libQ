@@ -12,55 +12,23 @@ use alloc::vec::Vec;
 use core::result::Result;
 
 use lib_q_stark::{
-    Domain,
-    Proof as StarkProof,
-    StarkConfig,
-    StarkGenericConfig,
-    SymbolicAirBuilder,
-    Val,
-    VerificationError,
-    get_log_num_quotient_chunks,
-    prove,
-    verify,
+    Domain, Proof as StarkProof, StarkConfig, StarkGenericConfig, SymbolicAirBuilder, Val,
+    VerificationError, get_log_num_quotient_chunks, prove, verify,
 };
 use lib_q_stark_air::Air;
 use lib_q_stark_challenger::{
-    CanObserve,
-    CanSampleBits,
-    ComplexFieldChallenger,
-    FieldChallenger,
-    GrindingChallenger,
+    CanObserve, CanSampleBits, ComplexFieldChallenger, FieldChallenger, GrindingChallenger,
     Shake256Challenger32,
 };
-use lib_q_stark_commit::{
-    ExtensionMmcs,
-    Pcs,
-    PolynomialSpace,
-};
-use lib_q_stark_field::extension::{
-    BinomialExtensionField,
-    Complex,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    PrimeCharacteristicRing,
-    TwoAdicField,
-};
-use lib_q_stark_fri::{
-    FriDataExtractor,
-    TwoAdicFriPcs,
-};
+use lib_q_stark_commit::{ExtensionMmcs, Pcs, PolynomialSpace};
+use lib_q_stark_field::extension::{BinomialExtensionField, Complex};
+use lib_q_stark_field::{BasedVectorSpace, PrimeCharacteristicRing, TwoAdicField};
+use lib_q_stark_fri::{FriDataExtractor, TwoAdicFriPcs};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 
 // Concrete config type aliases (used as return types for config factory functions).
 // Public so that pub type DefaultConfig/ZkConfig/PoseidonConfig satisfy private_interfaces.
@@ -419,21 +387,21 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
         let trace_domain: Domain<C> = pcs.natural_domain_for_degree(degree);
         let init_trace_domain = pcs.natural_domain_for_degree(degree >> config.is_zk());
 
-        if (opened_values.random.is_some() != C::Pcs::ZK) ||
-            (commitments.random.is_some() != C::Pcs::ZK)
+        if (opened_values.random.is_some() != C::Pcs::ZK)
+            || (commitments.random.is_some() != C::Pcs::ZK)
         {
             return Err(VerificationError::RandomizationError);
         }
 
         let air_width = A::width(air);
-        let valid_shape = opened_values.trace_local.len() == air_width &&
-            opened_values.trace_next.len() == air_width &&
-            opened_values.quotient_chunks.len() == num_quotient_chunks &&
-            opened_values
+        let valid_shape = opened_values.trace_local.len() == air_width
+            && opened_values.trace_next.len() == air_width
+            && opened_values.quotient_chunks.len() == num_quotient_chunks
+            && opened_values
                 .quotient_chunks
                 .iter()
-                .all(|qc| qc.len() == C::Challenge::DIMENSION) &&
-            opened_values
+                .all(|qc| qc.len() == C::Challenge::DIMENSION)
+            && opened_values
                 .random
                 .as_ref()
                 .is_none_or(|r| r.len() == C::Challenge::DIMENSION);
@@ -599,21 +567,21 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
             return Err(VerificationError::InvalidProofShape);
         }
 
-        if (opened_values.random.is_some() != C::Pcs::ZK) ||
-            (commitments.random.is_some() != C::Pcs::ZK)
+        if (opened_values.random.is_some() != C::Pcs::ZK)
+            || (commitments.random.is_some() != C::Pcs::ZK)
         {
             return Err(VerificationError::RandomizationError);
         }
 
         let air_width = A::width(air);
-        let valid_shape = opened_values.trace_local.len() == air_width &&
-            opened_values.trace_next.len() == air_width &&
-            opened_values.quotient_chunks.len() == num_quotient_chunks &&
-            opened_values
+        let valid_shape = opened_values.trace_local.len() == air_width
+            && opened_values.trace_next.len() == air_width
+            && opened_values.quotient_chunks.len() == num_quotient_chunks
+            && opened_values
                 .quotient_chunks
                 .iter()
-                .all(|qc| qc.len() == C::Challenge::DIMENSION) &&
-            opened_values
+                .all(|qc| qc.len() == C::Challenge::DIMENSION)
+            && opened_values
                 .random
                 .as_ref()
                 .is_none_or(|r| r.len() == C::Challenge::DIMENSION);
@@ -716,9 +684,9 @@ impl<C: StarkGenericConfig> StarkVerifier<C> {
             return Err(VerificationError::InvalidProofShape);
         }
 
-        let log_global_max_height = opening_proof.commit_phase_commits().len() +
-            fri_params.log_blowup +
-            fri_params.log_final_poly_len;
+        let log_global_max_height = opening_proof.commit_phase_commits().len()
+            + fri_params.log_blowup
+            + fri_params.log_final_poly_len;
         const EXTRA_QUERY_INDEX_BITS: usize = 0;
 
         let mut positions = Vec::with_capacity(fri_params.num_queries);
@@ -876,10 +844,7 @@ pub fn membership_fast_config() -> MembershipConfig {
 pub fn poseidon_config() -> PoseidonConfig {
     use lib_q_stark_fri::FriParameters;
 
-    use crate::air::air_poseidon_mmcs::{
-        AirPoseidonMmcs,
-        air_poseidon_mmcs_instance,
-    };
+    use crate::air::air_poseidon_mmcs::{AirPoseidonMmcs, air_poseidon_mmcs_instance};
 
     type ValMmcs = AirPoseidonMmcs;
     type ChallengeMmcs = PoseidonChallengeMmcs;
@@ -914,10 +879,7 @@ pub fn poseidon_config() -> PoseidonConfig {
 pub fn poseidon_test_config() -> PoseidonConfig {
     use lib_q_stark_fri::create_test_fri_params;
 
-    use crate::air::air_poseidon_mmcs::{
-        AirPoseidonMmcs,
-        air_poseidon_mmcs_instance,
-    };
+    use crate::air::air_poseidon_mmcs::{AirPoseidonMmcs, air_poseidon_mmcs_instance};
 
     type ValMmcs = AirPoseidonMmcs;
     type ChallengeMmcs = PoseidonChallengeMmcs;
@@ -1204,10 +1166,7 @@ mod tests {
     use alloc::vec;
 
     use super::*;
-    use crate::air::{
-        ArithmeticAir,
-        TraceGenerator,
-    };
+    use crate::air::{ArithmeticAir, TraceGenerator};
 
     fn sample_arithmetic_proof() -> (ArithmeticAir, StarkProof<DefaultConfig>, Vec<ConfigVal>) {
         let air = ArithmeticAir::new(1).expect("ArithmeticAir");

@@ -15,12 +15,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 
 use lib_q_core::Result;
-use lib_q_stark::{
-    Proof as StarkProof,
-    StarkGenericConfig,
-    SymbolicAirBuilder,
-    Val,
-};
+use lib_q_stark::{Proof as StarkProof, StarkGenericConfig, SymbolicAirBuilder, Val};
 use lib_q_stark_air::Air;
 use lib_q_stark_mersenne31::Mersenne31;
 
@@ -28,20 +23,14 @@ use lib_q_stark_mersenne31::Mersenne31;
 use crate::air::TraceGenerator;
 #[cfg(feature = "recursive-proofs-experimental")]
 use crate::air::batch_stark_verifier::{
-    BatchRecursiveStarkVerificationInput,
-    BatchStarkVerifierAir,
+    BatchRecursiveStarkVerificationInput, BatchStarkVerifierAir,
     batch_recursive_verifier_public_values,
 };
-use crate::air::recursive_types::{
-    SerializedStarkProof,
-    serialize_stark_proof,
-};
+use crate::air::recursive_types::{SerializedStarkProof, serialize_stark_proof};
 use crate::air::stark_verifier::StarkVerifierAir;
 #[cfg(feature = "recursive-proofs-experimental")]
 use crate::air::stark_verifier::{
-    FriProofInputProofExtractor,
-    MerklePathExtractable,
-    build_recursive_verification_input,
+    FriProofInputProofExtractor, MerklePathExtractable, build_recursive_verification_input,
     build_recursive_verification_input_from_proof_with_poseidon,
 };
 #[cfg(feature = "recursive-proofs-experimental")]
@@ -662,11 +651,7 @@ where
         serialized_proofs: &[SerializedStarkProof<Val<C>, C::Challenge>],
     ) -> Result<[u8; 32]> {
         use lib_q_sha3::Shake256;
-        use lib_q_sha3::digest::{
-            ExtendableOutput,
-            Update,
-            XofReader,
-        };
+        use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
         // For now, hash all commitment hashes together
         // A full implementation would build a proper Merkle tree
@@ -865,24 +850,12 @@ mod tests {
     use super::*;
     #[cfg(feature = "recursive-proofs-experimental")]
     use crate::air::stark_verifier::build_recursive_verification_input_from_proof_with_poseidon;
-    use crate::air::{
-        ArithmeticAir,
-        TraceGenerator,
-    };
+    use crate::air::{ArithmeticAir, TraceGenerator};
     #[cfg(not(feature = "recursive-proofs-experimental"))]
-    use crate::stark::{
-        FriQueryParams,
-        default_fri_params_for_tests,
-    };
+    use crate::stark::{FriQueryParams, default_fri_params_for_tests};
     #[cfg(feature = "recursive-proofs-experimental")]
-    use crate::stark::{
-        FriQueryParams,
-        poseidon_test_config,
-    };
-    use crate::stark::{
-        StarkProver,
-        default_config,
-    };
+    use crate::stark::{FriQueryParams, poseidon_test_config};
+    use crate::stark::{StarkProver, default_config};
 
     fn sample_arithmetic_proof() -> (
         ArithmeticAir,

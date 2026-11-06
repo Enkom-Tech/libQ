@@ -21,10 +21,7 @@ extern crate alloc;
 
 use alloc::boxed::Box;
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use super::fmath;
 

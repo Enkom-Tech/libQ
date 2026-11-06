@@ -35,29 +35,11 @@
 //! that was simply written wrong.
 
 use lib_q_maul::hash::Transcript;
-use lib_q_maul::kem::{
-    Ciphertext,
-    LeftPublicKey,
-    LeftSecretKey,
-    RightPublicKey,
-    RightSecretKey,
-};
-use lib_q_maul::params::{
-    MAUL768,
-    ParamSet,
-};
-use lib_q_maul::pke::{
-    self,
-    PkeSecret,
-    PublicParams,
-};
+use lib_q_maul::kem::{Ciphertext, LeftPublicKey, LeftSecretKey, RightPublicKey, RightSecretKey};
+use lib_q_maul::params::{MAUL768, ParamSet};
+use lib_q_maul::pke::{self, PkeSecret, PublicParams};
 use lib_q_maul::{
-    codec,
-    decapsulate,
-    encapsulate_with_messages,
-    keygen_left,
-    keygen_right,
-    params,
+    codec, decapsulate, encapsulate_with_messages, keygen_left, keygen_right, params,
 };
 
 const P: &ParamSet = &MAUL768;
@@ -243,17 +225,8 @@ fn unpack_vec(src: &[u8], bits: u32, k: usize) -> Vec<[u32; params::N]> {
 /// behaviour and the same two key pairs. It just is not one.
 mod withdrawn_style {
     use super::{
-        Ciphertext,
-        LeftPublicKey,
-        LeftSecretKey,
-        P,
-        PublicParams,
-        RightPublicKey,
-        RightSecretKey,
-        pke,
-        shake,
-        unpack_poly,
-        unpack_vec,
+        Ciphertext, LeftPublicKey, LeftSecretKey, P, PublicParams, RightPublicKey, RightSecretKey,
+        pke, shake, unpack_poly, unpack_vec,
     };
 
     /// Same wire as Maul; key derived WITHOUT `m_R`.

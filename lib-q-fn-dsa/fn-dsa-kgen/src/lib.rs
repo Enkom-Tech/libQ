@@ -96,23 +96,10 @@ mod zint31_avx2;
 use fn_dsa_comm::PRNG;
 // Re-export useful types, constants and functions.
 pub use fn_dsa_comm::{
-    CryptoRng,
-    FN_DSA_LOGN_512,
-    FN_DSA_LOGN_1024,
-    Rng,
-    RngError,
-    sign_key_size,
-    vrfy_key_size,
+    CryptoRng, FN_DSA_LOGN_512, FN_DSA_LOGN_1024, Rng, RngError, sign_key_size, vrfy_key_size,
 };
-use fn_dsa_comm::{
-    codec,
-    mq,
-    shake,
-};
-use zeroize::{
-    Zeroize,
-    ZeroizeOnDrop,
-};
+use fn_dsa_comm::{codec, mq, shake};
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Key pair generator and temporary buffers.
 ///
@@ -486,10 +473,7 @@ unsafe fn keygen_from_seed_avx2(
 #[cfg(test)]
 mod tests {
 
-    use lib_q_sha3::{
-        Digest,
-        Sha3_256,
-    };
+    use lib_q_sha3::{Digest, Sha3_256};
 
     use super::*;
 

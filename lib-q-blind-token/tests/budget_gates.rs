@@ -2,15 +2,9 @@
 
 mod common;
 
-use common::{
-    det_rng,
-    issue,
-};
+use common::{det_rng, issue};
 use lib_q_blind_token::{
-    BlindTokenError,
-    WIRE_BUDGET_BLIND_TOKEN_BYTES,
-    decode_token_value,
-    redeem,
+    BlindTokenError, WIRE_BUDGET_BLIND_TOKEN_BYTES, decode_token_value, redeem,
 };
 
 #[test]

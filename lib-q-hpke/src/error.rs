@@ -3,10 +3,7 @@
 #[cfg(feature = "alloc")]
 use alloc::{
     format,
-    string::{
-        String,
-        ToString,
-    },
+    string::{String, ToString},
 };
 
 use crate::types::*;

@@ -27,11 +27,7 @@ use alloc::vec::Vec;
     feature = "bearssl-aes",
     feature = "debug-drbg-interop"
 ))]
-use rand_core::{
-    Rng,
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{Rng, TryCryptoRng, TryRng};
 
 #[cfg(all(
     feature = "aes-drbg",

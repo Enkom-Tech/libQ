@@ -5,11 +5,7 @@
 #[cfg(feature = "aead")]
 #[test]
 fn create_saturnin_full_aead_roundtrip() -> lib_q_core::Result<()> {
-    use lib_q_core::{
-        Aead,
-        AeadKey,
-        Nonce,
-    };
+    use lib_q_core::{Aead, AeadKey, Nonce};
     use lib_q_saturnin::create_saturnin;
 
     let aead = create_saturnin("aead").expect("aead mode");
@@ -24,11 +20,7 @@ fn create_saturnin_full_aead_roundtrip() -> lib_q_core::Result<()> {
 #[cfg(feature = "aead-short")]
 #[test]
 fn create_saturnin_short_roundtrip() -> lib_q_core::Result<()> {
-    use lib_q_core::{
-        Aead,
-        AeadKey,
-        Nonce,
-    };
+    use lib_q_core::{Aead, AeadKey, Nonce};
     use lib_q_saturnin::create_saturnin;
 
     let aead = create_saturnin("aead-short").expect("aead-short mode");

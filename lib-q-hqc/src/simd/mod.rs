@@ -43,7 +43,4 @@ pub mod avx2;
 #[cfg(target_arch = "x86_64")]
 pub use avx2::Avx2;
 pub use portable::Portable;
-pub use traits::{
-    PolynomialOps,
-    SyndromeOps,
-};
+pub use traits::{PolynomialOps, SyndromeOps};

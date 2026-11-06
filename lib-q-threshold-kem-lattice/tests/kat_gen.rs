@@ -11,10 +11,7 @@
 //! It rewrites `tests/data/kat_*.bin` and prints the digest pins to paste into `kat.rs`.
 
 use lib_q_random::new_deterministic_rng;
-use lib_q_threshold_kem_lattice::{
-    keygen_shares,
-    setup,
-};
+use lib_q_threshold_kem_lattice::{keygen_shares, setup};
 
 const THRESHOLD: u8 = 3;
 const PARTIES: u8 = 5;

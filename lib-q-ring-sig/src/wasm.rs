@@ -5,38 +5,18 @@
 extern crate alloc;
 
 use alloc::string::String;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_lattice_zkp::serialize::{
-    read_module_vec,
-    write_module_vec,
-};
+use lib_q_lattice_zkp::serialize::{read_module_vec, write_module_vec};
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    AjtaiParameters,
-    DualRingOpeningProof,
-    commit,
+    AjtaiCommitmentKey, AjtaiOpening, AjtaiParameters, DualRingOpeningProof, commit,
 };
 use lib_q_random::new_secure_rng;
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use lib_q_ring::{ModuleVec, Poly};
+use serde::{Deserialize, Serialize};
 use wasm_bindgen::prelude::*;
 
-use crate::dualring_lb::{
-    DualRingLbSignature,
-    sign_dualring_lb,
-    verify_dualring_lb,
-};
+use crate::dualring_lb::{DualRingLbSignature, sign_dualring_lb, verify_dualring_lb};
 
 fn js_err(e: impl core::fmt::Display) -> JsValue {
     lib_q_core::wasm_common::wasm_js_error("LIB_Q_RING_SIG", e)

@@ -5,34 +5,17 @@
 //! be reported with its location.
 
 use alloc::collections::BTreeMap;
-use alloc::string::{
-    String,
-    ToString,
-};
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_stark_air::{
-    AirBuilder,
-    PermutationAirBuilder,
-    RowWindow,
-};
+use lib_q_stark_air::{AirBuilder, PermutationAirBuilder, RowWindow};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use lib_q_stark_matrix::stack::VerticalPair;
 
-use crate::lookup_traits::{
-    Kind,
-    Lookup,
-    symbolic_to_expr,
-};
+use crate::lookup_traits::{Kind, Lookup, symbolic_to_expr};
 
 /// All inputs required to replay lookup evaluations for one AIR instance.
 pub struct LookupDebugInstance<'a, F: Field> {

@@ -12,14 +12,7 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Algorithm,
-    Error,
-    Kem,
-    KemKeypair,
-    KemOperations,
-    KemPublicKey,
-    KemSecretKey,
-    Result,
+    Algorithm, Error, Kem, KemKeypair, KemOperations, KemPublicKey, KemSecretKey, Result,
 };
 use lib_q_hqc::LibQHqcProvider;
 
@@ -185,10 +178,7 @@ impl Kem for Hqc256Impl {
 
 #[cfg(all(test, feature = "hqc", feature = "alloc", feature = "std"))]
 mod tests {
-    use lib_q_core::{
-        Algorithm,
-        KemOperations,
-    };
+    use lib_q_core::{Algorithm, KemOperations};
     use lib_q_hqc::LibQHqcProvider;
 
     use super::*;

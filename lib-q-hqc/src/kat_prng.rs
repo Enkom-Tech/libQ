@@ -11,10 +11,7 @@ use alloc::vec;
 
 #[cfg(feature = "random")]
 use lib_q_random::traits::EntropySource;
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{TryCryptoRng, TryRng};
 
 /// SHAKE-256 based PRNG that matches the reference HQC implementation
 ///

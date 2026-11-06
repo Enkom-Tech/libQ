@@ -4,11 +4,7 @@ use alloc::vec::Vec;
 
 use lib_q_ring::Poly;
 use lib_q_ring::constants::COEFFICIENTS_IN_RING_ELEMENT;
-use lib_q_ring::encoding::{
-    simple_bit_pack,
-    simple_bit_pack_len,
-    simple_bit_unpack,
-};
+use lib_q_ring::encoding::{simple_bit_pack, simple_bit_pack_len, simple_bit_unpack};
 
 use crate::error::VerifyError;
 use crate::profile::RQ_COEFF_PACK_BITS;

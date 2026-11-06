@@ -15,13 +15,7 @@ use alloc::vec::Vec;
 
 use lib_q_core::Result;
 use lib_q_fn_dsa::*;
-use rand_core::{
-    CryptoRng,
-    Infallible,
-    Rng,
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{CryptoRng, Infallible, Rng, TryCryptoRng, TryRng};
 
 /// Hardware RNG trait for different hardware platforms
 pub trait HardwareRng: CryptoRng + Rng {

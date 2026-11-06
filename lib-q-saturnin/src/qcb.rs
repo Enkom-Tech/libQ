@@ -258,34 +258,16 @@
 //! ```
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
-use zeroize::{
-    Zeroize,
-    Zeroizing,
-};
+use zeroize::{Zeroize, Zeroizing};
 
-use crate::commit::{
-    QCB_CTX_LABEL_V0,
-    ctx_tag,
-};
+use crate::commit::{QCB_CTX_LABEL_V0, ctx_tag};
 use crate::hash::SaturninHash;
-use crate::tbc::{
-    SaturninTbc,
-    TBC_BLOCK_BYTES,
-};
+use crate::tbc::{SaturninTbc, TBC_BLOCK_BYTES};
 
 /// Domain separator for full message blocks (QCB paper Algorithm 1 line 5, `d=0`).
 const DOMAIN_MESSAGE: u8 = 9;

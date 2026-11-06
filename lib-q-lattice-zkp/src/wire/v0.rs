@@ -6,47 +6,21 @@ use lib_q_ring::ModuleVec;
 use lib_q_ring::encoding::simple_bit_pack_len;
 
 use super::pack::{
-    pack_rq_module,
-    pack_rq_poly,
-    pack_z_module,
-    unpack_rq_module,
-    unpack_rq_poly,
-    unpack_z_module,
+    pack_rq_module, pack_rq_poly, pack_z_module, unpack_rq_module, unpack_rq_poly, unpack_z_module,
 };
-use super::reader::{
-    read_u8_counted,
-    read_u16_counted,
-};
+use super::reader::{read_u8_counted, read_u16_counted};
 use crate::blind::UnblindedIssuance;
 use crate::commitment::AjtaiCommitment;
 use crate::error::VerifyError;
-use crate::profile::{
-    LATTICE_ZKP_WIRE_VERSION_V0,
-    LatticeZkpProfileV0,
-    RQ_COEFF_PACK_BITS,
-};
+use crate::profile::{LATTICE_ZKP_WIRE_VERSION_V0, LatticeZkpProfileV0, RQ_COEFF_PACK_BITS};
 use crate::sigma::amortise::AmortisedProof;
 use crate::sigma::hierarchical::{
-    MerklePath,
-    PVTN_CLEARANCE_MARGIN_NORM_BETA,
-    PrivateMembershipProof,
-    path_index_commitment,
+    MerklePath, PVTN_CLEARANCE_MARGIN_NORM_BETA, PrivateMembershipProof, path_index_commitment,
 };
 use crate::sigma::linear::LinearRelationProof;
-use crate::sigma::opening::{
-    DualRingOpeningProof,
-    OpeningProof,
-};
-use crate::sigma::uniqueness::{
-    NullifierOpeningProof,
-    WitnessNullifierOpeningProof,
-};
-use crate::token::{
-    SpendingProof,
-    TOKEN_EPOCH_LEN,
-    TOKEN_ORIGIN_LEN,
-    TOKEN_SERIAL_LEN,
-};
+use crate::sigma::opening::{DualRingOpeningProof, OpeningProof};
+use crate::sigma::uniqueness::{NullifierOpeningProof, WitnessNullifierOpeningProof};
+use crate::token::{SpendingProof, TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN, TOKEN_SERIAL_LEN};
 
 fn packed_rq_module_len(poly_count: usize) -> usize {
     2 + poly_count.saturating_mul(simple_bit_pack_len(usize::from(RQ_COEFF_PACK_BITS)))
@@ -57,8 +31,8 @@ fn packed_z_module_len(poly_count: usize, pack_bits: u8) -> usize {
 }
 
 fn opening_body_len(profile: &LatticeZkpProfileV0) -> usize {
-    packed_rq_module_len(profile.mask_poly_count()) +
-        packed_z_module_len(profile.witness_poly_count(), profile.z_pack_bits)
+    packed_rq_module_len(profile.mask_poly_count())
+        + packed_z_module_len(profile.witness_poly_count(), profile.z_pack_bits)
 }
 
 /// Envelope: `version || profile_id || proof_kind || payload_len(u16 le)`.
@@ -172,8 +146,8 @@ fn encode_opening_body(
     profile: &LatticeZkpProfileV0,
     proof: &OpeningProof,
 ) -> Result<Vec<u8>, VerifyError> {
-    if proof.w.0.len() != profile.mask_poly_count() ||
-        proof.z.0.len() != profile.witness_poly_count()
+    if proof.w.0.len() != profile.mask_poly_count()
+        || proof.z.0.len() != profile.witness_poly_count()
     {
         return Err(VerifyError::InvalidFormat);
     }

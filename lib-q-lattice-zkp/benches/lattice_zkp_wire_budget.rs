@@ -1,34 +1,14 @@
 //! Record encoded wire sizes and prove/verify timings for wire-budget evidence.
 
-use criterion::{
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{Criterion, criterion_group, criterion_main};
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    LatticeZkpProfileV0,
-    MerklePath,
-    WIRE_BUDGET_PVTN_MEMBERSHIP_BYTES,
-    commit,
-    decode_opening_proof_v0,
-    encode_opening_proof_v0,
-    encode_private_membership_proof_v0,
-    encode_pvtn_leaf,
-    leaf_hash,
-    node_hash,
-    prove_opening,
-    prove_private_membership,
-    verify_opening,
-    verify_private_membership,
-    wire_byte_len,
+    AjtaiCommitmentKey, AjtaiOpening, LatticeZkpProfileV0, MerklePath,
+    WIRE_BUDGET_PVTN_MEMBERSHIP_BYTES, commit, decode_opening_proof_v0, encode_opening_proof_v0,
+    encode_private_membership_proof_v0, encode_pvtn_leaf, leaf_hash, node_hash, prove_opening,
+    prove_private_membership, verify_opening, verify_private_membership, wire_byte_len,
 };
 use lib_q_random::new_deterministic_rng;
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_ring::{ModuleVec, Poly};
 
 const SEED: [u8; 32] = [0x47u8; 32];
 

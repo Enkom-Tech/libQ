@@ -11,14 +11,8 @@
 use std::time::Instant;
 
 use hex_literal::hex;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Update,
-};
-use lib_q_k12::{
-    Kt128,
-    Kt256,
-};
+use lib_q_k12::digest::{ExtendableOutput, Update};
+use lib_q_k12::{Kt128, Kt256};
 
 // ============================================================================
 // BASIC FUNCTIONALITY TESTS

@@ -3,43 +3,20 @@
 
 use lib_q_random::DeterministicRng;
 use lib_q_stark_challenger::{
-    CanObserve,
-    CanSample,
-    CanSampleBits,
-    FieldChallenger,
-    GrindingChallenger,
-    Shake256Challenger32,
+    CanObserve, CanSample, CanSampleBits, FieldChallenger, GrindingChallenger, Shake256Challenger32,
 };
-use lib_q_stark_commit::{
-    ExtensionMmcs,
-    Pcs,
-};
+use lib_q_stark_commit::{ExtensionMmcs, Pcs};
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_field::integers::QuotientMap;
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-    PrimeField32,
-};
-use lib_q_stark_fri::{
-    FriParameters,
-    TwoAdicFriPcs,
-};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing, PrimeField32};
+use lib_q_stark_fri::{FriParameters, TwoAdicFriPcs};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    Mersenne31ComplexRadix2Dit,
-};
+use lib_q_stark_mersenne31::{Mersenne31, Mersenne31ComplexRadix2Dit};
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    Hash,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, Hash, SerializingHasher};
 use rand::Rng;
 
 /// Wrapper challenger that implements FieldChallenger<Complex<Mersenne31>>

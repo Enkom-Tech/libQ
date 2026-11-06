@@ -1,9 +1,6 @@
 //! Bounded-query simulations documenting SU stability and exclusiveness properties.
 
-use lib_q_mac::{
-    QcwMac,
-    QcwMacKey,
-};
+use lib_q_mac::{QcwMac, QcwMacKey};
 use lib_q_random::new_deterministic_rng;
 
 const QUERY_BUDGET: usize = 64;

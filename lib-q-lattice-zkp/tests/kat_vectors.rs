@@ -1,38 +1,15 @@
 //! Exportable KAT vectors for cross-crate interoperability tests.
 
 use lib_q_lattice_zkp::{
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    LatticeZkpProfileV0,
-    MerklePath,
-    SpendingProof,
-    TOKEN_EPOCH_LEN,
-    TOKEN_ORIGIN_LEN,
-    TOKEN_SERIAL_LEN,
-    commit,
-    decode_opening_proof_v0,
-    decode_private_membership_proof_v0,
-    decode_spending_proof_v0,
-    encode_opening_proof_v0,
-    encode_private_membership_proof_v0,
-    encode_pvtn_leaf,
-    encode_spending_proof_v0,
-    leaf_hash,
-    node_hash,
-    opening_from_token_fields,
-    prove_opening,
-    prove_private_membership,
-    verify_opening,
+    AjtaiCommitmentKey, AjtaiOpening, LatticeZkpProfileV0, MerklePath, SpendingProof,
+    TOKEN_EPOCH_LEN, TOKEN_ORIGIN_LEN, TOKEN_SERIAL_LEN, commit, decode_opening_proof_v0,
+    decode_private_membership_proof_v0, decode_spending_proof_v0, encode_opening_proof_v0,
+    encode_private_membership_proof_v0, encode_pvtn_leaf, encode_spending_proof_v0, leaf_hash,
+    node_hash, opening_from_token_fields, prove_opening, prove_private_membership, verify_opening,
     verify_private_membership,
 };
-use lib_q_random::{
-    LibQRng,
-    new_deterministic_rng,
-};
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_random::{LibQRng, new_deterministic_rng};
+use lib_q_ring::{ModuleVec, Poly};
 
 const KAT_SEED: [u8; 32] = [
     0x6C, 0x61, 0x74, 0x74, 0x69, 0x63, 0x65, 0x2D, 0x7A, 0x6B, 0x70, 0x2D, 0x76, 0x30, 0x2D, 0x6B,

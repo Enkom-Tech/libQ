@@ -2,52 +2,24 @@ use alloc::collections::BTreeMap;
 use alloc::slice;
 use alloc::sync::Arc;
 use alloc::vec::Vec;
-use core::mem::{
-    MaybeUninit,
-    transmute,
-};
+use core::mem::{MaybeUninit, transmute};
 
-use itertools::{
-    Itertools,
-    izip,
-};
+use itertools::{Itertools, izip};
 use lib_q_stark_field::integers::QuotientMap;
 use lib_q_stark_field::{
-    Field,
-    Powers,
-    TwoAdicField,
-    assert_two_adic_bits,
-    assert_two_adic_fft_height,
+    Field, Powers, TwoAdicField, assert_two_adic_bits, assert_two_adic_fft_height,
 };
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::bitrev::{
-    BitReversalPerm,
-    BitReversedMatrixView,
-    BitReversibleMatrix,
-};
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-    RowMajorMatrixViewMut,
-};
+use lib_q_stark_matrix::bitrev::{BitReversalPerm, BitReversedMatrixView, BitReversibleMatrix};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView, RowMajorMatrixViewMut};
 use lib_q_stark_matrix::util::reverse_matrix_index_bits;
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_util::{
-    log2_strict_usize,
-    reverse_bits_len,
-    reverse_slice_index_bits,
-};
+use lib_q_stark_util::{log2_strict_usize, reverse_bits_len, reverse_slice_index_bits};
 use spin::RwLock;
-use tracing::{
-    debug_span,
-    instrument,
-};
+use tracing::{debug_span, instrument};
 
 use crate::TwoAdicSubgroupDft;
-use crate::butterflies::{
-    Butterfly,
-    DitButterfly,
-};
+use crate::butterflies::{Butterfly, DitButterfly};
 
 /// A parallel FFT algorithm which divides a butterfly network's layers into two halves.
 ///

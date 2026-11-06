@@ -1,13 +1,6 @@
 //! Public API behaviour shared by every AEAD type in the crate.
 
-use lib_q_hiae::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-};
+use lib_q_hiae::{Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce};
 
 fn exercise<A: Aead + AeadDecryptSemantic>(a: A, key_len: usize, nonce_len: usize, tag_len: usize) {
     let key = AeadKey::new(vec![0x33; key_len]);

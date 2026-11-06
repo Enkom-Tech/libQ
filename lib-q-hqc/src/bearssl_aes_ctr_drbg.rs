@@ -6,10 +6,7 @@ use alloc::format;
 use alloc::string::String;
 
 #[cfg(feature = "bearssl-aes")]
-use rand_core::{
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{TryCryptoRng, TryRng};
 
 #[cfg(feature = "bearssl-aes")]
 use crate::bearssl_aes_pure::Aes256CtxPure;

@@ -1,19 +1,12 @@
 use alloc::vec::Vec;
 
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    TwoAdicField,
-    assert_two_adic_coset_lde,
-};
+use lib_q_stark_field::{BasedVectorSpace, TwoAdicField, assert_two_adic_coset_lde};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::bitrev::BitReversibleMatrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_matrix::util::swap_rows;
 
-use crate::util::{
-    coset_shift_cols,
-    divide_by_height,
-};
+use crate::util::{coset_shift_cols, divide_by_height};
 
 /// This trait gives an interface for computing discrete fourier transforms (DFT's) and their inverses over
 /// cosets of two-adic subgroups of a field `F`. It also contains combined methods which allow you to take the

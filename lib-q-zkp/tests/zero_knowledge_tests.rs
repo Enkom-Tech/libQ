@@ -8,16 +8,9 @@ use std::collections::BTreeSet;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_mersenne31::Mersenne31;
-use lib_q_zkp::air::{
-    ArithmeticAir,
-    TraceGenerator,
-};
+use lib_q_zkp::air::{ArithmeticAir, TraceGenerator};
 use lib_q_zkp::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-    zk_config,
-    zk_config_with_seeds,
+    StarkProver, StarkVerifier, default_config, zk_config, zk_config_with_seeds,
 };
 
 type Val = Complex<Mersenne31>;

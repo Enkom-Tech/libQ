@@ -3,10 +3,7 @@
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 use lib_q_hqc::simd::Avx2;
 use lib_q_hqc::simd::Portable;
-use lib_q_hqc::simd::traits::{
-    PolynomialOps,
-    SyndromeOps,
-};
+use lib_q_hqc::simd::traits::{PolynomialOps, SyndromeOps};
 
 /// Test AVX2 vs Portable polynomial multiplication equivalence
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
@@ -218,10 +215,7 @@ fn test_known_answer_vectors() {
 #[test]
 fn test_stress_random_data() {
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{
-        Hash,
-        Hasher,
-    };
+    use std::hash::{Hash, Hasher};
 
     // Generate pseudo-random test data
     let mut sparse = [0u8; 256];
@@ -293,11 +287,7 @@ fn test_error_correction_equivalence() {
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
 #[test]
 fn test_hqc_parameter_sets() {
-    use lib_q_hqc::params::{
-        Hqc1Params,
-        Hqc3Params,
-        Hqc5Params,
-    };
+    use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params};
 
     // Test HQC-128 (HQC1)
     test_parameter_set::<Hqc1Params>("HQC-128");
@@ -332,10 +322,7 @@ fn test_parameter_set<P: lib_q_hqc::params::HqcParams>(name: &str) {
 #[test]
 fn fuzz_shift_xor_random_inputs() {
     use std::collections::hash_map::DefaultHasher;
-    use std::hash::{
-        Hash,
-        Hasher,
-    };
+    use std::hash::{Hash, Hasher};
 
     for seed in 0..100 {
         let mut hasher = DefaultHasher::new();

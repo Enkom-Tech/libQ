@@ -1,64 +1,25 @@
 use alloc::vec::Vec;
-use core::arch::x86_64::{
-    self,
-    __m512i,
-    __mmask16,
-};
-use core::iter::{
-    Product,
-    Sum,
-};
+use core::arch::x86_64::{self, __m512i, __mmask16};
+use core::iter::{Product, Sum};
 use core::mem::transmute;
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    DivAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use lib_q_stark_field::exponentiation::exp_1717986917;
 use lib_q_stark_field::interleave::{
-    interleave_u32,
-    interleave_u64,
-    interleave_u128,
-    interleave_u256,
+    interleave_u32, interleave_u64, interleave_u128, interleave_u256,
 };
 use lib_q_stark_field::op_assign_macros::{
-    impl_add_assign,
-    impl_add_base_field,
-    impl_div_methods,
-    impl_mul_base_field,
-    impl_mul_methods,
-    impl_packed_value,
-    impl_rng,
-    impl_sub_assign,
-    impl_sub_base_field,
-    impl_sum_prod_base_field,
+    impl_add_assign, impl_add_base_field, impl_div_methods, impl_mul_base_field, impl_mul_methods,
+    impl_packed_value, impl_rng, impl_sub_assign, impl_sub_base_field, impl_sum_prod_base_field,
     ring_sum,
 };
 use lib_q_stark_field::{
-    Algebra,
-    Field,
-    InjectiveMonomial,
-    PackedField,
-    PackedFieldPow2,
-    PackedValue,
-    PermutationMonomial,
-    PrimeCharacteristicRing,
-    impl_packed_field_pow_2,
-    mm512_mod_add,
+    Algebra, Field, InjectiveMonomial, PackedField, PackedFieldPow2, PackedValue,
+    PermutationMonomial, PrimeCharacteristicRing, impl_packed_field_pow_2, mm512_mod_add,
     mm512_mod_sub,
 };
 use lib_q_stark_util::reconstitute_from_base;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 
 use crate::Mersenne31;
 
@@ -479,10 +440,7 @@ impl_packed_field_pow_2!(
 mod tests {
     use lib_q_stark_field_testing::test_packed_field;
 
-    use super::{
-        Mersenne31,
-        PackedMersenne31AVX512,
-    };
+    use super::{Mersenne31, PackedMersenne31AVX512};
 
     /// Zero has a redundant representation, so let's test both.
     const ZEROS: PackedMersenne31AVX512 = PackedMersenne31AVX512(Mersenne31::new_array([

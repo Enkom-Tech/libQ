@@ -20,16 +20,8 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_ring::{
-    ModuleMatrix,
-    ModuleVec,
-    Poly,
-};
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_ring::{ModuleMatrix, ModuleVec, Poly};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
 
 use crate::error::VerifyError;
 

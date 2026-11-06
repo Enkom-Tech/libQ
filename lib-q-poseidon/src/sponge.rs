@@ -14,12 +14,7 @@ use alloc::vec::Vec;
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 
-use crate::params::{
-    Poseidon128,
-    Poseidon256,
-    PoseidonField,
-    PoseidonParams,
-};
+use crate::params::{Poseidon128, Poseidon256, PoseidonField, PoseidonParams};
 use crate::permutation::PoseidonPermutation;
 
 #[derive(Debug, Clone)]

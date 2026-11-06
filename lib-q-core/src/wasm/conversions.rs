@@ -8,10 +8,7 @@ extern crate alloc;
 #[cfg(feature = "wasm")]
 use alloc::{
     format,
-    string::{
-        String,
-        ToString,
-    },
+    string::{String, ToString},
     vec::Vec,
 };
 

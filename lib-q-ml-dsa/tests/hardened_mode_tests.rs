@@ -5,10 +5,7 @@
 
 #![cfg(feature = "hardened")]
 
-use lib_q_ml_dsa::{
-    Zeroizing,
-    *,
-};
+use lib_q_ml_dsa::{Zeroizing, *};
 
 /// Domain separation context for all sign/verify calls in this test module.
 const CONTEXT: &[u8] = b"hardened_mode_test";

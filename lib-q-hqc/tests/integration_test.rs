@@ -6,12 +6,7 @@ extern crate alloc;
 use lib_q_hqc::concatenated_code::ConcatenatedCode;
 use lib_q_hqc::hqc_kem::HqcKem;
 use lib_q_hqc::hqc_pke::HqcPke;
-use lib_q_hqc::params::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 use lib_q_hqc::reed_muller::ReedMuller;
 use lib_q_hqc::reed_solomon::ReedSolomon;
 use lib_q_hqc::shake256_prng::create_shake256_prng_rng;

@@ -1,24 +1,8 @@
 //! Low-level error paths, `Debug` on [`DuplexCryptoError`], and allocating AEAD validation.
 
-use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-};
-use lib_q_duplex_aead::crypto::{
-    DuplexCryptoError,
-    decrypt,
-    encrypt,
-};
-use lib_q_duplex_aead::{
-    DuplexSpongeAead,
-    KEY_BYTES,
-    NONCE_BYTES,
-    TAG_BYTES,
-};
+use lib_q_core::{Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce};
+use lib_q_duplex_aead::crypto::{DuplexCryptoError, decrypt, encrypt};
+use lib_q_duplex_aead::{DuplexSpongeAead, KEY_BYTES, NONCE_BYTES, TAG_BYTES};
 
 #[test]
 fn duplex_crypto_error_debug_non_empty() {

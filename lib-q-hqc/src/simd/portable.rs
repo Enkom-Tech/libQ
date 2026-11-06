@@ -3,10 +3,7 @@
 //! This module contains the reference implementations that work on all platforms.
 //! These are used as fallbacks when SIMD instructions are not available.
 
-use super::traits::{
-    PolynomialOps,
-    SyndromeOps,
-};
+use super::traits::{PolynomialOps, SyndromeOps};
 
 /// Portable (non-SIMD) implementation marker
 /// This is a zero-sized type used for static dispatch
@@ -143,8 +140,8 @@ pub fn shift_xor_portable_bytes(dest: &mut [u8], source: &[u8], distance: usize)
         let inv_shift = 8 - bit_shift;
         for i in 0..(dest.len() - byte_shift - 1) {
             if i < source.len() {
-                let shifted = (source[i] << bit_shift) |
-                    (if i + 1 < source.len() {
+                let shifted = (source[i] << bit_shift)
+                    | (if i + 1 < source.len() {
                         source[i + 1] >> inv_shift
                     } else {
                         0

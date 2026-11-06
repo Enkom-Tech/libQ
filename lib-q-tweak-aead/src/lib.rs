@@ -31,9 +31,4 @@ mod aead;
 
 #[cfg(feature = "alloc")]
 pub use aead::TweakAead;
-pub use params::{
-    BLOCK_BYTES,
-    KEY_BYTES,
-    NONCE_BYTES,
-    TAG_BYTES,
-};
+pub use params::{BLOCK_BYTES, KEY_BYTES, NONCE_BYTES, TAG_BYTES};

@@ -1,10 +1,6 @@
 //! Platform-specific intrinsics for lib-Q
 
-use lib_q_platform::{
-    CpuFeatures,
-    Platform,
-    SimdSupport,
-};
+use lib_q_platform::{CpuFeatures, Platform, SimdSupport};
 
 /// Platform-specific intrinsic operations
 /// This module provides platform-specific SIMD implementations

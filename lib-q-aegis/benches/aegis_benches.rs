@@ -1,18 +1,8 @@
 //! Criterion throughput: AEGIS-256 in place (detached tag), dispatched backend,
 //! plus the portable constant-time backend for reference.
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_aegis::{
-    _internals,
-    Aegis256,
-    Aegis256Tag128,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use lib_q_aegis::{_internals, Aegis256, Aegis256Tag128};
 
 const SIZES: &[usize] = &[64, 1200, 16384];
 

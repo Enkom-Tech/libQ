@@ -4,22 +4,12 @@
 //! with proper security validation and algorithm routing.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
-use crate::api::{
-    Algorithm,
-    SignatureOperations,
-};
+use crate::api::{Algorithm, SignatureOperations};
 use crate::error::Result;
 use crate::security::SecurityValidator;
-use crate::traits::{
-    SigKeypair,
-    SigPublicKey,
-    SigSecretKey,
-};
+use crate::traits::{SigKeypair, SigPublicKey, SigSecretKey};
 
 /// lib-Q signature provider implementation
 ///
@@ -80,9 +70,9 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
                 feature: "SLH-DSA implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
@@ -130,9 +120,9 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
                 feature: "SLH-DSA implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {
@@ -179,9 +169,9 @@ impl SignatureOperations for LibQSignatureProvider {
                         .to_string(),
                 })
             }
-            Algorithm::SlhDsaShake256128fRobust |
-            Algorithm::SlhDsaShake256192fRobust |
-            Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
+            Algorithm::SlhDsaShake256128fRobust
+            | Algorithm::SlhDsaShake256192fRobust
+            | Algorithm::SlhDsaShake256256fRobust => Err(crate::error::Error::NotImplemented {
                 feature: "SLH-DSA implementations are provided by the main lib-q crate".to_string(),
             }),
             _ => Err(crate::error::Error::InvalidAlgorithm {

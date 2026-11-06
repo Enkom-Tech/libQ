@@ -43,23 +43,13 @@ use rand_core::Rng;
 use wasm_bindgen::prelude::*;
 use zeroize::Zeroizing;
 
-use crate::constants::ml_dsa_65::{
-    SIGNATURE_SIZE,
-    SIGNING_KEY_SIZE,
-    VERIFICATION_KEY_SIZE,
-};
+use crate::constants::ml_dsa_65::{SIGNATURE_SIZE, SIGNING_KEY_SIZE, VERIFICATION_KEY_SIZE};
 use crate::ml_dsa_65::{
-    MLDSA65Signature,
-    MLDSA65SigningKey,
-    MLDSA65VerificationKey,
-    generate_key_pair_from_seed as mldsa65_generate_key_pair_from_seed,
-    sign as mldsa65_sign,
+    MLDSA65Signature, MLDSA65SigningKey, MLDSA65VerificationKey,
+    generate_key_pair_from_seed as mldsa65_generate_key_pair_from_seed, sign as mldsa65_sign,
     verify as mldsa65_verify,
 };
-use crate::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+use crate::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 
 fn rng_err(e: lib_q_random::Error) -> JsError {
     JsError::new(&e.to_string())

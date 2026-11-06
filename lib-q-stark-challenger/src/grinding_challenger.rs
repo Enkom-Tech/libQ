@@ -1,16 +1,9 @@
-use lib_q_stark_field::{
-    Field,
-    PrimeField64,
-};
+use lib_q_stark_field::{Field, PrimeField64};
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_symmetric::CryptographicPermutation;
 use tracing::instrument;
 
-use crate::{
-    CanObserve,
-    CanSampleBits,
-    DuplexChallenger,
-};
+use crate::{CanObserve, CanSampleBits, DuplexChallenger};
 
 /// Trait for challengers that support proof-of-work (PoW) grinding.
 ///

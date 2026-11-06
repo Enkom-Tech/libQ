@@ -12,10 +12,7 @@ extern crate std;
 
 // Core types are available by default in Rust 2024
 #[cfg(all(test, feature = "std"))]
-use core::{
-    assert_eq,
-    assert_ne,
-};
+use core::{assert_eq, assert_ne};
 
 use crate::keccak_p;
 
@@ -506,16 +503,10 @@ pub mod parallel {
     }
 
     #[cfg(keccak_portable_simd)]
-    pub use batch::{
-        fast_loop_absorb_parallel,
-        p1600_parallel,
-    };
+    pub use batch::{fast_loop_absorb_parallel, p1600_parallel};
 
     #[cfg(feature = "multithreading")]
-    use super::{
-        OptimizationLevel,
-        keccak_p,
-    };
+    use super::{OptimizationLevel, keccak_p};
 
     /// Multi-threaded parallel processing for large workloads
     ///
@@ -686,10 +677,7 @@ mod tests {
     #[test]
     #[cfg(all(feature = "std", feature = "simd", keccak_portable_simd))]
     fn test_parallel_processing() {
-        use super::{
-            OptimizationLevel,
-            parallel,
-        };
+        use super::{OptimizationLevel, parallel};
 
         let mut states = [[0u64; 25], [0u64; 25], [0u64; 25], [0u64; 25]];
 

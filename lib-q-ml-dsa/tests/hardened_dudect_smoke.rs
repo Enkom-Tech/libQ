@@ -40,16 +40,9 @@
 //! as a regression tripwire only.
 
 use lib_q_ml_dsa::Zeroizing;
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 use lib_q_ml_dsa::ml_dsa_44::{
-    MLDSA44Signature,
-    MLDSA44VerificationKey,
-    generate_key_pair_from_seed,
-    sign,
-    verify,
+    MLDSA44Signature, MLDSA44VerificationKey, generate_key_pair_from_seed, sign, verify,
 };
 use lib_q_sca_test::dudect::timing_passes_loose;
 

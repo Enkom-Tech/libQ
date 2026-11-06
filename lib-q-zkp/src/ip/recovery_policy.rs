@@ -8,26 +8,10 @@ use alloc::vec::Vec;
 
 use lib_q_core::Result;
 
-use crate::air::{
-    RecoveryPolicyAir,
-    RecoveryPolicyInput,
-    TraceGenerator,
-};
-use crate::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-    fast_proof_config,
-};
-use crate::wire::{
-    RecoveryZkProofV0,
-    decode_recovery_zk_proof_v0,
-    encode_recovery_zk_proof_v0,
-};
-use crate::{
-    ProofMetadata,
-    ZkpProof,
-};
+use crate::air::{RecoveryPolicyAir, RecoveryPolicyInput, TraceGenerator};
+use crate::stark::{StarkProver, StarkVerifier, default_config, fast_proof_config};
+use crate::wire::{RecoveryZkProofV0, decode_recovery_zk_proof_v0, encode_recovery_zk_proof_v0};
+use crate::{ProofMetadata, ZkpProof};
 
 /// Prove recovery policy satisfaction.
 pub fn prove_recovery_policy(input: &RecoveryPolicyInput) -> Result<(ZkpProof, Vec<u8>)> {
@@ -149,11 +133,7 @@ pub fn prove_recovery_policy_fast(input: &RecoveryPolicyInput) -> Result<ZkpProo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::air::{
-        RecoveryPolicyKey,
-        RecoveryPolicyPublicInputs,
-        policy_commitment,
-    };
+    use crate::air::{RecoveryPolicyKey, RecoveryPolicyPublicInputs, policy_commitment};
 
     fn sample_input() -> RecoveryPolicyInput {
         let keys = vec![

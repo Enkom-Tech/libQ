@@ -22,11 +22,7 @@
 
 extern crate alloc;
 
-use digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use digest::{ExtendableOutput, Update, XofReader};
 use lib_q_sha3::Shake256;
 use lib_q_stark_symmetric::CryptographicHasher;
 

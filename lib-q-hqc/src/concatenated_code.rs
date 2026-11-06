@@ -6,14 +6,8 @@
 use core::fmt;
 
 use crate::params::HqcParams;
-use crate::reed_muller::{
-    ReedMuller,
-    ReedMullerError,
-};
-use crate::reed_solomon::{
-    ReedSolomon,
-    ReedSolomonError,
-};
+use crate::reed_muller::{ReedMuller, ReedMullerError};
+use crate::reed_solomon::{ReedSolomon, ReedSolomonError};
 
 /// Concatenated code implementation
 pub struct ConcatenatedCode<P: HqcParams> {

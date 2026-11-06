@@ -36,42 +36,17 @@ extern crate alloc;
 use alloc::vec::Vec;
 
 use lib_q_dkg::lattice::ring::{
-    N,
-    Q,
-    RQ_BYTES,
-    Rq,
-    ring_add,
-    ring_sub,
-    rq_write_le_bytes,
-    scalar_mul,
+    N, Q, RQ_BYTES, Rq, ring_add, ring_sub, rq_write_le_bytes, scalar_mul,
 };
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
 use zeroize::Zeroize;
 
-use crate::auth_encap::{
-    AuthKey,
-    AuthenticatedCiphertext,
-    verify_authenticator,
-};
+use crate::auth_encap::{AuthKey, AuthenticatedCiphertext, verify_authenticator};
 use crate::error::ThresholdKemError;
-use crate::kem::{
-    self,
-    Ciphertext,
-};
+use crate::kem::{self, Ciphertext};
 use crate::{
-    PartialDecap,
-    SecretShare,
-    ThresholdKemLatticePublicKey,
-    decode_rand,
-    validate_share_subset,
+    PartialDecap, SecretShare, ThresholdKemLatticePublicKey, decode_rand, validate_share_subset,
 };
 
 /// A saturating per-key decapsulation counter that makes the leakage budget

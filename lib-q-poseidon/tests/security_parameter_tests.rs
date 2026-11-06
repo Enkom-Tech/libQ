@@ -7,17 +7,10 @@
 //! are not independently verified for that field.
 
 use lib_q_poseidon::{
-    Poseidon128,
-    Poseidon256,
-    mds_matrix_5x5,
-    round_constants_128,
-    round_constants_256,
+    Poseidon128, Poseidon256, mds_matrix_5x5, round_constants_128, round_constants_256,
 };
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    PrimeCharacteristicRing,
-    PrimeField32,
-};
+use lib_q_stark_field::{PrimeCharacteristicRing, PrimeField32};
 use lib_q_stark_mersenne31::Mersenne31;
 
 type F = Complex<Mersenne31>;
@@ -125,11 +118,7 @@ fn test_round_constants_no_consecutive_repeats() {
 
 #[test]
 fn test_round_constants_reproduced_from_shake256_seed() {
-    use digest::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use digest::{ExtendableOutput, Update, XofReader};
     use lib_q_sha3::Shake256;
 
     const P: u32 = (1 << 31) - 1;

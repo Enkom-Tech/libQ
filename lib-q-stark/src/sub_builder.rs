@@ -10,11 +10,7 @@
 
 use core::ops::Range;
 
-use lib_q_stark_air::{
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{AirBuilder, BaseAir, WindowAccess};
 
 /// A window wrapper that restricts access to a contiguous column range.
 #[derive(Debug, Clone)]

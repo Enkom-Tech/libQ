@@ -32,29 +32,15 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_baby_bear::BabyBear;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
-use crate::air::wide_merkle_path_baby_bear::{
-    NODE_INPUT_LEN,
-    WideDigestBb,
-};
+use crate::air::wide_merkle_path_baby_bear::{NODE_INPUT_LEN, WideDigestBb};
 use crate::air::wide_sponge_baby_bear::{
-    WIDE_DIGEST_ELEMS,
-    constrain_wide_sponge_bb,
-    generate_wide_sponge_bb_cells,
-    poseidon2_wide_hash_bb,
-    wide_sponge_bb_interm_cols,
+    WIDE_DIGEST_ELEMS, constrain_wide_sponge_bb, generate_wide_sponge_bb_cells,
+    poseidon2_wide_hash_bb, wide_sponge_bb_interm_cols,
 };
 
 /// Secret trapdoor length. 6 BabyBear cells ≈ 185-bit secret (≥128); Arm A used 3 cells over
@@ -187,13 +173,13 @@ impl<AB: AirBuilder<F = BabyBear>> Air<AB> for UnlinkableMembershipBbAir {
         for i in 0..WIDE_DIGEST_ELEMS {
             builder.assert_eq(
                 node_input[i].clone(),
-                m_running[i].clone() +
-                    m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()),
+                m_running[i].clone()
+                    + m_dir.clone() * (m_sibling[i].clone() - m_running[i].clone()),
             );
             builder.assert_eq(
                 node_input[WIDE_DIGEST_ELEMS + i].clone(),
-                m_sibling[i].clone() +
-                    m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()),
+                m_sibling[i].clone()
+                    + m_dir.clone() * (m_running[i].clone() - m_sibling[i].clone()),
             );
         }
         let parent = constrain_wide_sponge_bb(builder, &node_input, M_INTERM_START);
@@ -560,10 +546,7 @@ mod tests {
     /// constraint that the +1 perturbation breaks; it is not a completeness proof of the relation.
     #[test]
     fn under_constraint_audit_every_column() {
-        use std::panic::{
-            AssertUnwindSafe,
-            catch_unwind,
-        };
+        use std::panic::{AssertUnwindSafe, catch_unwind};
         let (t, ctx, bits, sibs, root) = setup();
         let trace = generate_membership_trace_bb(&t, &ctx, &bits, &sibs);
         let null = membership_nullifier_bb(&t, &ctx);

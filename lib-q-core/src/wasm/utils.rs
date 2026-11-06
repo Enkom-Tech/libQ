@@ -16,10 +16,7 @@ extern crate alloc;
 use alloc::{
     collections::BTreeMap,
     format,
-    string::{
-        String,
-        ToString,
-    },
+    string::{String, ToString},
     vec::Vec,
 };
 
@@ -77,15 +74,15 @@ pub fn validate_input(
     let length = data.length() as usize;
 
     // Check minimum size
-    if let Some(min) = min_size &&
-        length < min
+    if let Some(min) = min_size
+        && length < min
     {
         return Err(format!("Length {} is less than minimum {}", length, min));
     }
 
     // Check maximum size
-    if let Some(max) = max_size &&
-        length > max
+    if let Some(max) = max_size
+        && length > max
     {
         return Err(format!("Length {} exceeds maximum {}", length, max));
     }

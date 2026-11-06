@@ -11,14 +11,8 @@
 //! The parameters below are taken from FIPS 204 Table 1 rather than from the crate, so the
 //! test does not share a constant with the code it is checking.
 
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
-use lib_q_ml_dsa::{
-    VerificationError,
-    Zeroizing,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+use lib_q_ml_dsa::{VerificationError, Zeroizing};
 
 /// FIPS 204 Table 1 values needed to locate and bound `z` inside an encoded signature.
 struct Params {

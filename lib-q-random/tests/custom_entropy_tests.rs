@@ -5,15 +5,9 @@ extern crate alloc;
 
 #[cfg(feature = "custom-entropy")]
 use lib_q_random::custom_entropy::{
-    CustomEntropyConfig,
-    CustomEntropySource,
-    EntropyContext,
-    EntropyQuality,
-    generate_custom_entropy,
-    get_entropy_source_info,
-    has_custom_entropy_source,
-    register_custom_entropy_source,
-    unregister_custom_entropy_source,
+    CustomEntropyConfig, CustomEntropySource, EntropyContext, EntropyQuality,
+    generate_custom_entropy, get_entropy_source_info, has_custom_entropy_source,
+    register_custom_entropy_source, unregister_custom_entropy_source,
 };
 #[cfg(all(not(feature = "alloc"), feature = "custom-entropy"))]
 use lib_q_random::no_std_rng::NoStdRng;

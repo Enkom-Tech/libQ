@@ -22,26 +22,13 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    Algorithm,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, Algorithm, DecryptSemanticOutcome, Error, Nonce, Result,
 };
-use lib_q_sha3::digest::{
-    Update,
-    XofReader,
-};
+use lib_q_sha3::digest::{Update, XofReader};
 use zeroize::Zeroizing;
 
 // Plugin trait implementation
-use crate::metadata::{
-    AeadMetadata,
-    AeadWithMetadata,
-};
+use crate::metadata::{AeadMetadata, AeadWithMetadata};
 use crate::security::memory::secure_zero_slice;
 use crate::security::stack_buffer::UninitStackBuffer;
 
@@ -432,10 +419,7 @@ impl crate::plugin::AeadPlugin for Shake256Aead {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_core::{
-        AeadDecryptSemantic,
-        DecryptSemanticOutcome,
-    };
+    use lib_q_core::{AeadDecryptSemantic, DecryptSemanticOutcome};
 
     use super::*;
 

@@ -14,11 +14,7 @@
 #[cfg(feature = "alloc")]
 use alloc::string::ToString;
 
-use subtle::{
-    Choice,
-    ConditionallySelectable,
-    ConstantTimeEq,
-};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
 use crate::error::Result;
 

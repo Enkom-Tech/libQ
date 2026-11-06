@@ -6,32 +6,18 @@
 
 use core::marker::PhantomData;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use lib_q_random::DeterministicRng;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    ExtensionField,
-    TwoAdicField,
-};
-use lib_q_stark_fri::{
-    FriFoldingStrategy,
-    TwoAdicFriFolding,
-};
+use lib_q_stark_field::{ExtensionField, TwoAdicField};
+use lib_q_stark_fri::{FriFoldingStrategy, TwoAdicFriFolding};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_stark_util::pretty_name;
 use rand::RngExt;
 // Goldilocks field not integrated
 // use p3_goldilocks::Goldilocks;
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 
 fn bench<F: TwoAdicField, EF: ExtensionField<F>>(c: &mut Criterion, log_sizes: &[usize])
 where

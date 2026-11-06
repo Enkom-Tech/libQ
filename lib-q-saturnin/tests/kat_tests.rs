@@ -6,11 +6,7 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    AeadKey,
-    Nonce,
-    Result,
-};
+use lib_q_core::{AeadKey, Nonce, Result};
 use lib_q_saturnin::*;
 
 /// Parse hex string to bytes

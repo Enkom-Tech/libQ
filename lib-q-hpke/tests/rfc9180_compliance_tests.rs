@@ -10,18 +10,8 @@
     clippy::needless_borrow
 )]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-};
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContext,
-    HpkeKdf,
-    HpkeKem,
-    HpkeMode,
-};
+use lib_q_core::{Algorithm, KemContext};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeContext, HpkeKdf, HpkeKem, HpkeMode};
 use lib_q_kem::LibQKemProvider;
 
 /// Test vectors for RFC 9180 compliance
@@ -400,21 +390,13 @@ fn test_labeled_functions() {
 fn test_psk_mode() {
     use std::sync::Arc;
 
-    use lib_q_core::{
-        Algorithm,
-        KemContext,
-    };
+    use lib_q_core::{Algorithm, KemContext};
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
     use lib_q_hpke::providers::traits::HpkeCryptoProvider;
     use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
-        HpkeAead,
-        HpkeCipherSuite,
-        HpkeKdf,
-        HpkeKem,
-        HpkeMode,
-        HpkePskWireFormat,
+        HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, HpkeMode, HpkePskWireFormat,
     };
 
     let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
@@ -470,21 +452,13 @@ fn test_psk_mode() {
 fn test_auth_mode() {
     use std::sync::Arc;
 
-    use lib_q_core::{
-        Algorithm,
-        KemContext,
-    };
+    use lib_q_core::{Algorithm, KemContext};
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
     use lib_q_hpke::providers::traits::HpkeCryptoProvider;
     use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
-        HpkeAead,
-        HpkeCipherSuite,
-        HpkeKdf,
-        HpkeKem,
-        HpkeMode,
-        HpkePskWireFormat,
+        HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, HpkeMode, HpkePskWireFormat,
     };
 
     let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =
@@ -550,21 +524,13 @@ fn test_auth_mode() {
 fn test_auth_psk_mode() {
     use std::sync::Arc;
 
-    use lib_q_core::{
-        Algorithm,
-        KemContext,
-    };
+    use lib_q_core::{Algorithm, KemContext};
     use lib_q_hpke::hpke_core::setup_sender_with_mode;
     use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
     use lib_q_hpke::providers::traits::HpkeCryptoProvider;
     use lib_q_hpke::security::prng::Kt128Rng;
     use lib_q_hpke::types::{
-        HpkeAead,
-        HpkeCipherSuite,
-        HpkeKdf,
-        HpkeKem,
-        HpkeMode,
-        HpkePskWireFormat,
+        HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, HpkeMode, HpkePskWireFormat,
     };
 
     let hpke_crypto: Arc<dyn HpkeCryptoProvider + Send + Sync> =

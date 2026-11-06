@@ -1,37 +1,15 @@
-use ::signature::{
-    Error,
-    MultipartVerifier,
-    Verifier,
-};
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use ::signature::{Error, MultipartVerifier, Verifier};
+use hybrid_array::{Array, ArraySize};
 #[cfg(feature = "alloc")]
 use pkcs8::EncodePublicKey;
-use pkcs8::{
-    der,
-    spki,
-};
+use pkcs8::{der, spki};
 use rand_core::CryptoRng;
-use typenum::{
-    U,
-    U16,
-    U24,
-    U32,
-    Unsigned,
-};
+use typenum::{U, U16, U24, U32, Unsigned};
 
 use crate::address::ForsTree;
 use crate::signature_encoding::Signature;
-use crate::util::{
-    array_u8_try_from_exact,
-    split_digest,
-};
-use crate::{
-    ParameterSet,
-    Shake,
-};
+use crate::util::{array_u8_try_from_exact, split_digest};
+use crate::{ParameterSet, Shake};
 
 /// A trait specifying the length of a serialized verifying key for a given parameter set
 pub trait VerifyingKeyLen {

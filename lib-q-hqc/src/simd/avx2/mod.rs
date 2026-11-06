@@ -40,10 +40,7 @@ pub mod vector;
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2", feature = "alloc"))]
 pub mod gf2x;
 
-use super::traits::{
-    PolynomialOps,
-    SyndromeOps,
-};
+use super::traits::{PolynomialOps, SyndromeOps};
 
 /// AVX2 implementation marker
 /// This is a zero-sized type used for static dispatch

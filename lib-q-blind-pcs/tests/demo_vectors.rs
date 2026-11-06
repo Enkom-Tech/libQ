@@ -1,10 +1,6 @@
 #![cfg(feature = "blind-pcs")]
 
-use lib_q_blind_pcs::{
-    blind_commit,
-    blind_open,
-    verify,
-};
+use lib_q_blind_pcs::{blind_commit, blind_open, verify};
 
 #[test]
 fn demo_commit_open_verify_flow() {

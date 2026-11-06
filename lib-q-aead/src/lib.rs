@@ -12,22 +12,11 @@
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    vec::Vec,
-};
+use alloc::{boxed::Box, vec::Vec};
 
 // Re-export types: algorithm IDs from `lib-q-types`; crypto API from `lib-q-core`
-pub use lib_q_core::{
-    Aead,
-    AeadKey,
-    Nonce,
-    Result,
-};
-pub use lib_q_types::{
-    Algorithm,
-    AlgorithmCategory,
-};
+pub use lib_q_core::{Aead, AeadKey, Nonce, Result};
+pub use lib_q_types::{Algorithm, AlgorithmCategory};
 
 // Internal modules
 mod metadata;
@@ -36,33 +25,14 @@ mod registry;
 pub mod security;
 
 // Re-export public API
-pub use metadata::{
-    AeadMetadata,
-    AeadWithMetadata,
-    PerformanceTier,
-};
-pub use plugin::{
-    AeadPlugin,
-    PluginRegistry,
-};
+pub use metadata::{AeadMetadata, AeadWithMetadata, PerformanceTier};
+pub use plugin::{AeadPlugin, PluginRegistry};
 pub use registry::AeadRegistry;
 // Re-export security sub-modules for testing
 pub use security::constant_time;
 // Re-export security API
-pub use security::{
-    SecurityConfig,
-    SecurityContext,
-    get_security_config,
-    set_security_config,
-};
-pub use security::{
-    memory,
-    nonce,
-    side_channel,
-    stack_buffer,
-    timing,
-    validation,
-};
+pub use security::{SecurityConfig, SecurityContext, get_security_config, set_security_config};
+pub use security::{memory, nonce, side_channel, stack_buffer, timing, validation};
 
 #[cfg(feature = "alloc")]
 mod provider;

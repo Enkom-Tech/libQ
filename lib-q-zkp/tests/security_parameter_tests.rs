@@ -5,17 +5,11 @@
 
 use lib_q_stark_commit::ExtensionMmcs;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_fri::{
-    FriParameters,
-    create_test_fri_params,
-};
+use lib_q_stark_fri::{FriParameters, create_test_fri_params};
 use lib_q_stark_merkle::MerkleTreeMmcs;
 use lib_q_stark_mersenne31::Mersenne31;
 use lib_q_stark_shake256::Shake256Hash;
-use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    SerializingHasher,
-};
+use lib_q_stark_symmetric::{CompressionFunctionFromHasher, SerializingHasher};
 use lib_q_zkp::stark::default_fri_params_for_tests;
 
 // HONEST proof-system soundness = min over ALL terms, not just the FRI query phase:

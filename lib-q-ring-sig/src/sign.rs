@@ -4,16 +4,9 @@ use alloc::vec::Vec;
 
 use lib_q_lattice_zkp::error::ProofError;
 use lib_q_lattice_zkp::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-    OpeningProof,
-    prove_opening,
+    AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening, OpeningProof, prove_opening,
 };
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 use crate::ring::federation_digest;
 

@@ -5,13 +5,7 @@ use alloc::vec::Vec;
 
 use crate::error::HpkeError;
 use crate::security::CryptoRng;
-use crate::types::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeKdf,
-    HpkeKem,
-    SecretBytes,
-};
+use crate::types::{HpkeAead, HpkeCipherSuite, HpkeKdf, HpkeKem, SecretBytes};
 
 /// Public KEM material (e.g. ciphertext or public key) paired with zeroized secret bytes
 /// (shared secret or secret key), as returned by [`KemProvider`].
@@ -189,8 +183,8 @@ impl SupportedAlgorithms {
 
     /// True when KEM, KDF, and AEAD from `suite` are all listed as supported.
     pub fn supports_cipher_suite(&self, suite: &HpkeCipherSuite) -> bool {
-        self.supports_kem(suite.kem) &&
-            self.supports_kdf(suite.kdf) &&
-            self.supports_aead(suite.aead)
+        self.supports_kem(suite.kem)
+            && self.supports_kdf(suite.kdf)
+            && self.supports_aead(suite.aead)
     }
 }

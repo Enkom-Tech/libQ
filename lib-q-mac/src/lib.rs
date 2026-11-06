@@ -31,15 +31,8 @@ pub mod qprf;
 pub mod wire;
 
 pub use error::MacError;
-pub use profile::{
-    QCW_MAC_KAT_SCHEMA,
-    QCW_MAC_KEY_BYTES,
-    QCW_MAC_TAG_BYTES,
-};
-pub use qcw_mac::{
-    QcwMac,
-    QcwMacKey,
-};
+pub use profile::{QCW_MAC_KAT_SCHEMA, QCW_MAC_KEY_BYTES, QCW_MAC_TAG_BYTES};
+pub use qcw_mac::{QcwMac, QcwMacKey};
 
 #[cfg(feature = "wasm")]
 pub mod wasm;

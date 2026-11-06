@@ -16,10 +16,7 @@ use alloc::collections::BTreeMap;
 #[cfg(not(feature = "std"))]
 use alloc::vec::Vec;
 
-use lib_q_core::{
-    Result,
-    SecurityLevel,
-};
+use lib_q_core::{Result, SecurityLevel};
 use lib_q_fn_dsa::*;
 
 /// Advanced integration scenarios for FN-DSA
@@ -379,8 +376,8 @@ impl AdvancedFnDsaIntegration {
     /// Validate enterprise configuration
     pub fn validate_enterprise_config(&self) -> Result<bool> {
         // Check minimum security level
-        if self.enterprise_config.min_security_level != SecurityLevel::Level1 &&
-            self.enterprise_config.min_security_level != SecurityLevel::Level5
+        if self.enterprise_config.min_security_level != SecurityLevel::Level1
+            && self.enterprise_config.min_security_level != SecurityLevel::Level5
         {
             return Err(lib_q_core::Error::InvalidKeySize {
                 expected: 1,

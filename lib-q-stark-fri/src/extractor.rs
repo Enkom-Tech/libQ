@@ -45,11 +45,7 @@ pub trait FriDataExtractor {
     fn commit_phase_openings(&self, query_idx: usize) -> Option<&[Self::CommitPhaseStep]>;
 }
 
-use crate::proof::{
-    CommitPhaseProofStep,
-    FriProof,
-    QueryProof,
-};
+use crate::proof::{CommitPhaseProofStep, FriProof, QueryProof};
 
 impl<F: Field, M: Mmcs<F>, Witness, InputProof> FriDataExtractor
     for FriProof<F, M, Witness, InputProof>

@@ -11,37 +11,18 @@
 //! build, and this crate's wasm CI lane does not include this file.
 #![cfg(not(target_arch = "wasm32"))]
 
-use std::alloc::{
-    GlobalAlloc,
-    Layout,
-    System,
-};
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::cell::Cell;
 
 use lib_q_lattice_zkp::{
-    AjtaiCommitment,
-    LATTICE_ZKP_WIRE_VERSION_V0,
-    LatticeZkpProfileV0,
-    LinearRelationProof,
-    OpeningProof,
-    ProofKindV0,
-    WIRE_ENVELOPE_HEADER_LEN,
-    decode_amortised_proof_v0,
-    decode_blind_issuance_v0,
-    decode_dual_ring_opening_proof_v0,
-    decode_linear_relation_proof_v0,
-    decode_nullifier_opening_proof_v0,
-    decode_opening_proof_v0,
-    decode_private_membership_proof_v0,
-    decode_spending_proof_v0,
-    decode_witness_nullifier_opening_proof_v0,
-    encode_linear_relation_proof_v0,
-    path_index_commitment,
+    AjtaiCommitment, LATTICE_ZKP_WIRE_VERSION_V0, LatticeZkpProfileV0, LinearRelationProof,
+    OpeningProof, ProofKindV0, WIRE_ENVELOPE_HEADER_LEN, decode_amortised_proof_v0,
+    decode_blind_issuance_v0, decode_dual_ring_opening_proof_v0, decode_linear_relation_proof_v0,
+    decode_nullifier_opening_proof_v0, decode_opening_proof_v0, decode_private_membership_proof_v0,
+    decode_spending_proof_v0, decode_witness_nullifier_opening_proof_v0,
+    encode_linear_relation_proof_v0, path_index_commitment,
 };
-use lib_q_ring::{
-    ModuleVec,
-    Poly,
-};
+use lib_q_ring::{ModuleVec, Poly};
 
 thread_local! {
     static ARMED: Cell<bool> = const { Cell::new(false) };

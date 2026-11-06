@@ -1,15 +1,7 @@
 //! Extra integration coverage for portable ML-DSA entry points (sign/verify, pre-hash, ACVP, all parameter sets).
 
-use lib_q_ml_dsa::constants::{
-    KEY_GENERATION_RANDOMNESS_SIZE,
-    SIGNING_RANDOMNESS_SIZE,
-};
-use lib_q_ml_dsa::{
-    Zeroizing,
-    ml_dsa_44,
-    ml_dsa_65,
-    ml_dsa_87,
-};
+use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+use lib_q_ml_dsa::{Zeroizing, ml_dsa_44, ml_dsa_65, ml_dsa_87};
 
 fn seed(i: u8) -> [u8; KEY_GENERATION_RANDOMNESS_SIZE] {
     let mut s = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
@@ -26,11 +18,7 @@ fn sign_seed(i: u8) -> [u8; SIGNING_RANDOMNESS_SIZE] {
 }
 
 mod p44 {
-    use lib_q_ml_dsa::ml_dsa_44::{
-        MLDSA44Signature,
-        MLDSA44SigningKey,
-        MLDSA44VerificationKey,
-    };
+    use lib_q_ml_dsa::ml_dsa_44::{MLDSA44Signature, MLDSA44SigningKey, MLDSA44VerificationKey};
 
     use super::*;
 
@@ -116,11 +104,7 @@ mod p44 {
 }
 
 mod p65 {
-    use lib_q_ml_dsa::ml_dsa_65::{
-        MLDSA65Signature,
-        MLDSA65SigningKey,
-        MLDSA65VerificationKey,
-    };
+    use lib_q_ml_dsa::ml_dsa_65::{MLDSA65Signature, MLDSA65SigningKey, MLDSA65VerificationKey};
 
     use super::*;
 
@@ -190,11 +174,7 @@ mod p65 {
 }
 
 mod p87 {
-    use lib_q_ml_dsa::ml_dsa_87::{
-        MLDSA87Signature,
-        MLDSA87SigningKey,
-        MLDSA87VerificationKey,
-    };
+    use lib_q_ml_dsa::ml_dsa_87::{MLDSA87Signature, MLDSA87SigningKey, MLDSA87VerificationKey};
 
     use super::*;
 

@@ -2,10 +2,7 @@ use core::array::TryFromSliceError;
 use core::convert::TryFrom;
 
 use hybrid_array::typenum::Unsigned;
-use hybrid_array::{
-    Array,
-    ArraySize,
-};
+use hybrid_array::{Array, ArraySize};
 
 use crate::fors::ForsParams;
 

@@ -1,17 +1,7 @@
 #![allow(non_snake_case)]
 #![allow(non_upper_case_globals)]
 
-use core::ops::{
-    Add,
-    AddAssign,
-    Div,
-    DivAssign,
-    Mul,
-    MulAssign,
-    Neg,
-    Sub,
-    SubAssign,
-};
+use core::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
 use zeroize::DefaultIsZeroes;
 
@@ -567,8 +557,8 @@ mod tests {
         sh.flip();
         sh.extract(&mut buf);
         assert!(
-            buf[..] ==
-                hex::decode("54ada30bdb43e1f14465d944f2a665ca7eaa6e9678e9d035b0fcb8167efe9871")
+            buf[..]
+                == hex::decode("54ada30bdb43e1f14465d944f2a665ca7eaa6e9678e9d035b0fcb8167efe9871")
                     .unwrap()
         );
     }

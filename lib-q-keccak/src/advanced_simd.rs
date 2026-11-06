@@ -77,17 +77,9 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::mem::size_of;
 #[cfg(feature = "simd")]
-use core::simd::{
-    u64x2,
-    u64x4,
-    u64x8,
-};
+use core::simd::{u64x2, u64x4, u64x8};
 
-use crate::{
-    LaneSize,
-    PLEN,
-    keccak_p,
-};
+use crate::{LaneSize, PLEN, keccak_p};
 
 /// SIMD processing configuration for security and performance tuning
 #[derive(Debug, Clone, Copy)]

@@ -23,17 +23,10 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 use alloc::vec::Vec;
 
-use digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use digest::{ExtendableOutput, Update, XofReader};
 use lib_q_sha3::Shake256;
 use lib_q_stark_field::extension::Complex;
-use lib_q_stark_field::{
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_stark_field::{Field, PrimeCharacteristicRing};
 use lib_q_stark_mersenne31::Mersenne31;
 
 /// Field type for constants

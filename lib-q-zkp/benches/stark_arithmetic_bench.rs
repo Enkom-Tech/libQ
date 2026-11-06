@@ -1,23 +1,11 @@
 //! Criterion benchmarks: small `ArithmeticAir` STARK prove + verify (regression guard).
 
-use criterion::{
-    BatchSize,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_mersenne31::Mersenne31;
-use lib_q_zkp::air::{
-    ArithmeticAir,
-    TraceGenerator,
-};
-use lib_q_zkp::stark::{
-    StarkProver,
-    StarkVerifier,
-    default_config,
-};
+use lib_q_zkp::air::{ArithmeticAir, TraceGenerator};
+use lib_q_zkp::stark::{StarkProver, StarkVerifier, default_config};
 
 type Val = Complex<Mersenne31>;
 

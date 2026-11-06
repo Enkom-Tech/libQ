@@ -1,14 +1,8 @@
 //! Deterministic checks of Legendre multiplicativity on the pilot field.
 
-use crypto_bigint::{
-    CtEq,
-    U256,
-};
+use crypto_bigint::{CtEq, U256};
 use lib_q_prf::field::legendre_symbol_monty;
-use lib_q_prf::{
-    LegendrePrfParams256,
-    to_monty,
-};
+use lib_q_prf::{LegendrePrfParams256, to_monty};
 
 #[test]
 fn legendre_multiplicative_sampled() {

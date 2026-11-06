@@ -7,10 +7,7 @@
 extern crate alloc;
 #[cfg(feature = "wasm")]
 use alloc::{
-    string::{
-        String,
-        ToString,
-    },
+    string::{String, ToString},
     vec::Vec,
 };
 
@@ -20,11 +17,7 @@ use serde_json;
 #[cfg(feature = "wasm")]
 use wasm_bindgen::prelude::*;
 
-use crate::api::{
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-};
+use crate::api::{Algorithm, AlgorithmCategory, CryptoProvider};
 // use crate::error::Result;
 use crate::providers::LibQCryptoProvider;
 use crate::security::SecurityValidator;

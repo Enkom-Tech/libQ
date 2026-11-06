@@ -158,20 +158,11 @@ compile_error!(
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    vec::Vec,
-};
+use alloc::{boxed::Box, vec::Vec};
 
 // Re-export core types for public use
 pub use lib_q_core::{
-    Aead,
-    AeadDecryptSemantic,
-    AeadKey,
-    DecryptSemanticOutcome,
-    Error,
-    Nonce,
-    Result,
+    Aead, AeadDecryptSemantic, AeadKey, DecryptSemanticOutcome, Error, Nonce, Result,
 };
 
 // Core implementation
@@ -243,10 +234,7 @@ pub use hash::SaturninHash;
 #[cfg(feature = "qcb")]
 pub use qcb::SaturninQcb;
 #[cfg(feature = "stream")]
-pub use stream::{
-    SaturninKeystream,
-    SaturninStream,
-};
+pub use stream::{SaturninKeystream, SaturninStream};
 #[cfg(feature = "qcb")]
 pub use tbc::SaturninTbc;
 

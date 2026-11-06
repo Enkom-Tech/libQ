@@ -11,21 +11,11 @@
 
 use lib_q_random::new_deterministic_rng;
 use lib_q_threshold_kem_lattice::threshold::{
-    DecapBudget,
-    ZeroShareSeeds,
-    partial_decap_authenticated_budgeted,
+    DecapBudget, ZeroShareSeeds, partial_decap_authenticated_budgeted,
 };
 use lib_q_threshold_kem_lattice::{
-    AUTH_TAG_BYTES,
-    AuthKey,
-    AuthenticatedCiphertext,
-    Ciphertext,
-    SecretShare,
-    ThresholdKemError,
-    ThresholdKemLatticePublicKey,
-    authenticated_encapsulate,
-    kem,
-    verify_authenticator,
+    AUTH_TAG_BYTES, AuthKey, AuthenticatedCiphertext, Ciphertext, SecretShare, ThresholdKemError,
+    ThresholdKemLatticePublicKey, authenticated_encapsulate, kem, verify_authenticator,
 };
 use zeroize::Zeroizing;
 

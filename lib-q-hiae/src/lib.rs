@@ -40,24 +40,11 @@ mod dispatch;
 mod hiae;
 mod wrapper;
 
-pub use hiae::{
-    KEY_SIZE,
-    NONCE_SIZE,
-    TAG_SIZE,
-};
-pub use lib_q_core::{
-    Aead,
-    AeadKey,
-    Error,
-    Nonce,
-    Result,
-};
+pub use hiae::{KEY_SIZE, NONCE_SIZE, TAG_SIZE};
+pub use lib_q_core::{Aead, AeadKey, Error, Nonce, Result};
 // Re-export the lib-Q AEAD surface so downstream code can `use lib_q_hiae::Aead`.
 #[cfg(feature = "alloc")]
-pub use lib_q_core::{
-    AeadDecryptSemantic,
-    DecryptSemanticOutcome,
-};
+pub use lib_q_core::{AeadDecryptSemantic, DecryptSemanticOutcome};
 pub use lib_q_intrinsics::aes_round::hardware_aes_available;
 
 /// Maximum plaintext and associated-data length in bytes (`2^61 - 1`).

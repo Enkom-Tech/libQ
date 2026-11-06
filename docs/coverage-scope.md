@@ -126,7 +126,7 @@ the danger: `lib-q-rocca-s` sat 55 points above its floor, so anything short of 
 regression would have gone unnoticed. Retuning against CI's own numbers removed ~369 points of
 accumulated slack across the 23 crates. A WSL run is not a substitute either: it disagreed with CI
 by up to 44 points on the same crate, because this box has cargo-tarpaulin 0.35.2 while CI pins
-0.37.0.
+0.37.6.
 
 ### The measurement itself was blind for feature-gated crates
 

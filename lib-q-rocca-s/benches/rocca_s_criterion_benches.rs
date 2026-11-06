@@ -1,18 +1,7 @@
 //! Criterion throughput benchmarks for Rocca-S AEAD.
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    Throughput,
-    criterion_group,
-    criterion_main,
-};
-use lib_q_rocca_s::{
-    Aead,
-    AeadKey,
-    Nonce,
-    RoccaSAead,
-};
+use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+use lib_q_rocca_s::{Aead, AeadKey, Nonce, RoccaSAead};
 
 fn bench_encrypt(c: &mut Criterion) {
     let aead = RoccaSAead::new();

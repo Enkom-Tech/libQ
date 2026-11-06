@@ -25,11 +25,7 @@ macro_rules! instantiate {
         pub mod $platform {
             use crate::constants::*;
             use crate::pre_hash::SHAKE128_PH;
-            use crate::types::{
-                SigningError,
-                VerificationError,
-                *,
-            };
+            use crate::types::{SigningError, VerificationError, *};
 
             macro_rules! parameter_set {
                 ($parameter_module:ident, $feature:literal) => {
@@ -37,9 +33,7 @@ macro_rules! instantiate {
                     pub mod $parameter_module {
                         use super::*;
                         use crate::ml_dsa_generic::$parameter_module::{
-                            SIGNATURE_SIZE,
-                            SIGNING_KEY_SIZE,
-                            VERIFICATION_KEY_SIZE,
+                            SIGNATURE_SIZE, SIGNING_KEY_SIZE, VERIFICATION_KEY_SIZE,
                         };
 
                         /// Generate key pair.

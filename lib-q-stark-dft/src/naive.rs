@@ -1,9 +1,6 @@
 use alloc::vec;
 
-use lib_q_stark_field::{
-    TwoAdicField,
-    assert_two_adic_fft_height,
-};
+use lib_q_stark_field::{TwoAdicField, assert_two_adic_fft_height};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_util::log2_strict_usize;
@@ -45,10 +42,7 @@ mod tests {
 
     // Goldilocks field not integrated
     // use p3_goldilocks::Goldilocks;
-    use crate::{
-        NaiveDft,
-        TwoAdicSubgroupDft,
-    };
+    use crate::{NaiveDft, TwoAdicSubgroupDft};
 
     #[test]
     fn basic() {

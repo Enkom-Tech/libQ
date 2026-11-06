@@ -3,11 +3,7 @@
 //! matching `aes128ctr.c` in the MAYO reference implementation).
 
 use lib_q_sha3::Shake256;
-use lib_q_sha3::digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
 /// SHAKE256 over the concatenation of `parts`, filling `out`.
 pub fn shake256(parts: &[&[u8]], out: &mut [u8]) {
@@ -25,14 +21,8 @@ pub fn shake256(parts: &[&[u8]], out: &mut [u8]) {
 // and default both warn `function `aes128_ctr` is never used` once this allow is removed.
 #[cfg_attr(not(test), allow(dead_code))]
 pub fn aes128_ctr(key: &[u8; 16], out: &mut [u8]) {
-    use aes::cipher::{
-        BlockCipherEncrypt,
-        KeyInit,
-    };
-    use aes::{
-        Aes128,
-        Block,
-    };
+    use aes::cipher::{BlockCipherEncrypt, KeyInit};
+    use aes::{Aes128, Block};
 
     let cipher = Aes128::new_from_slice(key).expect("16-byte key");
     let mut ctr: u128 = 0;
@@ -53,14 +43,8 @@ mod tests {
         // FIPS-197 appendix C.1 style check: E_k(0) with the well-known
         // key 000102...0f equals the single-block ECB encryption of the
         // all-zero block; cross-checked against the `aes` crate itself.
-        use aes::cipher::{
-            BlockCipherEncrypt,
-            KeyInit,
-        };
-        use aes::{
-            Aes128,
-            Block,
-        };
+        use aes::cipher::{BlockCipherEncrypt, KeyInit};
+        use aes::{Aes128, Block};
 
         let key: [u8; 16] = core::array::from_fn(|i| i as u8);
         let mut ks = [0u8; 40];

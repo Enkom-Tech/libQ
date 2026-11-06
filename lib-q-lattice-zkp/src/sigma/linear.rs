@@ -1,48 +1,22 @@
 //! Linear relation `L·wit = t` layered on the opening protocol.
 
-use lib_q_ring::{
-    ModuleMatrix,
-    ModuleVec,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use lib_q_ring::{ModuleMatrix, ModuleVec};
+use rand_core::{CryptoRng, Rng};
 
-use crate::commitment::{
-    AjtaiCommitment,
-    AjtaiCommitmentKey,
-    AjtaiOpening,
-};
-use crate::error::{
-    ProofError,
-    VerifyError,
-};
+use crate::commitment::{AjtaiCommitment, AjtaiCommitmentKey, AjtaiOpening};
+use crate::error::{ProofError, VerifyError};
 use crate::serialize::write_module_vec;
-use crate::sigma::opening::{
-    self,
-    OpeningProof,
-};
+use crate::sigma::opening::{self, OpeningProof};
 #[cfg(not(feature = "hardened"))]
 use crate::sigma::secrets::accumulate_response_z;
 #[cfg(feature = "hardened")]
+use crate::sigma::secrets::{MaskedWitness, accumulate_response_z_masked};
 use crate::sigma::secrets::{
-    MaskedWitness,
-    accumulate_response_z_masked,
-};
-use crate::sigma::secrets::{
-    SecretMaskVec,
-    SecretWitnessVec,
-    scrub_rejected_opening_parts,
-    zeroize_module_vec,
+    SecretMaskVec, SecretWitnessVec, scrub_rejected_opening_parts, zeroize_module_vec,
 };
 #[cfg(not(feature = "hardened"))]
 use crate::util::module_infinity_norm;
-use crate::util::{
-    module_add,
-    module_ring_mul_challenge,
-    polys_ct_eq,
-};
+use crate::util::{module_add, module_ring_mul_challenge, polys_ct_eq};
 
 /// Opening proof plus `u = L·y`.
 #[derive(Clone, Debug, Eq, PartialEq)]

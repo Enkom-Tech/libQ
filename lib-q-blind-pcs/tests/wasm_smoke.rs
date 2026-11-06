@@ -1,10 +1,7 @@
 //! wasm-bindgen-test smoke: blind PCS demo on wasm32.
 
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
-use lib_q_blind_pcs::wasm::{
-    blind_commit_wasm,
-    blind_verify_bytes_wasm,
-};
+use lib_q_blind_pcs::wasm::{blind_commit_wasm, blind_verify_bytes_wasm};
 #[cfg(all(target_arch = "wasm32", feature = "wasm"))]
 use wasm_bindgen_test::*;
 

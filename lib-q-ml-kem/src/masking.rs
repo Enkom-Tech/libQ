@@ -23,28 +23,13 @@
 use hybrid_array::Array;
 use hybrid_array::typenum::Unsigned;
 use rand_core::Rng;
-use subtle::{
-    Choice,
-    ConditionallySelectable,
-    ConstantTimeEq,
-};
+use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
-use crate::algebra::{
-    FieldElement,
-    NttPolynomial,
-    NttVector,
-    Polynomial,
-    PolynomialVector,
-};
+use crate::algebra::{FieldElement, NttPolynomial, NttVector, Polynomial, PolynomialVector};
 use crate::crypto::PrfOutput;
 use crate::encode::Encode;
 pub(crate) use crate::hardened_rng::OsRngFill;
-use crate::param::{
-    ArraySize,
-    CbdSamplingSize,
-    EncodedCiphertext,
-    KemParams,
-};
+use crate::param::{ArraySize, CbdSamplingSize, EncodedCiphertext, KemParams};
 use crate::util::B32;
 
 /// Constant-time lookup into `Eta::ONES` using the decoded CBD index `v`.
@@ -211,10 +196,7 @@ pub(crate) fn select_shared_key_bytes_ct(eq: Choice, lhs: &B32, rhs: &B32) -> B3
 #[cfg(test)]
 #[allow(clippy::cast_possible_truncation)]
 mod tests {
-    use rand_core::{
-        Infallible,
-        TryRng,
-    };
+    use rand_core::{Infallible, TryRng};
 
     use super::*;
     use crate::MlKem768Params;

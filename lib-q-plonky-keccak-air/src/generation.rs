@@ -1,24 +1,12 @@
 use alloc::vec::Vec;
 use core::array;
 
-use lib_q_stark_air::utils::{
-    u64_to_16_bit_limbs,
-    u64_to_bits_le,
-};
+use lib_q_stark_air::utils::{u64_to_16_bit_limbs, u64_to_bits_le};
 use lib_q_stark_field::PrimeField64;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
-use crate::columns::{
-    KeccakColsRef,
-    KeccakColsRefMut,
-    NUM_KECCAK_COLS,
-};
-use crate::{
-    NUM_ROUNDS,
-    R,
-    RC,
-    U64_LIMBS,
-};
+use crate::columns::{KeccakColsRef, KeccakColsRefMut, NUM_KECCAK_COLS};
+use crate::{NUM_ROUNDS, R, RC, U64_LIMBS};
 
 pub fn generate_trace_rows<F: PrimeField64>(
     inputs: Vec<[u64; 25]>,
@@ -50,8 +38,8 @@ pub fn generate_trace_rows<F: PrimeField64>(
             let prev_a_vals: Option<[[[F; U64_LIMBS]; 5]; 5]> = if round == 0 {
                 None
             } else {
-                let prev_slice = &trace.values[row_start + (round - 1) * NUM_KECCAK_COLS..
-                    row_start + round * NUM_KECCAK_COLS];
+                let prev_slice = &trace.values[row_start + (round - 1) * NUM_KECCAK_COLS
+                    ..row_start + round * NUM_KECCAK_COLS];
                 let prev = KeccakColsRef::from_row_slice(prev_slice);
                 Some(array::from_fn(|y| {
                     array::from_fn(|x| array::from_fn(|limb| prev.a_prime_prime_prime(y, x, limb)))

@@ -22,11 +22,7 @@
 
 #![cfg(feature = "saturnin-siv")]
 
-use lib_q_aead::saturnin_siv::{
-    SaturninSiv,
-    TAG_BYTES,
-    ct_tag_eq,
-};
+use lib_q_aead::saturnin_siv::{SaturninSiv, TAG_BYTES, ct_tag_eq};
 
 fn base_tag() -> [u8; TAG_BYTES] {
     let mut t = [0u8; TAG_BYTES];

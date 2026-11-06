@@ -1,23 +1,10 @@
 use hybrid_array::Array;
-use hybrid_array::typenum::{
-    U256,
-    Unsigned,
-};
+use hybrid_array::typenum::{U256, Unsigned};
 
 use crate::algebra::{
-    FieldElement,
-    Integer,
-    NttPolynomial,
-    NttVector,
-    Polynomial,
-    PolynomialVector,
+    FieldElement, Integer, NttPolynomial, NttVector, Polynomial, PolynomialVector,
 };
-use crate::param::{
-    ArraySize,
-    EncodedPolynomial,
-    EncodingSize,
-    VectorEncodingSize,
-};
+use crate::param::{ArraySize, EncodedPolynomial, EncodingSize, VectorEncodingSize};
 use crate::util::Truncate;
 
 type DecodedValue = Array<FieldElement, U256>;
@@ -160,20 +147,8 @@ pub(crate) mod test {
     use hybrid_array::typenum::marker_traits::Zero;
     use hybrid_array::typenum::operator_aliases::Mod;
     #[cfg(feature = "random")]
-    use hybrid_array::typenum::{
-        U1,
-        U6,
-        U10,
-        U11,
-    };
-    use hybrid_array::typenum::{
-        U2,
-        U3,
-        U4,
-        U5,
-        U8,
-        U12,
-    };
+    use hybrid_array::typenum::{U1, U6, U10, U11};
+    use hybrid_array::typenum::{U2, U3, U4, U5, U8, U12};
 
     use super::*;
     use crate::param::EncodedPolynomialVector;

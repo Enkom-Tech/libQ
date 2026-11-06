@@ -8,15 +8,8 @@ use itertools::Itertools;
 use lib_q_stark_field::PackedValue;
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_rayon::prelude::*;
-use lib_q_stark_symmetric::{
-    CryptographicHasher,
-    Hash,
-    PseudoCompressionFunction,
-};
-use serde::{
-    Deserialize,
-    Serialize,
-};
+use lib_q_stark_symmetric::{CryptographicHasher, Hash, PseudoCompressionFunction};
+use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
 /// A binary Merkle tree whose leaves are vectors of matrix rows.
@@ -115,8 +108,8 @@ impl<F: Clone + Send + Sync, W: Clone, M: Matrix<F>, const DIGEST_ELEMS: usize>
                 .clone()
                 .map(|m| m.height())
                 .tuple_windows()
-                .all(|(curr, next)| curr == next ||
-                    curr.next_power_of_two() != next.next_power_of_two()),
+                .all(|(curr, next)| curr == next
+                    || curr.next_power_of_two() != next.next_power_of_two()),
             "matrix heights that round up to the same power of two must be equal"
         );
 

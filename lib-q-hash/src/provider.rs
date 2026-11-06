@@ -7,27 +7,13 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    format,
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{format, string::ToString, vec::Vec};
 
-use lib_q_core::api::{
-    Algorithm,
-    CryptoProvider,
-    HashOperations,
-};
-use lib_q_core::error::{
-    Error,
-    Result,
-};
+use lib_q_core::api::{Algorithm, CryptoProvider, HashOperations};
+use lib_q_core::error::{Error, Result};
 use lib_q_core::security::SecurityValidator;
 
-use crate::{
-    algorithm_to_hash_algorithm,
-    create_hash,
-};
+use crate::{algorithm_to_hash_algorithm, create_hash};
 
 /// lib-Q hash provider implementation
 ///

@@ -22,15 +22,7 @@
 // the number of words matches the size of the slice of another big
 // integer which uses stride 1).
 
-use super::mp31::{
-    PRIMES,
-    mp_add,
-    mp_half,
-    mp_mmul,
-    mp_set_u,
-    mp_sub,
-    tbmask,
-};
+use super::mp31::{PRIMES, mp_add, mp_half, mp_mmul, mp_set_u, mp_sub, tbmask};
 
 // Multiply m by the small value x (non-negative). x MUST be less than 2^31.
 // The integer m uses base 2^31 with stride 1, and is modified to receive
@@ -347,13 +339,13 @@ fn zint_co_lin_mod(
     let fa = a[0]
         .wrapping_mul(xa as u32)
         .wrapping_add(b[0].wrapping_mul(xb as u32))
-        .wrapping_mul(m0i) &
-        0x7FFFFFFF;
+        .wrapping_mul(m0i)
+        & 0x7FFFFFFF;
     let fb = a[0]
         .wrapping_mul(ya as u32)
         .wrapping_add(b[0].wrapping_mul(yb as u32))
-        .wrapping_mul(m0i) &
-        0x7FFFFFFF;
+        .wrapping_mul(m0i)
+        & 0x7FFFFFFF;
     let nlen = a.len();
     for i in 0..nlen {
         let aw = a[i] as u64;
@@ -782,14 +774,8 @@ mod tests {
 
     use core::convert::TryFrom;
 
-    use lib_q_sha3::{
-        Digest,
-        Sha3_256,
-    };
-    use num_bigint::{
-        BigInt,
-        Sign,
-    };
+    use lib_q_sha3::{Digest, Sha3_256};
+    use num_bigint::{BigInt, Sign};
     use num_traits::cast::ToPrimitive;
 
     use super::zint_bezout;
@@ -866,9 +852,9 @@ mod tests {
                 sh.update((j as u32).to_le_bytes());
                 let buf = sh.finalize_reset();
                 for k in 0..8 {
-                    let w = u32::from_le_bytes(
-                        *<&[u8; 4]>::try_from(&buf[4 * k..4 * k + 4]).unwrap(),
-                    ) & 0x7FFFFFFF;
+                    let w =
+                        u32::from_le_bytes(*<&[u8; 4]>::try_from(&buf[4 * k..4 * k + 4]).unwrap())
+                            & 0x7FFFFFFF;
                     x[j] = w;
                     j += 1;
                     if j >= n {

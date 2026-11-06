@@ -1,15 +1,9 @@
 //! AVX2 build: single-session duplex remains scalar; delegates to portable.
 
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
-use crate::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-};
+use crate::params::{KEY_BYTES, NONCE_BYTES};
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]
-use crate::simd::{
-    portable::Portable,
-    traits::DuplexAeadOps,
-};
+use crate::simd::{portable::Portable, traits::DuplexAeadOps};
 
 /// AVX2 marker; duplex sequential mode uses the same scalar state machine as portable.
 #[cfg(all(target_arch = "x86_64", feature = "simd-avx2"))]

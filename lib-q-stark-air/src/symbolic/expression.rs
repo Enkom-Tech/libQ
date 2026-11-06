@@ -1,15 +1,7 @@
-use lib_q_stark_field::{
-    Algebra,
-    ExtensionField,
-    Field,
-    InjectiveMonomial,
-};
+use lib_q_stark_field::{Algebra, ExtensionField, Field, InjectiveMonomial};
 
 use crate::symbolic::variable::SymbolicVariable;
-use crate::symbolic::{
-    SymLeaf,
-    SymbolicExpr,
-};
+use crate::symbolic::{SymLeaf, SymbolicExpr};
 
 /// Leaf nodes for base-field symbolic expressions.
 ///

@@ -26,20 +26,9 @@
 
 use std::hint::black_box;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use lib_q_aead::security::timing::protect_timing;
-use lib_q_aead::{
-    AeadKey,
-    AeadWithMetadata,
-    Algorithm,
-    Nonce,
-    create_aead,
-};
+use lib_q_aead::{AeadKey, AeadWithMetadata, Algorithm, Nonce, create_aead};
 
 /// All AEAD algorithms in the registry (`lib_q_aead::registry`'s own list, `Algorithm::Aead`
 /// category). Every bench group below loops over this instead of hard-coding `Shake256Aead`.

@@ -10,31 +10,13 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use lib_q_sha3::Shake256;
-use lib_q_sha3::digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
-use super::{
-    AirError,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
-};
+use super::{AirError, TraceGenerator, next_power_of_two, validate_trace_dimensions};
 
 /// Maximum recovery keys per policy proof (v0).
 pub const MAX_RECOVERY_KEYS: usize = 32;
@@ -353,8 +335,8 @@ impl TraceGenerator<lib_q_stark_field::extension::Complex<Mersenne31>, RecoveryP
                 reason: "key_count mismatch".into(),
             });
         }
-        if inputs.policy_time_lock < self.public.time_lock_min ||
-            inputs.policy_time_lock > self.public.time_lock_max
+        if inputs.policy_time_lock < self.public.time_lock_min
+            || inputs.policy_time_lock > self.public.time_lock_max
         {
             return Err(AirError::InvalidInput {
                 reason: "policy_time_lock out of bounds".into(),

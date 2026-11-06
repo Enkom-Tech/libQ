@@ -1,27 +1,11 @@
-use hybrid_array::typenum::{
-    U1,
-    Unsigned,
-};
+use hybrid_array::typenum::{U1, Unsigned};
 use zeroize::Zeroize;
 
-use crate::algebra::{
-    NttMatrix,
-    NttVector,
-    Polynomial,
-    PolynomialVector,
-};
+use crate::algebra::{NttMatrix, NttVector, Polynomial, PolynomialVector};
 use crate::compress::Compress;
-use crate::crypto::{
-    G,
-    PRF,
-};
+use crate::crypto::{G, PRF};
 use crate::encode::Encode;
-use crate::param::{
-    EncodedCiphertext,
-    EncodedDecryptionKey,
-    EncodedEncryptionKey,
-    PkeParams,
-};
+use crate::param::{EncodedCiphertext, EncodedDecryptionKey, EncodedEncryptionKey, PkeParams};
 use crate::util::B32;
 
 /// A `DecryptionKey` provides the ability to generate a new key pair, and decrypt an
@@ -216,11 +200,7 @@ mod test {
     #[cfg(feature = "random")]
     use crate::crypto::rand;
     #[cfg(feature = "random")]
-    use crate::{
-        MlKem512Params,
-        MlKem768Params,
-        MlKem1024Params,
-    };
+    use crate::{MlKem512Params, MlKem768Params, MlKem1024Params};
 
     #[cfg(feature = "random")]
     fn round_trip_test<P>()

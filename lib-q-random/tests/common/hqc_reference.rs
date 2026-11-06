@@ -59,10 +59,7 @@ impl core::fmt::Display for HqcError {
 
 /// HQC polynomial operations in GF(2)
 pub mod polynomial {
-    use super::{
-        Result,
-        Rng,
-    };
+    use super::{Result, Rng};
 
     /// Multiply two polynomials in GF(2)
     ///
@@ -226,10 +223,7 @@ pub mod codec {
 
 /// HQC key generation operations (simplified for testing)
 pub mod keygen {
-    use super::{
-        Result,
-        Rng,
-    };
+    use super::{Result, Rng};
 
     /// Generate HQC key pair using RNG
     ///
@@ -259,10 +253,7 @@ pub mod keygen {
 
 /// HQC encryption operations (simplified for testing)
 pub mod encrypt {
-    use super::{
-        Result,
-        Rng,
-    };
+    use super::{Result, Rng};
 
     /// Encrypt a message (simplified for testing)
     ///
@@ -326,15 +317,9 @@ pub mod decrypt {
 }
 
 // Re-export for convenience in tests
-pub use codec::{
-    tensor_code_decode,
-    tensor_code_encode,
-};
+pub use codec::{tensor_code_decode, tensor_code_encode};
 pub use decrypt::hqc_decrypt;
 pub use encrypt::hqc_encrypt;
 pub use keygen::hqc_keygen;
 pub use matrix::matrix_vector_multiply;
-pub use polynomial::{
-    polynomial_multiply,
-    polynomial_random_weight,
-};
+pub use polynomial::{polynomial_multiply, polynomial_random_weight};

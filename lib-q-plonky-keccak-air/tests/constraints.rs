@@ -4,10 +4,7 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_plonky_keccak_air::{
-    KeccakAir,
-    generate_trace_rows,
-};
+use lib_q_plonky_keccak_air::{KeccakAir, generate_trace_rows};
 use lib_q_plonky_uni_stark::check_constraints;
 use lib_q_stark_field::PrimeCharacteristicRing;
 use lib_q_stark_matrix::Matrix;

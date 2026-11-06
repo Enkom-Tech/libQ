@@ -7,23 +7,10 @@
 
 use std::time::Instant;
 
-use lib_q_dkg::lattice::ring::{
-    Rq,
-    ring_add,
-    ring_mul,
-};
+use lib_q_dkg::lattice::ring::{Rq, ring_add, ring_mul};
 use lib_q_random::new_deterministic_rng;
-use lib_q_threshold_kem_lattice::threshold::{
-    ZeroShareSeeds,
-    partial_decap_masked,
-};
-use lib_q_threshold_kem_lattice::{
-    decapsulate_reference,
-    encapsulate,
-    kem,
-    keygen_shares,
-    setup,
-};
+use lib_q_threshold_kem_lattice::threshold::{ZeroShareSeeds, partial_decap_masked};
+use lib_q_threshold_kem_lattice::{decapsulate_reference, encapsulate, kem, keygen_shares, setup};
 
 const THRESHOLD: u8 = 3;
 const PARTIES: u8 = 5;

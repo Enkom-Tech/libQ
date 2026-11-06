@@ -7,11 +7,7 @@ use core::arch::x86::*;
 use core::arch::x86_64::*;
 use core::mem::transmute;
 
-use super::fxp::{
-    Fxc,
-    Fxr,
-    GM_TAB,
-};
+use super::fxp::{Fxc, Fxr, GM_TAB};
 
 // ========================================================================
 // Fixed-point vector operations (with AVX2 optimizations)
@@ -811,10 +807,7 @@ pub(crate) unsafe fn vect_invnorm_fft(logn: u32, d: &mut [Fxr], a: &[Fxr], b: &[
 
 #[cfg(test)]
 mod tests {
-    use lib_q_sha3::{
-        Digest,
-        Sha3_256,
-    };
+    use lib_q_sha3::{Digest, Sha3_256};
 
     use super::*;
 

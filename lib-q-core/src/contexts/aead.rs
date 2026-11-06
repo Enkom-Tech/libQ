@@ -4,27 +4,15 @@
 //! operations with proper security validation.
 
 #[cfg(feature = "alloc")]
-use alloc::{
-    boxed::Box,
-    string::String,
-    vec::Vec,
-};
+use alloc::{boxed::Box, string::String, vec::Vec};
 
 use super::BaseContext;
 use crate::api::{
-    AeadOperations,
-    Algorithm,
-    AlgorithmCategory,
-    CryptoProvider,
-    HashOperations,
-    KemOperations,
+    AeadOperations, Algorithm, AlgorithmCategory, CryptoProvider, HashOperations, KemOperations,
     SignatureOperations,
 };
 use crate::error::Result;
-use crate::traits::{
-    AeadKey,
-    Nonce,
-};
+use crate::traits::{AeadKey, Nonce};
 
 /// Wraps a concrete [`AeadOperations`] value as a [`CryptoProvider`] that only exposes AEAD.
 #[cfg(feature = "alloc")]
@@ -188,11 +176,7 @@ impl Default for AeadContext {
 mod tests {
     use super::*;
     use crate::api::{
-        AeadOperations,
-        CryptoProvider,
-        HashOperations,
-        KemOperations,
-        SignatureOperations,
+        AeadOperations, CryptoProvider, HashOperations, KemOperations, SignatureOperations,
     };
 
     // Mock provider for testing

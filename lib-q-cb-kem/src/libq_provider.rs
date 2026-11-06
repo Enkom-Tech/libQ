@@ -7,44 +7,22 @@
 #[cfg(feature = "alloc")]
 extern crate alloc;
 #[cfg(feature = "alloc")]
-use alloc::{
-    string::ToString,
-    vec::Vec,
-};
+use alloc::{string::ToString, vec::Vec};
 
 #[cfg(feature = "alloc")]
-use lib_q_core::api::{
-    Algorithm,
-    CryptoProvider,
-    KemOperations,
-};
+use lib_q_core::api::{Algorithm, CryptoProvider, KemOperations};
 #[cfg(feature = "alloc")]
-use lib_q_core::error::{
-    Error,
-    Result,
-};
+use lib_q_core::error::{Error, Result};
 #[cfg(feature = "alloc")]
 use lib_q_core::security::SecurityValidator;
 #[cfg(feature = "alloc")]
-use lib_q_core::traits::{
-    KemKeypair,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::traits::{KemKeypair, KemPublicKey, KemSecretKey};
 
 // Import Classical McEliece implementations
 #[cfg(feature = "alloc")]
 use crate::{
-    CRYPTO_BYTES,
-    CRYPTO_CIPHERTEXTBYTES,
-    CRYPTO_PUBLICKEYBYTES,
-    CRYPTO_SECRETKEYBYTES,
-    Ciphertext,
-    PublicKey,
-    SecretKey,
-    decapsulate,
-    encapsulate,
-    keypair,
+    CRYPTO_BYTES, CRYPTO_CIPHERTEXTBYTES, CRYPTO_PUBLICKEYBYTES, CRYPTO_SECRETKEYBYTES, Ciphertext,
+    PublicKey, SecretKey, decapsulate, encapsulate, keypair,
 };
 
 /// lib-Q Classical McEliece KEM provider implementation
@@ -170,11 +148,11 @@ impl KemOperations for LibQCbKemProvider {
         // Route to specific algorithm implementation
         match algorithm {
             // Classical McEliece algorithms
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => self.encapsulate_cb_kem(public_key, randomness),
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => self.encapsulate_cb_kem(public_key, randomness),
 
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for Classical McEliece KEM operations",
@@ -203,11 +181,11 @@ impl KemOperations for LibQCbKemProvider {
         // Route to specific algorithm implementation
         match algorithm {
             // Classical McEliece algorithms
-            Algorithm::CbKem348864 |
-            Algorithm::CbKem460896 |
-            Algorithm::CbKem6688128 |
-            Algorithm::CbKem6960119 |
-            Algorithm::CbKem8192128 => self.decapsulate_cb_kem(secret_key, ciphertext),
+            Algorithm::CbKem348864
+            | Algorithm::CbKem460896
+            | Algorithm::CbKem6688128
+            | Algorithm::CbKem6960119
+            | Algorithm::CbKem8192128 => self.decapsulate_cb_kem(secret_key, ciphertext),
 
             _ => Err(Error::InvalidAlgorithm {
                 algorithm: "Algorithm not supported for Classical McEliece KEM operations",

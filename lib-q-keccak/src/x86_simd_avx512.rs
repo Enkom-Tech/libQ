@@ -24,33 +24,14 @@
 //! drives the real intrinsic path. Validate on AVX-512 hardware before relying on it.
 
 use core::arch::x86_64::{
-    __m512i,
-    _mm512_and_si512,
-    _mm512_cmpeq_epi64_mask,
-    _mm512_rolv_epi64,
-    _mm512_set_epi64,
-    _mm512_set1_epi64,
-    _mm512_setzero_si512,
-    _mm512_storeu_si512,
-    _mm512_ternarylogic_epi64,
+    __m512i, _mm512_and_si512, _mm512_cmpeq_epi64_mask, _mm512_rolv_epi64, _mm512_set_epi64,
+    _mm512_set1_epi64, _mm512_setzero_si512, _mm512_storeu_si512, _mm512_ternarylogic_epi64,
     _mm512_xor_si512,
 };
 use core::fmt;
-use core::ops::{
-    BitAnd,
-    BitAndAssign,
-    BitXor,
-    BitXorAssign,
-    Not,
-};
+use core::ops::{BitAnd, BitAndAssign, BitXor, BitXorAssign, Not};
 
-use crate::{
-    LaneSize,
-    PI,
-    PLEN,
-    RC,
-    RHO,
-};
+use crate::{LaneSize, PI, PLEN, RC, RHO};
 
 /// Fully unroll a 5-trip loop with a compile-time index (see `x86_simd::u5`).
 macro_rules! u5 {

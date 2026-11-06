@@ -3,36 +3,17 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use itertools::Itertools;
-use lib_q_stark_challenger::{
-    CanObserve,
-    FieldChallenger,
-    GrindingChallenger,
-};
-use lib_q_stark_commit::{
-    BatchOpening,
-    BatchOpeningRef,
-    Mmcs,
-};
+use lib_q_stark_challenger::{CanObserve, FieldChallenger, GrindingChallenger};
+use lib_q_stark_commit::{BatchOpening, BatchOpeningRef, Mmcs};
 use lib_q_stark_field::coset::TwoAdicMultiplicativeCoset;
-use lib_q_stark_field::{
-    ExtensionField,
-    Field,
-    TwoAdicField,
-};
+use lib_q_stark_field::{ExtensionField, Field, TwoAdicField};
 use lib_q_stark_matrix::Dimensions;
 use lib_q_stark_util::zip_eq::zip_eq;
-use lib_q_stark_util::{
-    log2_strict_usize,
-    reverse_bits_len,
-};
+use lib_q_stark_util::{log2_strict_usize, reverse_bits_len};
 use thiserror::Error;
 
 use crate::{
-    CommitPhaseProofStep,
-    CommitmentWithOpeningPoints,
-    FriFoldingStrategy,
-    FriParameters,
-    FriProof,
+    CommitPhaseProofStep, CommitmentWithOpeningPoints, FriFoldingStrategy, FriParameters, FriProof,
     QueryProof,
 };
 
@@ -462,8 +443,8 @@ where
             // TODO: this can be nicer with domain methods?
 
             // Compute gh^i
-            let x = Val::GENERATOR *
-                Val::two_adic_generator(log_height).exp_u64(rev_reduced_index as u64);
+            let x = Val::GENERATOR
+                * Val::two_adic_generator(log_height).exp_u64(rev_reduced_index as u64);
 
             let (alpha_pow, ro) = reduced_openings
                 .entry(log_height) // Get a mutable reference to the entry.
@@ -487,8 +468,8 @@ where
         // `reduced_openings` would have a log_height = log_blowup entry only if there was a
         // trace matrix of height 1. In this case `f` is constant, so `f(zeta) - f(x))/(zeta - x)`
         // must equal `0`.
-        if let Some((_, ro)) = reduced_openings.get(&params.log_blowup) &&
-            !ro.is_zero()
+        if let Some((_, ro)) = reduced_openings.get(&params.log_blowup)
+            && !ro.is_zero()
         {
             return Err(FriError::FinalPolyMismatch);
         }

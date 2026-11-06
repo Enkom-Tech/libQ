@@ -3,10 +3,7 @@ use alloc::vec::Vec;
 
 use lib_q_stark_symmetric::CryptographicHasher;
 
-use crate::{
-    CanObserve,
-    CanSample,
-};
+use crate::{CanObserve, CanSample};
 
 /// A generic challenger that uses a cryptographic hash function to generate challenges.
 #[derive(Clone, Debug)]

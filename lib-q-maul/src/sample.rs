@@ -27,11 +27,7 @@ use alloc::vec::Vec;
 
 use crate::arith::Modulus;
 use crate::hash;
-use crate::params::{
-    N,
-    ParamSet,
-    Poly,
-};
+use crate::params::{N, ParamSet, Poly};
 
 /// Bytes of XOF consumed per coefficient of a `B_eta` sample (`2*eta` bits, eta = 4 -> 1 byte).
 #[must_use]
@@ -78,8 +74,8 @@ pub fn sample_d(buf: &[u8], m: &Modulus) -> Poly {
         for j in 0..D_REPS {
             let u =
                 ((bits >> (u32::try_from(j).expect("D_REPS fits") * D_UNIFORM_BITS)) & mask) as i64;
-            let v = ((bits >> (u32::try_from(j + D_REPS).expect("D_REPS fits") * D_UNIFORM_BITS)) &
-                mask) as i64;
+            let v = ((bits >> (u32::try_from(j + D_REPS).expect("D_REPS fits") * D_UNIFORM_BITS))
+                & mask) as i64;
             acc += u - v;
         }
         out[i] = m.reduce(acc);
@@ -177,10 +173,7 @@ pub fn f_noise(p: &ParamSet, r: &[u8; 32], side: u8, m: &Modulus) -> Poly {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::params::{
-        ALL,
-        MAUL768,
-    };
+    use crate::params::{ALL, MAUL768};
 
     #[test]
     fn d64_has_the_variance_the_paper_asks_for() {

@@ -4,14 +4,9 @@
 
 use lib_q_zkp::air::RecoveryPolicyKey;
 use lib_q_zkp::air::recovery_policy_hybrid::{
-    RecoveryPolicyHybridInput,
-    RecoveryPolicyHybridPublicInputs,
-    hybrid_policy_commitment,
+    RecoveryPolicyHybridInput, RecoveryPolicyHybridPublicInputs, hybrid_policy_commitment,
 };
-use lib_q_zkp::ip::{
-    prove_recovery_policy_hybrid,
-    verify_recovery_policy_hybrid_envelope,
-};
+use lib_q_zkp::ip::{prove_recovery_policy_hybrid, verify_recovery_policy_hybrid_envelope};
 use lib_q_zkp::wire::decode_recovery_zk_proof_v1;
 
 fn kat_hybrid_input(seed: u64) -> RecoveryPolicyHybridInput {

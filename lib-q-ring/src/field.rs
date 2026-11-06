@@ -1,16 +1,9 @@
 //! Montgomery multiply-accumulate and Barrett reduction (ML-DSA portable path).
 
 use crate::coeff::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    Coefficients,
-    FieldElement,
-    SIMD_UNITS_IN_RING_ELEMENT,
+    COEFFICIENTS_IN_SIMD_UNIT, Coefficients, FieldElement, SIMD_UNITS_IN_RING_ELEMENT,
 };
-use crate::constants::{
-    FIELD_MODULUS,
-    INVERSE_OF_MODULUS_MOD_MONTGOMERY_R,
-    MONTGOMERY_SHIFT,
-};
+use crate::constants::{FIELD_MODULUS, INVERSE_OF_MODULUS_MOD_MONTGOMERY_R, MONTGOMERY_SHIFT};
 
 /// Values ≡ `x · Montgomery_R (mod q)`.
 pub type FieldElementTimesMontgomeryR = i32;
@@ -23,8 +16,8 @@ fn get_n_least_significant_bits(n: u8, value: u64) -> u64 {
 /// Montgomery reduction: map `value` (interpreted mod `2^32`) to standard representative mod `q`.
 #[inline(always)]
 pub fn montgomery_reduce_element(value: i64) -> FieldElementTimesMontgomeryR {
-    let t = get_n_least_significant_bits(MONTGOMERY_SHIFT, value as u64) *
-        INVERSE_OF_MODULUS_MOD_MONTGOMERY_R;
+    let t = get_n_least_significant_bits(MONTGOMERY_SHIFT, value as u64)
+        * INVERSE_OF_MODULUS_MOD_MONTGOMERY_R;
     let k = get_n_least_significant_bits(MONTGOMERY_SHIFT, t) as i32;
     let k_times_modulus = (k as i64) * (FIELD_MODULUS as i64);
     let c = (k_times_modulus >> MONTGOMERY_SHIFT) as i32;

@@ -21,27 +21,14 @@
 extern crate alloc;
 
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
 use lib_q_stark_field::Field;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 
 use super::recursive_types::MAX_QUOTIENT_CHUNKS;
-use super::{
-    AirError,
-    TraceGenerator,
-    next_power_of_two,
-    validate_trace_dimensions,
-};
+use super::{AirError, TraceGenerator, next_power_of_two, validate_trace_dimensions};
 
 /// Maximum trace width for constraint evaluation
 pub const MAX_CONSTRAINT_TRACE_WIDTH: usize = 1024;

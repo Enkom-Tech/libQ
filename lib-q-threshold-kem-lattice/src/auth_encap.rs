@@ -69,27 +69,14 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
-use subtle::{
-    Choice,
-    ConstantTimeEq,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
+use rand_core::{CryptoRng, Rng};
+use subtle::{Choice, ConstantTimeEq};
 use zeroize::Zeroizing;
 
 use crate::error::ThresholdKemError;
 use crate::kem::Ciphertext;
-use crate::{
-    ThresholdKemLatticePublicKey,
-    encapsulate,
-};
+use crate::{ThresholdKemLatticePublicKey, encapsulate};
 
 const DOM_AUTH_TAG: &[u8] = b"lib-q-threshold-kem-lattice/auth-encap-tag/v1";
 

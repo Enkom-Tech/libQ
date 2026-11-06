@@ -30,10 +30,7 @@
 //! only pads elapsed time when a real clock (or explicit tick fallback) is used.
 
 use core::future::Future;
-use core::sync::atomic::{
-    Ordering,
-    compiler_fence,
-};
+use core::sync::atomic::{Ordering, compiler_fence};
 
 /// Constant-time wrapper configuration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -270,10 +267,7 @@ impl TimingProtection {
 // ---------------------------------------------------------------------------
 
 #[cfg(feature = "std")]
-use std::sync::{
-    LazyLock,
-    RwLock,
-};
+use std::sync::{LazyLock, RwLock};
 
 /// The process-wide timing-protection configuration.
 ///

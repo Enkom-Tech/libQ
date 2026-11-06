@@ -4,11 +4,7 @@
 //! Run this WITHOUT `--features simd-avx2` when regenerating: the expected bytes must come from
 //! the portable path so that the KAT is an independent oracle for the AVX2 path, not a recording
 //! of it.
-use lib_q_tweak_aead::params::{
-    KEY_BYTES,
-    NONCE_BYTES,
-    TAG_BYTES,
-};
+use lib_q_tweak_aead::params::{KEY_BYTES, NONCE_BYTES, TAG_BYTES};
 
 fn to_hex(b: &[u8]) -> String {
     b.iter().map(|x| format!("{:02x}", x)).collect()

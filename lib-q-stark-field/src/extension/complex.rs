@@ -1,14 +1,6 @@
-use super::{
-    BinomialExtensionField,
-    BinomiallyExtendable,
-    HasTwoAdicBinomialExtension,
-};
+use super::{BinomialExtensionField, BinomiallyExtendable, HasTwoAdicBinomialExtension};
 use crate::extension::BinomiallyExtendableAlgebra;
-use crate::{
-    Algebra,
-    Field,
-    PrimeCharacteristicRing,
-};
+use crate::{Algebra, Field, PrimeCharacteristicRing};
 
 pub type Complex<F> = BinomialExtensionField<F, 2>;
 

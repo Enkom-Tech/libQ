@@ -9,19 +9,10 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use lib_q_k12::Kt128;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_k12::digest::{ExtendableOutput, Update, XofReader};
 
 use crate::labels::K12_TRANSCRIPT_V0;
-use crate::{
-    DOMAIN_ABSORB,
-    DOMAIN_CHAIN,
-    DOMAIN_SQUEEZE,
-    DuplexTranscript,
-};
+use crate::{DOMAIN_ABSORB, DOMAIN_CHAIN, DOMAIN_SQUEEZE, DuplexTranscript};
 
 /// Width of the chaining value in bytes (256-bit: matches the K12 collision target).
 pub const CHAINING_BYTES: usize = 32;

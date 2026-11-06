@@ -1,14 +1,8 @@
 use alloc::vec::Vec;
 
-use lib_q_plonky_lookup::lookup_traits::{
-    Kind,
-    Lookup,
-    LookupGadget,
-};
+use lib_q_plonky_lookup::lookup_traits::{Kind, Lookup, LookupGadget};
 use lib_q_plonky_uni_stark::{
-    AirLayout,
-    ConstraintLayout,
-    SymbolicAirBuilder,
+    AirLayout, ConstraintLayout, SymbolicAirBuilder,
     get_constraint_layout as base_get_constraint_layout,
     get_symbolic_constraints as base_get_symbolic_constraints,
 };

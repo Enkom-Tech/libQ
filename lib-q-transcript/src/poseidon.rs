@@ -11,21 +11,12 @@
 
 use alloc::vec::Vec;
 
-use lib_q_poseidon::{
-    Poseidon256,
-    PoseidonField,
-    PoseidonSponge,
-};
+use lib_q_poseidon::{Poseidon256, PoseidonField, PoseidonSponge};
 use lib_q_stark_field::extension::Complex;
 use lib_q_stark_mersenne31::Mersenne31;
 
 use crate::labels::POSEIDON_TRANSCRIPT_V0;
-use crate::{
-    DOMAIN_ABSORB,
-    DOMAIN_CHAIN,
-    DOMAIN_SQUEEZE,
-    DuplexTranscript,
-};
+use crate::{DOMAIN_ABSORB, DOMAIN_CHAIN, DOMAIN_SQUEEZE, DuplexTranscript};
 
 /// Width of the chaining value in field elements (the Poseidon-256 capacity).
 pub const CHAINING_ELEMS: usize = 5;

@@ -2,21 +2,10 @@
 
 #![cfg(all(feature = "std", feature = "duplex-sponge-aead"))]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-    KemPublicKey,
-    KemSecretKey,
-};
+use lib_q_core::{Algorithm, KemContext, KemPublicKey, KemSecretKey};
 use lib_q_hpke::providers::post_quantum::PostQuantumProvider;
 use lib_q_hpke::providers::traits::AeadProvider;
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContext,
-    HpkeKdf,
-    HpkeKem,
-};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeContext, HpkeKdf, HpkeKem};
 use lib_q_kem::LibQKemProvider;
 
 fn key32() -> [u8; 32] {

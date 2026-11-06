@@ -138,7 +138,7 @@ runs:
       if: inputs.run-coverage == 'true' && steps.coverage-skip.outputs.skip != 'true'
       uses: taiki-e/install-action@9534c84618278caac52cb373bb164ed464dbd8af # v2.87.11
       with:
-        tool: cargo-tarpaulin
+        tool: cargo-tarpaulin@0.37.6
     
     - name: Run tests
       shell: bash

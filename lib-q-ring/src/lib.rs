@@ -47,35 +47,16 @@ pub use challenge::sample_in_ball;
 #[cfg(feature = "alloc")]
 pub use expand::expand_a_from_seed;
 pub use field::{
-    FieldElementTimesMontgomeryR,
-    add_coeffs,
-    montgomery_multiply_by_constant,
-    montgomery_multiply_coeffs,
-    montgomery_multiply_fe_by_fer,
-    montgomery_reduce_element,
-    reduce_element,
-    reduce_poly_simd,
-    subtract_coeffs,
+    FieldElementTimesMontgomeryR, add_coeffs, montgomery_multiply_by_constant,
+    montgomery_multiply_coeffs, montgomery_multiply_fe_by_fer, montgomery_reduce_element,
+    reduce_element, reduce_poly_simd, subtract_coeffs,
 };
 #[cfg(feature = "alloc")]
-pub use module::{
-    ModuleMatrix,
-    ModuleVec,
-};
-pub use ntt::{
-    intt_montgomery,
-    ntt_forward_simd,
-    ntt_multiply_montgomery,
-};
-pub use poly::{
-    NttPoly,
-    Poly,
-    polys_norm_within_bound,
-};
+pub use module::{ModuleMatrix, ModuleVec};
+pub use ntt::{intt_montgomery, ntt_forward_simd, ntt_multiply_montgomery};
+pub use poly::{NttPoly, Poly, polys_norm_within_bound};
 pub use uniform::{
-    sample_uniform_coeff_mod_q,
-    sample_uniform_field_coefficient,
-    try_uniform_coeff_mod_q_from_u32,
+    sample_uniform_coeff_mod_q, sample_uniform_field_coefficient, try_uniform_coeff_mod_q_from_u32,
     uniform_mod_u32_rejection_threshold,
 };
 

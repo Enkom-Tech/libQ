@@ -1,10 +1,7 @@
 #[cfg(hax)]
 use core_models::abstractions::{
     bit::Bit,
-    bitvec::{
-        BitVec,
-        bitvec_postprocess_norm,
-    },
+    bitvec::{BitVec, bitvec_postprocess_norm},
 };
 use lib_q_intrinsics::*;
 

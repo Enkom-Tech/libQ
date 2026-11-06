@@ -3,19 +3,10 @@
 #![cfg(feature = "std")]
 #![allow(clippy::assertions_on_constants)]
 
-use lib_q_core::{
-    Algorithm,
-    KemContext,
-};
+use lib_q_core::{Algorithm, KemContext};
 use lib_q_hpke::providers::KemProvider;
 use lib_q_hpke::security::CryptoRng;
-use lib_q_hpke::{
-    HpkeAead,
-    HpkeCipherSuite,
-    HpkeContext,
-    HpkeKdf,
-    HpkeKem,
-};
+use lib_q_hpke::{HpkeAead, HpkeCipherSuite, HpkeContext, HpkeKdf, HpkeKem};
 use lib_q_kem::LibQKemProvider;
 
 /// Test that KT128-based RNG is available and working

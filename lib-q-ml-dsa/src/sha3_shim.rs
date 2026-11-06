@@ -12,12 +12,7 @@ use lib_q_sha3::digest::{
     Update,
     XofReader,
 };
-use lib_q_sha3::{
-    Shake128,
-    Shake128Reader,
-    Shake256,
-    Shake256Reader,
-};
+use lib_q_sha3::{Shake128, Shake128Reader, Shake256, Shake256Reader};
 
 /// A portable SHAKE128 implementation compatible with libcrux API.
 #[cfg_attr(tarpaulin, inline(never))]
@@ -297,10 +292,7 @@ pub mod incremental {
 
 // Re-export the portable module for compatibility
 pub mod portable {
-    pub use super::{
-        incremental,
-        *,
-    };
+    pub use super::{incremental, *};
 }
 
 // SIMD-optimized SHAKE256 implementations using lib-q-keccak parallel processing
@@ -344,10 +336,7 @@ pub mod avx2 {
         /// further blocks, and `squeeze_next_*` permutes before extracting (continuation). All SLH-
         /// style seeds here are a single rate block, so the multi-block absorb path is just for safety.
         pub mod incremental {
-            use lib_q_keccak::{
-                p1600,
-                p1600x4,
-            };
+            use lib_q_keccak::{p1600, p1600x4};
 
             const RATE_128: usize = 168;
             const RATE_256: usize = 136;
@@ -646,10 +635,7 @@ pub mod neon {
 #[cfg(test)]
 mod tests {
 
-    use super::{
-        incremental,
-        *,
-    };
+    use super::{incremental, *};
 
     #[test]
     fn test_shake128_compatibility() {
@@ -1118,15 +1104,8 @@ mod x4_incremental_equiv {
     //! The AVX2 incremental 4-way SHAKE must equal four independent scalar `lib_q_sha3` SHAKE
     //! readers, byte for byte (validates the `p1600x4`-driven rewrite independently of the rest of
     //! the ML-DSA avx2 pipeline).
-    use lib_q_sha3::digest::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
-    use lib_q_sha3::{
-        Shake128,
-        Shake256,
-    };
+    use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
+    use lib_q_sha3::{Shake128, Shake256};
 
     use super::avx2::x4::incremental as x4;
 
@@ -1219,11 +1198,7 @@ mod neon_x2_equiv {
     //! `sha3_shim::tests::neon_x2_shake256_defect_reproduction_host` for a host-executable (x86_64)
     //! reproduction of the pre-fix defect, since this module cannot be compiled/run natively there.
     use lib_q_sha3::Shake256;
-    use lib_q_sha3::digest::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
     use super::neon::x2;
 
@@ -1286,11 +1261,7 @@ mod neon_x2_shake256_defect_host_repro {
     //! defect class, not a substitute for `neon_x2_equiv` (which tests the real aarch64 code path
     //! under emulation/cross-compilation).
     use lib_q_sha3::Shake256;
-    use lib_q_sha3::digest::{
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 
     /// Verbatim copy of the pre-fix `neon::x2::shake256` body (single lane), minus the
     /// `ml_dsa_keccak_portable_simd` nightly-only parallel path (irrelevant to the defect: both

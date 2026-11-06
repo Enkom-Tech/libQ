@@ -1,40 +1,21 @@
 use core::any::type_name;
 
-use criterion::{
-    BenchmarkId,
-    Criterion,
-    criterion_group,
-    criterion_main,
-};
+use criterion::{BenchmarkId, Criterion, criterion_group, criterion_main};
 use lib_q_random::DeterministicRng;
 // p3_blake3::Blake3 removed: non-NIST hash
 use lib_q_stark_commit::Mmcs;
-use lib_q_stark_field::{
-    Field,
-    PackedField,
-    PackedValue,
-};
+use lib_q_stark_field::{Field, PackedField, PackedValue};
 use lib_q_stark_matrix::Matrix;
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_merkle::MerkleTreeMmcs;
-use lib_q_stark_mersenne31::{
-    Mersenne31,
-    TestPermutation,
-};
+use lib_q_stark_mersenne31::{Mersenne31, TestPermutation};
 use lib_q_stark_shake256::Shake256Hash;
 // p3_rescue::Rescue removed: non-NIST hash
 use lib_q_stark_symmetric::{
-    CompressionFunctionFromHasher,
-    CryptographicHasher,
-    PaddingFreeSponge,
-    PseudoCompressionFunction,
-    SerializingHasher,
-    TruncatedPermutation,
+    CompressionFunctionFromHasher, CryptographicHasher, PaddingFreeSponge,
+    PseudoCompressionFunction, SerializingHasher, TruncatedPermutation,
 };
-use rand::distr::{
-    Distribution,
-    StandardUniform,
-};
+use rand::distr::{Distribution, StandardUniform};
 use serde::Serialize;
 use serde::de::DeserializeOwned;
 

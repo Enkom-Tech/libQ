@@ -4,19 +4,9 @@
 //! of the refactored ML-KEM implementation.
 
 #[cfg(all(feature = "alloc", feature = "ml-kem"))]
-use lib_q_core::{
-    Algorithm,
-    Error,
-    KemOperations,
-    KemPublicKey,
-    KemSecretKey,
-    SecurityLevel,
-};
+use lib_q_core::{Algorithm, Error, KemOperations, KemPublicKey, KemSecretKey, SecurityLevel};
 #[cfg(all(feature = "alloc", feature = "ml-kem"))]
-use lib_q_kem::{
-    LibQKemProvider,
-    available_algorithms,
-};
+use lib_q_kem::{LibQKemProvider, available_algorithms};
 
 /// Test configuration for ML-KEM variants
 #[cfg(all(feature = "alloc", feature = "ml-kem"))]
@@ -181,11 +171,7 @@ fn test_ml_kem_encapsulation_decapsulation() {
 #[cfg(all(feature = "alloc", feature = "ml-kem"))]
 fn test_ml_kem_public_key_derivation() {
     use lib_q_core::Kem;
-    use lib_q_kem::ml_kem::{
-        MlKem512Impl,
-        MlKem768Impl,
-        MlKem1024Impl,
-    };
+    use lib_q_kem::ml_kem::{MlKem512Impl, MlKem768Impl, MlKem1024Impl};
 
     for config in ML_KEM_CONFIGS {
         // Create KEM instance directly for derive_public_key test
@@ -384,11 +370,7 @@ fn test_ml_kem_no_deprecated_apis() {
 
         // Test public key derivation using direct KEM instance
         use lib_q_core::Kem;
-        use lib_q_kem::ml_kem::{
-            MlKem512Impl,
-            MlKem768Impl,
-            MlKem1024Impl,
-        };
+        use lib_q_kem::ml_kem::{MlKem512Impl, MlKem768Impl, MlKem1024Impl};
         let direct_keypair = match config.algorithm {
             Algorithm::MlKem512 => {
                 let kem = MlKem512Impl::default();

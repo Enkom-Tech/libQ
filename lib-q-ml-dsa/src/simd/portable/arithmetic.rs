@@ -1,22 +1,9 @@
-use super::vector_type::{
-    Coefficients,
-    FieldElement,
-};
-use crate::constants::{
-    BITS_IN_LOWER_PART_OF_T,
-    GAMMA2_V95_232,
-    GAMMA2_V261_888,
-    Gamma2,
-};
+use super::vector_type::{Coefficients, FieldElement};
+use crate::constants::{BITS_IN_LOWER_PART_OF_T, GAMMA2_V95_232, GAMMA2_V261_888, Gamma2};
 #[cfg(hax)]
+use crate::simd::traits::{COEFFICIENTS_IN_SIMD_UNIT, specs::*};
 use crate::simd::traits::{
-    COEFFICIENTS_IN_SIMD_UNIT,
-    specs::*,
-};
-use crate::simd::traits::{
-    FIELD_MODULUS,
-    FieldElementTimesMontgomeryR,
-    INVERSE_OF_MODULUS_MOD_MONTGOMERY_R,
+    FIELD_MODULUS, FieldElementTimesMontgomeryR, INVERSE_OF_MODULUS_MOD_MONTGOMERY_R,
 };
 
 pub(crate) const MONTGOMERY_SHIFT: u8 = 32;
@@ -114,8 +101,8 @@ pub(crate) fn get_n_least_significant_bits(n: u8, value: u64) -> u64 {
                 (Spec.Utils.is_i64b (8380416 * pow2 31) value ==> Spec.Utils.is_i32b 8380416 result) /\
                 Spec.MLDSA.Math.(mod_q (v result) == mod_q (v value * 8265825))"#))]
 pub(crate) fn montgomery_reduce_element(value: i64) -> FieldElementTimesMontgomeryR {
-    let t = get_n_least_significant_bits(MONTGOMERY_SHIFT, value as u64) *
-        INVERSE_OF_MODULUS_MOD_MONTGOMERY_R;
+    let t = get_n_least_significant_bits(MONTGOMERY_SHIFT, value as u64)
+        * INVERSE_OF_MODULUS_MOD_MONTGOMERY_R;
 
     hax_lib::fstar!(r#"assert (v $t == (v $value % pow2 32) * 58728449)"#);
 
@@ -584,10 +571,7 @@ pub(super) fn compute_hint(
 #[cfg(feature = "hardened")]
 #[inline(always)]
 fn decompose_element_subtle(gamma2: Gamma2, mut r: i32) -> (i32, i32) {
-    use subtle::{
-        ConditionallySelectable,
-        ConstantTimeEq,
-    };
+    use subtle::{ConditionallySelectable, ConstantTimeEq};
 
     r += (r >> 31) & FIELD_MODULUS;
 
@@ -787,11 +771,7 @@ pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
 /// Constant-time variant (GHSA-hcp2-x6j4-29j7 style branching elimination) for feature `hardened`.
 #[cfg(feature = "hardened")]
 pub(crate) fn use_one_hint(gamma2: Gamma2, r: i32, hint: i32) -> i32 {
-    use subtle::{
-        Choice,
-        ConditionallySelectable,
-        ConstantTimeEq,
-    };
+    use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
 
     #[inline(always)]
     fn ct_i32_gt(a: i32, b: i32) -> Choice {

@@ -42,41 +42,18 @@ extern crate alloc;
 
 use alloc::string::ToString;
 use alloc::vec::Vec;
-use alloc::{
-    format,
-    vec,
-};
+use alloc::{format, vec};
 
-use lib_q_poseidon::{
-    Poseidon,
-    Poseidon128,
-    PoseidonField,
-    PoseidonSponge,
-};
-use lib_q_stark_air::{
-    Air,
-    AirBuilder,
-    BaseAir,
-    WindowAccess,
-};
-use lib_q_stark_field::{
-    BasedVectorSpace,
-    Field,
-    PrimeCharacteristicRing,
-};
+use lib_q_poseidon::{Poseidon, Poseidon128, PoseidonField, PoseidonSponge};
+use lib_q_stark_air::{Air, AirBuilder, BaseAir, WindowAccess};
+use lib_q_stark_field::{BasedVectorSpace, Field, PrimeCharacteristicRing};
 use lib_q_stark_matrix::dense::RowMajorMatrix;
 use lib_q_stark_mersenne31::Mersenne31;
 
 use super::poseidon_gadget::PoseidonGadget;
 use super::{
-    AirError,
-    TraceGenerator,
-    bytes_to_poseidon_field,
-    compute_poseidon_row,
-    merkle_root_from_bytes,
-    next_power_of_two,
-    poseidon_field_to_bytes,
-    poseidon_to_field,
+    AirError, TraceGenerator, bytes_to_poseidon_field, compute_poseidon_row,
+    merkle_root_from_bytes, next_power_of_two, poseidon_field_to_bytes, poseidon_to_field,
     validate_trace_dimensions,
 };
 
@@ -322,16 +299,16 @@ where
             // (sel_sq[0]) where it absorbs the 10*1 pad; capacity always passes through.
             let pad = next_sel_sq[0].clone();
             b.assert_zero(
-                next_s1_in[0].clone() -
-                    (s1_out[0].clone() +
-                        (one.clone() - pad.clone()) * next_input_0.clone() +
-                        pad.clone()),
+                next_s1_in[0].clone()
+                    - (s1_out[0].clone()
+                        + (one.clone() - pad.clone()) * next_input_0.clone()
+                        + pad.clone()),
             );
             b.assert_zero(
-                next_s1_in[1].clone() -
-                    (s1_out[1].clone() +
-                        (one.clone() - pad.clone()) * next_input_1.clone() +
-                        pad.clone()),
+                next_s1_in[1].clone()
+                    - (s1_out[1].clone()
+                        + (one.clone() - pad.clone()) * next_input_1.clone()
+                        + pad.clone()),
             );
             for i in RATE..STATE_COLS {
                 b.assert_zero(next_s1_in[i].clone() - s1_out[i].clone());
@@ -352,12 +329,12 @@ where
             let absorb_0 = sq_any.clone() * next_s1_out[0].clone() + next_sel_commit.clone();
             let absorb_1 = sq_any * next_s1_out[1].clone() + next_sel_commit;
             b.assert_zero(
-                next_s2_in[0].clone() -
-                    next_acc.clone() * (acc.clone() * s2_out[0].clone() + absorb_0),
+                next_s2_in[0].clone()
+                    - next_acc.clone() * (acc.clone() * s2_out[0].clone() + absorb_0),
             );
             b.assert_zero(
-                next_s2_in[1].clone() -
-                    next_acc.clone() * (acc.clone() * s2_out[1].clone() + absorb_1),
+                next_s2_in[1].clone()
+                    - next_acc.clone() * (acc.clone() * s2_out[1].clone() + absorb_1),
             );
             for i in RATE..STATE_COLS {
                 b.assert_zero(

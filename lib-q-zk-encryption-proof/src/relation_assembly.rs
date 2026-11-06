@@ -53,11 +53,7 @@
 use alloc::vec::Vec;
 
 use lib_q_dkg::lattice::ring::Rq;
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
 
 use crate::zq::Q;
 
@@ -80,12 +76,12 @@ fn derive_zq_elements(dom: &[u8], statement: &[u8], count: usize) -> Vec<u64> {
     let mut buf = [0u8; 6]; // 48-bit draws (Q < 2^48)
     while out.len() < count {
         rd.read(&mut buf);
-        let v = u64::from(buf[0]) |
-            (u64::from(buf[1]) << 8) |
-            (u64::from(buf[2]) << 16) |
-            (u64::from(buf[3]) << 24) |
-            (u64::from(buf[4]) << 32) |
-            (u64::from(buf[5]) << 40);
+        let v = u64::from(buf[0])
+            | (u64::from(buf[1]) << 8)
+            | (u64::from(buf[2]) << 16)
+            | (u64::from(buf[3]) << 24)
+            | (u64::from(buf[4]) << 32)
+            | (u64::from(buf[5]) << 40);
         if v < Q {
             out.push(v);
         }
@@ -273,20 +269,10 @@ pub fn reduce_cyclotomic(poly: &[u64], n: usize) -> Vec<u64> {
 
 #[cfg(test)]
 mod tests {
-    use lib_q_dkg::lattice::bdlop::{
-        KAPPA,
-        MU,
-        key,
-    };
-    use lib_q_dkg::lattice::ring::{
-        N,
-        Rq,
-    };
+    use lib_q_dkg::lattice::bdlop::{KAPPA, MU, key};
+    use lib_q_dkg::lattice::ring::{N, Rq};
     use lib_q_threshold_kem_lattice::kem::{
-        encapsulate_derand,
-        encode_msg,
-        fo_expand_witness,
-        pk_digest_of,
+        encapsulate_derand, encode_msg, fo_expand_witness, pk_digest_of,
     };
 
     use super::*;

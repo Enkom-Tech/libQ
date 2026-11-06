@@ -27,12 +27,7 @@
 //!
 //!   cargo test --release -p lib-q-hqc --test reed_solomon_constant_time -- --nocapture
 
-use lib_q_hqc::params::{
-    Hqc1Params,
-    Hqc3Params,
-    Hqc5Params,
-    HqcParams,
-};
+use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 use lib_q_hqc::reed_solomon::ReedSolomon;
 use lib_q_sca_test::dudect::timing_t_statistic;
 

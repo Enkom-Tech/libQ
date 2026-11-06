@@ -6,17 +6,10 @@
 #[cfg(test)]
 mod tests {
     #[cfg(feature = "alloc")]
-    use alloc::{
-        string::ToString,
-        vec,
-    };
+    use alloc::{string::ToString, vec};
 
     use crate::providers::post_quantum::PostQuantumProvider;
-    use crate::providers::traits::{
-        AeadProvider,
-        KdfProvider,
-        KemProvider,
-    };
+    use crate::providers::traits::{AeadProvider, KdfProvider, KemProvider};
     use crate::types::*;
 
     /// Test that invalid key lengths are properly rejected
@@ -149,9 +142,9 @@ mod tests {
         assert!(result.is_err());
         let error_msg = result.unwrap_err().to_string();
         assert!(
-            error_msg.contains("Ciphertext too short") ||
-                error_msg.contains("Invalid input") ||
-                error_msg.contains("decryption failed")
+            error_msg.contains("Ciphertext too short")
+                || error_msg.contains("Invalid input")
+                || error_msg.contains("decryption failed")
         );
     }
 

@@ -53,19 +53,11 @@ use alloc::vec;
 use alloc::vec::Vec;
 
 use lib_q_stark_field::{
-    Algebra,
-    ExtensionField,
-    Field,
-    PackedFieldExtension,
-    PackedValue,
-    PrimeCharacteristicRing,
+    Algebra, ExtensionField, Field, PackedFieldExtension, PackedValue, PrimeCharacteristicRing,
     dot_product,
 };
 use lib_q_stark_matrix::Matrix;
-use lib_q_stark_matrix::dense::{
-    RowMajorMatrix,
-    RowMajorMatrixView,
-};
+use lib_q_stark_matrix::dense::{RowMajorMatrix, RowMajorMatrixView};
 use lib_q_stark_rayon::prelude::*;
 use lib_q_stark_util::log2_strict_usize;
 
@@ -799,10 +791,7 @@ mod tests {
 
     use lib_q_stark_field::extension::Complex;
     use lib_q_stark_field::integers::QuotientMap;
-    use lib_q_stark_field::{
-        ExtensionField,
-        Field,
-    };
+    use lib_q_stark_field::{ExtensionField, Field};
     use lib_q_stark_matrix::dense::RowMajorMatrixView;
 
     use super::*;

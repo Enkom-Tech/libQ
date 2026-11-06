@@ -7,17 +7,10 @@
 //! These tests verify that Kt128 operations execute in constant time
 //! to prevent timing-based side-channel attacks.
 
-use std::time::{
-    Duration,
-    Instant,
-};
+use std::time::{Duration, Instant};
 
 use lib_q_k12::Kt128;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Reset,
-    Update,
-};
+use lib_q_k12::digest::{ExtendableOutput, Reset, Update};
 
 const ITERATIONS: usize = 1000;
 
@@ -332,8 +325,8 @@ fn test_reset_constant_time() {
             let diff = t.as_nanos() as f64 - avg_time.as_nanos() as f64;
             diff * diff
         })
-        .sum::<f64>() /
-        times.len() as f64;
+        .sum::<f64>()
+        / times.len() as f64;
     let std_dev = variance.sqrt();
     let cv = if avg_time.as_nanos() > 0 {
         (std_dev / avg_time.as_nanos() as f64) * 100.0
@@ -399,8 +392,8 @@ fn test_memory_access_constant_time() {
             let diff = t.as_nanos() as f64 - avg_time.as_nanos() as f64;
             diff * diff
         })
-        .sum::<f64>() /
-        times.len() as f64;
+        .sum::<f64>()
+        / times.len() as f64;
     let std_dev = variance.sqrt();
     let cv = if avg_time.as_nanos() > 0 {
         (std_dev / avg_time.as_nanos() as f64) * 100.0

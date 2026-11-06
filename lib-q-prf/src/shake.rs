@@ -1,16 +1,7 @@
 //! SHAKE256 helpers for domain-separated key derivation.
 
-use crypto_bigint::{
-    CtEq,
-    CtLt,
-    U256,
-    U512,
-};
-use lib_q_sha3::{
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
+use crypto_bigint::{CtEq, CtLt, U256, U512};
+use lib_q_sha3::{ExtendableOutput, Update, XofReader};
 
 use crate::error::PrfError;
 

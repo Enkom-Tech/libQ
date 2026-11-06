@@ -1,14 +1,8 @@
 use core::iter;
 
 use hex_literal::hex;
-use lib_q_k12::digest::{
-    ExtendableOutput,
-    Update,
-};
-use lib_q_k12::{
-    Kt128,
-    Kt256,
-};
+use lib_q_k12::digest::{ExtendableOutput, Update};
+use lib_q_k12::{Kt128, Kt256};
 
 fn kt128_digest_and_box(data: &[u8], n: usize) -> Box<[u8]> {
     let mut h = Kt128::default();

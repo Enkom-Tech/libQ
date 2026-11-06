@@ -132,10 +132,7 @@ mod nist_aes_rng;
 
 use core::fmt::Debug;
 
-use rand_core::{
-    CryptoRng,
-    Rng,
-};
+use rand_core::{CryptoRng, Rng};
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -143,10 +140,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 
 pub use api::{
-    CRYPTO_BYTES,
-    CRYPTO_CIPHERTEXTBYTES,
-    CRYPTO_PRIMITIVE,
-    CRYPTO_PUBLICKEYBYTES,
+    CRYPTO_BYTES, CRYPTO_CIPHERTEXTBYTES, CRYPTO_PRIMITIVE, CRYPTO_PUBLICKEYBYTES,
     CRYPTO_SECRETKEYBYTES,
 };
 // Re-export unified RNG from lib-q-random
@@ -155,13 +149,7 @@ pub use lib_q_random::ClassicalMcElieceRng as LibQRng;
 #[cfg(feature = "alloc")]
 pub use libq_provider::LibQCbKemProvider;
 #[cfg(feature = "nist-aes-rng")]
-pub use nist_aes_rng::{
-    AesState,
-    MAX_BYTES_PER_REQUEST,
-    NistDrbgError,
-    RESEED_INTERVAL,
-    SEEDLEN,
-};
+pub use nist_aes_rng::{AesState, MAX_BYTES_PER_REQUEST, NistDrbgError, RESEED_INTERVAL, SEEDLEN};
 
 mod macros {
     /// This macro(A, B, C, T) allows to get “&A[B..B+C]” of type “&[T]” as type “&[T; C]”.

@@ -1,11 +1,7 @@
 //! Key and signature newtypes. Secret material zeroizes on drop and never
 //! prints via `Debug`.
 
-use crate::params::{
-    CPK_BYTES,
-    CSK_BYTES,
-    SIG_BYTES,
-};
+use crate::params::{CPK_BYTES, CSK_BYTES, SIG_BYTES};
 
 /// A MAYO_2 signing key (the 24-byte compact seed).
 #[derive(Clone)]

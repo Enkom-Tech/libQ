@@ -1,7 +1,4 @@
-use digest::{
-    CustomizedInit,
-    ExtendableOutputReset,
-};
+use digest::{CustomizedInit, ExtendableOutputReset};
 
 #[derive(Debug, Clone, Copy)]
 pub struct TestVector {
@@ -126,12 +123,7 @@ fn cshake256_reset() {
 /// exercise the `N`/`S` customization-string path (a non-empty `S`, the part most likely to be
 /// wrong and least likely to be caught by a round-trip/self-consistency test).
 mod nist_cshake_samples {
-    use digest::{
-        CustomizedInit,
-        ExtendableOutput,
-        Update,
-        XofReader,
-    };
+    use digest::{CustomizedInit, ExtendableOutput, Update, XofReader};
 
     /// Sample #2 / #4 input: the 200-byte ramp 0x00, 0x01, .., 0xC7, exactly as given in the
     /// NIST document ("Length of data is 1600-bits").

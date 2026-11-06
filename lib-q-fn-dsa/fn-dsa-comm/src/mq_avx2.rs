@@ -983,10 +983,7 @@ pub unsafe fn signed_poly_sqnorm(logn: u32, a: &[i16]) -> u32 {
 }
 
 // NTT factors: already defined in mq.rs.
-use super::mq::{
-    GM,
-    iGM,
-};
+use super::mq::{GM, iGM};
 
 #[cfg(test)]
 mod tests {

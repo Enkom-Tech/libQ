@@ -7,11 +7,7 @@
 
 use core::convert::Infallible;
 
-use rand_core::{
-    Rng,
-    TryCryptoRng,
-    TryRng,
-};
+use rand_core::{Rng, TryCryptoRng, TryRng};
 
 /// Refill block size (bytes).
 const CAP: usize = 8192;

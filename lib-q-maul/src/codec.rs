@@ -9,11 +9,7 @@
 use alloc::vec::Vec;
 
 use crate::arith::Modulus;
-use crate::params::{
-    N,
-    ParamSet,
-    Poly,
-};
+use crate::params::{N, ParamSet, Poly};
 
 /// `Comp_(q,d)(x)` for `x in [0, q)`.
 ///

@@ -17,10 +17,7 @@
 
 use core::fmt;
 
-use crate::{
-    Error,
-    Result,
-};
+use crate::{Error, Result};
 
 /// Entropy quality assessment result
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]

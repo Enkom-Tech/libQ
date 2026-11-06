@@ -9,10 +9,7 @@
 use lib_q_hqc::Hqc128Kem;
 use lib_q_hqc::concatenated_code::ConcatenatedCode;
 use lib_q_hqc::hqc_pke::schoolbook_vect_mul_mod_xnm1;
-use lib_q_hqc::params::{
-    Hqc1Params,
-    HqcParams,
-};
+use lib_q_hqc::params::{Hqc1Params, HqcParams};
 use lib_q_random::LibQRng;
 use rand_core::Rng;
 
@@ -125,8 +122,8 @@ fn test_random_keypair_failures_hqc128() {
     );
 
     if !success_noise_weights.is_empty() {
-        let avg: f64 = success_noise_weights.iter().map(|&w| w as f64).sum::<f64>() /
-            success_noise_weights.len() as f64;
+        let avg: f64 = success_noise_weights.iter().map(|&w| w as f64).sum::<f64>()
+            / success_noise_weights.len() as f64;
         println!(
             "\nSuccess noise: avg={:.1} ({:.1}%), min={}, max={}",
             avg,
@@ -136,8 +133,8 @@ fn test_random_keypair_failures_hqc128() {
         );
     }
     if !failure_noise_weights.is_empty() {
-        let avg: f64 = failure_noise_weights.iter().map(|&w| w as f64).sum::<f64>() /
-            failure_noise_weights.len() as f64;
+        let avg: f64 = failure_noise_weights.iter().map(|&w| w as f64).sum::<f64>()
+            / failure_noise_weights.len() as f64;
         println!(
             "Failure noise: avg={:.1} ({:.1}%), min={}, max={}",
             avg,
