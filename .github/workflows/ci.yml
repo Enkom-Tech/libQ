@@ -930,7 +930,7 @@ jobs:
     # on GitHub (push to main after sync, the weekly schedule, workflow_dispatch).
     if: github.server_url == 'https://github.com' && github.event_name != 'pull_request'
     needs: core-validation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04 # pinned: a newer ubuntu-latest image hung the Firefox install
     timeout-minutes: 25
     strategy:
       fail-fast: false
@@ -1000,13 +1000,22 @@ jobs:
           wasm-pack --version
 
       - name: Install Firefox (headless wasm-bindgen tests)
+        # A hang or failure here fails the job (fast and loud); there is no skip path.
+        timeout-minutes: 15
         run: |
-          # Ubuntu 24.04+ ships a transitional firefox deb that installs snap; clear conflicts first.
-          sudo snap remove firefox 2>/dev/null || true
-          sudo apt-get update
-          if ! sudo apt-get install -y firefox; then
-            echo "::warning::apt firefox install failed; headless wasm-pack step will skip if firefox is missing"
+          # The hosted image already ships a deb Firefox. Do NOT `apt-get install firefox`: the
+          # Ubuntu archive's transitional package (epoch 1:) "upgrades" it to the snap, and the snap
+          # store download (snapd + core24 + firefox) runs at whatever speed the store gives that
+          # minute; at 167 kB/s it blew the step timeout on every shard. Use the image's Firefox.
+          if command -v firefox >/dev/null 2>&1 && timeout 60 firefox --headless --version; then
+            echo "using preinstalled Firefox at $(command -v firefox)"
+            exit 0
           fi
+          # Fallback for an image without Firefox: the snap route, slow but correct.
+          echo "::warning::no preinstalled Firefox on this image; installing via apt (snap)"
+          sudo apt-get update
+          sudo apt-get install -y firefox
+          timeout 60 firefox --headless --version
 
       - name: Resolve wasm-pack test matrix args
         id: wpt
@@ -1085,16 +1094,13 @@ jobs:
           fi
 
       - name: wasm-pack test (headless Firefox)
+        timeout-minutes: 10
         env:
           CARGO_TARGET_WASM32_UNKNOWN_UNKNOWN_RUSTFLAGS: '--cfg getrandom_backend="wasm_js" -C panic=abort -C link-arg=-z -C link-arg=stack-size=16777216'
         run: |
           cd ${{ matrix.crate }}
           F="${{ steps.wpt.outputs.features }}"
           T="${{ steps.wpt.outputs.test }}"
-          if ! command -v firefox >/dev/null 2>&1; then
-            echo "::warning::Firefox not found; skipping headless Firefox wasm-pack test"
-            exit 0
-          fi
           if [[ -n "$F" ]]; then
             wasm-pack test --headless --firefox -- --features "$F" --test "$T"
           else

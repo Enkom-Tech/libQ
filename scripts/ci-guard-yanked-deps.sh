@@ -80,9 +80,17 @@ UA="lib-q-ci-yank-guard/1.0 (+https://github.com/enkom-tech/libQ; accounts@enkom
 API_BASE="https://crates.io/api/v1/crates"
 
 # fetch_crate_json <crate-name>
-# Prints the crate's crates.io JSON on stdout. Returns 0 on a usable response, 2 on ANY failure
-# (network error, non-200, empty body, unparsable JSON, missing/empty fixture file). Never
+# Prints the crate's crates.io JSON on stdout. Returns 0 on a usable response, 3 when crates.io
+# answers HTTP 404 (the crate has never been published), and 2 on ANY other failure (network
+# error, 5xx, other non-200, empty body, unparsable JSON, missing/empty fixture file). Never
 # returns 0 with output the caller can't parse -- the caller must not have to guess.
+#
+# WHY 404 IS ITS OWN CODE: the 0.0.12 release introduced lib-q-aegis and lib-q-hiae. They cannot
+# be published before the crates they depend on, so at pre-release validation crates.io rightly
+# answers 404 for them. `curl -f` folded that into the same exit 22 as a 5xx, the guard called it
+# INFRA-FAILURE, and the release could not start. A 404 is a definite answer (nothing of ours is
+# on the registry under that name, so nothing published can sit on a yanked dependency); only
+# --published mode's top-level lookup treats it as "skip". Every other caller still fails on it.
 fetch_crate_json() {
   local crate="$1" json rc
 
@@ -106,12 +114,20 @@ fetch_crate_json() {
     # last attempt the error stands and the job fails, with an INFRA-FAILURE banner
     # naming the class instead of reading as a guard defect. Fixture mode (self-test)
     # is never retried and never hits the network.
-    local attempt
+    local attempt out
     rc=0
     for attempt in 1 2 3; do
-      json="$(curl -s -f --max-time 30 -A "$UA" "$API_BASE/$crate" 2>/dev/null)"
+      # -w appends the HTTP status after a newline; with -f a failed response prints no body, so
+      # on error `out` is just "\n<status>". Split it off rather than guessing from the exit code.
+      out="$(curl -s -f --max-time 30 -A "$UA" -w $'\n%{http_code}' "$API_BASE/$crate" 2>/dev/null)"
       rc=$?
+      json="${out%$'\n'*}"
       [[ $rc -eq 0 ]] && break
+      # 404 is a definite answer, not a transient: do not retry, do not call it infra.
+      if [[ "${out##*$'\n'}" == "404" ]]; then
+        echo "  NOTICE: crates.io has no crate '$crate' (HTTP 404)" >&2
+        return 3
+      fi
       if [[ $attempt -lt 3 ]]; then
         echo "  WARN: curl failed fetching '$crate' (exit $rc), attempt $attempt/3; retrying" >&2
         sleep $((attempt * 5))
@@ -387,7 +403,7 @@ published_mode() {
   local root="$1"
   PROBLEMS=0
   FAILS=()
-  local crates name json auditver deps_json dep any_live depjson audited=0
+  local crates name json frc auditver deps_json dep any_live depjson audited=0
 
   crates="$(list_published_crates "$root")"
   if [[ -z "$crates" ]]; then
@@ -400,7 +416,15 @@ published_mode() {
   while IFS= read -r name; do
     name="${name%$'\r'}"
     [[ -z "$name" ]] && continue
-    json="$(fetch_crate_json "$name")" || { PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name: could not verify (network/data error)"); continue; }
+    json="$(fetch_crate_json "$name")"; frc=$?
+    if [[ $frc -eq 3 ]]; then
+      # Never published (e.g. new in the release being cut): no live artifact of ours exists, so
+      # nothing here can depend on a yanked crate. Not a problem, and not audited either.
+      echo "  NOTICE: $name is not on crates.io yet, skipped"
+      continue
+    elif [[ $frc -ne 0 ]]; then
+      PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name: could not verify (network/data error)"); continue
+    fi
 
     # The crate's newest version that is still live. Empty means the crate is fully yanked or has
     # never been published -- in either case there is no live artifact of ours pointing at anything,
@@ -419,7 +443,14 @@ published_mode() {
       # silently misses its fixture/registry entry.
       dep="${dep%$'\r'}"
       [[ -z "$dep" ]] && continue
-      depjson="$(fetch_crate_json "$dep")" || { PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name@$auditver -> $dep: could not verify (network/data error)"); continue; }
+      depjson="$(fetch_crate_json "$dep")"; frc=$?
+      if [[ $frc -eq 3 ]]; then
+        # Unlike the top-level lookup above, a 404 here is NOT a skip: a live crate of ours depends
+        # on a crate the registry has never heard of, which cannot happen for a healthy release.
+        PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name@$auditver -> $dep: dependency $dep not found on crates.io"); continue
+      elif [[ $frc -ne 0 ]]; then
+        PROBLEMS=$((PROBLEMS + 1)); FAILS+=("$name@$auditver -> $dep: could not verify (network/data error)"); continue
+      fi
       any_live="$(printf '%s' "$depjson" | jq -r '[.versions[] | select(.yanked == false)] | length')"
       if [[ "$any_live" == "0" ]]; then
         PROBLEMS=$((PROBLEMS + 1))
@@ -672,6 +703,79 @@ JSON
     problems=1
   fi
 
+  # === Case N (--published mode, 404 = never published): the crate is new in this release and
+  # crates.io answers HTTP 404. That must NOT fail the guard (0.0.12 release); the other crate is
+  # still audited, so the zero-audit tripwire (case M) stays satisfied by real work. The stub
+  # shadows curl and sleep inside a subshell (the /dependencies endpoint is fetched without -w, so
+  # its stub prints no status line), so this exercises the real fetch path offline. ===
+  cases=$((cases + 1))
+  (
+    curl() {
+      case "${*: -1}" in
+        */lib-q-live-consumer) cat "$fixtures/lib-q-live-consumer.json"; printf '\n200'; return 0 ;;
+        */lib-q-live-consumer/0.0.10/dependencies) cat "$fixtures/lib-q-live-consumer-0.0.10-deps.json"; return 0 ;;
+        */lib-q-clean-dep) cat "$fixtures/lib-q-clean-dep.json"; printf '\n200'; return 0 ;;
+        *) printf '\n404'; return 22 ;;
+      esac
+    }
+    sleep() { :; }
+    unset YANK_GUARD_FIXTURE_DIR
+    cat > "$fixtures/lib-q-live-consumer-0.0.10-deps.json" <<'JSON'
+{"dependencies":[{"crate_id":"lib-q-clean-dep","req":"^0.0.10"}]}
+JSON
+    YANK_GUARD_PUBLISHED_CRATES="lib-q-never-published lib-q-live-consumer" published_mode "$tmp" >/dev/null 2>&1
+    echo "$PROBLEMS $AUDITED" > "$tmp/case-n"
+  )
+  if [[ "$(cat "$tmp/case-n" 2>/dev/null)" != "0 1" ]]; then
+    echo "  MUTATION-CHECK FAIL (N): an HTTP 404 (crate never published) must be skipped with 0 problems and the other crate audited (got '$(cat "$tmp/case-n" 2>/dev/null)')"
+    problems=1
+  fi
+  # === Case P: an audited crate whose DEPENDENCY lookup answers 404 must still count as a problem.
+  # The 404 skip (case N) applies only to the top-level crate; a live crate depending on a crate
+  # the registry does not know is not "never published, nothing to audit". ===
+  cases=$((cases + 1))
+  (
+    curl() {
+      case "${*: -1}" in
+        */lib-q-live-consumer) cat "$fixtures/lib-q-live-consumer.json"; printf '\n200'; return 0 ;;
+        */lib-q-live-consumer/0.0.10/dependencies) echo '{"dependencies":[{"crate_id":"lib-q-ghost-dep","req":"^0.0.10"}]}'; return 0 ;;
+        *) printf '\n404'; return 22 ;;
+      esac
+    }
+    sleep() { :; }
+    unset YANK_GUARD_FIXTURE_DIR
+    YANK_GUARD_PUBLISHED_CRATES="lib-q-live-consumer" published_mode "$tmp" >/dev/null 2>&1
+    echo "$PROBLEMS ${FAILS[*]}" > "$tmp/case-p"
+  )
+  if [[ "$(cat "$tmp/case-p" 2>/dev/null)" != *"dependency lib-q-ghost-dep not found on crates.io"* || "$(cut -d' ' -f1 "$tmp/case-p")" != "1" ]]; then
+    echo "  MUTATION-CHECK FAIL (P): a dependency lookup answering 404 must count as exactly 1 problem (got '$(cat "$tmp/case-p" 2>/dev/null)')"
+    problems=1
+  fi
+  # === Case O: a 5xx (and a plain network error) must STILL fail closed -- the 404 carve-out must
+  # not weaken the network failure policy. A healthy crate is audited alongside the failing one so
+  # that a guard which wrongly skipped the failure would still audit something and read as clean
+  # (the zero-audit tripwire alone would mask exactly that regression). ===
+  local code
+  for code in 503 000; do
+    cases=$((cases + 1))
+    (
+      curl() {
+        case "${*: -1}" in
+          */lib-q-clean-dep) cat "$fixtures/lib-q-clean-dep.json"; printf '\n200'; return 0 ;;
+          */lib-q-clean-dep/*/dependencies) echo '{"dependencies":[]}'; return 0 ;;
+          *) printf '\n%s' "$code"; return 22 ;;
+        esac
+      }
+      sleep() { :; }
+      unset YANK_GUARD_FIXTURE_DIR
+      YANK_GUARD_PUBLISHED_CRATES="lib-q-clean-dep lib-q-live-consumer" published_mode "$tmp" >/dev/null 2>&1
+      echo "$PROBLEMS $AUDITED" > "$tmp/case-o"
+    )
+    if [[ "$(cat "$tmp/case-o" 2>/dev/null)" != "1 1" ]]; then
+      echo "  MUTATION-CHECK FAIL (O): HTTP $code from crates.io must FAIL (infra), not be skipped like a 404 (got '$(cat "$tmp/case-o" 2>/dev/null)', want '1 1')"
+      problems=1
+    fi
+  done
   rm -rf "$tmp"
   if [[ $problems -ne 0 ]]; then
     echo "SELF-TEST FAILED -- the yanked-dependency guard is not detecting what it claims."
