@@ -26,7 +26,7 @@ This document describes the `hardened` feature on `lib-q-ml-kem`, `lib-q-ml-dsa`
 - **Structured prover loops**: constant-time norm screen, always run verification per attempt, and **fixed `max_attempts` iteration** with constant-time first-accept transcript selection (no early return on success)
 - **Secure mask RNG**: [`hardened::new_secure_rng`](../lib-q-lattice-zkp/src/hardened.rs) via `lib-q-random` (`secure` + `getrandom`)
 
-**Out of scope:** microarchitectural channels (cache/SMT/transient) and independent laboratory certification. Higher-order masking proofs are a planned milestone ([higher-order-masking-milestone.md](higher-order-masking-milestone.md)).
+**Out of scope:** microarchitectural channels (cache/SMT/transient) and independent laboratory certification. Higher-order masking proofs are a planned milestone ([higher-order-masking-milestone.md](higher-order-masking-milestone.md)). Fault injection (glitching, stuck-at, bit-flip) is a separate threat class this feature does not address; see [fault-detection-assessment.md](fault-detection-assessment.md).
 
 ## CI screening (not certification)
 
