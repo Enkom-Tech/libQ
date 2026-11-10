@@ -27,7 +27,7 @@ FN-DSA (Falcon-based Digital Signature Algorithm) is a post-quantum digital sign
 - **Compact Signatures**: Significantly smaller signature sizes compared to other post-quantum schemes
 - **Multiple Security Levels**: Supports Level 1 (128-bit) and Level 5 (256-bit) security
 - **Memory handling**: The wrapper denies unsafe code; optimized backends use unsafe intrinsics. Key owners wipe their buffers on drop, but transient seed/PRNG erasure remains an open audit finding.
-- **Side-channel status**: Timing-aware implementation, not a completed constant-time or physical side-channel audit. No power/EM masking is provided; see [SECURITY.md](SECURITY.md).
+- **Side-channel status**: Timing-aware implementation, not a completed constant-time or physical side-channel audit. No power/EM masking is provided; see [SECURITY.md](SECURITY.md). On the default (native) build the signing path's floating-point division/square-root relies on the host CPU's `f64` divide/sqrt opcode running in data-independent time, a documented hardware assumption rather than a proof; callers who cannot accept it can build with the `div_emu`/`sqrt_emu` features (see [SECURITY.md#known-limitations](SECURITY.md#known-limitations)), which cost ~35-45% of `sign()` throughput (measured) and are exercised in CI.
 - **WASM Compatible**: Full WebAssembly support for web applications
 - **Comprehensive Testing**: Extensive test suite including security, performance, and interoperability tests
 

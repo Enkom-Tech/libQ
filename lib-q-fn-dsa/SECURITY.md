@@ -437,8 +437,10 @@ whether the ePrint 2026/1531 fixed-point approach is ever adopted.
 - Whether native hardware `f64` divide/sqrt is actually data-independent-time on any
   specific x86_64/aarch64/riscv64 CPU libQ ships to — a per-microarchitecture physical
   property, not something a source review or this crate's tests can settle.
-- The sign path under `div_emu`/`sqrt_emu` at runtime — compile-checked only
-  (`--all-features` clippy), never executed in CI.
+- ~~The sign path under `div_emu`/`sqrt_emu` at runtime~~ — closed, see
+  "Known limitations" below: the `fn-dsa-div-sqrt-emu` CI job now runs `fn-dsa-sign`'s
+  test suite, including the statistical constant-time gate, under both features. What
+  remains unverified is the *physical* claim above, not whether the mitigation code runs.
 - Whether `flr_emu.rs` is fully constant-time on the wasm32/arm targets that select it in
   production — it "strives to be" and is a byte-faithful upstream port; not independently
   audited here.
@@ -448,6 +450,32 @@ whether the ePrint 2026/1531 fixed-point approach is ever adopted.
   reproduced — reproducing it would require building and running the paper's own C/Python
   reference code, which this assessment did not do.
 
+## Known limitations
+
+### Native FPU divide/sqrt constant-time assumption
+
+`fn-dsa-sign`'s native backend (`flr_native.rs`, selected on x86_64/aarch64/arm64ec/riscv64)
+uses the hardware `f64` divide/sqrt opcode, and its own comment documents that as an
+assumption about the host CPU, not a proof (`flr_native.rs:10-12`). `README.md`'s
+"Constant-Time Operations" bullet is scoped to that assumption rather than claiming it
+unconditionally.
+
+Callers who cannot accept the assumption should build with the `div_emu`/`sqrt_emu`
+Cargo features (declared on `fn-dsa-sign`, forwarded through `lib-q-fn-dsa-alg` and
+`lib-q-fn-dsa`), which replace the native opcode with the same data-independent integer
+routine `flr_emu.rs` uses on software-float targets. The cost is real — measured ~35-45%
+slower `sign()` — so neither flag is on by cargo default: the assumption holds for every
+target this crate optimizes for, and no per-target measurement yet justifies paying that
+cost unconditionally for everyone.
+
+Before this change, both features were compile-checked only (the workspace-wide
+`--all-features` clippy pass) and never executed by CI, so a regression in the mitigation
+itself — the one thing standing between the documented assumption and callers who reject
+it — could ship undetected. The `fn-dsa-div-sqrt-emu` CI job now runs `fn-dsa-sign`'s and
+`lib-q-fn-dsa-alg`'s test suites and `lib-q-fn-dsa/tests/constant_time.rs`'s statistical
+gate under both features on every PR, and `upstream_oracle_kat` under the same features
+confirms the mitigation does not change signature bytes.
+
 ### Recommendations
 
 **Development**
@@ -455,9 +483,10 @@ whether the ePrint 2026/1531 fixed-point approach is ever adopted.
 1. Run `cargo test -p lib-q-fn-dsa-alg --test upstream_oracle_kat` after any change to
    `fn-dsa-sign`, `fn-dsa-kgen`, or `flr*.rs` — proves no floating-point-backend change
    moved a signature byte relative to the upstream reference.
-2. Run `cargo test -p lib-q-fn-dsa-sign --features div_emu,sqrt_emu` before relying on the
-   FPU-constant-time mitigation for a deployment target — it is compile-checked but not
-   exercised by default CI.
+2. `cargo test -p lib-q-fn-dsa-sign --features div_emu,sqrt_emu` now runs on every PR via
+   the `fn-dsa-div-sqrt-emu` CI job, along with the facade tests and the statistical
+   constant-time gate under the same features — no manual step needed before relying on
+   the mitigation.
 
 **Deployment**
 

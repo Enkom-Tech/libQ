@@ -2151,6 +2151,60 @@ jobs:
           cargo test -p lib-q-fn-dsa-alg --features no_avx2
           cargo test -p lib-q-fn-dsa --features no_avx2
 
+  # FN-DSA native backend under the div_emu/sqrt_emu mitigation. flr_native.rs's own
+  # comment ("should be used only for architectures for which the hardware can be assumed to
+  # operate in a sufficiently constant-time way") documents native f64 divide/sqrt as an
+  # unverified per-microarchitecture assumption, not a proof. `div_emu`/`sqrt_emu` replace those
+  # two opcodes with the same data-independent integer routine flr_emu.rs uses for the
+  # software-float targets, for callers who cannot accept that assumption. Both flags default
+  # off (measured ~35-45% slower sign(), see lib-q-fn-dsa/SECURITY.md) and, before this job,
+  # were only ever compile-checked by core-validation's workspace `--all-features` clippy pass
+  # (flr.rs:106-109) -- never executed. This job actually runs the sign path's test suite,
+  # including the statistical constant-time gate, under both features together.
+  fn-dsa-div-sqrt-emu:
+    name: FN-DSA native backend (div_emu/sqrt_emu, tested not just compiled)
+    needs: core-validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-fndsa-div-sqrt-emu-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-fndsa-div-sqrt-emu-
+
+      - name: div_emu/sqrt_emu unit + facade tests
+        run: |
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          # fn-dsa-sign's own suite: flr::tests plus flr_emu_diff's native-vs-emulated
+          # differential (the pinned signed-zero divergence this feature combination
+          # introduces is asserted there, not worked around here).
+          bash "$GUARD" -- cargo test -p lib-q-fn-dsa-sign --features div_emu,sqrt_emu
+          # Facade + outer crate through the public API: proves the mitigation doesn't change
+          # what gets signed. upstream_oracle_kat under these features is additional evidence
+          # beyond the plain byte-exactness check every change to this path must pass anyway.
+          bash "$GUARD" -- cargo test -p lib-q-fn-dsa-alg --features div_emu,sqrt_emu
+          bash "$GUARD" -- cargo test -p lib-q-fn-dsa-alg --test upstream_oracle_kat --features div_emu,sqrt_emu
+
+      - name: Statistical timing check under div_emu/sqrt_emu (release-ci build)
+        run: |
+          # See lib-q-fn-dsa/tests/constant_time.rs's module doc for exactly what this does and
+          # does not measure. Both #[ignore] under debug_assertions, hence --profile release-ci.
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test -p lib-q-fn-dsa --profile release-ci --test constant_time --features std,rand,div_emu,sqrt_emu -- --nocapture
+
   # SIMD debug verification for HQC
   simd-debug-tests:
     name: SIMD Debug Verification
@@ -2456,7 +2510,7 @@ jobs:
   # Final validation - runs after all other jobs
   final-validation:
     name: Final Validation
-    needs: [publish-readiness, test-matrix, test-matrix-pr-crypto, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, hqc-simd-avx2-arch-gate, zkp-recursive, cross-platform, aarch64-qemu-execution, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
+    needs: [publish-readiness, test-matrix, test-matrix-pr-crypto, wasm-validation, wasm-workspace-gate, wasm-bindgen-smoke, fn-dsa-emulated-float, romulus-no-std-wasm, hqc-simd-avx2-arch-gate, zkp-recursive, cross-platform, aarch64-qemu-execution, bench-shards-validate, performance-benches, documentation, algorithm-tests, fn-dsa-no-avx2, fn-dsa-div-sqrt-emu, simd-debug-tests, ml-dsa-compliance, ml-kem-tests, constant-time, integration-tests]
     runs-on: ubuntu-latest
     if: always()
     steps:

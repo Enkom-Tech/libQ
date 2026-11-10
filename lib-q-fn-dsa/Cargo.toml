@@ -60,6 +60,10 @@ zeroize = ["dep:zeroize"]
 
 # Performance features
 no_avx2 = ["lib-q-fn-dsa-alg/no_avx2"]
+# See fn-dsa/Cargo.toml's div_emu/sqrt_emu comment -- forwarded here too so the
+# outer crate's own tests (e.g. tests/constant_time.rs) can run under these features.
+div_emu = ["lib-q-fn-dsa-alg/div_emu"]
+sqrt_emu = ["lib-q-fn-dsa-alg/sqrt_emu"]
 shake256x4 = ["lib-q-fn-dsa-alg/shake256x4"]
 
 # WASM support

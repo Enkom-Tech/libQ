@@ -31,6 +31,11 @@ lib-q-fn-dsa-comm = { version = "0.0.12", path = "../fn-dsa-comm" }
 [features]
 default = []
 no_avx2 = ["lib-q-fn-dsa-comm/no_avx2", "lib-q-fn-dsa-kgen/no_avx2", "lib-q-fn-dsa-sign/no_avx2", "lib-q-fn-dsa-vrfy/no_avx2"]
+# Forward fn-dsa-sign's FPU-divide/sqrt mitigation: neither is on by cargo default
+# (perf cost measured ~35-45% on sign(), see lib-q-fn-dsa/SECURITY.md), but both must reach a
+# *tested* configuration through this facade -- see the `fn-dsa-div-sqrt-emu` CI job.
+div_emu = ["lib-q-fn-dsa-sign/div_emu"]
+sqrt_emu = ["lib-q-fn-dsa-sign/sqrt_emu"]
 shake256x4 = ["lib-q-fn-dsa-comm/shake256x4", "lib-q-fn-dsa-kgen/shake256x4", "lib-q-fn-dsa-sign/shake256x4"]
 
 [[bench]]
