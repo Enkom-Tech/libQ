@@ -36,15 +36,21 @@ the commitment stack lands on the same core too.
 > table. See §5.
 
 **Domains currently in use.** 1–5 CTR-Cascade, 6 Short, 7–8 Hash, 9–13 QCB (five domains, one per
-Algorithm 1 sub-step: message, final message, AD, final AD, tag — see §6). That is **thirteen**
-values (1–13) spoken for under this crate's profile; the block cipher and the stream cipher both
-run at domain 1 (`block_cipher.rs` and `stream.rs` each construct `SaturninCore::new(10, 1)`)
-rather than burning one of their own. The submission's own domain table (spec §2.5, Table 2)
-additionally assigns domain 0 to the raw block cipher, so — counting the whole submission plus QCB
-together, not just this crate's thirteen — **14 of the 16 values are spoken for and only 14 and 15
-are left**, which is what `lib-q-saturnin/src/commit.rs` records. With the domain input hard-wired
-to 4 bits, that is almost no headroom for a version bump, a KDF domain, or a second mode. Worth
-deciding deliberately rather than discovering late.
+Algorithm 1 sub-step: message, final message, AD, final AD, tag — see §6), 14 the stream cipher
+(`stream.rs`'s `STREAM_DOMAIN`). That is **fourteen** values (1–14) spoken for under this crate's
+profile. The block cipher still runs at domain 1 (`block_cipher.rs` constructs
+`SaturninCore::new(10, 1)`) rather than claiming one of its own — it is a raw, caller-supplied-block
+primitive with no implicit nonce/counter construction, so it does not share the keystream-collision
+failure mode a nonce-driven mode like the stream cipher has. The stream cipher itself *did* share
+that failure mode with `SaturninAead`'s CTR-Cascade (both built `SaturninCore::new(10, 1)` over an
+identical `nonce ‖ 0x80 ‖ 0* ‖ counter_be` layout, so the same key+nonce fed to both leaked
+plaintext by XOR) until it moved to domain 14; see `src/stream.rs`'s `STREAM_DOMAIN` doc comment
+and `CHANGELOG.md`. The submission's own domain table (spec §2.5, Table 2) additionally assigns
+domain 0 to the raw block cipher, so — counting the whole submission plus QCB together, not just
+this crate's fourteen — **15 of the 16 values are spoken for and only 15 is left**, which is what
+`lib-q-saturnin/src/commit.rs` records. With the domain input hard-wired to 4 bits, that is zero
+headroom left for a version bump, a KDF domain, or a second mode. Worth deciding deliberately
+rather than discovering late.
 
 ---
 

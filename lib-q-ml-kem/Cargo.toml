@@ -49,7 +49,7 @@ pkcs8 = ["dep:der"]
 [dependencies]
 hybrid-array = { workspace = true, features = ["extra-sizes"] }
 rand_core = { workspace = true }
-lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.12" }
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.12", features = ["zeroize"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.12", optional = true, default-features = false }
 zeroize = { workspace = true, default-features = false, features = ["alloc"] }
 subtle = { workspace = true, default-features = false }

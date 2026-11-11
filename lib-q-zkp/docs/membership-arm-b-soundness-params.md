@@ -15,37 +15,48 @@ The original config (degree-4 challenge field, `log_blowup 3`, `q=100`, `PoW 16`
 **≈116-bit conjectured / ≈99-bit provable** — bound by the **124-bit** degree-4 challenge field and
 the FRI query phase. The "128-bit" elsewhere in the Arm B docs was only the *Poseidon2 primitive*
 (round-count) target; it did not lift the proof-system soundness. This was fixed by enlarging the
-challenge field to a **quintic** extension and retuning FRI.
+challenge field and retuning FRI. The first fix was a quintic (`GF(q^5)`, ≈155 bits); that cleared the
+conjectured bound but left the BCIKS proximity-gap field term of the PROVEN (Johnson) bound near
+≈119 bits, so Arm B now uses an **octic** extension (`GF(q^8)`, ≈247 bits).
 
 ## The 128-bit-PQ config (mirror of `stark_baby_bear.rs`)
 
 | param | value | was |
 |-------|-------|-----|
-| challenge field | `BinomialExtensionField<BabyBear, 5>` = `F_{p^5}` (≈155 bits) | deg-4 (≈124b) |
+| challenge field | `BinomialExtensionField<BabyBear, 8>` = `F_{p^8}` (≈247 bits) | deg-5 (≈155b); originally deg-4 (≈124b) |
 | `log_blowup` | **4** (FRI rate ρ = 1/16) | 3 |
 | `num_queries` | **96** | 100 |
 | `proof_of_work_bits` | **20** | 16 |
 | Merkle commitment | SHAKE256 (256-bit) | unchanged |
 | max AIR constraint degree | 7 (x⁷ S-box, degree-7 optimized) | unchanged |
 
-The quintic field `F_{p^5} = F_p[x]/(x^5 - 2)` is built in `lib-q-stark-baby-bear`
-(`BinomialExtensionData<5>`); `x^5 - 2` is irreducible (2 is a non-5th-power, `5 | p-1`). Its
-constants (`W=2`, `DTH_ROOT`, a multiplicative generator of order `p^5-1`, `EXT_TWO_ADICITY=27`) were
-derived **and verified** by `lib-q-stark-baby-bear/tools/gen_quintic_constants.py` under SageMath, and
-re-validated in Rust by the `test_extension_field!` harness.
+The octic field `F_{p^8} = F_p[x^8 - 11]` is built in `lib-q-stark-baby-bear`
+(`BinomialExtensionData<8>`; `W = 11`, the same non-residue as the degree-4 field). Its constants
+(`DTH_ROOT = 11^((p-1)/8)`, a generator of order `p^8-1`, `EXT_TWO_ADICITY = 30` and the three
+extension two-adic generators) are derived and **self-certified in pure Python** by
+`lib-q-stark-baby-bear/tools/gen_octic_constants.py` (an element of full order `p^8-1` in the ring
+proves it is a field; `p^8-1` was fully factored with coreutils `factor`) and re-validated in Rust by
+the `test_extension_field!` / `test_two_adic_extension_field!` harnesses. The superseded quintic
+generator script `gen_quintic_constants.py` is kept for reference.
 
 ## Computed bits (`tools/fri_soundness.py`)
 
 | term | classical | post-quantum (mainstream model) |
 |------|----------:|--------------------------------:|
-| challenge field \|F_{p⁵}\| | 154.5 | — |
-| constraint/DEEP Schwartz–Zippel | 146.7 | 146.7 (FS preserved in QROM) |
+| challenge field \|F_{p⁸}\| | 247.3 | — |
+| constraint/DEEP Schwartz–Zippel | 235.4 | 235.4 (FS preserved in QROM) |
+| BCIKS proximity-gap field term (Johnson, proven; approximate — see note) | 212.2 | — |
 | FRI query+PoW — unique-decoding (provable) | 108 | — |
 | FRI query+PoW — Johnson (provable) | 212 | — |
 | FRI query+PoW — capacity (conjectured) | 404 | 394 (grinding Grover-halved) |
 | SHAKE256 Merkle collision | 128 | 128 (NIST Cat-2) |
 | sponge capacity (9 cells) collision | 139 | 139 |
 | **OVERALL** | **128 (conj & Johnson)** | **128 (binding: SHAKE256)** |
+
+Note on the BCIKS row: it uses the BCIKS20 Thm 1.5 form `(m+1/2)^7 n^2 / (3 ρ^{3/2} |F|)` with
+`m = 3`, `n` = LDE domain size. The constant was written from the paper's statement and has **not**
+been independently re-derived or reviewed — it is the cryptographer-review item for the proven
+accounting. For reference the same formula gives ≈119 bits for the superseded `GF(q^5)` field.
 
 ### Post-quantum model
 

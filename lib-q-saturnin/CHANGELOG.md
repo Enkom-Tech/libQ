@@ -408,3 +408,62 @@ will ship as a breaking change in the next release that includes it.
   9–13 (`qcb.rs`), and with the submission's own Table 2 (spec §2.5, domains 0–8) that leaves
   exactly two values — 14 and 15 — unassigned. The same section now also records that the block
   cipher and stream cipher run at domain 1 rather than claiming domains of their own.
+
+### BREAKING — `SaturninStream` moved off domain 1 to stop a keystream collision with `SaturninAead`
+
+**The defect.** `SaturninStream::new` (`src/stream.rs`) and `SaturninAead`'s CTR-Cascade core
+(`src/aead.rs`'s `SaturninAeadCores::d1`) both built `SaturninCore::new(10, 1)` and derived their
+per-block keystream input identically: `nonce ‖ 0x80 ‖ 0* ‖ counter_be`, differing only in where
+the counter starts (`SaturninStream` at 0, `SaturninAead`'s CTR pass at 1). For the same `(key,
+nonce)`, the two types' keystreams were therefore the *same sequence*, offset by one block —
+`SaturninStream`'s block at counter `c` equalled `SaturninAead`'s CTR block at counter `c`. Any
+caller that used the same key and nonce with both types (e.g. one component streaming bulk
+keystream, another sealing authenticated records) leaked plaintext by XOR. Found during an
+algorithm audit of `libQ` main `4166b81`.
+
+**The fix.** `src/stream.rs` now defines `STREAM_DOMAIN: u8 = 14` and builds
+`SaturninCore::new(10, STREAM_DOMAIN)`, claiming one of the two domain values (14, 15) this
+crate's domain-allocation accounting had left free (see `docs/HARDWARE.md` §1, updated) rather
+than continuing to borrow the block cipher's/AEAD's domain 1. `SaturninAead` is unchanged: its
+CTR-Cascade domains (1–5) are exactly the values needed to reproduce the LWC submission's
+`saturninctrcascadev2` KAT vectors, so they are not renumbered.
+
+**Wire-compatibility impact.** `SaturninStream::encrypt`/`decrypt`/`generate_keystream` now
+produce different bytes than before for the same key, nonce and plaintext — this is the whole
+point of the fix, and it is unavoidable without leaving the collision in place. Nothing else
+moves: `SaturninStream` carries no KAT vectors (the LWC submission defines no stream-cipher mode
+at all — only `SaturninAead`, `SaturninShortAead` and `SaturninHash` do), so no documented KAT
+changed, and `tests/fixtures/LWC_*` are untouched. `SaturninAead`, `SaturninShortAead`,
+`SaturninHash` and `SaturninQcb` keep their existing domains, wire formats and KATs unchanged;
+`cargo test` (`aead_kat_pin`, `kat_tests`, `qcb_spec`, `qcb_ctx_spec`, `cascade_ctx_spec`) confirms
+this. Any stored `SaturninStream` ciphertext/keystream from before this change will not
+reproduce; regenerate it. No consumer crate in this workspace calls `SaturninStream` today.
+
+**Test.** `tests/stream_aead_domain_separation.rs` is new: it proves `SaturninStream` and
+`SaturninAead` produce different keystreams for the same key+nonce, including a targeted check of
+the exact block pair (`SaturninStream` counter 1 vs `SaturninAead` counter 1) that collided
+byte-for-byte before this fix. Confirmed failing against the pre-fix domain-1 construction and
+passing against this change.
+
+### Fixed — security
+
+- **`SaturninAead::ctr_encrypt`'s 8-lane SIMD batch could wrap its counter before its own
+  overflow check ran.** The batch built `counter.wrapping_add(lane)` for `lane` in `0..8` and only
+  checked for overflow *afterward*, via `counter.overflowing_add(8)` on the batch's end-of-loop
+  value — a check on the *next* batch's start, not on the lane values just computed. Once
+  `counter` came within 7 of `u32::MAX`, the last few lanes wrapped silently to small values
+  (e.g. `u32::MAX - 1` wrapping to `0`) and the function encrypted those blocks under the wrapped,
+  reused counter before its own overflow check ever fired, rather than stopping first. Fixed by
+  gating batch entry on `counter.checked_add(7).is_some()`, mirroring the guard `src/stream.rs`'s
+  equivalent SIMD batches already had. The scalar tail loop had the same class of gap — it
+  advanced with `counter.wrapping_add(1)` and never reported overflow at all — and now reports it
+  via `checked_add(1)`, matching `src/stream.rs`'s scalar path. Not reachable through
+  `SaturninAead`'s or `SaturninAeadCtx`'s public entry points today: both already cap message
+  length (`(len >> 5) >= 0xFFFF_FFFE`/`0xFFFFFFFD`) well below where the counter (which starts at
+  1) could ever reach `u32::MAX`; this is a defensive fix against `ctr_encrypt`'s own internal
+  arithmetic, not a fix to a reachable overflow in current callers. New unit test
+  `aead::tests::simd_lane_counter_does_not_wrap_before_overflow_check` exercises the boundary
+  directly (via a new, non-public `ctr_encrypt_from(..., start_counter)` seam) since reaching it
+  through the public API would require a ~128 GB message; confirmed failing against the pre-fix
+  code and passing against this change. No wire format or KAT changed — this is a pure
+  overflow-handling correctness fix.

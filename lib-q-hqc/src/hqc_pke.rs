@@ -428,6 +428,17 @@ impl<P: HqcParams> HqcPke<P> {
         self.vect_generate_random_support1(xof, support, weight)
     }
 
+    /// Test method for vect_generate_random_support2 (for debugging; used by the isolated
+    /// sampler harness -- see `tests/hardened_support_sampling_isolated.rs`)
+    pub fn test_vect_generate_random_support2(
+        &self,
+        xof: &mut Shake256Xof,
+        support: &mut [u32],
+        weight: usize,
+    ) -> Result<(), HqcPkeError> {
+        self.vect_generate_random_support2(xof, support, weight)
+    }
+
     /// Test method for vect_write_support_to_vector (for debugging)
     pub fn test_vect_write_support_to_vector(
         &self,
@@ -497,6 +508,7 @@ impl<P: HqcParams> HqcPke<P> {
     }
 
     /// Generate random support set (method 1)
+    #[cfg(not(feature = "hardened"))]
     pub fn vect_generate_random_support1(
         &self,
         xof: &mut Shake256Xof,
@@ -540,7 +552,93 @@ impl<P: HqcParams> HqcPke<P> {
         Ok(())
     }
 
+    /// Generate random support set (method 1) — `hardened` variant.
+    ///
+    /// Ports of a HQC reference algorithm ePrint [2026/1462](https://eprint.iacr.org/2026/1462)
+    /// (Hesse, Krausz, Murugananthan, Wollinger, Güneysu, "Power Reveals Timing Conceals")
+    /// power-attacks to 100% key recovery on an unmasked implementation: see SECURITY.md's
+    /// "Power/EM side channel on fixed-weight sampling" section for the full writeup.
+    ///
+    /// This keeps the exact XOF-consumption SHAPE of the default path above — same number of
+    /// 3-byte draws, same accept/reject sequence, same accepted values written to the same
+    /// `support[]` slots — because that shape is what makes every `nist_kem_kat` vector
+    /// byte-identical (verified with `--features hardened` added; see
+    /// `tests/hardened_support_sampling_isolated.rs`). What changes:
+    ///
+    /// - The duplicate-check (`if support[k] == support[i] { inc = 0 }` in the default path)
+    ///   is fully BRANCHLESS: equality against every already-accepted value accumulates into a
+    ///   `subtle::Choice` with no `if` on any secret value, completing the arithmetic-mask
+    ///   idiom `vect_generate_random_support2` already used for its own dedup *write* (this
+    ///   function's dedup previously had no such mask at all).
+    /// - The rejection accept-test uses `subtle::ConstantTimeLess` instead of a native `<`, so
+    ///   the comparison resolves via the audited bitwise construction `subtle` ships rather
+    ///   than compiler/target-dependent codegen.
+    ///
+    /// What this does **not** remove: the `if accept { break }` that ends the inner draw loop.
+    /// That decision *is* the rejection loop's length, and the length must match the
+    /// un-hardened path bit-for-bit (same XOF stream, same accepted values) to stay
+    /// byte-identical with every existing KAT — a mandatory acceptance criterion for this
+    /// change. Eliminating that residual branch would require abandoning rejection sampling's
+    /// output entirely (e.g. fixed-trip-count oversample-and-compact), which is a spec-level
+    /// redesign, not a hiding/masking rewrite, and is out of scope here. Shuffling the
+    /// candidate-vs-threshold branch itself doesn't apply either: unlike the paper's second
+    /// (shuffling-defeated) attack, which targets a masked implementation's support
+    /// *conversion* step over an already-shared secret domain, this is *generation*, strictly
+    /// sequential over one XOF stream — there is no independent ordering freedom to shuffle
+    /// without changing which bytes get consumed when. See SECURITY.md for the full tradeoff
+    /// discussion, including why runtime-entropy-driven hiding was rejected for this crate.
+    #[cfg(feature = "hardened")]
+    pub fn vect_generate_random_support1(
+        &self,
+        xof: &mut Shake256Xof,
+        support: &mut [u32],
+        weight: usize,
+    ) -> Result<(), HqcPkeError> {
+        use subtle::{Choice, ConstantTimeEq, ConstantTimeLess};
+
+        let random_bytes_size = 3 * weight;
+        let mut rand_bytes = vec![0u8; random_bytes_size];
+        let mut i = 0;
+        let mut j = random_bytes_size;
+
+        while i < weight {
+            let mut candidate: u32;
+            loop {
+                if j == random_bytes_size {
+                    // Use xof_get_bytes to match reference XOF consumption behavior
+                    Self::xof_get_bytes(xof, &mut rand_bytes)?;
+                    j = 0;
+                }
+
+                candidate = ((rand_bytes[j] as u32) << 16)
+                    | ((rand_bytes[j + 1] as u32) << 8)
+                    | (rand_bytes[j + 2] as u32);
+                j += 3;
+
+                // Constant-time accept test; the loop still has to branch on the result to
+                // decide whether another draw is needed -- see the doc comment above.
+                let accept: Choice = candidate.ct_lt(&P::UTILS_REJECTION_THRESHOLD);
+                if accept.unwrap_u8() != 0 {
+                    break;
+                }
+            }
+
+            let candidate = self.barrett_reduce(candidate);
+            support[i] = candidate;
+
+            // Branchless duplicate check: accumulate equality with no `if` on secret data.
+            let mut inc = Choice::from(1u8);
+            for k in 0..i {
+                inc &= !support[k].ct_eq(&candidate);
+            }
+            i += inc.unwrap_u8() as usize;
+        }
+
+        Ok(())
+    }
+
     /// Generate random support set (method 2) - for encryption vectors
+    #[cfg(not(feature = "hardened"))]
     pub fn vect_generate_random_support2(
         &self,
         xof: &mut Shake256Xof,
@@ -585,6 +683,56 @@ impl<P: HqcParams> HqcPke<P> {
                 0x00000000u32
             };
             support[i] = (mask & (i as u32)) ^ (!mask & support[i]);
+        }
+
+        Ok(())
+    }
+
+    /// Generate random support set (method 2) — `hardened` variant.
+    ///
+    /// Same attack class as `vect_generate_random_support1` (ePrint 2026/1462), lower severity
+    /// (ephemeral encryption noise `r1`/`r2`/`e`, not the long-term secret `x`/`y`) — see
+    /// SECURITY.md. Unlike method 1, the generation phase here (Lemire-style index-map, no
+    /// rejection) is already data-independent in trip count, so this closes the branch
+    /// surface completely rather than leaving a residual: both
+    /// `if support[j] == support[i] { found = 1 }` and the `if found != 0 {..} else {..}`
+    /// mask select become fully branchless `subtle` operations.
+    #[cfg(feature = "hardened")]
+    pub fn vect_generate_random_support2(
+        &self,
+        xof: &mut Shake256Xof,
+        support: &mut [u32],
+        weight: usize,
+    ) -> Result<(), HqcPkeError> {
+        use subtle::{Choice, ConditionallySelectable, ConstantTimeEq};
+
+        let mut rand_u32 = vec![0u32; weight];
+
+        let mut bytes = vec![0u8; weight * 4];
+        Self::xof_get_bytes(xof, &mut bytes)?;
+
+        for (i, item) in rand_u32.iter_mut().enumerate() {
+            let start = i * 4;
+            let end = start + 4;
+            let mut u32_bytes = [0u8; 4];
+            u32_bytes.copy_from_slice(&bytes[start..end]);
+            *item = u32::from_le_bytes(u32_bytes);
+        }
+
+        for i in 0..weight {
+            let buff = rand_u32[i] as u64;
+            support[i] = i as u32 + ((buff * (P::N as u64 - i as u64)) >> 32) as u32;
+        }
+
+        // Branchless collision resolution: accumulate a "seen again later" Choice with no
+        // `if` on any secret support value, then select the replacement with
+        // `conditional_select` instead of an arithmetic if/else mask.
+        for i in (0..weight - 1).rev() {
+            let mut found = Choice::from(0u8);
+            for j in (i + 1)..weight {
+                found |= support[j].ct_eq(&support[i]);
+            }
+            support[i] = u32::conditional_select(&support[i], &(i as u32), found);
         }
 
         Ok(())
@@ -740,7 +888,7 @@ impl<P: HqcParams> HqcPke<P> {
             }
         }
 
-        schoolbook_vect_mul_mod_xnm1(output, a, b, P::VEC_N_SIZE_64, P::N)
+        crate::gf2x_karatsuba::karatsuba_vect_mul_mod_xnm1(output, a, b, P::VEC_N_SIZE_64, P::N)
     }
 
     /// Vector addition in GF(2)

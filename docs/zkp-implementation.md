@@ -51,7 +51,7 @@ off**:
   `lib-q-zkp/src/air/wide_hash.rs`.)
 
 - **Arm B** — BabyBear base field (`p = 2³¹ − 2²⁷ + 1`, via `lib-q-stark-baby-bear`) with
-  **Poseidon2** and a **quintic `F_{p⁵}` challenge field** (≈155 bits). It reaches **128-bit
+  **Poseidon2** and a **octic `F_{p⁸}` challenge field** (≈247 bits). It reaches **128-bit
   post-quantum security at the PCS / commitment layer** (binding on the SHAKE256 Merkle commitment;
   conjectured and provable-Johnson query bounds both clear 128) — upgraded from the original degree-4
   config that capped at ~116-bit conjectured / ~99-bit provable. **Caveat:** the Poseidon2 round-count

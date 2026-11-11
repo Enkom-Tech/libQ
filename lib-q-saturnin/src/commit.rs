@@ -51,8 +51,8 @@
 //! `H` is Saturnin-Hash rather than a Keccak-based hash (`lib-q-sha3` / `lib-q-k12`) so that a
 //! hardware implementation of Saturnin does not have to also implement Keccak-f\[1600\] solely to
 //! compute a handful of compression calls at the end of every message; it also burns no Saturnin
-//! domain separator (only 14/15 remain unassigned across the whole submission + QCB) and adds no
-//! new crate dependency.
+//! domain separator (only domain 15 remains unassigned across the whole submission + QCB) and
+//! adds no new crate dependency.
 //!
 //! # Byte layout (frozen; do not change without minting a new label)
 //!
@@ -159,15 +159,26 @@
 //!   rejects cores outside `E1`'s image and both winning messages are valid by definition.
 //!   `SaturninQcb` satisfies the operative hypothesis: `decrypt` is deterministic and correct,
 //!   `10*` padding is injective, and each block is a TBC permutation under a tweak that depends
-//!   only on `(nonce, index)` and not on message content — so `E1(K, N, A, ·)` is injective. It
-//!   is also *tidy* in Bellare–Hoang's sense, so it additionally satisfies their stronger
-//!   hypothesis. **Residual for a reviewer:** confirm (i) the proof-inspection reading above,
-//!   (ii) the injectivity/tidiness argument for our `E1`, and (iii) that Chan–Rogaway's *other*
-//!   violated syntactic requirement — "its expansion, which is a constant `τ` such that
+//!   only on `(nonce, index)` and not on message content — so `E1(K, N, A, ·)` is injective.
+//!   **CORRECTION 2026-09-25: the sentence previously here claimed `SaturninQcb` "is
+//!   also *tidy* in Bellare–Hoang's sense". That is false, and mechanically so:
+//!   `formal/lean/SaturninCTX/QcbTidiness.lean` (`qcb_not_tidy`) exhibits a checked
+//!   counterexample — `open_core`'s `unpad_len` scans for the `10*` marker across the *whole*
+//!   decrypted plaintext, not confined to the final padding block, so a ciphertext whose second
+//!   body block decrypts to an all-zero string (never producible by `pad_tail`, which always
+//!   writes a `0x80` marker, but a perfectly good ciphertext block all the same) decrypts and
+//!   verifies to the *empty* message, at a ciphertext shape the honest encryption of the empty
+//!   message never produces. This has no bearing on binding: the argument above needs only
+//!   injectivity of `E1(K, N, A, ·)`, established two sentences up, and no tidiness assumption
+//!   at all (mechanised without tidiness in `formal/lean/SaturninCTX/Binding.lean`,
+//!   `binding_direct`). What it rules out is ever invoking Bellare-Hoang's tidy-only
+//!   `CMT-ℓ ⇔ CMTD-ℓ` equivalence for `SaturninQcb` specifically — do not reach for it here.
+//!   **Residual for a reviewer:** confirm (i) the proof-inspection reading above, and (ii) that
+//!   Chan–Rogaway's *other* violated syntactic requirement — "its expansion, which is a constant `τ` such that
 //!   `|E(K,N,A,M)| = |M| + τ`" (p.4), which our padding also breaks, total expansion ranging
 //!   over 33..=64 bytes — is immaterial to Theorem 2, whose proof never mentions `τ`, as it is
-//!   to Bellare–Hoang's `SE.ce(m)` framework. That third point was not previously documented.
-//!   **Scope that third point to Theorem 2 and nothing else.** Non-constant `τ` is *not*
+//!   to Bellare–Hoang's `SE.ce(m)` framework. This point was not previously documented.
+//!   **Scope it to Theorem 2 and nothing else.** Non-constant `τ` is *not*
 //!   immaterial to Theorem 3: `τ` appears in Theorem 3's privacy bound as the exponent term
 //!   `qH / 2^(δ+τ)`, and its App. B reduction has `B2` query its own oracle and get "back a
 //!   response `C*` of the length `δ + τ`" — a step that presupposes a single `τ` for the scheme.

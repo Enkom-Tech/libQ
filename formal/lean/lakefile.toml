@@ -1,0 +1,5 @@
+name = "saturnin_ctx"
+defaultTargets = ["SaturninCTX"]
+
+[[lean_lib]]
+name = "SaturninCTX"

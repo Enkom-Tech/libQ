@@ -306,6 +306,16 @@ one of those products decrypts through. Gate D's subjects, `SaturninAeadCtx` and
 opt-in types, and `qcb` is no longer a default feature (`c1d27a6`). This paragraph previously called
 Gate D "the only gate on a default-feature code path", which under-ranked Gate E.
 
+**Mechanised, 2026-09-25.** `formal/lean/` now carries checked Lean 4 proofs (`lake build`, no
+`sorry`, no custom axioms) for the classical half of this gate: the direct CMTD binding argument
+(two openings of the same `core ‖ T'` under distinct `(K,N,A)` force an `H`-collision, no tidiness
+needed — `SaturninCTX/Binding.lean`), injectivity of the byte encoding
+(`SaturninCTX/Encoding.lean`), the Bellare-Hoang Appendix A relations among `CMT-ℓ`/`CMTD-ℓ`
+(`SaturninCTX/Hierarchy.lean`), and a checked counterexample showing `SaturninQcb` is **not**
+tidy — correcting a false claim `commit.rs` previously made (`SaturninCTX/QcbTidiness.lean`; the
+false claim never affected soundness, since the direct argument above needs no tidiness). None of
+H-1, S-2 (residual), Q-1, L-1 or RK-1 are closed by this — see `formal/lean/README.md`.
+
 **Blocking claim.** `T' = SaturninHash(label ‖ K ‖ N ‖ T ‖ A)` — the CTX transform (Chan and
 Rogaway, *On Committing Authenticated-Encryption*, ESORICS 2022 / ePrint 2022/1260, Fig. 2 / Thm 2) —
 gives CMT-4 committing security to `SaturninQcb` and to `SaturninAeadCtx` (CTR-Cascade), bounded by
@@ -573,6 +583,21 @@ hedging on tightness ("seems not tight") is part of what a reviewer must weigh.
 different footing and the docs should say so. If it does not, the honest statement is that
 CTR-Cascade's IND-qCCA claim is **unproven**, and every restatement of it in this repo must be
 corrected. Classical AE security is unaffected either way.
+
+**Mechanised, 2026-09-25.** `formal/lean/SaturninCTX/GateEBound.lean` and `GateEComposition.lean`
+give this gate two checked artefacts. `GateEBound.lean` formalises the generic `c·q³/2ⁿ`
+quantum-query bound shape this proof family produces and the query count at which it stops being
+meaningful for Saturnin's 128-bit post-quantum target (`q ≈ 2^43`) — an explicit, flagged
+*estimate of the shape*, filling the "no concrete bit level" gap this section otherwise leaves
+open, not a re-derivation of Saturnin's or 2025/387's own (unpublished) constants.
+`GateEComposition.lean` states the citation swap above — Theorem 3, Theorem 4 and (derived)
+Corollary 1, plus the register's own `SAT-JQPRF` name for "does §4.3.3 discharge 2025/387's
+hypothesis" — as four explicit Lean axioms, and mechanically derives `IND-qCCA[LoR]` for the
+frozen EtM syntax from them. It proves the *logic* of the citation swap goes through; it does
+**not** ratify `SAT-JQPRF` itself, which is still this section's open item. See
+`formal/lean/README.md` for the survey of why (no mature Lean/EasyCrypt/CryptHOL/SSProve
+framework reaches superposition-query proofs today; `qrhl-tool` is the closest, and even that
+would need a from-scratch formalisation of Song-Yun's cascade argument).
 
 **What is already enforced while this is open.** `scripts/ci-guard-standards-claims.sh` fails CI if
 `IND-qCCA` appears anywhere outside `lib-q-saturnin/`, so the claim cannot leak — into a crate

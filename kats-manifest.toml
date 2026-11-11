@@ -1037,3 +1037,25 @@ path = "lib-q-maul/tests/vectors/maul_kat.txt"
 origin = "self-generated"
 generator = "lib-q-maul/tests/kat.rs::regenerate_vectors -- cargo test -p lib-q-maul --test kat -- --ignored --nocapture regenerate_vectors"
 sha3_256 = "9bd6507847b3a7d2a6b33878397ad886b6638bca133455b26acb60b636528999"
+
+# --- lib-q-hpke/tests/fixtures/independent_key_schedule_kat ------------------------------------
+# origin = "independent-implementation" (new category, added alongside this entry -- see
+# scripts/ci_guard_kat_provenance.py's module docstring for the full taxonomy rationale). The
+# RFC 9180 key-schedule stage (LabeledExtract/LabeledExpand/KeySchedule) is recomputed from
+# scratch by generate_vectors.py, a Python script that shares no code with lib-q-hpke and calls
+# CPython's hashlib (SHA3-256/512, SHAKE128/256) for the digest/XOF arithmetic -- NOT
+# lib-q-sha3/lib-q-keccak. This is deliberately not "self-generated": that category is for values
+# produced by the crate under test itself, which cannot catch a labelling/framing bug that moves
+# both the code under test and a same-codebase "expected" value identically (see
+# tests/rfc9180_key_schedule_structure_tests.rs, which is exactly that self-consistency shape).
+# It is also not "upstream": RFC 9180 Appendix A publishes no vectors for any KEM/KDF pair
+# lib-q-hpke implements (PQ-only ML-KEM KEM, non-RFC-5869 hash-based "HKDF"), so there is no
+# external corpus to vendor. See lib-q-hpke/tests/fixtures/independent_key_schedule_kat/
+# PROVENANCE.md for what is and is not claimed, and docs/independent-hpke-vectors.md for the
+# full gap writeup (enc-binding, IANA codepoints) this card also produced.
+
+[[kat]]
+path = "lib-q-hpke/tests/fixtures/independent_key_schedule_kat/vectors.json"
+origin = "independent-implementation"
+generator = "lib-q-hpke/tests/fixtures/independent_key_schedule_kat/generate_vectors.py (CPython hashlib SHA3-256/512, SHAKE128/256) -- regenerate with: python3 generate_vectors.py > vectors.json"
+sha3_256 = "520063a92e72af6fc15613a10858f0cfdc911c2c65ad6fddeed9afc85780be2c"

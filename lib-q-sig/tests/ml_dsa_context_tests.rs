@@ -19,7 +19,9 @@ const INDEX_ENTRY_CTX: &[u8] = b"example.org/index-entry-v0";
 
 fn keypair(ml_dsa: &MlDsa, seed: u8) -> (SigPublicKey, SigSecretKey) {
     let kp = ml_dsa
-        .generate_keypair_with_randomness([seed; KEY_GENERATION_RANDOMNESS_SIZE])
+        .generate_keypair_with_seed(&lib_q_ml_dsa::Zeroizing::new(
+            [seed; KEY_GENERATION_RANDOMNESS_SIZE],
+        ))
         .expect("keygen");
     (
         SigPublicKey::new(kp.public_key().as_bytes().to_vec()),

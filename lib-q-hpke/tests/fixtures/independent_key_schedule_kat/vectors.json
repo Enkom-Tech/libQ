@@ -1,0 +1,152 @@
+{
+  "provenance": "Independently computed by generate_vectors.py (CPython hashlib SHA3-256/512 and SHAKE128/256), NOT derived from or checked against lib-q-hpke's own output at generation time. See PROVENANCE.md.",
+  "cases": [
+    {
+      "name": "base_mlkem512_hkdfshake128_saturnin256",
+      "mode": "Base",
+      "kem": "MlKem512",
+      "kdf": "HkdfShake128",
+      "aead": "Saturnin256",
+      "shared_secret": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "info": "696e646570656e64656e742048504b45206b65792d7363686564756c65204b41542066697874757265202f2062617365206d6f6465202f20696e666f",
+      "psk": "",
+      "psk_id": "",
+      "expected": {
+        "suite_id": "48504b45002200040004",
+        "psk_id_hash": "f5c4826a6a0730fe15674da7d0b49928",
+        "info_hash": "0f8235a7d45eaf1298f911ffcc90e609",
+        "key_schedule_context": "00f5c4826a6a0730fe15674da7d0b499280f8235a7d45eaf1298f911ffcc90e609",
+        "secret": "90d78c1c20b736b7177297bed96aeecd",
+        "key": "17420440cfd4a9d898054c36a1c4c3a51227b35b77e6f446ca2a673338e80957",
+        "base_nonce": "8b1e82249d9e4f6563750f3324a8bf2a",
+        "exporter_secret": "8b1df5f89193d2a52be3789e39d68a3e"
+      }
+    },
+    {
+      "name": "base_mlkem512_hkdfshake256_saturnin256",
+      "mode": "Base",
+      "kem": "MlKem512",
+      "kdf": "HkdfShake256",
+      "aead": "Saturnin256",
+      "shared_secret": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "info": "696e646570656e64656e742048504b45206b65792d7363686564756c65204b41542066697874757265202f2062617365206d6f6465202f20696e666f",
+      "psk": "",
+      "psk_id": "",
+      "expected": {
+        "suite_id": "48504b45002200050004",
+        "psk_id_hash": "c0311636fc0b6b60917f7a6ab87c333b801a1315e71c8b02922a22d073c2f7e6",
+        "info_hash": "8e57a200553b1bf7d1a3e5e3b6250a01844a9b625f31a76a7a7c91eb66f5930a",
+        "key_schedule_context": "00c0311636fc0b6b60917f7a6ab87c333b801a1315e71c8b02922a22d073c2f7e68e57a200553b1bf7d1a3e5e3b6250a01844a9b625f31a76a7a7c91eb66f5930a",
+        "secret": "610a8488017e1e9e8ed0527c3d3caa7477021b218f5e32dd5fd0a457929e0817",
+        "key": "3c65993355b9857dcb4a0791b52402a1ca83247fd20514655f0e7c062adf28f9",
+        "base_nonce": "d8a42cdeb223eb2c52707d56e191d650",
+        "exporter_secret": "2f209ee29a85722f0c3ee4b15c7440813bdf92f9c8c6cabd13180ca3a28e4d66"
+      }
+    },
+    {
+      "name": "base_mlkem512_hkdfsha3_256_saturnin256",
+      "mode": "Base",
+      "kem": "MlKem512",
+      "kdf": "HkdfSha3_256",
+      "aead": "Saturnin256",
+      "shared_secret": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "info": "696e646570656e64656e742048504b45206b65792d7363686564756c65204b41542066697874757265202f2062617365206d6f6465202f20696e666f",
+      "psk": "",
+      "psk_id": "",
+      "expected": {
+        "suite_id": "48504b45002200060004",
+        "psk_id_hash": "74e03986b3aa097039f5075c9e66c24ed5d9f2a21d65730d5d0257f50dc8e2af",
+        "info_hash": "04ebca9173c55737b501f4d2808c6c20038064481fa77a4961ee77d73bc0b5a5",
+        "key_schedule_context": "0074e03986b3aa097039f5075c9e66c24ed5d9f2a21d65730d5d0257f50dc8e2af04ebca9173c55737b501f4d2808c6c20038064481fa77a4961ee77d73bc0b5a5",
+        "secret": "84f97601c40a48e3390d51c3e20b086f9b54d4aad349b8f408e174cf5fabd4b6",
+        "key": "7c84fb30d945a545064be6de7a995353d0dc7dc3d2e8ed2b8ff970c8e6ac23da",
+        "base_nonce": "186d8745bc990829d20aa88403ea9a61",
+        "exporter_secret": "b7356640ecaffaa456cde1bc8eb281a93b21ebd9c0ed5c8d597c25c38528748a"
+      }
+    },
+    {
+      "name": "base_mlkem512_hkdfsha3_512_saturnin256",
+      "mode": "Base",
+      "kem": "MlKem512",
+      "kdf": "HkdfSha3_512",
+      "aead": "Saturnin256",
+      "shared_secret": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "info": "696e646570656e64656e742048504b45206b65792d7363686564756c65204b41542066697874757265202f2062617365206d6f6465202f20696e666f",
+      "psk": "",
+      "psk_id": "",
+      "expected": {
+        "suite_id": "48504b45002200070004",
+        "psk_id_hash": "a1709be72f96d920100c9a04ebec9afc13a1e7e5fd4b59627a38092670295c362d31172c05d7467c1b96f9dfb9f6827e3e26f568849a043f7b049f63ec0cbb39",
+        "info_hash": "38d54dc6c6519ffe0105afc389e40bc7d48f69766758b9eea95b1d17edcb0a78dda5a32aafc352b720b95ebcbfa232d337177136c4cbdb5e8c66b69cd20c139f",
+        "key_schedule_context": "00a1709be72f96d920100c9a04ebec9afc13a1e7e5fd4b59627a38092670295c362d31172c05d7467c1b96f9dfb9f6827e3e26f568849a043f7b049f63ec0cbb3938d54dc6c6519ffe0105afc389e40bc7d48f69766758b9eea95b1d17edcb0a78dda5a32aafc352b720b95ebcbfa232d337177136c4cbdb5e8c66b69cd20c139f",
+        "secret": "955606baf2c96d2852287ab33712c4920af522da3e2da7f12da6f019e718d1718dd28cd82b1f32d529b29bffb67d77995e2512dcbb4cb155522dff662372aa25",
+        "key": "60a4a240337a511b28cfd851f8dfc4a846dce573e4325873cac85b8979b19430",
+        "base_nonce": "5cc5117ef9031c9f05d026586c1f6434",
+        "exporter_secret": "7c4883d9e982c7127bdd073f115ea8cd48bea6f15dfae8f0608faca3e03d243fa65391d444ffbb32d828e7150b41449e4777dcb02bf710de96d196001463ebea"
+      }
+    },
+    {
+      "name": "psk_mlkem768_hkdfsha3_256_shake256aead",
+      "mode": "Psk",
+      "kem": "MlKem768",
+      "kdf": "HkdfSha3_256",
+      "aead": "Shake256",
+      "shared_secret": "c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7",
+      "info": "696e646570656e64656e742048504b45206b65792d7363686564756c65204b41542066697874757265202f2070736b206d6f6465202f20696e666f",
+      "psk": "68706b652d6b61742d70736b2d6d6174657269616c2d30313233343536373839",
+      "psk_id": "68706b652d6b61742d70736b2d6964",
+      "expected": {
+        "suite_id": "48504b45002300060005",
+        "psk_id_hash": "b1d3eeb56c39e23335f840836574c1bd02e9cc6285e3b0a6b978a71b941a103e",
+        "info_hash": "5180ebe38bee87a3286af17736523fc71715b25acf5b3d26c58fdf11969bb8af",
+        "key_schedule_context": "01b1d3eeb56c39e23335f840836574c1bd02e9cc6285e3b0a6b978a71b941a103e5180ebe38bee87a3286af17736523fc71715b25acf5b3d26c58fdf11969bb8af",
+        "secret": "e81b93a19ffbd48f7f62b4753cc795a5324bb82f4cadc005ecb92a60cea9299f",
+        "key": "9ce7f2a7215ad90539832c95a633d8194db5f9cbe0200a97e6a76d73e515cf7e",
+        "base_nonce": "0385df9b2355ebfb915d7d1bd692fe9d",
+        "exporter_secret": "ca6016b7883f9184e2926b500b0d773145e9eed512b482eb481fe8d405899cbe"
+      }
+    },
+    {
+      "name": "psk_mlkem768_hkdfshake256_shake256aead",
+      "mode": "Psk",
+      "kem": "MlKem768",
+      "kdf": "HkdfShake256",
+      "aead": "Shake256",
+      "shared_secret": "c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7",
+      "info": "696e646570656e64656e742048504b45206b65792d7363686564756c65204b41542066697874757265202f2070736b206d6f6465202f20696e666f",
+      "psk": "68706b652d6b61742d70736b2d6d6174657269616c2d30313233343536373839",
+      "psk_id": "68706b652d6b61742d70736b2d6964",
+      "expected": {
+        "suite_id": "48504b45002300050005",
+        "psk_id_hash": "d1b84222b01bf7910c7981d937f71fd3dee7fc65b448043e1a40edadfecd4053",
+        "info_hash": "9c5d839680901ad65d1cb110a6671cc2dbfad69a447ad904483001f50de6f8e1",
+        "key_schedule_context": "01d1b84222b01bf7910c7981d937f71fd3dee7fc65b448043e1a40edadfecd40539c5d839680901ad65d1cb110a6671cc2dbfad69a447ad904483001f50de6f8e1",
+        "secret": "a25684dbd35ccfabb0bd28284e9d2d5513a39af544b3607894a03bfdea868a6f",
+        "key": "4568c98308ac1efdda72fe55e6e29e634751dbcdfd9d6340746ce6df53b0c510",
+        "base_nonce": "7f5198181485762d3d38410d3c1dd0e7",
+        "exporter_secret": "d508db4d44e89041f9e960cc8f099860dbc49e06c08e7edab07b55e72d0b2793"
+      }
+    },
+    {
+      "name": "base_mlkem1024_hkdfsha3_512_duplexspongeaead_empty_info",
+      "mode": "Base",
+      "kem": "MlKem1024",
+      "kdf": "HkdfSha3_512",
+      "aead": "DuplexSpongeAead",
+      "shared_secret": "32333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f5051",
+      "info": "",
+      "psk": "",
+      "psk_id": "",
+      "expected": {
+        "suite_id": "48504b45002400070006",
+        "psk_id_hash": "7b2e77dd16538a22dfa72a9cf3e7c37f918eeeacf0b76336d059db4c081a36f6538beaa8c2b9939990b5348ce229bacfe7e08fdec0a4cda45aa862e02707f6d2",
+        "info_hash": "7cf4d35bef548259e4806422daf39ee4c884e60cf4b5c1d90ac44b35273644cb516c570736ce3bc1d3769dd55bbbda8166198d08832d74987b63c05dc77a76e6",
+        "key_schedule_context": "007b2e77dd16538a22dfa72a9cf3e7c37f918eeeacf0b76336d059db4c081a36f6538beaa8c2b9939990b5348ce229bacfe7e08fdec0a4cda45aa862e02707f6d27cf4d35bef548259e4806422daf39ee4c884e60cf4b5c1d90ac44b35273644cb516c570736ce3bc1d3769dd55bbbda8166198d08832d74987b63c05dc77a76e6",
+        "secret": "19775e813e4d76b62556985a523613210a0b934cba5d46aa5771fae35eec17a4bc560715bc8ed0d70e88e3f2bd5e3bd5233b10294550dcfd64668e9a6750139d",
+        "key": "e78d3f8fa218198e28713d170e43b32d8ad48f1f60bd08b243ea7864b37920e3",
+        "base_nonce": "ee0554c76f988037487bb9b296b975b0",
+        "exporter_secret": "ad88c0a7778d131cdb1f2731317797fbd564a8ae0956d7e66317907e3a704ee0696b235b7f8f483772b1132c0fc4c4cfa9adb55ba0efa24d48aa2075dc234c0d"
+      }
+    }
+  ]
+}

@@ -1124,6 +1124,7 @@ dependencies = [
  "lib-q-aead",
  "lib-q-core",
  "lib-q-hash",
+ "lib-q-hpke",
  "lib-q-kem",
  "lib-q-ml-dsa",
  "lib-q-ml-kem",

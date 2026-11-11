@@ -1,0 +1,25 @@
+# End-to-end run over the real libQ ML-KEM-768 and ML-DSA-44 code, through the C-ABI shim.
+# Build the shim first:  (cd shim && cargo build --release --target-dir target)
+# Then:                  cargo ct-kat -c examples/libq-e2e.yaml
+compilers: [gcc]            # add clang where installed; a configured-but-missing compiler is an ERROR
+opt_levels: ["-O0", "-O2", "-Os"]
+timeout_secs: 300
+layers: { memcheck: true, ct_matrix: true, asm_scan: true, dudect: true }
+dudect: { measurements: 4000, t_threshold: 4.5 }
+targets:
+  - name: libq-mlkem768-decaps
+    sources: [wrap.c]
+    function: libq_mlkem768_decaps
+    link_args: ["../shim/target/release/libctkat_libq_shim.a", "-lpthread", "-ldl", "-lm"]
+    args:
+      - { kind: secret, len: 64 }     # d || z seed
+      - { kind: public, len: 1088 }   # ciphertext
+      - { kind: out, len: 32 }        # shared secret
+  - name: libq-mldsa44-sign
+    sources: [wrap.c]
+    function: libq_mldsa44_sign
+    link_args: ["../shim/target/release/libctkat_libq_shim.a", "-lpthread", "-ldl", "-lm"]
+    args:
+      - { kind: secret, len: 32 }     # key-generation seed
+      - { kind: public, len: 32 }     # message
+      - { kind: out, len: 2420 }      # signature

@@ -2,8 +2,8 @@
 //! `stark.rs` (which uses `ConfigVal = Complex<Mersenne31>`).
 //!
 //! Key structural difference from Arm A: BabyBear (31 bits) is far too small to double as the FRI
-//! challenge field, so the challenge field is the **degree-5 extension**
-//! `BinomialExtensionField<BabyBear, 5>` = `GF(q^5)` (~155 bits) — chosen so the Fiat–Shamir/DEEP
+//! challenge field, so the challenge field is the **degree-8 extension**
+//! `BinomialExtensionField<BabyBear, 8>` = `GF(q^8)` (~248 bits) — chosen so the Fiat–Shamir/DEEP
 //! soundness clears **128-bit post-quantum** (see `docs/membership-arm-b-soundness-params.md`). And
 //! because BabyBear *is* `PrimeField32` (unlike Arm A's complex field), the challenger is
 //! `Shake256Challenger32<BabyBear>` directly — no `ComplexFieldChallenger` wrapper.
@@ -41,11 +41,11 @@ use crate::air::wide_sponge_baby_bear::WIDE_DIGEST_ELEMS;
 
 /// STARK value (trace) field.
 pub type BbVal = BabyBear;
-/// FRI challenge field: the degree-**5** extension `F_{p^5}` (~155 bits). Upgraded from degree-4
-/// (~124 bits) so the Fiat–Shamir/DEEP soundness clears **128-bit post-quantum** — the deg-4 field
-/// capped proof soundness at ~116-bit conjectured / ~99-bit provable (see
-/// `docs/membership-arm-b-soundness-params.md`).
-pub type BbChallenge = BinomialExtensionField<BabyBear, 5>;
+/// FRI challenge field: the degree-**8** extension `F_{p^8}` (~248 bits). Upgraded from degree-5
+/// (~155 bits) so the field-size term of the PROVEN (Johnson / BCIKS proximity-gaps) bound clears
+/// **128-bit** with margin, not only the conjectured one (the degree-4 field capped at ~116-bit
+/// conjectured / ~99-bit provable). See `docs/membership-arm-b-soundness-params.md`.
+pub type BbChallenge = BinomialExtensionField<BabyBear, 8>;
 /// Main-trace Merkle commitment (SHAKE256, NIST-track hash).
 ///
 /// The leaf type is the **scalar** `BabyBear`, not `<BabyBear as Field>::Packing`. On the default
@@ -68,13 +68,13 @@ pub type BbValMmcs = MerkleTreeMmcs<
 pub type BbChallengeMmcs = ExtensionMmcs<BabyBear, BbChallenge, BbValMmcs>;
 /// Two-adic FRI polynomial-commitment scheme over BabyBear.
 pub type BbPcs = TwoAdicFriPcs<BabyBear, BabyBearDft, BbValMmcs, BbChallengeMmcs>;
-/// Fiat–Shamir challenger (SHAKE256 over BabyBear; samples the degree-5 challenge field).
+/// Fiat–Shamir challenger (SHAKE256 over BabyBear; samples the degree-8 challenge field).
 pub type BbChallenger = Shake256Challenger32<BabyBear>;
 /// Transparent BabyBear STARK config.
 pub type BbConfig = StarkConfig<BbPcs, BbChallenge, BbChallenger>;
 
 /// Construct the transparent BabyBear STARK config — tuned for **128-bit post-quantum** soundness
-/// (`log_blowup = 4`, `num_queries = 96`, `proof_of_work_bits = 20`, degree-5 challenge field).
+/// (`log_blowup = 4`, `num_queries = 96`, `proof_of_work_bits = 20`, degree-8 challenge field).
 pub fn default_config_bb() -> BbConfig {
     let shake = Shake256Hash {};
     let hash = SerializingHasher::new(shake);
@@ -88,7 +88,7 @@ pub fn default_config_bb() -> BbConfig {
     // FRI rate ρ = 1/16) so the query phase clears 128-bit even under the provable list-decoding
     // bound. **num_queries = 96** (96·4 = 384-bit conjectured query soundness; provable-Johnson
     // 192-bit) and **proof_of_work_bits = 20** (Grover-halved to 10 under quantum). Combined with
-    // the degree-5 challenge field (~155 bits ⇒ FS/DEEP ~144-bit) and the SHAKE256 Merkle
+    // the degree-8 challenge field (~248 bits => FS/DEEP ~237-bit) and the SHAKE256 Merkle
     // commitment (128-bit collision), the binding soundness is ~128-bit PQ.
     let fri_params = FriParameters {
         log_blowup: 4,
@@ -189,7 +189,7 @@ pub fn zk_config_bb(
 }
 
 /// Default ZK config — **128-bit-PQ** parameters matching [`default_config_bb`]: `log_blowup = 4`,
-/// `num_queries = 96`, `proof_of_work_bits = 20` (degree-5 challenge field).
+/// `num_queries = 96`, `proof_of_work_bits = 20` (degree-8 challenge field).
 pub fn default_zk_config_bb(val_seed: [u8; 32], pcs_seed: [u8; 32]) -> ZkBbConfig {
     zk_config_bb(4, 96, 20, val_seed, pcs_seed)
 }

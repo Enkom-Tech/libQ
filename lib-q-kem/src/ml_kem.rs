@@ -10,11 +10,13 @@ use alloc::{format, string::ToString, vec::Vec};
 
 use lib_q_core::{Error, Kem, KemKeypair, KemPublicKey, KemSecretKey, SecurityLevel};
 use lib_q_ml_kem::array::Array;
+use lib_q_ml_kem::kem::{DecapsulationKey, EncapsulationKey};
 use lib_q_ml_kem::{
     ArraySize, Decapsulate, Encapsulate, EncodedSizeUser, KemCore, MLKEM512_CIPHERTEXT_SIZE,
     MLKEM512_PUBLIC_KEY_SIZE, MLKEM512_SECRET_KEY_SIZE, MLKEM768_CIPHERTEXT_SIZE,
     MLKEM768_PUBLIC_KEY_SIZE, MLKEM768_SECRET_KEY_SIZE, MLKEM1024_CIPHERTEXT_SIZE,
-    MLKEM1024_PUBLIC_KEY_SIZE, MLKEM1024_SECRET_KEY_SIZE, MlKem512, MlKem768, MlKem1024, Zeroizing,
+    MLKEM1024_PUBLIC_KEY_SIZE, MLKEM1024_SECRET_KEY_SIZE, MlKem512, MlKem512Params, MlKem768,
+    MlKem768Params, MlKem1024, MlKem1024Params, Zeroizing,
 };
 use lib_q_random::new_secure_rng;
 
@@ -45,6 +47,30 @@ fn secure_array_from_slice<const N: usize>(slice: &[u8]) -> Result<Zeroizing<[u8
     let mut array = Zeroizing::new([0u8; N]);
     array.copy_from_slice(slice);
     Ok(array)
+}
+
+/// Map a FIPS 203 7.2 encapsulation-key validation failure (`try_from_bytes` rejects a
+/// non-canonical 12-bit coefficient, i.e. `>= q`) into the crate's typed [`Error::InvalidKey`].
+#[inline]
+fn invalid_encapsulation_key(_err: lib_q_ml_kem::Error) -> Error {
+    Error::InvalidKey {
+        key_type: "ML-KEM encapsulation key".to_string(),
+        reason: "FIPS 203 7.2 modulus check failed: a 12-bit coefficient is non-canonical (>= q)"
+            .to_string(),
+    }
+}
+
+/// Map a FIPS 203 7.3 decapsulation-key validation failure (`try_from_bytes` rejects a
+/// non-canonically encoded embedded encapsulation key, or an embedded hash `h` that does not
+/// equal the recomputed `H(ek)`) into the crate's typed [`Error::InvalidKey`].
+#[inline]
+fn invalid_decapsulation_key(_err: lib_q_ml_kem::Error) -> Error {
+    Error::InvalidKey {
+        key_type: "ML-KEM decapsulation key".to_string(),
+        reason: "FIPS 203 7.3 check failed: embedded encapsulation key is non-canonical, or its \
+                  hash does not equal H(ek)"
+            .to_string(),
+    }
 }
 
 /// ML-KEM 512 implementation (FIPS 203 Level 1)
@@ -103,9 +129,10 @@ impl Kem for MlKem512Impl {
         let ek_array = secure_array_from_slice::<{ MLKEM512_PUBLIC_KEY_SIZE }>(&public_key.data)?;
 
         // Use the proper non-deprecated API
-        let ek = <MlKem512 as KemCore>::EncapsulationKey::from_bytes(
+        let ek = EncapsulationKey::<MlKem512Params>::try_from_bytes(
             &Array::try_from(ek_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_encapsulation_key)?;
 
         let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
             operation: format!("Failed to create secure RNG: {}", e),
@@ -144,9 +171,10 @@ impl Kem for MlKem512Impl {
         let ct_array = secure_array_from_slice::<{ MLKEM512_CIPHERTEXT_SIZE }>(ciphertext)?;
 
         // Use the proper non-deprecated API
-        let dk = <MlKem512 as KemCore>::DecapsulationKey::from_bytes(
+        let dk = DecapsulationKey::<MlKem512Params>::try_from_bytes(
             &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_decapsulation_key)?;
 
         let shared_secret = dk
             .decapsulate(
@@ -172,9 +200,10 @@ impl Kem for MlKem512Impl {
         let dk_array = secure_array_from_slice::<{ MLKEM512_SECRET_KEY_SIZE }>(&secret_key.data)?;
 
         // Use the proper non-deprecated API
-        let dk = <MlKem512 as KemCore>::DecapsulationKey::from_bytes(
+        let dk = DecapsulationKey::<MlKem512Params>::try_from_bytes(
             &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_decapsulation_key)?;
 
         // Derive public key from secret key
         let ek = dk.encapsulation_key();
@@ -268,9 +297,10 @@ impl Kem for MlKem768Impl {
         let ek_array = secure_array_from_slice::<{ MLKEM768_PUBLIC_KEY_SIZE }>(&public_key.data)?;
 
         // Use the proper non-deprecated API
-        let ek = <MlKem768 as KemCore>::EncapsulationKey::from_bytes(
+        let ek = EncapsulationKey::<MlKem768Params>::try_from_bytes(
             &Array::try_from(ek_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_encapsulation_key)?;
 
         let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
             operation: format!("Failed to create secure RNG: {}", e),
@@ -309,9 +339,10 @@ impl Kem for MlKem768Impl {
         let ct_array = secure_array_from_slice::<{ MLKEM768_CIPHERTEXT_SIZE }>(ciphertext)?;
 
         // Use the proper non-deprecated API
-        let dk = <MlKem768 as KemCore>::DecapsulationKey::from_bytes(
+        let dk = DecapsulationKey::<MlKem768Params>::try_from_bytes(
             &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_decapsulation_key)?;
 
         let shared_secret = dk
             .decapsulate(
@@ -337,9 +368,10 @@ impl Kem for MlKem768Impl {
         let dk_array = secure_array_from_slice::<{ MLKEM768_SECRET_KEY_SIZE }>(&secret_key.data)?;
 
         // Use the proper non-deprecated API
-        let dk = <MlKem768 as KemCore>::DecapsulationKey::from_bytes(
+        let dk = DecapsulationKey::<MlKem768Params>::try_from_bytes(
             &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_decapsulation_key)?;
 
         // Derive public key from secret key
         let ek = dk.encapsulation_key();
@@ -435,9 +467,10 @@ impl Kem for MlKem1024Impl {
         let ek_array = secure_array_from_slice::<{ MLKEM1024_PUBLIC_KEY_SIZE }>(&public_key.data)?;
 
         // Use the proper non-deprecated API
-        let ek = <MlKem1024 as KemCore>::EncapsulationKey::from_bytes(
+        let ek = EncapsulationKey::<MlKem1024Params>::try_from_bytes(
             &Array::try_from(ek_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_encapsulation_key)?;
 
         let mut rng = new_secure_rng().map_err(|e| Error::RandomGenerationFailed {
             operation: format!("Failed to create secure RNG: {}", e),
@@ -476,9 +509,10 @@ impl Kem for MlKem1024Impl {
         let ct_array = secure_array_from_slice::<{ MLKEM1024_CIPHERTEXT_SIZE }>(ciphertext)?;
 
         // Use the proper non-deprecated API
-        let dk = <MlKem1024 as KemCore>::DecapsulationKey::from_bytes(
+        let dk = DecapsulationKey::<MlKem1024Params>::try_from_bytes(
             &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_decapsulation_key)?;
 
         let shared_secret = dk
             .decapsulate(
@@ -504,9 +538,10 @@ impl Kem for MlKem1024Impl {
         let dk_array = secure_array_from_slice::<{ MLKEM1024_SECRET_KEY_SIZE }>(&secret_key.data)?;
 
         // Use the proper non-deprecated API
-        let dk = <MlKem1024 as KemCore>::DecapsulationKey::from_bytes(
+        let dk = DecapsulationKey::<MlKem1024Params>::try_from_bytes(
             &Array::try_from(dk_array.as_slice()).map_err(|_| Error::InvalidKeyFormat)?,
-        );
+        )
+        .map_err(invalid_decapsulation_key)?;
 
         // Derive public key from secret key
         let ek = dk.encapsulation_key();
@@ -697,5 +732,152 @@ mod tests {
             auth_decap_err_1024,
             Err(Error::NotImplemented { .. })
         ));
+    }
+
+    #[test]
+    fn test_ml_kem_encapsulate_rejects_non_canonical_encapsulation_key() {
+        // Tamper a valid ek's first 2 bytes to 0xFF 0xFF: the encoding is `ByteEncode(t_hat) ||
+        // rho`, so this forces t_hat's first 12-bit coefficient to 0xFFF (>= q = 3329) -- the
+        // FIPS 203 7.2 "modulus check" that `EncapsulationKey::try_from_bytes` enforces.
+        let kem512 = MlKem512Impl::default();
+        let keypair512 = kem512.generate_keypair().unwrap();
+        let mut bad_ek512 = keypair512.public_key.data.clone();
+        bad_ek512[0] = 0xFF;
+        bad_ek512[1] = 0xFF;
+        let err = kem512
+            .encapsulate(&KemPublicKey::new(bad_ek512))
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+
+        let kem768 = MlKem768Impl::default();
+        let keypair768 = kem768.generate_keypair().unwrap();
+        let mut bad_ek768 = keypair768.public_key.data.clone();
+        bad_ek768[0] = 0xFF;
+        bad_ek768[1] = 0xFF;
+        let err = kem768
+            .encapsulate(&KemPublicKey::new(bad_ek768))
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+
+        let kem1024 = MlKem1024Impl::default();
+        let keypair1024 = kem1024.generate_keypair().unwrap();
+        let mut bad_ek1024 = keypair1024.public_key.data.clone();
+        bad_ek1024[0] = 0xFF;
+        bad_ek1024[1] = 0xFF;
+        let err = kem1024
+            .encapsulate(&KemPublicKey::new(bad_ek1024))
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_ml_kem_decapsulate_and_derive_reject_decapsulation_key_with_wrong_embedded_hash() {
+        // The dk encoding is `dk_pke || ek_pke || h || z`: the 32 bytes right before the
+        // trailing 32-byte implicit-rejection seed `z` are `h`. Flipping a bit there leaves
+        // `dk_pke`/`ek_pke` (and thus canonicity) untouched but makes `h != H(ek)`, which is the
+        // FIPS 203 7.3 check `DecapsulationKey::try_from_bytes` enforces.
+        fn flip_embedded_hash(dk_bytes: &mut [u8]) {
+            let h_byte = dk_bytes.len() - 33;
+            dk_bytes[h_byte] ^= 0xFF;
+        }
+
+        let kem512 = MlKem512Impl::default();
+        let keypair512 = kem512.generate_keypair().unwrap();
+        let mut bad_dk512 = keypair512.secret_key.data.clone();
+        flip_embedded_hash(&mut bad_dk512);
+        let ct512 = alloc::vec![0u8; MLKEM512_CIPHERTEXT_SIZE];
+        let err = kem512
+            .decapsulate(&KemSecretKey::new(bad_dk512.clone()), &ct512)
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+        let err = kem512
+            .derive_public_key(&KemSecretKey::new(bad_dk512))
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+
+        let kem768 = MlKem768Impl::default();
+        let keypair768 = kem768.generate_keypair().unwrap();
+        let mut bad_dk768 = keypair768.secret_key.data.clone();
+        flip_embedded_hash(&mut bad_dk768);
+        let ct768 = alloc::vec![0u8; MLKEM768_CIPHERTEXT_SIZE];
+        let err = kem768
+            .decapsulate(&KemSecretKey::new(bad_dk768.clone()), &ct768)
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+        let err = kem768
+            .derive_public_key(&KemSecretKey::new(bad_dk768))
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+
+        let kem1024 = MlKem1024Impl::default();
+        let keypair1024 = kem1024.generate_keypair().unwrap();
+        let mut bad_dk1024 = keypair1024.secret_key.data.clone();
+        flip_embedded_hash(&mut bad_dk1024);
+        let ct1024 = alloc::vec![0u8; MLKEM1024_CIPHERTEXT_SIZE];
+        let err = kem1024
+            .decapsulate(&KemSecretKey::new(bad_dk1024.clone()), &ct1024)
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+        let err = kem1024
+            .derive_public_key(&KemSecretKey::new(bad_dk1024))
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
+    }
+
+    #[test]
+    fn test_ml_kem_hpke_adapter_rejects_non_canonical_encapsulation_key() {
+        // The HPKE `MlKemImpl` adapter (`lib-q-hpke/src/kem/ml_kem.rs`) routes through
+        // `LibQKemProvider`, which dispatches to the same `MlKemXxxImpl::encapsulate` fixed
+        // above -- so a tampered ek must be rejected through the HPKE surface too, not just the
+        // native `Kem` trait directly.
+        use lib_q_core::KemOperations;
+
+        use crate::provider::LibQKemProvider;
+
+        let kem512 = MlKem512Impl::default();
+        let keypair512 = kem512.generate_keypair().unwrap();
+        let mut bad_ek512 = keypair512.public_key.data.clone();
+        bad_ek512[0] = 0xFF;
+        bad_ek512[1] = 0xFF;
+
+        let provider = LibQKemProvider::new().unwrap();
+        let err = provider
+            .encapsulate(
+                lib_q_core::Algorithm::MlKem512,
+                &KemPublicKey::new(bad_ek512),
+                None,
+            )
+            .unwrap_err();
+        assert!(
+            matches!(err, Error::InvalidKey { .. }),
+            "expected InvalidKey, got {err:?}"
+        );
     }
 }

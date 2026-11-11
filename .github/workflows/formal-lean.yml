@@ -1,0 +1,57 @@
+name: Formal (Lean)
+
+# Lean 4 proofs backing the libQ Saturnin sign-offs (Gate D binding + tidiness
+# witness, Gate E bound arithmetic + composition skeleton) live under formal/lean/. This job
+# is deliberately scoped to that directory only -- it never touches Rust CI -- and its only
+# assertion is `lake build`, i.e. that every proof still typechecks with no `sorry`.
+#
+# Reproduce locally with exactly the commands below (see formal/lean/README.md):
+#   curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y --default-toolchain none
+#   cd formal/lean && ~/.elan/bin/lake build
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - "formal/lean/**"
+      - ".github/workflows/formal-lean.yml"
+  pull_request:
+    branches: [ main, develop ]
+    paths:
+      - "formal/lean/**"
+      - ".github/workflows/formal-lean.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  lake-build:
+    name: lake build (no sorry)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: formal/lean
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install elan (pins the toolchain named by formal/lean/lean-toolchain)
+        run: |
+          curl https://elan.lean-lang.org/elan-init.sh -sSf | sh -s -- -y --default-toolchain none
+          echo "$HOME/.elan/bin" >> "$GITHUB_PATH"
+
+      - name: lake build
+        run: lake build
+
+      - name: Fail if any proof relies on `sorry` (belt-and-braces on top of the build itself
+          rejecting `sorry` under default lint settings)
+        run: |
+          if grep -rn '\bsorry\b' SaturninCTX/ SaturninCTX.lean; then
+            echo "::error::sorry found in formal/lean/ -- Gate D/E proofs must be sorry-free"
+            exit 1
+          fi

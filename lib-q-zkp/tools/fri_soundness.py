@@ -33,26 +33,34 @@ def report(label, cell_bits, challenge_ext_deg, log_blowup, num_queries, pow_bit
     ud, john, conj = q((1 + rho) / 2), q(math.sqrt(rho)), q(rho)
     hash_coll = hash_bits / 2
     pq_grind_conj = conj - pow_bits + pow_bits / 2                 # quantum: grinding Grover-halved
+    # BCIKS20 Thm 1.5 proximity-gap field term (Johnson regime, m=3): eps <= (m+1/2)^7 n^2 / (3 rho^(3/2) |F|),
+    # n = LDE domain size. This is the field-size term of the PROVEN bound; it is far tighter than the
+    # DEEP term when the challenge field is small (e.g. GF(q^5) ~155b gives only ~119b at n=512).
+    n = max_rows * (2 ** log_blowup)
+    bciks = field - log2((3.5 ** 7) * n * n / (3 * rho ** 1.5))
     classical = min(deep, conj, hash_coll)
-    classical_prov = min(deep, john, hash_coll)
+    classical_prov = min(deep, bciks, john, hash_coll)
     pq = min(deep, pq_grind_conj, hash_coll)                      # IOP preserved; hash = Cat-2
+    pq_prov = min(deep, bciks, q(math.sqrt(rho)) - pow_bits + pow_bits / 2, hash_coll)  # PROVEN (Johnson/BCIKS)
     print(f"=== {label} ===")
     print(f"  challenge field {challenge_ext_deg}x{cell_bits:.1f}b   : {field:6.1f} bits")
     print(f"  constraint/DEEP (deg{max_deg})       : {deep:6.1f} bits")
+    print(f"  BCIKS proximity-gap field term: {bciks:6.1f} bits")
     print(f"  FRI query+PoW ud/john/conj    : {ud:5.0f} / {john:5.0f} / {conj:5.0f} bits")
     print(f"  SHAKE256 collision            : {hash_coll:6.1f} bits")
     print(f"  OVERALL classical conj/john   : {classical:6.1f} / {classical_prov:6.1f} bits")
-    print(f"  OVERALL POST-QUANTUM          : {pq:6.1f} bits   {'>= 128 OK' if pq >= 128 else '< 128'}")
+    print(f"  OVERALL POST-QUANTUM (conj)   : {pq:6.1f} bits   {'>= 128 OK' if pq >= 128 else '< 128'}")
+    print(f"  OVERALL POST-QUANTUM (PROVEN) : {pq_prov:6.1f} bits   {'>= 128 OK' if pq_prov >= 128 else '< 128'}")
     print()
-    return pq
+    return min(pq, pq_prov)
 
 if __name__ == "__main__":
     # Arm A membership (membership_config): challenge field = degree-3 over Complex<Mersenne31>
     # = GF(p^6), p = 2^31-1; FRI log_blowup 3 / q 96 / PoW 20; membership AIR degree 5.
     a = report("ARM A  (Complex<M31> value, Poseidon256, challenge GF(p^6))",
                log2(M31), 6, 3, 96, 20, max_deg=5, max_rows=32)
-    # Arm B membership (default_config_bb): challenge field = degree-5 over BabyBear = GF(q^5);
+    # Arm B membership (default_config_bb): challenge field = degree-8 over BabyBear = GF(q^8);
     # FRI log_blowup 4 / q 96 / PoW 20; membership AIR degree 7.
-    b = report("ARM B  (BabyBear value, Poseidon2, challenge GF(q^5))",
-               log2(BABYBEAR), 5, 4, 96, 20, max_deg=7, max_rows=32)
+    b = report("ARM B  (BabyBear value, Poseidon2, challenge GF(q^8))",
+               log2(BABYBEAR), 8, 4, 96, 20, max_deg=7, max_rows=32)
     print(f"Both arms >= 128-bit PQ: {a >= 128 and b >= 128}  (binding term: SHAKE256 hash, 128)")

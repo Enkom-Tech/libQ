@@ -185,9 +185,14 @@ fi
 # is the whole design. The register carries the full caveat (blocking claim, the 2025/387 disproof,
 # the unratified repair), so it qualifies on the same grounds lib-q-saturnin does.
 #
+# Added 2026-09-25 (formal-verification programme): `formal/lean/` carries the same caveat in
+# full (blocking claim, the 2025/387 disproof, the unratified `SAT-JQPRF` repair) in
+# `GateEComposition.lean`, `GateEBound.lean` and `README.md` -- it states the Lean axioms the
+# claim rests on and explicitly does not ratify them, on the same grounds as the register.
+#
 # Add to this list only for a file that likewise states the caveat in full. "It mentions it in
 # passing" is the case this guard exists to reject.
-QCCA_ALLOWED_PREFIX='(lib-q-saturnin/|docs/crypto-signoff-register\.md)'
+QCCA_ALLOWED_PREFIX='(lib-q-saturnin/|docs/crypto-signoff-register\.md|formal/lean/)'
 QCCA_HITS="$(
   git grep -InP 'IND-qCCA' -- \
     ':(exclude)scripts/ci-guard-standards-claims.sh' \

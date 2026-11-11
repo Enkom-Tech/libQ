@@ -202,13 +202,13 @@ mod ml_dsa_no_std_tests {
         let ml_dsa = MlDsa::ml_dsa_65();
 
         // Generate deterministic randomness
-        let mut randomness = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+        let mut randomness = lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
         for (i, item) in randomness.iter_mut().enumerate() {
             *item = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair = ml_dsa
-            .generate_keypair_with_randomness(randomness)
+            .generate_keypair_with_seed(&randomness)
             .expect("Key generation should succeed");
 
         // Verify key sizes are reasonable
@@ -216,13 +216,13 @@ mod ml_dsa_no_std_tests {
         assert!(!keypair.secret_key().as_bytes().is_empty());
 
         // Test that same randomness produces same keys
-        let mut randomness2 = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+        let mut randomness2 = lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
         for (i, item) in randomness2.iter_mut().enumerate() {
             *item = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair2 = ml_dsa
-            .generate_keypair_with_randomness(randomness2)
+            .generate_keypair_with_seed(&randomness2)
             .expect("Key generation should succeed");
 
         assert_eq!(
@@ -241,13 +241,14 @@ mod ml_dsa_no_std_tests {
         let ml_dsa = MlDsa::ml_dsa_65();
 
         // Generate keypair with external randomness
-        let mut key_randomness = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+        let mut key_randomness =
+            lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
         for (i, item) in key_randomness.iter_mut().enumerate() {
             *item = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
         }
 
         let keypair = ml_dsa
-            .generate_keypair_with_randomness(key_randomness)
+            .generate_keypair_with_seed(&key_randomness)
             .expect("Key generation should succeed");
 
         // Sign with external randomness
@@ -291,13 +292,14 @@ mod ml_dsa_no_std_tests {
 
         for ml_dsa in variants {
             // Generate deterministic randomness
-            let mut key_randomness = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+            let mut key_randomness =
+                lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
             for (i, item) in key_randomness.iter_mut().enumerate() {
                 *item = (i as u8).wrapping_mul(0x1F).wrapping_add(0x2B);
             }
 
             let keypair = ml_dsa
-                .generate_keypair_with_randomness(key_randomness)
+                .generate_keypair_with_seed(&key_randomness)
                 .expect("Key generation should succeed");
 
             let message = b"Test message for no_std ML-DSA";

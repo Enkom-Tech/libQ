@@ -114,6 +114,7 @@ pub mod concatenated_code;
 pub mod error;
 pub mod field;
 pub mod gf;
+pub mod gf2x_karatsuba;
 pub mod hqc_core;
 pub mod hqc_kem;
 pub mod hqc_pke;

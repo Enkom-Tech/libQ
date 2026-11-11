@@ -18,6 +18,31 @@ each fails CLOSED (an unparseable or missing input is an error, not a pass):
            filename containing "official", "nist", or "rfc" (case-insensitive, word-bounded).
            This is the rule the audit exists to enforce: lib-q-hqc's `kats/official/` held nine
            KAT tests whose every response value was written by the code under test.
+
+           ORIGIN TAXONOMY (added "independent-implementation" 2026-09-25): four values
+           are valid --
+             "upstream"                  genuinely sourced from an external reference
+                                          implementation/corpus; requires `upstream_url` and
+                                          `upstream_sha3_256`.
+             "self-generated"            produced by THIS repo's own code under test -- a
+                                          regression pin, not independent evidence.
+             "third-party"                sourced from somewhere else but not independently
+                                          re-verified against a pinned upstream URL/hash.
+             "independent-implementation"  computed by a SEPARATE implementation of the same
+                                          specification that shares no code with the crate under
+                                          test (e.g. a from-scratch script against a different
+                                          language's standard library), used when no stable
+                                          external corpus exists to vendor as "upstream" but a
+                                          same-codebase "self-generated" pin would understate what
+                                          the vectors actually check (a labelling/framing bug that
+                                          moves both the code under test and a same-codebase
+                                          "expected" value identically would not be caught by a
+                                          self-generated pin, but would break an
+                                          independent-implementation one). Requires a `generator`
+                                          field naming the independent tool/script and, in the
+                                          adjacent provenance statement (CHECK 5), a description of
+                                          what makes it independent (which library, which language)
+                                          -- not just that it exists.
   CHECK 5  provenance statement ADJACENT TO THE FILE, cross-checked against the manifest. A reader
            who opens the raw vector file (or the directory it sits in) must be able to tell what it
            is without going to kats-manifest.toml. Two ways to satisfy this, and which one applies
@@ -420,7 +445,7 @@ def check_hashes(by_path: dict[str, dict]) -> None:
 # ---------------------------------------------------------------------------
 # CHECK 4 -- naming ban (official / nist / rfc), non-upstream entries only
 # ---------------------------------------------------------------------------
-VALID_ORIGINS = {"upstream", "self-generated", "third-party"}
+VALID_ORIGINS = {"upstream", "self-generated", "third-party", "independent-implementation"}
 # Word-bounded: matches `kats/official/x.rsp` and `nist_kem_kat.rsp` but not `unofficial_notes` or
 # a hypothetical `finest.rsp`. Deliberately scoped to manifested KAT-vector paths only (see the
 # module docstring) so it never sees, and cannot false-positive on, unrelated repo files.
@@ -473,6 +498,7 @@ ORIGIN_HEADER_TOKEN = {
     "upstream": "upstream",
     "self-generated": "self-generated",
     "third-party": "third-party",
+    "independent-implementation": "independent-implementation",
 }
 HEADER_LINES_SCANNED = 20
 

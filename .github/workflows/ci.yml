@@ -290,6 +290,19 @@ jobs:
       - name: Guard against #[test] fns with no failure mechanism
         run: bash ./scripts/ci-guard-no-assert-tests.sh .
 
+      # A deterministic, fixed-seed RNG type (`TestRng`/`SimpleRng`) implementing the real
+      # `CryptoRng` trait must never be `pub`ly reachable from a production build. `TestRng` used
+      # to be gated `#[cfg(any(test, feature = "std"))]` -- `std` is an ordinary production
+      # feature (lib-q's own `hpke` feature turns it on with no `cfg(test)` anywhere in the
+      # chain) -- so a plain `cargo build -p lib-q --features hpke` compiled it in as a `pub`
+      # type reachable through `HpkeContext::set_rng`. This builds the exact production
+      # configurations that regression can reappear in and inspects each compiled rlib's symbol
+      # table (nm-based, not a doc-comment-tripped text grep) for a defined TestRng/SimpleRng
+      # symbol. See scripts/ci-guard-no-test-rng-in-release.sh for the full writeup and
+      # self-test.
+      - name: Guard against a deterministic RNG type reachable from a production build
+        run: bash ./scripts/ci-guard-no-test-rng-in-release.sh
+
       - name: Core validation
         uses: ./.github/actions/rust-build
         with:
