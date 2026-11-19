@@ -4,6 +4,29 @@ All notable changes to this crate are documented here.
 
 ## Unreleased
 
+### `hardened` feature: branchless (masked) fixed-weight sampler duplicate-check
+
+ePrint [2026/1462](https://eprint.iacr.org/2026/1462) ("Power Reveals Timing Conceals") power-
+attacks HQC's fixed-weight support sampling to 100% key recovery on an unmasked
+implementation — the exact algorithm this crate ports as `HqcPke::vect_generate_random_support1`
+(keygen secret `x`/`y`) and `vect_generate_random_support2` (ephemeral encryption noise). Neither
+function had a masking/hiding countermeasure. Under the existing `hardened` feature only
+(default build unaffected):
+
+* Both samplers' duplicate-check is now fully branchless (`subtle::Choice`-based equality
+  accumulation instead of `if support[k] == support[i]`).
+* `support1`'s rejection accept-test uses `subtle::ConstantTimeLess` instead of a native `<`.
+* `support1` keeps one residual secret-dependent branch (the rejection loop's own
+  continuation) — inherent to rejection sampling and irreducible while preserving byte-exact
+  output; `support2` has no such residual (no rejection loop).
+
+**Not wire-breaking, not behavior-changing**: `tests/nist_kem_kat.rs` (all HQC-128/192/256
+vectors) passes unchanged both with and without `--features hardened`, proving this is a pure
+hiding/masking rewrite. New isolated test `tests/hardened_support_sampling_isolated.rs` calls
+only the sampler for a narrower future power/EM probe target than the whole-KEM
+`tests/hardened_dudect_smoke.rs`. Shuffling/hiding was evaluated and NOT implemented — see
+`SECURITY.md`'s "Power/EM side channel on fixed-weight sampling" for the full reasoning.
+
 ### BREAKING — `m` and `sigma` are now `PARAM_SECURITY_BYTES` (16/24/32), not a hardwired 16
 
 `PARAM_SECURITY_BYTES` is per-level in HQC — 16/24/32 for HQC-128/192/256, equal to `P::K` — and

@@ -39,7 +39,7 @@ Simple example showing ML-DSA usage in no_std environments:
 #### `ml_dsa_no_std_trait_test.rs`
 Exercises `lib-q-sig`’s ML-DSA wrapper with the `Signature` trait from `lib-q-core` **in this package’s default configuration** (`lib-q-sig` built with `std`):
 - `generate_keypair` / `sign` / `verify` using automatic RNG
-- `generate_keypair_with_randomness` / `sign_with_randomness` (the path to use on **no_std** when the trait’s RNG helpers are unavailable)
+- `generate_keypair_with_seed` / `sign_with_randomness` (the path to use on **no_std** when the trait’s RNG helpers are unavailable)
 
 #### `ml_dsa_working_no_std.rs`
 Working example using lib_q_ml_dsa directly:

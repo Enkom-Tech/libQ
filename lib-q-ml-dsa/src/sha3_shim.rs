@@ -1,25 +1,160 @@
 //! SHA3 Compatibility Layer
 //!
 //! This module provides a compatibility layer that implements the libcrux SHA3 API
-//! using lib-q SHA3 internally. This allows us to eliminate the libcrux dependency
+//! on top of an in-crate Keccak sponge. This allows us to eliminate the libcrux dependency
 //! while maintaining API compatibility with existing ML-DSA code.
+//!
+//! The sponge is implemented here rather than borrowed from `lib-q-sha3` on purpose: every
+//! SHAKE state built during key generation and signing is keyed by secret material (the seed
+//! `xi`, `rho'`, `K`, `rho''`), so its lanes must be cleared when it is dropped, and there must be
+//! no hidden copies (a block buffer holding the absorbed seed, a cloned hasher, a padded final
+//! block) that this crate cannot reach. [`Sponge`] owns exactly one `[u64; 25]` and clears it in
+//! `Drop` (see [`crate::wipe`]).
 
 #![allow(non_snake_case)]
 
-use lib_q_sha3::digest::{
-    // Digest, // Unused import
-    ExtendableOutput,
-    Update,
-    XofReader,
-};
-use lib_q_sha3::{Shake128, Shake128Reader, Shake256, Shake256Reader};
+use lib_q_keccak::p1600;
+
+const KECCAK_ROUNDS: usize = 24;
+const SHAKE_DOMAIN: u8 = 0x1F;
+const RATE_128: usize = 168;
+const RATE_256: usize = 136;
+
+/// XOR `data` into the state bytes starting at byte offset `start` (little-endian lanes).
+#[inline]
+fn xor_bytes(state: &mut [u64; 25], start: usize, mut data: &[u8]) {
+    let mut lane = start / 8;
+    let off = start % 8;
+    if off != 0 {
+        let n = core::cmp::min(8 - off, data.len());
+        for (k, b) in data[..n].iter().enumerate() {
+            state[lane] ^= u64::from(*b) << (8 * (off + k));
+        }
+        data = &data[n..];
+        lane += 1;
+    }
+    let (chunks, rem) = data.as_chunks::<8>();
+    for c in chunks {
+        state[lane] ^= u64::from_le_bytes(*c);
+        lane += 1;
+    }
+    for (k, b) in rem.iter().enumerate() {
+        state[lane] ^= u64::from(*b) << (8 * k);
+    }
+}
+
+/// Copy `out.len()` state bytes starting at byte offset `start` (little-endian lanes).
+#[inline]
+fn read_bytes(state: &[u64; 25], start: usize, mut out: &mut [u8]) {
+    let mut lane = start / 8;
+    let off = start % 8;
+    if off != 0 {
+        let n = core::cmp::min(8 - off, out.len());
+        let word = state[lane].to_le_bytes();
+        let (head, rest) = out.split_at_mut(n);
+        head.copy_from_slice(&word[off..off + n]);
+        out = rest;
+        lane += 1;
+    }
+    let (chunks, rem) = out.as_chunks_mut::<8>();
+    for c in chunks {
+        *c = state[lane].to_le_bytes();
+        lane += 1;
+    }
+    if !rem.is_empty() {
+        let word = state[lane].to_le_bytes();
+        rem.copy_from_slice(&word[..rem.len()]);
+    }
+}
+
+/// A SHAKE sponge with `RATE` bytes of rate (168 = SHAKE128, 136 = SHAKE256).
+///
+/// Absorbs directly into the Keccak lanes (no block buffer), pads lazily on the first squeeze,
+/// and clears its lanes on drop. Deliberately not `Clone`: a copy of a secret-keyed state is a
+/// second thing to clear.
+pub struct Sponge<const RATE: usize> {
+    state: [u64; 25],
+    /// Byte offset into the current rate block: the absorb position before the first squeeze,
+    /// the read position afterwards.
+    pos: usize,
+    squeezing: bool,
+}
+
+impl<const RATE: usize> Sponge<RATE> {
+    pub fn new() -> Self {
+        Self {
+            state: [0u64; 25],
+            pos: 0,
+            squeezing: false,
+        }
+    }
+
+    pub fn absorb(&mut self, mut input: &[u8]) {
+        if self.squeezing {
+            panic!("Cannot absorb after finalization");
+        }
+        while !input.is_empty() {
+            let n = core::cmp::min(RATE - self.pos, input.len());
+            xor_bytes(&mut self.state, self.pos, &input[..n]);
+            self.pos += n;
+            input = &input[n..];
+            if self.pos == RATE {
+                p1600(&mut self.state, KECCAK_ROUNDS);
+                self.pos = 0;
+            }
+        }
+    }
+
+    /// SHAKE pad10*1 with the `0x1F` domain byte, then switch to squeezing.
+    fn finalize(&mut self) {
+        if self.squeezing {
+            return;
+        }
+        xor_bytes(&mut self.state, self.pos, &[SHAKE_DOMAIN]);
+        xor_bytes(&mut self.state, RATE - 1, &[0x80]);
+        p1600(&mut self.state, KECCAK_ROUNDS);
+        self.pos = 0;
+        self.squeezing = true;
+    }
+
+    pub fn squeeze(&mut self, mut out: &mut [u8]) {
+        self.finalize();
+        while !out.is_empty() {
+            if self.pos == RATE {
+                p1600(&mut self.state, KECCAK_ROUNDS);
+                self.pos = 0;
+            }
+            let n = core::cmp::min(RATE - self.pos, out.len());
+            let (head, rest) = out.split_at_mut(n);
+            read_bytes(&self.state, self.pos, head);
+            self.pos += n;
+            out = rest;
+        }
+    }
+}
+
+impl<const RATE: usize> Default for Sponge<RATE> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<const RATE: usize> Drop for Sponge<RATE> {
+    fn drop(&mut self) {
+        crate::wipe::lanes(&mut self.state, RATE);
+        self.pos = 0;
+        self.squeezing = false;
+    }
+}
 
 /// A portable SHAKE128 implementation compatible with libcrux API.
 #[cfg_attr(tarpaulin, inline(never))]
 #[cfg_attr(not(tarpaulin), inline(always))]
 pub fn shake128(out: &mut [u8], input: &[u8]) {
     debug_assert!(out.len() <= u32::MAX as usize);
-    Shake128::digest_xof(input, out);
+    let mut sponge = Sponge::<RATE_128>::new();
+    sponge.absorb(input);
+    sponge.squeeze(out);
 }
 
 /// A portable SHAKE256 implementation compatible with libcrux API.
@@ -27,56 +162,33 @@ pub fn shake128(out: &mut [u8], input: &[u8]) {
 #[cfg_attr(not(tarpaulin), inline(always))]
 pub fn shake256(out: &mut [u8], input: &[u8]) {
     debug_assert!(out.len() <= u32::MAX as usize);
-    Shake256::digest_xof(input, out);
+    let mut sponge = Sponge::<RATE_256>::new();
+    sponge.absorb(input);
+    sponge.squeeze(out);
 }
 
 /// The Keccak state for the incremental API, compatible with libcrux.
-#[derive(Clone)]
 pub enum KeccakState {
-    Shake128 {
-        hasher: Shake128,
-        reader: Option<Shake128Reader>,
-    },
-    Shake256 {
-        hasher: Shake256,
-        reader: Option<Shake256Reader>,
-    },
+    Shake128(Sponge<RATE_128>),
+    Shake256(Sponge<RATE_256>),
 }
 
 impl KeccakState {
     /// Create a new empty KeccakState for Shake128.
     pub fn new_shake128() -> Self {
-        Self::Shake128 {
-            hasher: Shake128::default(),
-            reader: None,
-        }
+        Self::Shake128(Sponge::new())
     }
 
     /// Create a new empty KeccakState for Shake256.
     pub fn new_shake256() -> Self {
-        Self::Shake256 {
-            hasher: Shake256::default(),
-            reader: None,
-        }
+        Self::Shake256(Sponge::new())
     }
 
     /// Absorb input data (compatible with libcrux API).
     pub fn absorb(&mut self, input: &[u8]) {
         match self {
-            KeccakState::Shake128 { hasher, reader } => {
-                // If we already have a reader, we can't absorb more data
-                if reader.is_some() {
-                    panic!("Cannot absorb after finalization");
-                }
-                hasher.update(input);
-            }
-            KeccakState::Shake256 { hasher, reader } => {
-                // If we already have a reader, we can't absorb more data
-                if reader.is_some() {
-                    panic!("Cannot absorb after finalization");
-                }
-                hasher.update(input);
-            }
+            KeccakState::Shake128(sponge) => sponge.absorb(input),
+            KeccakState::Shake256(sponge) => sponge.absorb(input),
         }
     }
 
@@ -85,41 +197,11 @@ impl KeccakState {
         self.absorb(input);
     }
 
-    /// Finalize the state and prepare for squeezing.
-    /// This should be called once after all absorption is complete.
-    fn finalize(&mut self) {
-        match self {
-            KeccakState::Shake128 { hasher, reader } => {
-                if reader.is_none() {
-                    *reader = Some(hasher.clone().finalize_xof());
-                }
-            }
-            KeccakState::Shake256 { hasher, reader } => {
-                if reader.is_none() {
-                    *reader = Some(hasher.clone().finalize_xof());
-                }
-            }
-        }
-    }
-
-    /// Squeeze output data (compatible with libcrux API).
+    /// Squeeze output data (compatible with libcrux API). The first call finalizes the state.
     pub fn squeeze(&mut self, out: &mut [u8]) {
-        self.finalize();
         match self {
-            KeccakState::Shake128 { reader, .. } => {
-                if let Some(reader) = reader {
-                    reader.read(out);
-                } else {
-                    panic!("Reader not initialized");
-                }
-            }
-            KeccakState::Shake256 { reader, .. } => {
-                if let Some(reader) = reader {
-                    reader.read(out);
-                } else {
-                    panic!("Reader not initialized");
-                }
-            }
+            KeccakState::Shake128(sponge) => sponge.squeeze(out),
+            KeccakState::Shake256(sponge) => sponge.squeeze(out),
         }
     }
 }
@@ -140,13 +222,7 @@ pub mod incremental {
     #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake128_absorb_final(s: &mut KeccakState, data: &[u8]) {
         match s {
-            KeccakState::Shake128 { hasher, reader } => {
-                // If we already have a reader, we can't absorb more data
-                if reader.is_some() {
-                    panic!("Cannot absorb after finalization");
-                }
-                hasher.update(data);
-            }
+            KeccakState::Shake128(sponge) => sponge.absorb(data),
             _ => panic!("Invalid state for SHAKE-128 operation"),
         }
     }
@@ -160,64 +236,29 @@ pub mod incremental {
     pub fn shake128_squeeze_first_three_blocks(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 168 * 3); // 3 blocks of 168 bytes
         match s {
-            KeccakState::Shake128 { hasher, reader } => {
-                // Initialize reader if not already done
-                if reader.is_none() {
-                    *reader = Some(hasher.clone().finalize_xof());
-                }
-                // Read the first 3 blocks
-                if let Some(reader) = reader {
-                    reader.read(out);
-                } else {
-                    panic!("Reader not initialized");
-                }
-            }
+            KeccakState::Shake128(sponge) => sponge.squeeze(out),
             _ => panic!("Invalid state for SHAKE-128 operation"),
         }
     }
 
     /// Squeeze first five blocks for SHAKE-128.
-    /// This function maintains state properly by creating a reader and reading the first 5 blocks.
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake128_squeeze_first_five_blocks(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 168 * 5); // 5 blocks of 168 bytes
         match s {
-            KeccakState::Shake128 { hasher, reader } => {
-                // Initialize reader if not already done
-                if reader.is_none() {
-                    *reader = Some(hasher.clone().finalize_xof());
-                }
-                // Read the first 5 blocks
-                if let Some(reader) = reader {
-                    reader.read(out);
-                } else {
-                    panic!("Reader not initialized");
-                }
-            }
+            KeccakState::Shake128(sponge) => sponge.squeeze(out),
             _ => panic!("Invalid state for SHAKE-128 operation"),
         }
     }
 
-    /// Squeeze next block for SHAKE-128.
-    /// This function should be called after squeeze_first_five_blocks to get the next block.
+    /// Squeeze next block for SHAKE-128 (continues the stream after the first squeeze).
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake128_squeeze_next_block(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 168); // 1 block of 168 bytes
         match s {
-            KeccakState::Shake128 { hasher, reader } => {
-                // Initialize reader if not already done
-                if reader.is_none() {
-                    *reader = Some(hasher.clone().finalize_xof());
-                }
-                // Read the next block
-                if let Some(reader) = reader {
-                    reader.read(out);
-                } else {
-                    panic!("Reader not initialized");
-                }
-            }
+            KeccakState::Shake128(sponge) => sponge.squeeze(out),
             _ => panic!("Invalid state for SHAKE-128 operation"),
         }
     }
@@ -234,13 +275,7 @@ pub mod incremental {
     #[cfg_attr(not(tarpaulin), inline(always))]
     pub fn shake256_absorb_final(s: &mut KeccakState, data: &[u8]) {
         match s {
-            KeccakState::Shake256 { hasher, reader } => {
-                // If we already have a reader, we can't absorb more data
-                if reader.is_some() {
-                    panic!("Cannot absorb after finalization");
-                }
-                hasher.update(data);
-            }
+            KeccakState::Shake256(sponge) => sponge.absorb(data),
             _ => panic!("Invalid state for SHAKE-256 operation"),
         }
     }
@@ -251,18 +286,7 @@ pub mod incremental {
     pub fn shake256_squeeze_first_block(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 136); // 1 block of 136 bytes
         match s {
-            KeccakState::Shake256 { hasher, reader } => {
-                // Initialize reader if not already done
-                if reader.is_none() {
-                    *reader = Some(hasher.clone().finalize_xof());
-                }
-                // Read the first block
-                if let Some(reader) = reader {
-                    reader.read(out);
-                } else {
-                    panic!("Reader not initialized");
-                }
-            }
+            KeccakState::Shake256(sponge) => sponge.squeeze(out),
             _ => panic!("Invalid state for SHAKE-256 operation"),
         }
     }
@@ -273,18 +297,7 @@ pub mod incremental {
     pub fn shake256_squeeze_next_block(s: &mut KeccakState, out: &mut [u8]) {
         debug_assert!(out.len() == 136); // 1 block of 136 bytes
         match s {
-            KeccakState::Shake256 { hasher, reader } => {
-                // Initialize reader if not already done
-                if reader.is_none() {
-                    *reader = Some(hasher.clone().finalize_xof());
-                }
-                // Read the next block
-                if let Some(reader) = reader {
-                    reader.read(out);
-                } else {
-                    panic!("Reader not initialized");
-                }
-            }
+            KeccakState::Shake256(sponge) => sponge.squeeze(out),
             _ => panic!("Invalid state for SHAKE-256 operation"),
         }
     }
@@ -314,15 +327,20 @@ pub mod avx2 {
             out2: &mut [u8],
             out3: &mut [u8],
         ) {
-            // 4-way SHAKE256 via the FIPS-202 batched permutation in lib-q-sha3 (real AVX2 at runtime
-            // through lib-q-keccak/p1600x4, scalar fallback otherwise — bit-identical to the scalar
-            // reader). The previous hand-rolled body absorbed past the rate, squeezed the capacity
-            // lanes, and capped output at 200 bytes with no inter-block permutation — so ExpandMask's
-            // 576/640-byte mask requests returned garbage, making every avx2 signing attempt reject.
-            lib_q_sha3::parallel::shake256_x4(
-                [input0, input1, input2, input3],
-                [out0, out1, out2, out3],
+            // 4-way SHAKE256 through the in-crate batched sponge below (FIPS-202 Keccak-f[1600]
+            // via lib-q-keccak/p1600x4: real AVX2 at runtime, scalar fallback otherwise, bit-identical
+            // to the scalar sponge). It replaced a delegate to `lib_q_sha3::parallel::shake256_x4`
+            // because that keeps its four states and padded final blocks on the stack after return;
+            // here the lanes are owned by a `KeccakStateX4` that clears them on drop. (The previous
+            // hand-rolled body before that absorbed past the rate, squeezed the capacity lanes, and
+            // capped output at 200 bytes with no inter-block permutation, so ExpandMask's 576/640
+            // byte requests returned garbage and every avx2 signing attempt rejected.)
+            debug_assert!(
+                out0.len() == out1.len() && out0.len() == out2.len() && out0.len() == out3.len()
             );
+            let mut state = incremental::KeccakStateX4::new();
+            incremental::shake256_absorb_final(&mut state, input0, input1, input2, input3);
+            incremental::shake256_squeeze_first_bytes(&mut state, out0, out1, out2, out3);
         }
 
         /// Incremental 4-way SHAKE driven by [`lib_q_keccak::p1600x4`] — true SIMD when AVX2 is
@@ -352,6 +370,14 @@ pub mod avx2 {
                 pub fn new() -> Self {
                     Self {
                         states: [[0u64; 25]; 4],
+                    }
+                }
+            }
+
+            impl Drop for KeccakStateX4 {
+                fn drop(&mut self) {
+                    for lanes in self.states.iter_mut() {
+                        crate::wipe::lanes(lanes, RATE_256);
                     }
                 }
             }
@@ -407,13 +433,17 @@ pub mod avx2 {
                     block[rem] = SHAKE_DS;
                     block[RATE - 1] |= 0x80;
                     xor_block(state, &block);
+                    // The padded final block is a copy of the (possibly secret) input tail.
+                    crate::wipe::bytes(&mut block);
                 }
                 p1600x4(states, ROUNDS);
             }
 
-            /// Squeeze `out0.len()/RATE` blocks into the four outputs. `first` extracts block 0 from
-            /// the current (already-permuted) state, then permutes between blocks; `!first` permutes
-            /// before the first extraction (stream continuation).
+            /// Squeeze `out0.len()` bytes into each of the four outputs (all the same length).
+            /// `first` extracts block 0 from the current (already-permuted) state, then permutes
+            /// between blocks; `!first` permutes before the first extraction (stream continuation).
+            /// A trailing partial block is allowed (one-shot use); incremental callers pass whole
+            /// blocks, so a continuation always starts on a block boundary.
             #[inline]
             fn squeeze<const RATE: usize>(
                 states: &mut [[u64; 25]; 4],
@@ -423,16 +453,21 @@ pub mod avx2 {
                 out3: &mut [u8],
                 first: bool,
             ) {
-                let nblocks = out0.len() / RATE;
-                for blk in 0..nblocks {
+                let len = out0.len();
+                let mut produced = 0;
+                let mut blk = 0;
+                while produced < len {
                     if blk > 0 || !first {
                         p1600x4(states, ROUNDS);
                     }
-                    let r = blk * RATE..(blk + 1) * RATE;
+                    let n = core::cmp::min(RATE, len - produced);
+                    let r = produced..produced + n;
                     squeeze_block(&states[0], &mut out0[r.clone()]);
                     squeeze_block(&states[1], &mut out1[r.clone()]);
                     squeeze_block(&states[2], &mut out2[r.clone()]);
                     squeeze_block(&states[3], &mut out3[r]);
+                    produced += n;
+                    blk += 1;
                 }
             }
 
@@ -477,6 +512,17 @@ pub mod avx2 {
             }
 
             pub fn shake256_squeeze_first_block(
+                s: &mut KeccakStateX4,
+                o0: &mut [u8],
+                o1: &mut [u8],
+                o2: &mut [u8],
+                o3: &mut [u8],
+            ) {
+                squeeze::<RATE_256>(&mut s.states, o0, o1, o2, o3, true);
+            }
+
+            /// Squeeze an arbitrary (equal) length from a freshly absorbed state; the one-shot form.
+            pub fn shake256_squeeze_first_bytes(
                 s: &mut KeccakStateX4,
                 o0: &mut [u8],
                 o1: &mut [u8],
@@ -635,7 +681,62 @@ pub mod neon {
 #[cfg(test)]
 mod tests {
 
+    use lib_q_sha3::digest::ExtendableOutput;
+    use lib_q_sha3::{Shake128, Shake256};
+
     use super::{incremental, *};
+
+    /// The in-crate sponge must be bit-identical to `lib-q-sha3` for every alignment of input
+    /// splits and output reads, because every key, signature and KAT depends on it.
+    #[test]
+    fn sponge_matches_lib_q_sha3_across_alignments() {
+        fn reference<H: ExtendableOutput + Default + lib_q_sha3::digest::Update>(
+            input: &[u8],
+            out_len: usize,
+        ) -> std::vec::Vec<u8> {
+            use lib_q_sha3::digest::XofReader;
+            let mut h = H::default();
+            h.update(input);
+            let mut out = std::vec![0u8; out_len];
+            h.finalize_xof().read(&mut out);
+            out
+        }
+        let data: std::vec::Vec<u8> = (0..1200u32).map(|i| (i * 31 + 7) as u8).collect();
+        for &in_len in &[
+            0usize, 1, 7, 8, 9, 31, 32, 135, 136, 137, 167, 168, 169, 271, 272, 273, 1000,
+        ] {
+            for &out_len in &[1usize, 7, 8, 9, 135, 136, 137, 168, 300, 840] {
+                let input = &data[..in_len];
+                let want128 = reference::<Shake128>(input, out_len);
+                let want256 = reference::<Shake256>(input, out_len);
+                for &split in &[0usize, 1, 5, 8, 13, in_len / 2, in_len] {
+                    let split = split.min(in_len);
+                    let mut s128 = Sponge::<168>::new();
+                    s128.absorb(&input[..split]);
+                    s128.absorb(&input[split..]);
+                    let mut got = std::vec![0u8; out_len];
+                    // Read in awkward chunk sizes: the stream must not depend on read boundaries.
+                    for chunk in got.chunks_mut(37) {
+                        s128.squeeze(chunk);
+                    }
+                    assert_eq!(
+                        got, want128,
+                        "shake128 in={in_len} out={out_len} split={split}"
+                    );
+
+                    let mut s256 = Sponge::<136>::new();
+                    s256.absorb(&input[..split]);
+                    s256.absorb(&input[split..]);
+                    let mut got = std::vec![0u8; out_len];
+                    s256.squeeze(&mut got);
+                    assert_eq!(
+                        got, want256,
+                        "shake256 in={in_len} out={out_len} split={split}"
+                    );
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_shake128_compatibility() {

@@ -131,6 +131,11 @@ name = "simd_equivalence"
 path = "tests/simd_equivalence.rs"
 required-features = ["alloc"]
 
+[[test]]
+name = "stream_aead_domain_separation"
+path = "tests/stream_aead_domain_separation.rs"
+required-features = ["alloc", "aead", "stream"]
+
 [[bench]]
 name = "saturnin_criterion_benches"
 harness = false

@@ -17,22 +17,11 @@ pub(crate) mod shake256 {
 
     pub(crate) trait XofX4 {
         fn init_absorb_x4(input0: &[u8], input1: &[u8], input2: &[u8], input3: &[u8]) -> Self;
-        fn squeeze_first_block_x4(
-            &mut self,
-        ) -> (
-            [u8; BLOCK_SIZE],
-            [u8; BLOCK_SIZE],
-            [u8; BLOCK_SIZE],
-            [u8; BLOCK_SIZE],
-        );
-        fn squeeze_next_block_x4(
-            &mut self,
-        ) -> (
-            [u8; BLOCK_SIZE],
-            [u8; BLOCK_SIZE],
-            [u8; BLOCK_SIZE],
-            [u8; BLOCK_SIZE],
-        );
+        /// Squeeze the first block of every lane into `out`. The caller owns `out` and is
+        /// responsible for clearing it: it holds secret-derived bytes (`rho'` streams).
+        fn squeeze_first_block_x4(&mut self, out: &mut [[u8; BLOCK_SIZE]; 4]);
+        /// Squeeze the next block of every lane into `out`.
+        fn squeeze_next_block_x4(&mut self, out: &mut [[u8; BLOCK_SIZE]; 4]);
         #[allow(clippy::too_many_arguments)]
         fn shake256_x4<const OUT_LEN: usize>(
             input0: &[u8],
@@ -318,46 +307,20 @@ pub(crate) mod portable {
 
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
-    fn squeeze_first_block_x4(
-        state: &mut Shake256X4,
-    ) -> (
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-    ) {
-        let mut out0 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_first_block(&mut state.state0, &mut out0);
-        let mut out1 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_first_block(&mut state.state1, &mut out1);
-        let mut out2 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_first_block(&mut state.state2, &mut out2);
-        let mut out3 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_first_block(&mut state.state3, &mut out3);
-
-        (out0, out1, out2, out3)
+    fn squeeze_first_block_x4(state: &mut Shake256X4, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+        incremental::shake256_squeeze_first_block(&mut state.state0, &mut out[0]);
+        incremental::shake256_squeeze_first_block(&mut state.state1, &mut out[1]);
+        incremental::shake256_squeeze_first_block(&mut state.state2, &mut out[2]);
+        incremental::shake256_squeeze_first_block(&mut state.state3, &mut out[3]);
     }
 
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
-    fn squeeze_next_block_x4(
-        state: &mut Shake256X4,
-    ) -> (
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-    ) {
-        let mut out0 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_next_block(&mut state.state0, &mut out0);
-        let mut out1 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_next_block(&mut state.state1, &mut out1);
-        let mut out2 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_next_block(&mut state.state2, &mut out2);
-        let mut out3 = [0u8; shake256::BLOCK_SIZE];
-        incremental::shake256_squeeze_next_block(&mut state.state3, &mut out3);
-
-        (out0, out1, out2, out3)
+    fn squeeze_next_block_x4(state: &mut Shake256X4, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+        incremental::shake256_squeeze_next_block(&mut state.state0, &mut out[0]);
+        incremental::shake256_squeeze_next_block(&mut state.state1, &mut out[1]);
+        incremental::shake256_squeeze_next_block(&mut state.state2, &mut out[2]);
+        incremental::shake256_squeeze_next_block(&mut state.state3, &mut out[3]);
     }
 
     impl shake256::XofX4 for Shake256X4 {
@@ -369,28 +332,14 @@ pub(crate) mod portable {
 
         #[cfg_attr(tarpaulin, inline(never))]
         #[cfg_attr(not(tarpaulin), inline(always))]
-        fn squeeze_first_block_x4(
-            &mut self,
-        ) -> (
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-        ) {
-            squeeze_first_block_x4(self)
+        fn squeeze_first_block_x4(&mut self, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+            squeeze_first_block_x4(self, out)
         }
 
         #[cfg_attr(tarpaulin, inline(never))]
         #[cfg_attr(not(tarpaulin), inline(always))]
-        fn squeeze_next_block_x4(
-            &mut self,
-        ) -> (
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-        ) {
-            squeeze_next_block_x4(self)
+        fn squeeze_next_block_x4(&mut self, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+            squeeze_next_block_x4(self, out)
         }
 
         #[cfg_attr(tarpaulin, inline(never))]
@@ -478,8 +427,9 @@ pub(crate) mod portable {
         #[test]
         fn portable_shake256_x4_all_paths() {
             let mut s = <Shake256X4 as Shake256X4Trait>::init_absorb_x4(b"a0", b"a1", b"a2", b"a3");
-            let _ = Shake256X4Trait::squeeze_first_block_x4(&mut s);
-            let _ = Shake256X4Trait::squeeze_next_block_x4(&mut s);
+            let mut blocks = [[0u8; crate::hash_functions::shake256::BLOCK_SIZE]; 4];
+            Shake256X4Trait::squeeze_first_block_x4(&mut s, &mut blocks);
+            Shake256X4Trait::squeeze_next_block_x4(&mut s, &mut blocks);
             let mut o0 = [0u8; 40];
             let mut o1 = [0u8; 40];
             let mut o2 = [0u8; 40];
@@ -687,52 +637,16 @@ pub(crate) mod simd256 {
 
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
-    fn squeeze_first_block_x4(
-        state: &mut Shake256x4,
-    ) -> (
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-    ) {
-        let mut out0 = [0u8; shake256::BLOCK_SIZE];
-        let mut out1 = [0u8; shake256::BLOCK_SIZE];
-        let mut out2 = [0u8; shake256::BLOCK_SIZE];
-        let mut out3 = [0u8; shake256::BLOCK_SIZE];
-        x4::incremental::shake256_squeeze_first_block(
-            &mut state.state,
-            &mut out0,
-            &mut out1,
-            &mut out2,
-            &mut out3,
-        );
-
-        (out0, out1, out2, out3)
+    fn squeeze_first_block_x4(state: &mut Shake256x4, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+        let [out0, out1, out2, out3] = out;
+        x4::incremental::shake256_squeeze_first_block(&mut state.state, out0, out1, out2, out3);
     }
 
     #[cfg_attr(tarpaulin, inline(never))]
     #[cfg_attr(not(tarpaulin), inline(always))]
-    fn squeeze_next_block_x4(
-        state: &mut Shake256x4,
-    ) -> (
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-    ) {
-        let mut out0 = [0u8; shake256::BLOCK_SIZE];
-        let mut out1 = [0u8; shake256::BLOCK_SIZE];
-        let mut out2 = [0u8; shake256::BLOCK_SIZE];
-        let mut out3 = [0u8; shake256::BLOCK_SIZE];
-        x4::incremental::shake256_squeeze_next_block(
-            &mut state.state,
-            &mut out0,
-            &mut out1,
-            &mut out2,
-            &mut out3,
-        );
-
-        (out0, out1, out2, out3)
+    fn squeeze_next_block_x4(state: &mut Shake256x4, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+        let [out0, out1, out2, out3] = out;
+        x4::incremental::shake256_squeeze_next_block(&mut state.state, out0, out1, out2, out3);
     }
 
     #[cfg_attr(tarpaulin, inline(never))]
@@ -760,28 +674,14 @@ pub(crate) mod simd256 {
 
         #[cfg_attr(tarpaulin, inline(never))]
         #[cfg_attr(not(tarpaulin), inline(always))]
-        fn squeeze_first_block_x4(
-            &mut self,
-        ) -> (
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-        ) {
-            squeeze_first_block_x4(self)
+        fn squeeze_first_block_x4(&mut self, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+            squeeze_first_block_x4(self, out)
         }
 
         #[cfg_attr(tarpaulin, inline(never))]
         #[cfg_attr(not(tarpaulin), inline(always))]
-        fn squeeze_next_block_x4(
-            &mut self,
-        ) -> (
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-        ) {
-            squeeze_next_block_x4(self)
+        fn squeeze_next_block_x4(&mut self, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+            squeeze_next_block_x4(self, out)
         }
 
         #[cfg_attr(tarpaulin, inline(never))]
@@ -900,40 +800,16 @@ pub(crate) mod neon {
         Shake256x4 { state }
     }
 
-    fn squeeze_first_block_x4(
-        state: &mut Shake256x4,
-    ) -> (
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-    ) {
-        let mut out0 = [0u8; shake256::BLOCK_SIZE];
-        let mut out1 = [0u8; shake256::BLOCK_SIZE];
-        let mut out2 = [0u8; shake256::BLOCK_SIZE];
-        let mut out3 = [0u8; shake256::BLOCK_SIZE];
-        x2::incremental::shake256_squeeze_first_block(&mut state.state[0], &mut out0, &mut out1);
-        x2::incremental::shake256_squeeze_first_block(&mut state.state[1], &mut out2, &mut out3);
-
-        (out0, out1, out2, out3)
+    fn squeeze_first_block_x4(state: &mut Shake256x4, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+        let [out0, out1, out2, out3] = out;
+        x2::incremental::shake256_squeeze_first_block(&mut state.state[0], out0, out1);
+        x2::incremental::shake256_squeeze_first_block(&mut state.state[1], out2, out3);
     }
 
-    fn squeeze_next_block_x4(
-        state: &mut Shake256x4,
-    ) -> (
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-        [u8; shake256::BLOCK_SIZE],
-    ) {
-        let mut out0 = [0u8; shake256::BLOCK_SIZE];
-        let mut out1 = [0u8; shake256::BLOCK_SIZE];
-        let mut out2 = [0u8; shake256::BLOCK_SIZE];
-        let mut out3 = [0u8; shake256::BLOCK_SIZE];
-        x2::incremental::shake256_squeeze_next_block(&mut state.state[0], &mut out0, &mut out1);
-        x2::incremental::shake256_squeeze_next_block(&mut state.state[1], &mut out2, &mut out3);
-
-        (out0, out1, out2, out3)
+    fn squeeze_next_block_x4(state: &mut Shake256x4, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+        let [out0, out1, out2, out3] = out;
+        x2::incremental::shake256_squeeze_next_block(&mut state.state[0], out0, out1);
+        x2::incremental::shake256_squeeze_next_block(&mut state.state[1], out2, out3);
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -956,26 +832,12 @@ pub(crate) mod neon {
             init_absorb_x4(input0, input1, input2, input3)
         }
 
-        fn squeeze_first_block_x4(
-            &mut self,
-        ) -> (
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-        ) {
-            squeeze_first_block_x4(self)
+        fn squeeze_first_block_x4(&mut self, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+            squeeze_first_block_x4(self, out)
         }
 
-        fn squeeze_next_block_x4(
-            &mut self,
-        ) -> (
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-            [u8; shake256::BLOCK_SIZE],
-        ) {
-            squeeze_next_block_x4(self)
+        fn squeeze_next_block_x4(&mut self, out: &mut [[u8; shake256::BLOCK_SIZE]; 4]) {
+            squeeze_next_block_x4(self, out)
         }
 
         #[allow(clippy::too_many_arguments)]
@@ -1060,7 +922,7 @@ mod neon_shake256_incremental_keygen_repro {
     //! them. That forwards to the crate-root `incremental::shake256_absorb_final`, whose non-Shake256
     //! match arm panics with "Invalid state for SHAKE-256 operation" -- so every ML-DSA key
     //! generation on aarch64 with `simd128` enabled panics before producing a key pair.
-    use super::shake256::XofX4;
+    use super::shake256::{self, XofX4};
 
     #[test]
     fn keygen_incremental_shake256_x4_does_not_panic() {
@@ -1069,9 +931,10 @@ mod neon_shake256_incremental_keygen_repro {
         let seed2 = [0x33u8; 66];
         let seed3 = [0x44u8; 66];
         let mut state = super::neon::Shake256x4::init_absorb_x4(&seed0, &seed1, &seed2, &seed3);
-        let (b0, _b1, _b2, _b3) = state.squeeze_first_block_x4();
+        let mut blocks = [[0u8; shake256::BLOCK_SIZE]; 4];
+        state.squeeze_first_block_x4(&mut blocks);
         assert!(
-            b0.iter().any(|&b| b != 0),
+            blocks[0].iter().any(|&b| b != 0),
             "squeezed block must not be all-zero"
         );
     }
@@ -1109,15 +972,19 @@ mod neon_shake256_incremental_keygen_repro {
         let mut portable_state =
             portable::Shake256X4::init_absorb_x4(&seed0, &seed1, &seed2, &seed3);
 
-        let neon_first = neon_state.squeeze_first_block_x4();
-        let portable_first = portable_state.squeeze_first_block_x4();
+        let mut neon_first = [[0u8; shake256::BLOCK_SIZE]; 4];
+        let mut portable_first = [[0u8; shake256::BLOCK_SIZE]; 4];
+        neon_state.squeeze_first_block_x4(&mut neon_first);
+        portable_state.squeeze_first_block_x4(&mut portable_first);
         assert_eq!(
             neon_first, portable_first,
             "NEON incremental SHAKE256x4 first block diverges from the portable oracle"
         );
 
-        let neon_next = neon_state.squeeze_next_block_x4();
-        let portable_next = portable_state.squeeze_next_block_x4();
+        let mut neon_next = [[0u8; shake256::BLOCK_SIZE]; 4];
+        let mut portable_next = [[0u8; shake256::BLOCK_SIZE]; 4];
+        neon_state.squeeze_next_block_x4(&mut neon_next);
+        portable_state.squeeze_next_block_x4(&mut portable_next);
         assert_eq!(
             neon_next, portable_next,
             "NEON incremental SHAKE256x4 second block diverges from the portable oracle"

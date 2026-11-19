@@ -995,9 +995,12 @@ name = "lib-q-duplex-aead"
 version = "0.0.12"
 dependencies = [
  "criterion",
+ "digest",
  "hex",
  "lib-q-core",
  "lib-q-keccak",
+ "lib-q-sha3",
+ "serde_json",
  "subtle",
  "zeroize",
 ]
@@ -1124,6 +1127,7 @@ dependencies = [
  "lib-q-aead",
  "lib-q-core",
  "lib-q-hash",
+ "lib-q-hpke",
  "lib-q-kem",
  "lib-q-ml-dsa",
  "lib-q-ml-kem",
@@ -1358,6 +1362,21 @@ dependencies = [
  "lib-q-stark-matrix",
  "lib-q-stark-mersenne31",
  "lib-q-zkp",
+]
+
+[[package]]
+name = "lib-q-phone-bench"
+version = "0.0.12"
+dependencies = [
+ "lib-q-lattice-zkp",
+ "lib-q-random",
+ "lib-q-ring",
+ "lib-q-stark-baby-bear",
+ "lib-q-stark-field",
+ "lib-q-stark-mersenne31",
+ "lib-q-zkp",
+ "nix",
+ "postcard",
 ]
 
 [[package]]

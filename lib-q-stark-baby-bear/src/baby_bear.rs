@@ -177,6 +177,65 @@ impl BinomialExtensionData<5> for BabyBearParameters {
     const TWO_ADIC_EXTENSION_GENERATORS: Self::ArrayLike = [];
 }
 
+/// Degree-8 binomial extension `F_{p^8} = F_p[x]/(x^8 - 11)` — the FRI **challenge field** for the
+/// Arm B config (`8 * log2 p ≈ 248` bits). The degree-5 field (≈155 bits) leaves the Fiat–Shamir /
+/// DEEP / BCIKS proximity-gap field term too thin to clear 128 bits on the PROVEN (Johnson) bound,
+/// so Arm B moves to the octic (see `lib-q-zkp/docs/membership-arm-b-soundness-params.md`).
+/// All constants are derived AND self-certified by `tools/gen_octic_constants.py` (pure Python; an
+/// element of full order `p^8 - 1` in `F_p[x]/(x^8 - 11)` proves the ring is a field and that
+/// `EXT_GENERATOR` generates its unit group; `p^8 - 1` was fully factored with coreutils `factor`).
+/// `v_2(p^8 - 1) = 30`, so the extension adds three two-adic generators (orders `2^28..2^30`), each
+/// squaring to the previous level and anchored to the base field's `2^27` generator.
+impl BinomialExtensionData<8> for BabyBearParameters {
+    const W: MontyField31<Self> = MontyField31::new(11);
+    const DTH_ROOT: MontyField31<Self> = MontyField31::new(420899707);
+    const EXT_GENERATOR: [MontyField31<Self>; 8] = [
+        MontyField31::new(5),
+        MontyField31::new(1),
+        MontyField31::new(0),
+        MontyField31::new(0),
+        MontyField31::new(0),
+        MontyField31::new(0),
+        MontyField31::new(0),
+        MontyField31::new(0),
+    ];
+    const EXT_TWO_ADICITY: usize = 30;
+
+    type ArrayLike = [[MontyField31<Self>; 8]; 3];
+    const TWO_ADIC_EXTENSION_GENERATORS: Self::ArrayLike = [
+        [
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(17094607),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+        ],
+        [
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(1394066976),
+            MontyField31::new(0),
+        ],
+        [
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(1310969788),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+            MontyField31::new(0),
+        ],
+    ];
+}
+
 #[cfg(test)]
 mod tests {
     use lib_q_stark_field::PrimeCharacteristicRing;
@@ -236,4 +295,17 @@ mod ext5_tests {
     type EF5 = lib_q_stark_field::extension::BinomialExtensionField<crate::BabyBear, 5>;
 
     test_extension_field!(crate::BabyBear, super::EF5);
+}
+
+/// Degree-8 binomial extension `F_{p^8} = F_p[x]/(x^8 - 11)` (the Arm B FRI challenge field).
+/// Re-validates the extension arithmetic, that `EXT_GENERATOR` / the two-adic generators are
+/// consistent with the base field, and (as the extension has two-adicity 30) the two-adic tower.
+#[cfg(test)]
+mod ext8_tests {
+    use lib_q_stark_field_testing::{test_extension_field, test_two_adic_extension_field};
+
+    type EF8 = lib_q_stark_field::extension::BinomialExtensionField<crate::BabyBear, 8>;
+
+    test_extension_field!(crate::BabyBear, super::EF8);
+    test_two_adic_extension_field!(crate::BabyBear, super::EF8);
 }

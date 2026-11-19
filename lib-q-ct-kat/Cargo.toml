@@ -1,0 +1,34 @@
+[package]
+name = "lib-q-ct-kat"
+version = "0.0.11"
+edition = "2024"
+license = "Apache-2.0"
+readme = "README.md"
+description = "CT-KAT style screening of constant-time risks in C implementations (cargo ct-kat)"
+rust-version = "1.96.0"
+repository = "https://github.com/Enkom-Tech/libQ"
+publish = false
+
+# Standalone (own lockfile, not a member of the libQ workspace), like benches/: the screening
+# tool shells out to C toolchains and must not change the resolution of the shipped crates.
+[workspace]
+
+[lib]
+name = "ct_kat"
+path = "src/lib.rs"
+
+[[bin]]
+name = "cargo-ct-kat"
+path = "src/main.rs"
+
+[dependencies]
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+serde_yaml_ng = "0.10.0"
+
+[dev-dependencies]
+serde_json = "1.0.151"
+
+[[test]]
+name = "ct-kat_synthetic"
+path = "tests/ct-kat_synthetic.rs"

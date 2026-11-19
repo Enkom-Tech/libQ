@@ -38,16 +38,18 @@
 //! # #[cfg(feature = "ml-dsa")]
 //! # {
 //! use lib_q_core::Signature;
-//! use lib_q_sig::ml_dsa::MlDsa;
+//! use lib_q_ml_dsa::Zeroizing;
 //! use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
+//! use lib_q_sig::ml_dsa::MlDsa;
 //!
 //! let ml_dsa = MlDsa::ml_dsa_65();
 //!
-//! // Provide randomness externally
-//! let keypair_randomness = [0u8; KEY_GENERATION_RANDOMNESS_SIZE]; // Get from hardware RNG
+//! // Provide randomness externally, held in a buffer that is cleared on drop and never
+//! // copied into key generation.
+//! let keypair_randomness = Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]); // Get from hardware RNG
 //! let signing_randomness = [0u8; SIGNING_RANDOMNESS_SIZE]; // Get from hardware RNG
 //!
-//! let keypair = ml_dsa.generate_keypair_with_randomness(keypair_randomness).unwrap();
+//! let keypair = ml_dsa.generate_keypair_with_seed(&keypair_randomness).unwrap();
 //! let signature = ml_dsa.sign_with_randomness(keypair.secret_key(), b"Hello, ML-DSA!", signing_randomness).unwrap();
 //! let is_valid = ml_dsa.verify(keypair.public_key(), b"Hello, ML-DSA!", &signature).unwrap();
 //! assert!(is_valid);
@@ -178,37 +180,41 @@ impl MlDsa {
         Self::new(MlDsaVariant::MlDsa87)
     }
 
-    /// Generate keypair with provided randomness (no_std compatible)
+    /// Generate keypair from a seed held in a zeroizing buffer (no_std compatible)
     ///
     /// This is the low-level API that accepts randomness externally,
     /// making it suitable for no_std environments where randomness
     /// must be provided by the caller (e.g., from hardware RNG).
     ///
+    /// The seed is borrowed, so no copy of it is made on the way into key generation, and the
+    /// caller's buffer is cleared when it is dropped.
+    ///
     /// # Arguments
-    /// * `randomness` - Cryptographically secure random bytes for key generation
+    /// * `seed` - Cryptographically secure random bytes for key generation, held in a
+    ///   `Zeroizing` buffer
     ///
     /// # Returns
     /// * `Result<SigKeypair>` - The generated keypair or an error
     ///
     /// # Example
     /// ```rust
-    /// use lib_q_sig::ml_dsa::MlDsa;
+    /// use lib_q_ml_dsa::Zeroizing;
     /// use lib_q_ml_dsa::constants::KEY_GENERATION_RANDOMNESS_SIZE;
+    /// use lib_q_sig::ml_dsa::MlDsa;
     ///
     /// let ml_dsa = MlDsa::ml_dsa_65();
-    /// let randomness = [0u8; KEY_GENERATION_RANDOMNESS_SIZE]; // Get from hardware RNG
-    /// let keypair = ml_dsa.generate_keypair_with_randomness(randomness).unwrap();
+    /// let seed = Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]); // Get from hardware RNG
+    /// let keypair = ml_dsa.generate_keypair_with_seed(&seed).unwrap();
     /// ```
-    pub fn generate_keypair_with_randomness(
+    pub fn generate_keypair_with_seed(
         &self,
-        randomness: [u8; KEY_GENERATION_RANDOMNESS_SIZE],
+        seed: &lib_q_ml_dsa::Zeroizing<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
     ) -> Result<SigKeypair> {
-        // Move the seed into a buffer that is cleared on drop, and borrow it from there.
-        let seed = lib_q_ml_dsa::Zeroizing::new(randomness);
-        // Generate keypair using the appropriate ML-DSA variant
+        // Generate keypair using the appropriate ML-DSA variant. `seed` is borrowed straight
+        // through to `generate_key_pair_from_seed`: no by-value copy of the seed is made here.
         let keypair = match self.variant {
             MlDsaVariant::MlDsa44 => {
-                let mut kp = ml_dsa_44::portable::generate_key_pair_from_seed(&seed);
+                let mut kp = ml_dsa_44::portable::generate_key_pair_from_seed(seed);
                 let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
@@ -217,7 +223,7 @@ impl MlDsa {
                 pair
             }
             MlDsaVariant::MlDsa65 => {
-                let mut kp = ml_dsa_65::portable::generate_key_pair_from_seed(&seed);
+                let mut kp = ml_dsa_65::portable::generate_key_pair_from_seed(seed);
                 let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
@@ -226,7 +232,7 @@ impl MlDsa {
                 pair
             }
             MlDsaVariant::MlDsa87 => {
-                let mut kp = ml_dsa_87::portable::generate_key_pair_from_seed(&seed);
+                let mut kp = ml_dsa_87::portable::generate_key_pair_from_seed(seed);
                 let pair = SigKeypair::new(
                     kp.verification_key.as_slice().to_vec(),
                     kp.signing_key.as_slice().to_vec(),
@@ -565,22 +571,30 @@ impl Signature for MlDsa {
         {
             use lib_q_core::Utils;
 
-            // Generate cryptographically secure random seed
-            let seed = Utils::random_bytes(KEY_GENERATION_RANDOMNESS_SIZE).map_err(|_| {
-                lib_q_core::Error::RandomGenerationFailed {
-                    operation: "ml-dsa key generation".to_string(),
-                }
-            })?;
+            // Generate a cryptographically secure random seed and hold it in a buffer that is
+            // cleared on drop from the moment the RNG returns it.
+            let seed: lib_q_ml_dsa::Zeroizing<Vec<u8>> = lib_q_ml_dsa::Zeroizing::new(
+                Utils::random_bytes(KEY_GENERATION_RANDOMNESS_SIZE).map_err(|_| {
+                    lib_q_core::Error::RandomGenerationFailed {
+                        operation: "ml-dsa key generation".to_string(),
+                    }
+                })?,
+            );
 
-            let seed_len = seed.len();
-            let seed_array: [u8; KEY_GENERATION_RANDOMNESS_SIZE] =
-                seed.try_into()
-                    .map_err(|_| lib_q_core::Error::InvalidKeySize {
-                        expected: KEY_GENERATION_RANDOMNESS_SIZE,
-                        actual: seed_len,
-                    })?;
+            if seed.len() != KEY_GENERATION_RANDOMNESS_SIZE {
+                return Err(lib_q_core::Error::InvalidKeySize {
+                    expected: KEY_GENERATION_RANDOMNESS_SIZE,
+                    actual: seed.len(),
+                });
+            }
 
-            self.generate_keypair_with_randomness(seed_array)
+            // Copy straight into a zeroizing fixed-size buffer: a plain intermediate array
+            // would leave an unprotected copy of the seed on the stack.
+            let mut seed_array =
+                lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
+            seed_array.copy_from_slice(&seed);
+
+            self.generate_keypair_with_seed(&seed_array)
         }
 
         #[cfg(not(feature = "std"))]
@@ -672,16 +686,16 @@ mod tests {
         let ml_dsa_87 = MlDsa::ml_dsa_87();
 
         // Test key generation with provided randomness (no_std compatible)
-        let test_randomness = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+        let test_randomness = lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
 
         let keypair_44 = ml_dsa_44
-            .generate_keypair_with_randomness(test_randomness)
+            .generate_keypair_with_seed(&test_randomness)
             .unwrap();
         let keypair_65 = ml_dsa_65
-            .generate_keypair_with_randomness(test_randomness)
+            .generate_keypair_with_seed(&test_randomness)
             .unwrap();
         let keypair_87 = ml_dsa_87
-            .generate_keypair_with_randomness(test_randomness)
+            .generate_keypair_with_seed(&test_randomness)
             .unwrap();
 
         // Verify public key sizes
@@ -719,11 +733,11 @@ mod tests {
         let ml_dsa_65 = MlDsa::ml_dsa_65();
 
         // Test signature generation with provided randomness (no_std compatible)
-        let test_randomness = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+        let test_randomness = lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
         let signing_randomness = [0u8; SIGNING_RANDOMNESS_SIZE];
 
         let keypair = ml_dsa_65
-            .generate_keypair_with_randomness(test_randomness)
+            .generate_keypair_with_seed(&test_randomness)
             .unwrap();
         let message = b"Hello, ML-DSA!";
         let signature = ml_dsa_65
@@ -749,7 +763,9 @@ mod tests {
 
         let dsa65 = MlDsa::ml_dsa_65();
         let kp44 = dsa44
-            .generate_keypair_with_randomness([9u8; KEY_GENERATION_RANDOMNESS_SIZE])
+            .generate_keypair_with_seed(&lib_q_ml_dsa::Zeroizing::new(
+                [9u8; KEY_GENERATION_RANDOMNESS_SIZE],
+            ))
             .unwrap();
         let r = dsa65.sign_with_randomness(kp44.secret_key(), b"m", [0u8; SIGNING_RANDOMNESS_SIZE]);
         assert!(matches!(r, Err(lib_q_core::Error::InvalidKeySize { .. })));
@@ -759,7 +775,9 @@ mod tests {
     fn verify_rejects_bad_public_key_and_signature_sizes() {
         let dsa = MlDsa::ml_dsa_65();
         let kp = dsa
-            .generate_keypair_with_randomness([3u8; KEY_GENERATION_RANDOMNESS_SIZE])
+            .generate_keypair_with_seed(&lib_q_ml_dsa::Zeroizing::new(
+                [3u8; KEY_GENERATION_RANDOMNESS_SIZE],
+            ))
             .unwrap();
         let sig = dsa
             .sign_with_randomness(kp.secret_key(), b"x", [4u8; SIGNING_RANDOMNESS_SIZE])
@@ -839,19 +857,19 @@ impl MlDsa {
         randomness: Option<Uint8Array>,
     ) -> core::result::Result<WasmMlDsaKeyPair, JsValue> {
         let randomness_array = if let Some(rand) = randomness {
-            let rand_vec = rand.to_vec();
+            let rand_vec = lib_q_ml_dsa::Zeroizing::new(rand.to_vec());
             if rand_vec.len() != KEY_GENERATION_RANDOMNESS_SIZE {
                 return Err(JsValue::from_str("Invalid randomness size"));
             }
-            let mut array = [0u8; KEY_GENERATION_RANDOMNESS_SIZE];
+            let mut array = lib_q_ml_dsa::Zeroizing::new([0u8; KEY_GENERATION_RANDOMNESS_SIZE]);
             array.copy_from_slice(&rand_vec);
             Some(array)
         } else {
             None
         };
 
-        let keypair = if let Some(rand) = randomness_array {
-            self.generate_keypair_with_randomness(rand)
+        let keypair = if let Some(rand) = &randomness_array {
+            self.generate_keypair_with_seed(rand)
                 .map_err(|e| JsValue::from_str(&e.to_string()))?
         } else {
             self.generate_keypair()

@@ -80,7 +80,7 @@ fn pow7<E: PrimeCharacteristicRing + Clone>(x: E) -> E {
 /// `M4 = [[2,3,1,1],[1,2,3,1],[1,1,2,3],[3,1,1,2]]` per 4-block, then the outer circulant
 /// (add the four column-sums `sums[i % 4]`). Identical algebra to the value-level
 /// `external_linear_layer`, expressed on `E` for constraint building.
-fn external_linear_expr<E: PrimeCharacteristicRing + Clone>(state: &[E]) -> Vec<E> {
+pub(crate) fn external_linear_expr<E: PrimeCharacteristicRing + Clone>(state: &[E]) -> Vec<E> {
     debug_assert_eq!(state.len(), WIDTH);
     let mut s: Vec<E> = state.to_vec();
     let mut c = 0;

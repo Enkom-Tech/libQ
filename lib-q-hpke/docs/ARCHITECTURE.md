@@ -50,10 +50,9 @@ src/
 │   ├── memory.rs         # Secure memory management
 │   ├── memory_safety.rs  # Memory safety utilities
 │   ├── side_channel_protection.rs # Side-channel attack protection
-│   ├── side_channel.rs   # Additional side-channel utilities
 │   ├── prng.rs           # Pseudo-random number generation
 │   ├── key_rotation.rs   # Key rotation management
-│   └── test_rng.rs       # Test RNG implementation
+│   └── test_rng.rs       # Deterministic test RNG (`cfg(any(test, feature = "test-utils"))` only; never in a production build, see the crate's Cargo.toml)
 ├── providers/            # Cryptographic provider traits
 │   ├── mod.rs
 │   ├── traits.rs         # Provider trait definitions

@@ -285,8 +285,10 @@ fn vect_mul(&self, output: &mut [u64], a: &[u64], b: &[u64]) -> Result<(), HqcPk
             return crate::simd::avx2::gf2x::avx2_vect_mul_mod_xnm1::<P>(output, a, b);
         }
     }
-    // Fallback: schoolbook GF(2)[x]/(x^n-1) multiply
-    schoolbook_vect_mul_mod_xnm1(output, a, b, P::VEC_N_SIZE_64, P::N)
+    // Fallback: portable recursive-Karatsuba GF(2)[x]/(x^n-1) multiply (gf2x_karatsuba.rs).
+    // `schoolbook_vect_mul_mod_xnm1` still exists as the equivalence oracle both this and
+    // the AVX2 path are tested against, but it is no longer on the hot path.
+    crate::gf2x_karatsuba::karatsuba_vect_mul_mod_xnm1(output, a, b, P::VEC_N_SIZE_64, P::N)
 }
 ```
 

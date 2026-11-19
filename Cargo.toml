@@ -91,6 +91,7 @@ members = [
     "examples/wasm-browser-demo",
     # Benchmarks
     "benches",
+    "lib-q-phone-bench",
 ]
 # Standalone cargo-fuzz harnesses (not workspace members).
 exclude = [
@@ -100,6 +101,8 @@ exclude = [
     "lib-q-prf/fuzz",
     "lib-q-dkg/fuzz",
     "lib-q-threshold-raccoon/fuzz",
+    # Standalone constant-time screening tool (publish = false, declares its own workspace).
+    "lib-q-ct-kat",
 ]
 # Also outside the workspace: `benches/` (standalone Criterion runner) and
 # `lib-q-fn-dsa/fn-dsa-*` (nested path deps under `lib-q-fn-dsa`).

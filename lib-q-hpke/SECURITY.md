@@ -59,6 +59,20 @@ For **PSK** and **AuthPSK**, the default `HpkePskWireFormat` is **RFC 9180** on 
   `HpkeContext::setup_{sender,receiver}_auth[_psk]` convenience methods) fail closed. A correct
   fix requires `AuthEncap`/`AuthDecap` that bind the sender's static secret key per RFC 9180
   Section 5.1.3 and needs cryptographer sign-off before it ships. Use Base or PSK mode until then.
+- **`enc` is not bound into the key schedule for the ML-KEM path (write-up only, no wire
+  change yet).** RFC 9180's DHKEM binds `enc`/`pkR` into the KEM shared secret via
+  `ExtractAndExpand(dh, concat(enc, pkRm[, pkSm]))` before `KeySchedule` ever runs; libQ's ML-KEM
+  path has no DHKEM and feeds ML-KEM's raw shared secret into `key_schedule` unmodified, so this
+  binding does not happen anywhere in Base mode (the default). `HpkePskWireFormat::LibQCommitmentSuffix`
+  provides a partial, opt-in mitigation for PSK/AuthPSK only. See
+  [`docs/hpke-enc-binding-and-codepoints.md`](../docs/hpke-enc-binding-and-codepoints.md) for the
+  full analysis and recommendation.
+- **KEM/KDF/AEAD codepoints squat IANA's unassigned-but-allocatable ranges instead of a private-use
+  convention.** `HpkeKem::MlKem512`'s `0x0022` now collides with IANA's real registered
+  `DHKEM(X25519+Elligator, HKDF-SHA256)`; `draft-connolly-cfrg-hpke-mlkem-04` already reserves
+  `0x0040`-`0x0042` for ML-KEM specifically. See
+  [`docs/hpke-enc-binding-and-codepoints.md`](../docs/hpke-enc-binding-and-codepoints.md) for the
+  live registry evidence and recommendation; not changed on the wire in this pass.
 - **Interop:** Peers must agree on the same cipher suite identifiers and, for PSK modes, the same `HpkePskWireFormat`.
 - **Software-only:** No mandatory hardware acceleration in this crate.
 - **Side channels:** Best-effort constant-time comparisons; full side-channel resistance depends on lower-level primitives and deployment.

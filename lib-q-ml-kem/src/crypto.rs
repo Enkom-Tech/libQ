@@ -2,6 +2,7 @@ use hybrid_array::{Array, ArraySize};
 use lib_q_sha3::digest::{ExtendableOutput, Update, XofReader};
 use lib_q_sha3::{Digest, Sha3_256, Sha3_512, Shake128, Shake256};
 use rand_core::{CryptoRng, Rng};
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::param::{CbdSamplingSize, EncodedPolynomial};
 use crate::util::B32;
@@ -51,7 +52,9 @@ pub fn J(inputs: &[impl AsRef<[u8]>]) -> B32 {
 
 pub type PrfOutput<Eta> = EncodedPolynomial<<Eta as CbdSamplingSize>::SampleSize>;
 
-pub fn PRF<Eta>(s: &B32, b: u8) -> PrfOutput<Eta>
+/// The output is a keyed stream that decides the secret `s`/`e`/`r`/`e1`/`e2` coefficients, so it
+/// is returned in a [`Zeroizing`] wrapper: the caller cannot forget to clear it.
+pub fn PRF<Eta>(s: &B32, b: u8) -> Zeroizing<PrfOutput<Eta>>
 where
     Eta: CbdSamplingSize,
 {
@@ -60,7 +63,7 @@ where
     h.update(&[b]);
     let mut r = h.finalize_xof();
 
-    let mut out = PrfOutput::<Eta>::default();
+    let mut out = Zeroizing::new(PrfOutput::<Eta>::default());
     r.read(&mut out);
     out
 }
@@ -134,6 +137,28 @@ mod test {
 
     use super::*;
 
+    /// G (SHA3-512) and H (SHA3-256) are keyed by `d`, `sigma` and the KEM coins. Their
+    /// `ZeroizeOnDrop` marker only exists because `lib-q-ml-kem` enables `lib-q-sha3/zeroize`; this
+    /// fails to compile without it. (The SHAKE types carry no such marker, so
+    /// `tests/hash_state_wipe.rs` checks all of them by inspecting freed memory instead.)
+    #[test]
+    fn digest_states_zeroize_on_drop() {
+        use zeroize::ZeroizeOnDrop;
+
+        fn assert_zeroize_on_drop<T: ZeroizeOnDrop>() {}
+        assert_zeroize_on_drop::<Sha3_256>();
+        assert_zeroize_on_drop::<Sha3_512>();
+    }
+
+    /// `PRF` output must come back wrapped so callers cannot leave it in memory. Fails to compile
+    /// if the return type reverts to a bare array.
+    #[test]
+    fn prf_output_is_zeroizing() {
+        let s = B32::default();
+        let out: Zeroizing<PrfOutput<U2>> = PRF::<U2>(&s, 0);
+        assert!(out.iter().any(|&b| b != 0));
+    }
+
     #[test]
     fn g() {
         let msg1 = "Input to ".as_bytes();
@@ -174,7 +199,7 @@ mod test {
              568113c861516d91bed227638654fc7f872df205c113b8364091755b62284eec\
              a6124f2cd4c1cdf598cb8324a4f373470a8f81ee618c75cc33f66facee01c213"
         );
-        assert_eq!(actual, expected);
+        assert_eq!(*actual, expected);
 
         let s = B32::try_from("Input s to an invocation of PRF3".as_bytes())
             .expect("Failed to create B32 from slice");
@@ -188,7 +213,7 @@ mod test {
              67764b3fc6b37376453978b8f0caeb6b18c188c28ee8681e28339477e042d5a1\
              b4a12deb1de8b9dad026b4e323e03973ffbe25dd511eed5460d22a9851cfc220"
         );
-        assert_eq!(actual, expected);
+        assert_eq!(*actual, expected);
     }
 
     #[test]

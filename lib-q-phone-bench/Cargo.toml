@@ -1,0 +1,32 @@
+[package]
+name = "lib-q-phone-bench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared phone benchmark harness for the lattice (L5) and STARK (S3) credential tracks"
+# Tooling only: never published (mirrors benches/ and examples/).
+publish = false
+
+[[bin]]
+name = "phone-bench"
+path = "src/main.rs"
+
+[dependencies]
+lib-q-lattice-zkp = { path = "../lib-q-lattice-zkp", version = "0.0.12" }
+lib-q-ring = { path = "../lib-q-ring", version = "0.0.12" }
+lib-q-random = { path = "../lib-q-random", version = "0.0.12", features = ["std"] }
+lib-q-zkp = { path = "../lib-q-zkp", version = "0.0.12", features = ["zkp", "std"] }
+lib-q-stark-baby-bear = { path = "../lib-q-stark-baby-bear", version = "0.0.12" }
+lib-q-stark-field = { path = "../lib-q-stark-field", version = "0.0.12" }
+lib-q-stark-mersenne31 = { path = "../lib-q-stark-mersenne31", version = "0.0.12" }
+
+postcard = { workspace = true, features = ["alloc"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+# Safe wrapper over getrusage(2); the crate itself contains no `unsafe` (the workspace
+# security validator forbids it outside the reviewed SIMD/FFI allowlist).
+nix = { version = "0.31.3", default-features = false, features = ["resource"] }
+
