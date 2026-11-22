@@ -241,12 +241,223 @@ macro_rules! instantiate {
     };
 }
 
+// The modules `instantiate!` produces above always run the portable backend, no
+// matter which `$modp` name they are instantiated under — `avx2`/`neon` were misleading aliases
+// for `portable`, not accelerated code. This macro instead delegates each function to the real,
+// already-implemented platform backend in `crate::ml_dsa_generic::instantiations::$modp`
+// (AVX2: `crate::simd::avx2::AVX2SIMDUnit` + `crate::samplex4::avx2::AVX2Sampler` +
+// `crate::hash_functions::simd256`; NEON: NEON-accelerated hashing over the portable SIMD unit,
+// matching `crate::ml_dsa_generic::multiplexing`'s runtime-dispatched avx2/neon arms), while
+// keeping the same public API the misleading modules exposed.
+#[allow(unused_macros)]
+macro_rules! instantiate_accelerated {
+    ($modp:ident, $detect:ident, $doc:expr) => {
+        #[doc = $doc]
+        pub mod $modp {
+            use super::*;
+            use crate::ml_dsa_generic::instantiations::portable::ml_dsa_87 as fallback;
+            use crate::ml_dsa_generic::instantiations::$modp::ml_dsa_87 as backend;
+
+            /// The accelerated backend runs `target_feature`-gated code, so it must only
+            /// be reached on a CPU that has the feature. This is the same runtime check
+            /// `ml_dsa_generic::multiplexing` makes; without it a safe public function
+            /// here could execute unsupported instructions.
+            #[inline]
+            fn accelerated() -> bool {
+                lib_q_platform::$detect()
+            }
+
+            /// Generate an ML-DSA-87 Key Pair from a seed held in a zeroizing buffer
+            ///
+            /// The seed is borrowed, so no copy of it is made on the way into key generation,
+            /// and the caller's buffer is cleared when it is dropped.
+            pub fn generate_key_pair_from_seed(
+                seed: &Zeroizing<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
+            ) -> MLDSA87KeyPair {
+                let mut key_pair = MLDSA87KeyPair {
+                    signing_key: MLDSASigningKey::zero(),
+                    verification_key: MLDSAVerificationKey::zero(),
+                };
+                if accelerated() {
+                    backend::generate_key_pair(
+                        seed,
+                        &mut key_pair.signing_key.value,
+                        &mut key_pair.verification_key.value,
+                    )
+                } else {
+                    fallback::generate_key_pair(
+                        seed,
+                        &mut key_pair.signing_key.value,
+                        &mut key_pair.verification_key.value,
+                    )
+                };
+                key_pair
+            }
+
+            /// Generate an ML-DSA-87 Key Pair into caller-provided buffers
+            ///
+            /// The seed is borrowed from a zeroizing buffer, as in
+            /// [`generate_key_pair_from_seed`].
+            pub fn generate_key_pair_mut(
+                seed: &Zeroizing<[u8; KEY_GENERATION_RANDOMNESS_SIZE]>,
+                signing_key: &mut [u8; ml_dsa_87::SIGNING_KEY_SIZE],
+                verification_key: &mut [u8; ml_dsa_87::VERIFICATION_KEY_SIZE],
+            ) {
+                if accelerated() {
+                    backend::generate_key_pair(seed, signing_key, verification_key)
+                } else {
+                    fallback::generate_key_pair(seed, signing_key, verification_key)
+                };
+            }
+
+            /// Generate an ML-DSA-87 Signature
+            pub fn sign(
+                signing_key: &MLDSA87SigningKey,
+                message: &[u8],
+                context: &[u8],
+                randomness: [u8; SIGNING_RANDOMNESS_SIZE],
+            ) -> Result<MLDSA87Signature, SigningError> {
+                if accelerated() {
+                    backend::sign(signing_key.as_ref(), message, context, randomness)
+                } else {
+                    fallback::sign(signing_key.as_ref(), message, context, randomness)
+                }
+            }
+
+            /// Generate an ML-DSA-87 Signature
+            pub fn sign_mut(
+                signing_key: &[u8; ml_dsa_87::SIGNING_KEY_SIZE],
+                message: &[u8],
+                context: &[u8],
+                randomness: [u8; SIGNING_RANDOMNESS_SIZE],
+                signature: &mut [u8; ml_dsa_87::SIGNATURE_SIZE],
+            ) -> Result<(), SigningError> {
+                if accelerated() {
+                    backend::sign_mut(signing_key, message, context, randomness, signature)
+                } else {
+                    fallback::sign_mut(signing_key, message, context, randomness, signature)
+                }
+            }
+
+            /// Generate an ML-DSA-87 Signature (Algorithm 7 in FIPS204)
+            #[cfg(feature = "acvp")]
+            pub fn sign_internal(
+                signing_key: &MLDSA87SigningKey,
+                message: &[u8],
+                randomness: [u8; SIGNING_RANDOMNESS_SIZE],
+            ) -> Result<MLDSA87Signature, SigningError> {
+                if accelerated() {
+                    backend::sign_internal(signing_key.as_ref(), message, randomness)
+                } else {
+                    fallback::sign_internal(signing_key.as_ref(), message, randomness)
+                }
+            }
+
+            /// Verify an ML-DSA-87 Signature (Algorithm 8 in FIPS204)
+            #[cfg(feature = "acvp")]
+            pub fn verify_internal(
+                verification_key: &MLDSA87VerificationKey,
+                message: &[u8],
+                signature: &MLDSA87Signature,
+            ) -> Result<(), VerificationError> {
+                if accelerated() {
+                    backend::verify_internal(verification_key.as_ref(), message, signature.as_ref())
+                } else {
+                    fallback::verify_internal(
+                        verification_key.as_ref(),
+                        message,
+                        signature.as_ref(),
+                    )
+                }
+            }
+
+            /// Verify an ML-DSA-87 Signature
+            pub fn verify(
+                verification_key: &MLDSA87VerificationKey,
+                message: &[u8],
+                context: &[u8],
+                signature: &MLDSA87Signature,
+            ) -> Result<(), VerificationError> {
+                if accelerated() {
+                    backend::verify(
+                        verification_key.as_ref(),
+                        message,
+                        context,
+                        signature.as_ref(),
+                    )
+                } else {
+                    fallback::verify(
+                        verification_key.as_ref(),
+                        message,
+                        context,
+                        signature.as_ref(),
+                    )
+                }
+            }
+
+            /// Sign with HashML-DSA 87, with a SHAKE128 pre-hashing
+            pub fn sign_pre_hashed_shake128(
+                signing_key: &MLDSA87SigningKey,
+                message: &[u8],
+                context: &[u8],
+                randomness: [u8; SIGNING_RANDOMNESS_SIZE],
+            ) -> Result<MLDSA87Signature, SigningError> {
+                let mut pre_hash_buffer = [0u8; 256];
+                if accelerated() {
+                    backend::sign_pre_hashed_shake128(
+                        signing_key.as_ref(),
+                        message,
+                        context,
+                        &mut pre_hash_buffer,
+                        randomness,
+                    )
+                } else {
+                    fallback::sign_pre_hashed_shake128(
+                        signing_key.as_ref(),
+                        message,
+                        context,
+                        &mut pre_hash_buffer,
+                        randomness,
+                    )
+                }
+            }
+
+            /// Verify a HashML-DSA-87 Signature, with a SHAKE128 pre-hashing
+            pub fn verify_pre_hashed_shake128(
+                verification_key: &MLDSA87VerificationKey,
+                message: &[u8],
+                context: &[u8],
+                signature: &MLDSA87Signature,
+            ) -> Result<(), VerificationError> {
+                let mut pre_hash_buffer = [0u8; 256];
+                if accelerated() {
+                    backend::verify_pre_hashed_shake128(
+                        verification_key.as_ref(),
+                        message,
+                        context,
+                        &mut pre_hash_buffer,
+                        signature.as_ref(),
+                    )
+                } else {
+                    fallback::verify_pre_hashed_shake128(
+                        verification_key.as_ref(),
+                        message,
+                        context,
+                        &mut pre_hash_buffer,
+                        signature.as_ref(),
+                    )
+                }
+            }
+        }
+    };
+}
+
 // Instantiations
 instantiate! {portable, "Portable ML-DSA 87"}
 #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
-instantiate! {avx2, "AVX2 Optimised ML-DSA 87"}
-#[cfg(feature = "simd128")]
-instantiate! {neon, "Neon Optimised ML-DSA 87"}
+instantiate_accelerated! {avx2, simd256_support, "AVX2 Optimised ML-DSA 87 (runtime-detected; falls back to the portable backend on a CPU without AVX2)"}
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
+instantiate_accelerated! {neon, simd128_support, "Neon Optimised ML-DSA 87 (runtime-detected; falls back to the portable backend)"}
 
 /// Generate an ML-DSA 87 Key Pair
 ///

@@ -1,9 +1,9 @@
 use crate::constants::{COEFFICIENTS_IN_RING_ELEMENT, Eta};
-use crate::encoding;
 use crate::hash_functions::{shake128, shake256};
 use crate::helper::cloop;
 use crate::polynomial::PolynomialRingElement;
 use crate::simd::traits::Operations;
+use crate::{encoding, wipe};
 
 #[cfg_attr(tarpaulin, inline(never))]
 #[cfg_attr(not(tarpaulin), inline(always))]
@@ -264,13 +264,17 @@ pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: sh
     re: &mut [PolynomialRingElement<SIMDUnit>],
 ) {
     // Prepare the seeds
-    let seed0 = add_error_domain_separator(seed, start_index);
-    let seed1 = add_error_domain_separator(seed, start_index + 1);
-    let seed2 = add_error_domain_separator(seed, start_index + 2);
-    let seed3 = add_error_domain_separator(seed, start_index + 3);
+    let mut seed0 = add_error_domain_separator(seed, start_index);
+    let mut seed1 = add_error_domain_separator(seed, start_index + 1);
+    let mut seed2 = add_error_domain_separator(seed, start_index + 2);
+    let mut seed3 = add_error_domain_separator(seed, start_index + 3);
 
+    // `rho'`-keyed SHAKE256 output: every byte below decides a coefficient of s1/s2, so the
+    // seed copies, the squeezed blocks and the sampled coefficients are cleared before returning
+    // (the sponge itself clears its lanes on drop).
     let mut state = Shake256::init_absorb_x4(&seed0, &seed1, &seed2, &seed3);
-    let randomnesses = state.squeeze_first_block_x4();
+    let mut randomnesses = [[0u8; shake256::BLOCK_SIZE]; 4];
+    state.squeeze_first_block_x4(&mut randomnesses);
 
     // Every call to |rejection_sample_less_than_field_modulus|
     // will result in a call to |SIMDUnit::rejection_sample_less_than_field_modulus|;
@@ -289,36 +293,36 @@ pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: sh
 
     let mut done0 = rejection_sample_less_than_eta::<SIMDUnit>(
         eta,
-        &randomnesses.0,
+        &randomnesses[0],
         &mut sampled0,
         &mut out[0],
     );
     let mut done1 = rejection_sample_less_than_eta::<SIMDUnit>(
         eta,
-        &randomnesses.1,
+        &randomnesses[1],
         &mut sampled1,
         &mut out[1],
     );
     let mut done2 = rejection_sample_less_than_eta::<SIMDUnit>(
         eta,
-        &randomnesses.2,
+        &randomnesses[2],
         &mut sampled2,
         &mut out[2],
     );
     let mut done3 = rejection_sample_less_than_eta::<SIMDUnit>(
         eta,
-        &randomnesses.3,
+        &randomnesses[3],
         &mut sampled3,
         &mut out[3],
     );
 
     while !done0 || !done1 || !done2 || !done3 {
         // Always sample another 4, but we only use it if we actually need it.
-        let randomnesses = state.squeeze_next_block_x4();
+        state.squeeze_next_block_x4(&mut randomnesses);
         if !done0 {
             done0 = rejection_sample_less_than_eta::<SIMDUnit>(
                 eta,
-                &randomnesses.0,
+                &randomnesses[0],
                 &mut sampled0,
                 &mut out[0],
             );
@@ -326,7 +330,7 @@ pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: sh
         if !done1 {
             done1 = rejection_sample_less_than_eta::<SIMDUnit>(
                 eta,
-                &randomnesses.1,
+                &randomnesses[1],
                 &mut sampled1,
                 &mut out[1],
             );
@@ -334,7 +338,7 @@ pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: sh
         if !done2 {
             done2 = rejection_sample_less_than_eta::<SIMDUnit>(
                 eta,
-                &randomnesses.2,
+                &randomnesses[2],
                 &mut sampled2,
                 &mut out[2],
             );
@@ -342,7 +346,7 @@ pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: sh
         if !done3 {
             done3 = rejection_sample_less_than_eta::<SIMDUnit>(
                 eta,
-                &randomnesses.3,
+                &randomnesses[3],
                 &mut sampled3,
                 &mut out[3],
             );
@@ -354,6 +358,15 @@ pub(crate) fn sample_four_error_ring_elements<SIMDUnit: Operations, Shake256: sh
     let max = if re.len() < max { re.len() } else { max };
     for i in start_index as usize..max {
         PolynomialRingElement::<SIMDUnit>::from_i32_array(&out[i % 4], &mut re[i]);
+    }
+
+    wipe::bytes(&mut seed0);
+    wipe::bytes(&mut seed1);
+    wipe::bytes(&mut seed2);
+    wipe::bytes(&mut seed3);
+    wipe::byte_blocks(&mut randomnesses);
+    for lane in out.iter_mut() {
+        wipe::coefficients(lane);
     }
 }
 
@@ -369,11 +382,13 @@ fn sample_mask_ring_element<SIMDUnit: Operations, Shake256: shake256::DsaXof>(
             let mut out = [0u8; 576];
             Shake256::shake256::<576>(seed, &mut out);
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out, result);
+            wipe::bytes(&mut out);
         }
         19 => {
             let mut out = [0u8; 640];
             Shake256::shake256::<640>(seed, &mut out);
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out, result);
+            wipe::bytes(&mut out);
         }
         _ => unreachable!(),
     }
@@ -396,11 +411,13 @@ pub(crate) fn sample_mask_vector<
     debug_assert!(dimension == 4 || dimension == 5 || dimension == 7);
     // So we can always sample 4 elements in one go first.
 
-    let seed0 = add_error_domain_separator(seed, *domain_separator);
-    let seed1 = add_error_domain_separator(seed, *domain_separator + 1);
-    let seed2 = add_error_domain_separator(seed, *domain_separator + 2);
-    let seed3 = add_error_domain_separator(seed, *domain_separator + 3);
+    let mut seed0 = add_error_domain_separator(seed, *domain_separator);
+    let mut seed1 = add_error_domain_separator(seed, *domain_separator + 1);
+    let mut seed2 = add_error_domain_separator(seed, *domain_separator + 2);
+    let mut seed3 = add_error_domain_separator(seed, *domain_separator + 3);
     *domain_separator += 4;
+
+    // `rho''`-keyed: seeds, the raw mask bytes and the sampled `y` bytes are all secret.
 
     match gamma1_exponent {
         17 => {
@@ -415,6 +432,10 @@ pub(crate) fn sample_mask_vector<
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out1, &mut mask[1]);
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out2, &mut mask[2]);
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out3, &mut mask[3]);
+            wipe::bytes(&mut out0);
+            wipe::bytes(&mut out1);
+            wipe::bytes(&mut out2);
+            wipe::bytes(&mut out3);
         }
         19 => {
             let mut out0 = [0; 640];
@@ -428,17 +449,27 @@ pub(crate) fn sample_mask_vector<
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out1, &mut mask[1]);
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out2, &mut mask[2]);
             encoding::gamma1::deserialize::<SIMDUnit>(gamma1_exponent, &out3, &mut mask[3]);
+            wipe::bytes(&mut out0);
+            wipe::bytes(&mut out1);
+            wipe::bytes(&mut out2);
+            wipe::bytes(&mut out3);
         }
         _ => unreachable!(),
     }
 
+    wipe::bytes(&mut seed0);
+    wipe::bytes(&mut seed1);
+    wipe::bytes(&mut seed2);
+    wipe::bytes(&mut seed3);
+
     #[allow(clippy::needless_range_loop)]
     for i in 4..dimension {
-        let seed = add_error_domain_separator(seed, *domain_separator);
+        let mut seed = add_error_domain_separator(seed, *domain_separator);
         *domain_separator += 1;
 
         // TODO: For 87 we may want to do another 4 and discard 1.
         sample_mask_ring_element::<SIMDUnit, Shake256>(&seed, &mut mask[i], gamma1_exponent);
+        wipe::bytes(&mut seed);
     }
 }
 

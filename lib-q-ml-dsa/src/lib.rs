@@ -11,7 +11,7 @@
     clippy::erasing_op
 )]
 
-#[cfg(feature = "std")]
+#[cfg(any(test, feature = "std"))]
 extern crate std;
 
 mod arithmetic;
@@ -31,6 +31,7 @@ mod sample;
 mod samplex4;
 mod sha3_shim;
 mod simd;
+mod wipe;
 
 #[cfg(hax)]
 mod specs;

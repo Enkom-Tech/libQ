@@ -134,7 +134,7 @@ impl SignatureOperations for LibQSignatureProvider {
                             expected: 32,
                             actual: rng.len(),
                         })?;
-                    ml_dsa.generate_keypair_with_randomness(rng_array)
+                    ml_dsa.generate_keypair_with_seed(&lib_q_ml_dsa::Zeroizing::new(rng_array))
                 } else {
                     ml_dsa.generate_keypair()
                 }
@@ -148,7 +148,7 @@ impl SignatureOperations for LibQSignatureProvider {
                             expected: 32,
                             actual: rng.len(),
                         })?;
-                    ml_dsa.generate_keypair_with_randomness(rng_array)
+                    ml_dsa.generate_keypair_with_seed(&lib_q_ml_dsa::Zeroizing::new(rng_array))
                 } else {
                     ml_dsa.generate_keypair()
                 }
@@ -162,7 +162,7 @@ impl SignatureOperations for LibQSignatureProvider {
                             expected: 32,
                             actual: rng.len(),
                         })?;
-                    ml_dsa.generate_keypair_with_randomness(rng_array)
+                    ml_dsa.generate_keypair_with_seed(&lib_q_ml_dsa::Zeroizing::new(rng_array))
                 } else {
                     ml_dsa.generate_keypair()
                 }

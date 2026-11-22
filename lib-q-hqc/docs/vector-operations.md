@@ -70,7 +70,12 @@ Writes `weight` bit positions from `support[]` into `v[]` using precomputed `ind
 
 (not \(2^{24}-1\)). See parameter table below.
 
-**Timing:** Rejection loops and `if support[k] == support[i]` duplicate checks follow the reference and are **not** constant-time; runtime varies with XOF draws and collision count.
+**Timing:** Default path: rejection loops and `if support[k] == support[i]` duplicate checks
+follow the reference and are **not** constant-time; runtime varies with XOF draws and
+collision count. `hardened` feature: duplicate-check is branchless; rejection accept-test is
+a `subtle::ConstantTimeLess` comparison, but the loop still branches on whether to draw
+another candidate (irreducible without changing the XOF-consumption/output contract — see
+SECURITY.md, "Power/EM side channel on fixed-weight sampling").
 
 ### `vect_sample_fixed_weight2` / `vect_generate_random_support2`
 
@@ -80,7 +85,11 @@ Writes `weight` bit positions from `support[]` into `v[]` using precomputed `ind
 2. Map index `i` with `support[i] = i + (rand * (N - i)) >> 32` (64-bit intermediate).
 3. Reverse pass resolves collisions with masked updates (reference `vect_generate_random_support2`).
 
-**Timing:** Reference-style masked fixes; still not a uniform-cycle guarantee in the BearSSL sense.
+**Timing:** Default path: reference-style masked fixes for the write, but the comparisons
+that feed the mask still branch (`if support[j] == support[i]`); not a uniform-cycle
+guarantee in the BearSSL sense. `hardened` feature: fully branchless — comparison and select
+both go through `subtle`, no remaining `if` on secret data (no rejection loop here to leave a
+residual branch, unlike `support1`).
 
 ### `barrett_reduce`
 
@@ -105,11 +114,11 @@ Product in \(\mathrm{GF}(2)[x]/(x^N-1)\).
 | Path | When | Implementation |
 |------|------|----------------|
 | AVX2 | `feature = "simd-avx2"`, x86_64, runtime `has_avx2()` | [`src/simd/avx2/gf2x.rs`](../src/simd/avx2/gf2x.rs) Toom-based `avx2_vect_mul_mod_xnm1` |
-| Portable | otherwise | `schoolbook_vect_mul_mod_xnm1` in `hqc_pke.rs` |
+| Portable | otherwise | [`src/gf2x_karatsuba.rs`](../src/gf2x_karatsuba.rs) recursive `karatsuba_vect_mul_mod_xnm1` (sub-quadratic; `schoolbook_vect_mul_mod_xnm1` in `hqc_pke.rs` remains as its equivalence oracle, not on this path) |
 
-Both paths must agree; see `tests/vect_mul_equivalence.rs` and SIMD tests in [simd-architecture.md](simd-architecture.md).
+All three (AVX2, portable Karatsuba, schoolbook oracle) must agree; see `tests/vect_mul_equivalence.rs`, `src/gf2x_karatsuba.rs`'s own tests, and SIMD tests in [simd-architecture.md](simd-architecture.md).
 
-The schoolbook kernel scans set bits of `a` with `if (ai >> bit) & 1 == 1` (reference-style). That is **data-dependent** in cycle count. AVX2 is optimized for throughput, not documented as constant-time.
+The schoolbook and Karatsuba-base-case kernels scan set bits of `a` with `if (ai >> bit) & 1 == 1` (reference-style). That is **data-dependent** in cycle count. AVX2 is optimized for throughput, not documented as constant-time.
 
 `vect_mul` returns `InvalidKey` if `output.len() != P::VEC_N_SIZE_64`.
 
@@ -147,26 +156,33 @@ Do not describe this module as uniformly constant-time. Use the following classi
 |-----------|---------|-------|
 | `vect_write_support_to_vector` | Reference-style CT word select | Masks for `tmp == 0` |
 | `barrett_reduce` | Fixed-latency reduction step | |
-| `vect_generate_random_support1` | Variable time; power side channel not mitigated | Rejection + branched duplicate check (`src/hqc_pke.rs:530` reject `break`, `:538-543` dedup scan). Weight `P::OMEGA` on the long-term secret `x`, `y` — see [ePrint 2026/1462](https://eprint.iacr.org/2026/1462), which power-attacks exactly this structure to 100% key recovery on an unmasked implementation. ePrint 2026/1491 separately attacks this function's output-word load/store leakage |
-| `vect_generate_random_support2` | Variable time; power side channel not mitigated | Collision resolution passes (arithmetic mask already at `src/hqc_pke.rs:588-593`); same paper's target class, lower severity here (ephemeral `r1`/`r2`/`e`, not the long-term secret) |
-| `schoolbook_vect_mul_mod_xnm1` | Variable time | Per-set-bit updates |
-| AVX2 `vect_mul` | Fast path | Equivalence-tested vs schoolbook, not CT-audited |
+| `vect_generate_random_support1` | Variable time; power side channel partially mitigated under `hardened` | Default path: rejection + branched duplicate check. Weight `P::OMEGA` on the long-term secret `x`, `y` — see [ePrint 2026/1462](https://eprint.iacr.org/2026/1462), which power-attacks exactly this rejection/duplicate-check structure to 100% key recovery on an unmasked implementation. `hardened` feature: duplicate-check is branchless (`subtle`); rejection accept-test uses `subtle::ConstantTimeLess`; the loop-continuation branch itself remains (inherent to rejection sampling, irreducible while preserving byte-identical KAT output) — see SECURITY.md. ePrint 2026/1491 separately attacks this function's output-word load/store leakage |
+| `vect_generate_random_support2` | Variable time; power side channel mitigated under `hardened` | Default path: collision resolution passes, same paper's target class, lower severity here (ephemeral `r1`/`r2`/`e`, not the long-term secret). `hardened` feature: fully branchless (`subtle`) — no rejection loop to leave a residual branch, so this closes completely |
+| `schoolbook_vect_mul_mod_xnm1` | Variable time | Per-set-bit updates; no longer on the hot `vect_mul` path, kept as equivalence oracle |
+| `karatsuba_vect_mul_mod_xnm1` (portable `vect_mul` fallback) | Variable time | Recursive split is a function of operand length only (public); base case reuses schoolbook's per-set-bit technique verbatim, same posture |
+| AVX2 `vect_mul` | Fast path | Equivalence-tested vs schoolbook and Karatsuba, not CT-audited |
 | `vect_add` / `vect_truncate` | Public-length operations | Operand values may still be secret |
 
 HQC reference code uses the same patterns for interoperability and KAT alignment. Any hardening fork must re-run KATs and cross-implementation tests.
 
-No masking or hiding countermeasure (dummy operations, shuffling, bitslicing) is implemented for the fixed-weight sampler; see [SECURITY.md](../SECURITY.md)'s "Power/EM side channel on fixed-weight sampling" for the threat-model discussion and why this is an open design question rather than a defect in the current unprotected-software posture.
+No masking or hiding countermeasure (dummy operations, shuffling, bitslicing) is implemented
+in the default build. The `hardened` feature adds branchless masking for both
+samplers' duplicate-check and for `support1`'s rejection comparison; it does not add hiding
+(shuffling) or remove `support1`'s one remaining loop-continuation branch. See
+[SECURITY.md](../SECURITY.md)'s "Power/EM side channel on fixed-weight sampling" for the full
+threat-model discussion, what was and was not implemented, and why.
 
 ## Verification map
 
 | Concern | Tests / artifacts |
 |---------|-------------------|
 | Support write, Barrett, basic multiply | `tests/comprehensive_validation.rs` |
-| Schoolbook vs AVX2 multiply | `tests/vect_mul_equivalence.rs`, `src/simd/avx2/gf2x.rs` unit tests |
+| Schoolbook vs Karatsuba vs AVX2 multiply | `tests/vect_mul_equivalence.rs`, `src/gf2x_karatsuba.rs` unit tests, `src/simd/avx2/gf2x.rs` unit tests |
 | `vect_set_random` / XOF alignment | `tests/vect_set_random_analysis.rs`, `tests/kat_intermediate_values_verification.rs` |
 | Parameter constants | `tests/compliance_parameter_validation.rs`, `tests/official_specification_verification_test.rs` |
 | Full KEM | `tests/nist_kem_kat.rs`, `tests/compliance/kat_verification.rs` |
 | Cross-parameter behavior | `tests/compliance/cross_implementation.rs` |
+| Isolated fixed-weight sampler correctness (`hardened` + default) | `tests/hardened_support_sampling_isolated.rs` — calls only `vect_generate_random_support1`/`2`, no surrounding keygen/encrypt; probe target for a future power/EM evaluation |
 
 Public test hooks on `HqcPke` (`test_vect_mul`, `test_vect_sample_fixed_weight1`, …) exist for component debugging; prefer the integration tests above for regression gates.
 

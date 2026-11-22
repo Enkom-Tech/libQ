@@ -42,6 +42,7 @@ use lib_q_dkg::lattice::ring::{
 use lib_q_sha3::{ExtendableOutput, Update, XofReader};
 use rand_core::{CryptoRng, Rng};
 use subtle::ConstantTimeEq;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::SecretShare;
 use crate::error::RaccoonError;
@@ -49,15 +50,47 @@ use crate::signer::{S_SIGN, Signature, challenge};
 
 /// Symmetric pairwise seeds for additive zero-sharing (one per unordered party pair).
 ///
-/// In a deployment these are established via pairwise key agreement during/after the DKG; here a
-/// helper samples them for testing. `seed(i, j) == seed(j, i)`.
+/// In a deployment each party holds only the seeds it shares with the other parties, established
+/// via pairwise key agreement during/after the DKG, and builds its set with
+/// [`from_pairwise`](Self::from_pairwise). [`setup`](Self::setup) samples *every* pair in one
+/// place and is a test helper: whoever holds its output can compute every party's zero-share and so
+/// unmask every honest round-3 broadcast. `seed(i, j) == seed(j, i)`.
+///
+/// The seed bytes are secret (they key the zero-share PRF) and are zeroized on drop.
 #[derive(Clone)]
 pub struct ZeroShareSeeds {
     entries: Vec<(u8, u8, [u8; 32])>,
 }
 
+impl Drop for ZeroShareSeeds {
+    /// Wipe the secret seed bytes (a `Clone` wipes its own copy on its own drop). The `(i, j)`
+    /// indices are public and left as-is.
+    fn drop(&mut self) {
+        for (_, _, seed) in &mut self.entries {
+            seed.zeroize();
+        }
+    }
+}
+
 impl ZeroShareSeeds {
-    /// Sample fresh pairwise seeds for parties `1..=parties`.
+    /// Build a party's seed set from externally derived pairwise secrets — the production path.
+    ///
+    /// Each entry is the canonical unordered pair `(i, j, seed)` with `0 < i < j`, and `seed` must be
+    /// a secret known only to parties `i` and `j`. A zero index, `i >= j`, or a duplicate pair is
+    /// rejected ([`RaccoonError::InvalidSeedEntry`]), so the seed lookup is unambiguous.
+    pub fn from_pairwise(entries: Vec<(u8, u8, [u8; 32])>) -> Result<Self, RaccoonError> {
+        for (idx, (i, j, _)) in entries.iter().enumerate() {
+            if *i == 0 || i >= j {
+                return Err(RaccoonError::InvalidSeedEntry);
+            }
+            if entries[..idx].iter().any(|(a, b, _)| a == i && b == j) {
+                return Err(RaccoonError::InvalidSeedEntry);
+            }
+        }
+        Ok(Self { entries })
+    }
+
+    /// Sample fresh pairwise seeds for parties `1..=parties` (**test helper**; see the type docs).
     pub fn setup<R: CryptoRng + Rng>(parties: u8, rng: &mut R) -> Self {
         let mut entries = Vec::new();
         for i in 1..=parties {
@@ -256,13 +289,13 @@ pub fn sign_round2(
     if state.index != share.index {
         return Err(RaccoonError::InvalidIndex { index: state.index });
     }
-    if !subset.contains(&state.index) {
-        return Err(RaccoonError::InvalidSignerSet);
-    }
+    crate::validate_signer_subset(share, subset)?;
     let c = challenge(t, msg, w);
     let lambda = lib_q_dkg::lagrange_coeff_at_zero(subset, state.index)
         .map_err(|_| RaccoonError::InvalidSignerSet)?;
+    // The decoded share is secret: wiped on every return path.
     let (value, rand) = crate::decode_value_rand(&share.share_bytes)?;
+    let (value, rand) = (Zeroizing::new(value), Zeroizing::new(rand));
     if rand.len() != KAPPA {
         return Err(RaccoonError::Encoding);
     }

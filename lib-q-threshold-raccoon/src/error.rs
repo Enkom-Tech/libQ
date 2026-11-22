@@ -47,6 +47,9 @@ pub enum RaccoonError {
     },
     /// A length value did not fit the wire width.
     LengthOverflow,
+    /// A pairwise seed entry supplied to [`crate::threshold::ZeroShareSeeds::from_pairwise`] is not
+    /// canonical: a zero index, `i >= j`, or a duplicate unordered pair.
+    InvalidSeedEntry,
 }
 
 impl fmt::Display for RaccoonError {
@@ -76,6 +79,7 @@ impl fmt::Display for RaccoonError {
                 )
             }
             Self::LengthOverflow => write!(f, "length conversion overflow"),
+            Self::InvalidSeedEntry => write!(f, "invalid zero-share seed entry"),
         }
     }
 }

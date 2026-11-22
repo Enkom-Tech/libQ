@@ -30,6 +30,10 @@ path = "src/lib.rs"
 
 [dev-dependencies]
 hex = { workspace = true }
+# TurboSHAKE256 cross-check of the aead_id 17 initialization call (tests/turboshake_kat.rs).
+lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.12", default-features = false }
+digest = { workspace = true }
+serde_json = { workspace = true }
 lib-q-core = { path = "../lib-q-core", version = "0.0.12", default-features = false, features = ["alloc", "std"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
@@ -39,6 +43,11 @@ criterion = { workspace = true, features = ["html_reports"] }
 name = "duplex_aead"
 harness = false
 required-features = ["std"]
+
+[[test]]
+name = "turboshake_kat"
+path = "tests/turboshake_kat.rs"
+required-features = ["alloc"]
 
 [[test]]
 name = "coverage_api"

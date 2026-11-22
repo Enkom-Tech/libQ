@@ -168,7 +168,7 @@ impl_nist_known_answer_tests!(
     lib_q_ml_dsa::ml_dsa_44::verify_pre_hashed_shake128
 );
 
-#[cfg(all(feature = "simd128", feature = "mldsa44"))]
+#[cfg(all(feature = "simd128", target_arch = "aarch64", feature = "mldsa44"))]
 impl_nist_known_answer_tests!(
     nist_known_answer_tests_44_simd128,
     nist_known_answer_tests_pre_hashed_44_simd128,
@@ -180,7 +180,7 @@ impl_nist_known_answer_tests!(
     lib_q_ml_dsa::ml_dsa_44::verify_pre_hashed_shake128
 );
 
-#[cfg(all(feature = "simd256", feature = "mldsa44"))]
+#[cfg(all(feature = "simd256", target_arch = "x86_64", feature = "mldsa44"))]
 impl_nist_known_answer_tests!(
     nist_known_answer_tests_44_simd256,
     nist_known_answer_tests_pre_hashed_44_simd256,

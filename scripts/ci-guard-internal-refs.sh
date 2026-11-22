@@ -9,6 +9,9 @@
 # and the address-only exemption with its committed ceiling in
 # scripts/internal-refs-exemptions-max.txt. The guard re-runs its self-test before every
 # scan, so a guard that has stopped detecting anything fails instead of reporting a clean tree.
+# Published names (PUBLIC_NAMES there: the protocol name GIP, alone or as a label prefix such as
+# gip.aead.tsd.v1) are not internal references and are never reported; a longer listed name built on
+# one, such as a private specification repository, still is.
 #
 # Usage:
 #   bash scripts/ci-guard-internal-refs.sh [REPO_ROOT]

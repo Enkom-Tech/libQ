@@ -40,7 +40,7 @@ rand_core = { workspace = true } # RNG traits
 hex = { version = "0.4.3", default-features = false, features = ["alloc"] } # Hex (direct dep so default-features can be disabled for no_std)
 
 # Platform-specific dependencies
-heapless = { version = "0.9.3", optional = true }              # no_std collections
+heapless = { version = "0.9.4", optional = true }              # no_std collections
 wasm-bindgen = { workspace = true, optional = true }           # WASM bindings
 js-sys = { workspace = true, optional = true }
 serde-wasm-bindgen = { workspace = true, optional = true }

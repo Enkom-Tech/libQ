@@ -190,6 +190,30 @@ pub(crate) fn has_duplicate_index(indices: &[u8]) -> bool {
     sorted.windows(2).any(|w| w[0] == w[1])
 }
 
+/// Check that `subset` is a qualified signing set for `share` before any share-dependent work.
+///
+/// Refuses ([`RaccoonError::InvalidSignerSet`]) a zero share index, a subset that omits the share's
+/// own index, a subset below the share's threshold or above [`PROFILE_MAX_PARTIES_V1`], and a zero or
+/// repeated index. A sub-threshold subset gives the party a Lagrange weight that does not
+/// reconstruct the key; a singleton subset additionally empties the zero-share, so the round-3
+/// broadcast would be the unmasked `y_r + c·rand(i)`. A repeated index skews both the weight and
+/// the mask.
+pub(crate) fn validate_signer_subset(
+    share: &SecretShare,
+    subset: &[u8],
+) -> Result<(), RaccoonError> {
+    if share.index == 0
+        || !subset.contains(&share.index)
+        || subset.len() < usize::from(share.threshold)
+        || subset.len() > usize::from(PROFILE_MAX_PARTIES_V1)
+        || subset.contains(&0)
+        || has_duplicate_index(subset)
+    {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
+    Ok(())
+}
+
 /// Recover the short signing opening `(s, r)` from a threshold subset of shares (Lagrange at zero).
 ///
 /// The provided `shares` define the reconstruction subset (`≥ threshold` distinct indices).
@@ -199,8 +223,13 @@ pub fn combine_opening(shares: &[SecretShare]) -> Result<(Rq, [Rq; KAPPA]), Racc
     if shares.len() < usize::from(threshold) {
         return Err(RaccoonError::InvalidSignerSet);
     }
+    // Every share must come from the same sharing: a mixed threshold would make `threshold` above
+    // (read from the first share only) the wrong reconstruction size.
+    if shares.iter().any(|s| s.threshold != threshold) {
+        return Err(RaccoonError::InvalidSignerSet);
+    }
     let subset: Vec<u8> = shares.iter().map(|s| s.index).collect();
-    if has_duplicate_index(&subset) {
+    if subset.contains(&0) || has_duplicate_index(&subset) {
         return Err(RaccoonError::InvalidSignerSet);
     }
     let mut s = Rq::zero();

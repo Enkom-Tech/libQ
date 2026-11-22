@@ -161,6 +161,9 @@ where
         split_polynomial_additive(&mut t0[i], &mut t0_b[i], &mut xof, &mut buf, &mut off);
     }
 
+    // `buf` holds the last squeezed block of the `K`-keyed stream; `xof` clears its lanes on drop.
+    crate::wipe::bytes(&mut buf);
+
     Ok(())
 }
 

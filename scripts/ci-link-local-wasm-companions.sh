@@ -78,11 +78,23 @@ PY
 
 [[ -n "$DEPS" ]] || exit 0
 
-WASM_PACK_BIN="$(command -v wasm-pack || true)"
+# `cargo install` writes into cargo's own bin directory, which is not on PATH on every runner (a
+# fresh container that sets up Rust without exporting it, for example), so look there as well: a
+# binary this script just installed, or one an earlier run left behind, is then found by its path.
+CARGO_BIN_DIR="${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin"
+find_wasm_pack() {
+  command -v wasm-pack 2>/dev/null && return 0
+  [[ -x "$CARGO_BIN_DIR/wasm-pack" ]] && { printf '%s\n' "$CARGO_BIN_DIR/wasm-pack"; return 0; }
+  return 1
+}
+WASM_PACK_BIN="$(find_wasm_pack || true)"
 if [[ -z "$WASM_PACK_BIN" ]]; then
   echo "ci-link-local-wasm-companions: installing wasm-pack (cargo install --locked)" >&2
   cargo install wasm-pack --locked
-  WASM_PACK_BIN="$(command -v wasm-pack)"
+  WASM_PACK_BIN="$(find_wasm_pack)" || {
+    echo "ci-link-local-wasm-companions: wasm-pack installed, but it is neither on PATH nor in $CARGO_BIN_DIR" >&2
+    exit 1
+  }
 fi
 
 while IFS=$'\t' read -r dep_name dep_version; do

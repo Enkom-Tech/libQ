@@ -11,7 +11,7 @@ fn main() {
         MLDSA44KeyPair,
         MLDSA44Signature
     );
-    #[cfg(feature = "simd128")]
+    #[cfg(all(feature = "simd128", target_arch = "aarch64"))]
     bench_group_libcrux!(
         "44",
         "neon",
@@ -19,7 +19,7 @@ fn main() {
         MLDSA44KeyPair,
         MLDSA44Signature
     );
-    #[cfg(feature = "simd256")]
+    #[cfg(all(feature = "simd256", target_arch = "x86_64"))]
     bench_group_libcrux!(
         "44",
         "avx2",

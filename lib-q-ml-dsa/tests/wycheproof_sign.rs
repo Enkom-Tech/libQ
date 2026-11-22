@@ -88,7 +88,7 @@ wycheproof_sign_test!(
     ml_dsa_44::portable::sign
 );
 
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 wycheproof_sign_test!(
     wycheproof_sign_44_simd128,
     44,
@@ -96,7 +96,7 @@ wycheproof_sign_test!(
     ml_dsa_44::neon::sign
 );
 
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 wycheproof_sign_test!(
     wycheproof_sign_44_simd256,
     44,
@@ -115,7 +115,7 @@ wycheproof_sign_test!(
     ml_dsa_65::portable::sign
 );
 
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 wycheproof_sign_test!(
     wycheproof_sign_65_simd128,
     65,
@@ -123,7 +123,7 @@ wycheproof_sign_test!(
     ml_dsa_65::neon::sign
 );
 
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 wycheproof_sign_test!(
     wycheproof_sign_65_simd256,
     65,
@@ -142,7 +142,7 @@ wycheproof_sign_test!(
     ml_dsa_87::portable::sign
 );
 
-#[cfg(feature = "simd128")]
+#[cfg(all(feature = "simd128", target_arch = "aarch64"))]
 wycheproof_sign_test!(
     wycheproof_sign_87_simd128,
     87,
@@ -150,7 +150,7 @@ wycheproof_sign_test!(
     ml_dsa_87::neon::sign
 );
 
-#[cfg(feature = "simd256")]
+#[cfg(all(feature = "simd256", target_arch = "x86_64"))]
 wycheproof_sign_test!(
     wycheproof_sign_87_simd256,
     87,

@@ -144,7 +144,7 @@ impl_modified_signing_key_test!(
     ml_dsa_44::portable::verify
 );
 
-#[cfg(all(feature = "simd128", feature = "random"))]
+#[cfg(all(feature = "simd128", target_arch = "aarch64", feature = "random"))]
 impl_consistency_test!(
     consistency_44_simd128,
     ml_dsa_44::neon::generate_key_pair_from_seed,
@@ -152,7 +152,7 @@ impl_consistency_test!(
     ml_dsa_44::neon::verify
 );
 
-#[cfg(all(feature = "simd128", feature = "random"))]
+#[cfg(all(feature = "simd128", target_arch = "aarch64", feature = "random"))]
 impl_modified_signing_key_test!(
     modified_signing_key_44_simd128,
     ml_dsa_44::neon::generate_key_pair_from_seed,
@@ -161,7 +161,7 @@ impl_modified_signing_key_test!(
     ml_dsa_44::neon::verify
 );
 
-#[cfg(all(feature = "simd256", feature = "random"))]
+#[cfg(all(feature = "simd256", target_arch = "x86_64", feature = "random"))]
 impl_consistency_test!(
     consistency_44_simd256,
     ml_dsa_44::avx2::generate_key_pair_from_seed,
@@ -169,7 +169,7 @@ impl_consistency_test!(
     ml_dsa_44::avx2::verify
 );
 
-#[cfg(all(feature = "simd256", feature = "random"))]
+#[cfg(all(feature = "simd256", target_arch = "x86_64", feature = "random"))]
 impl_modified_signing_key_test!(
     modified_signing_key_44_simd256,
     ml_dsa_44::avx2::generate_key_pair_from_seed,

@@ -15,7 +15,7 @@ This field is the **base field for the Arm B membership STARK** (BabyBear + Pose
 > **Status: RED / experimental.** The Arm B membership construction is **not** proven sound, not
 > audited, and not production-ready — it is pending human cryptographer sign-off (membership freeze
 > gate). It is **not peer-reviewed**: an IACR ePrint submission was desk-rejected; a self-published
-> preprint + open-source reproduction artifact accompany it. With the **quintic `F_{p⁵}` challenge
+> preprint + open-source reproduction artifact accompany it. With the **octic `F_{p⁸}` challenge
 > field** (this crate's `BinomialExtensionData<5>`), Arm B reaches **128-bit post-quantum at the
 > PCS/commitment layer** (binding on the SHAKE256 Merkle commitment) — the field layer this crate
 > provides is what lifted it there from the original degree-4 config (~116-bit conjectured / ~99-bit
@@ -31,11 +31,11 @@ This field is the **base field for the Arm B membership STARK** (BabyBear + Pose
 - `RecursiveDft<BabyBear>` (re-exported) and the `BabyBearDft` alias — the radix-2 two-adic DFT
   used by the FRI PCS config.
 - Degree-4 binomial extension `F_{p^4} = F_p[x]/(x^4 - 11)` (~124-bit FRI challenge field) and
-  degree-5 binomial extension `F_{p^5} = F_p[x]/(x^5 - 2)` (~155-bit challenge field for the
+  degree-8 binomial extension `F_{p^8} = F_p[x]/(x^8 - 11)` (~247-bit challenge field for the
   Arm B config), available via `lib_q_stark_field::extension::BinomialExtensionField`.
 
 All numeric constants are **derived and validated** by `tools/gen_constants.py` (and
-`tools/gen_quintic_constants.py` for the quintic), cross-checked against the canonical Plonky3
+`tools/gen_octic_constants.py` for the octic), cross-checked against the canonical Plonky3
 BabyBear reference values.
 
 ## Features

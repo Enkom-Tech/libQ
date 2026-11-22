@@ -6,7 +6,12 @@
 //! implementation in its test graph. Conformance of the AVX2 path is covered byte for byte by the NIST ACVP sigGen
 //! vectors in `tests/acvp.rs`, which compare against NIST's expected signatures rather than
 //! against any implementation's own verify(). What remains here is the determinism check.
-#![cfg(all(feature = "simd256", feature = "acvp", feature = "mldsa44"))]
+#![cfg(all(
+    feature = "simd256",
+    target_arch = "x86_64",
+    feature = "acvp",
+    feature = "mldsa44"
+))]
 #![allow(deprecated)]
 use lib_q_ml_dsa::{MLDSASigningKey, ml_dsa_44};
 

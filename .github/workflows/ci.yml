@@ -290,6 +290,19 @@ jobs:
       - name: Guard against #[test] fns with no failure mechanism
         run: bash ./scripts/ci-guard-no-assert-tests.sh .
 
+      # A deterministic, fixed-seed RNG type (`TestRng`/`SimpleRng`) implementing the real
+      # `CryptoRng` trait must never be `pub`ly reachable from a production build. `TestRng` used
+      # to be gated `#[cfg(any(test, feature = "std"))]` -- `std` is an ordinary production
+      # feature (lib-q's own `hpke` feature turns it on with no `cfg(test)` anywhere in the
+      # chain) -- so a plain `cargo build -p lib-q --features hpke` compiled it in as a `pub`
+      # type reachable through `HpkeContext::set_rng`. This builds the exact production
+      # configurations that regression can reappear in and inspects each compiled rlib's symbol
+      # table (nm-based, not a doc-comment-tripped text grep) for a defined TestRng/SimpleRng
+      # symbol. See scripts/ci-guard-no-test-rng-in-release.sh for the full writeup and
+      # self-test.
+      - name: Guard against a deterministic RNG type reachable from a production build
+        run: bash ./scripts/ci-guard-no-test-rng-in-release.sh
+
       - name: Core validation
         uses: ./.github/actions/rust-build
         with:
@@ -2437,14 +2450,11 @@ jobs:
           toolchain: stable
           components: rust-src
 
-      - name: Install valgrind
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y valgrind
-      
-      - name: Install cargo-valgrind
-        run: cargo install cargo-valgrind
-      
+      # No valgrind / cargo-valgrind install steps here: they were never wired into the step
+      # below, which calls plain `cargo test`, never `cargo valgrind test`, and the unused
+      # apt-get / cargo install setup pushed this job toward its 15-minute timeout. Removed
+      # rather than wired in: whether this job should do real Valgrind leakage detection is a
+      # design call for a crypto reviewer, not a CI fix.
       - name: Run constant-time tests
         run: |
           GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"

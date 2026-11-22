@@ -1,0 +1,16 @@
+[package]
+name = "ctkat-libq-shim"
+version = "0.0.0"
+edition = "2024"
+publish = false
+description = "C-ABI entry points over libQ ML-KEM / ML-DSA so cargo ct-kat can drive the real Rust code"
+
+# Standalone: not part of the libQ workspace nor of lib-q-ct-kat's.
+[workspace]
+
+[lib]
+crate-type = ["staticlib"]
+
+[dependencies]
+lib-q-ml-kem = { path = "../../lib-q-ml-kem", default-features = false, features = ["std", "hardened", "random"] }
+lib-q-ml-dsa = { path = "../../lib-q-ml-dsa", default-features = false, features = ["std", "hardened", "random", "mldsa44"] }

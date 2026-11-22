@@ -273,7 +273,31 @@ impl SaturninAead {
     /// `pub(crate)` (widened from private) so [`crate::aead_ctx::SaturninAeadCtx`]'s decrypt path
     /// can run CTR without re-implementing it — see that module for why this stays deliberately
     /// pure delegation rather than a refactor of `encrypt_bytes`/`decrypt_core`.
+    ///
+    /// The 8-lane SIMD batch below only enters once `counter.checked_add(7)` proves none of the
+    /// batch's eight `counter.wrapping_add(lane)` values (`lane` in `0..8`) can wrap; the batch's
+    /// own end-of-loop `counter.overflowing_add(8)` check runs strictly *after* that, on the next
+    /// batch's starting value. Before this guard existed, `wrapping_add` alone could silently
+    /// wrap mid-batch for the last few lanes when `counter` was within 7 of `u32::MAX`, producing
+    /// keystream blocks under **reused** counter values (a within-message keystream collision)
+    /// that the trailing `overflowing_add(8)` check — checking the *next* start, not the lanes
+    /// just produced — would never catch. The scalar tail loop below has the matching fix: it
+    /// reports overflow via `checked_add(1)` instead of wrapping silently forever.
     pub(crate) fn ctr_encrypt(&self, key: &[u8], nonce: &[u8], data: &mut [u8]) -> Result<()> {
+        self.ctr_encrypt_from(key, nonce, data, 1)
+    }
+
+    /// Core of [`Self::ctr_encrypt`], parameterized over the starting counter so
+    /// `tests::simd_lane_counter_does_not_wrap_before_overflow_check` can exercise the
+    /// `u32::MAX` boundary directly rather than needing a multi-gigabyte message to walk the
+    /// counter there for real. `ctr_encrypt` always calls this with `1`.
+    fn ctr_encrypt_from(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        data: &mut [u8],
+        start_counter: u32,
+    ) -> Result<()> {
         let key32: &[u8; 32] = key.try_into().map_err(|_| Error::InvalidKeySize {
             expected: 32,
             actual: key.len(),
@@ -281,12 +305,12 @@ impl SaturninAead {
 
         let core = &self.cores.d1;
 
-        let mut counter = 1u32; // Counter starts at 1
+        let mut counter = start_counter;
         let mut offset = 0;
 
         while offset < data.len() {
             #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
-            if data.len() - offset >= 32 * 8 {
+            if data.len() - offset >= 32 * 8 && counter.checked_add(7).is_some() {
                 let mut keystream_blocks = [[0u8; 32]; 8];
                 for (lane, block) in keystream_blocks.iter_mut().enumerate() {
                     let c = counter.wrapping_add(lane as u32);
@@ -360,7 +384,10 @@ impl SaturninAead {
             }
 
             offset += block_len;
-            counter = counter.wrapping_add(1);
+            counter = counter.checked_add(1).ok_or(Error::InvalidMessageSize {
+                max: usize::MAX,
+                actual: data.len(),
+            })?;
         }
 
         Ok(())
@@ -777,5 +804,54 @@ mod tests {
         let pt = aead.decrypt(&key, &nonce, &ct, Some(&ad))?;
         assert_eq!(pt, plaintext);
         Ok(())
+    }
+
+    #[test]
+    fn simd_lane_counter_does_not_wrap_before_overflow_check() {
+        // Exercise the u32 boundary directly via the private `ctr_encrypt_from` seam — reaching
+        // this counter value through the public API would require processing billions of blocks
+        // (~128 GB), impractical to allocate in a test.
+        let aead = SaturninAead::new();
+        let key = [0x11u8; 32];
+        let nonce = [0x22u8; 16];
+
+        // One full 8-lane SIMD batch (256 bytes). Starting 3 below u32::MAX: counters
+        // MAX-3, MAX-2, MAX-1, MAX are all valid; a 5th block would need MAX+1, which does not
+        // exist as a u32.
+        let start = u32::MAX - 3;
+        let mut data = vec![0u8; 256];
+        let result = aead.ctr_encrypt_from(&key, &nonce, &mut data, start);
+
+        // Must report the overflow rather than silently wrapping into small, already-reachable
+        // counter values.
+        assert!(
+            matches!(result, Err(Error::InvalidMessageSize { .. })),
+            "expected overflow error, got {result:?}"
+        );
+
+        // The four blocks that *are* valid (counters MAX-3..=MAX) must have been produced with
+        // those real counter values, not silently substituted by a wrapped one.
+        let core = SaturninCore::new(10, 1).unwrap();
+        for (i, block_counter) in (start..=u32::MAX).enumerate() {
+            let mut expected = [0u8; 32];
+            expected[0..16].copy_from_slice(&nonce);
+            expected[16] = 0x80;
+            expected[28..32].copy_from_slice(&block_counter.to_be_bytes());
+            core.encrypt_block_32(&key, &mut expected).unwrap();
+            assert_eq!(
+                &data[i * 32..(i + 1) * 32],
+                &expected[..],
+                "block {i} (counter {block_counter:#x}) does not match the non-wrapped keystream"
+            );
+        }
+
+        // The batch's remaining four lanes (which the pre-fix code computed at wrapped counters
+        // 0..=3, reusing values a legitimate future message could also reach) must never have
+        // been written: the buffer stays zero past the last valid block.
+        assert!(
+            data[128..256].iter().all(|&b| b == 0),
+            "bytes past the last non-wrapped block must be untouched, not filled with \
+             keystream computed from a wrapped (reused) counter"
+        );
     }
 }

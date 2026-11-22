@@ -47,7 +47,21 @@ fn min_soundness_bits_provable(
 ) -> f64 {
     let field = challenge_field_bits - DEEP_TERM_BITS;
     let query_johnson = ((log_blowup * num_queries) / 2 + pow_bits) as f64;
-    field.min(query_johnson).min(HASH_COLLISION_BITS)
+    field
+        .min(bciks_field_term_bits(challenge_field_bits, log_blowup))
+        .min(query_johnson)
+        .min(HASH_COLLISION_BITS)
+}
+
+/// Field-size term of the PROVEN bound: BCIKS20 Thm 1.5 (Johnson regime, m = 3) gives a
+/// proximity-gap error `<= (m + 1/2)^7 * n^2 / (3 * rho^(3/2) * |F|)` with `n` the LDE domain size
+/// (here `MAX_ROWS * 2^log_blowup`) and `rho = 2^-log_blowup`. It is much tighter than the DEEP term
+/// for a small challenge field. Mirrors `tools/fri_soundness.py`.
+const MAX_ROWS: f64 = 32.0;
+fn bciks_field_term_bits(challenge_field_bits: f64, log_blowup: usize) -> f64 {
+    let n = MAX_ROWS * (1u64 << log_blowup) as f64;
+    let rho = 0.5_f64.powi(log_blowup as i32);
+    challenge_field_bits - (3.5_f64.powi(7) * n * n / (3.0 * rho.powf(1.5))).log2()
 }
 
 /// `default_config` (the SHARED Arm A config used by recursion / auth / credential) uses the value
@@ -76,7 +90,7 @@ fn test_default_config_is_challenge_field_bound_below_128() {
 /// floor (classical AND post-quantum, mainstream/deployed QROM model). Mirrors the Arm B
 /// `fri_soundness.py` accounting.
 #[test]
-fn test_membership_config_reaches_128bit_classical_and_pq() {
+fn min_soundness_bits_provable_arm_a_membership_clears_128_classical_and_pq() {
     let challenge_field_bits = 6.0 * M31_BITS; // BinomialExtensionField<Complex<Mersenne31>, 3> = GF(p^6)
     let bits = min_soundness_bits(challenge_field_bits, 3, 96, 20);
     assert!(
@@ -97,6 +111,46 @@ fn test_membership_config_reaches_128bit_classical_and_pq() {
     assert!(
         bits_provable >= 128.0,
         "membership_config must reach >= 128-bit on the PROVEN Johnson bound, got {bits_provable}"
+    );
+}
+
+/// Arm B (BabyBear, Poseidon2) membership config: FRI challenge field is the degree-8 extension
+/// `BinomialExtensionField<BabyBear, 8>` = `GF(q^8)` (~247 bits) with FRI `log_blowup 4 / q 96 /
+/// PoW 20`. It must clear 128-bit on the PROVEN Johnson bound as well as the conjectured one. The
+/// earlier GF(q^5) field (~154 bits) left the BCIKS proximity-gap field term near 119 bits
+/// (see `tools/fri_soundness.py`), which is why Arm B moved to GF(q^8).
+#[test]
+fn min_soundness_bits_provable_arm_b_membership_clears_128() {
+    let q_bits = 2_013_265_921_f64.log2(); // BabyBear
+    let challenge_field_bits = 8.0 * q_bits; // BinomialExtensionField<BabyBear, 8> = GF(q^8)
+    let conjectured = min_soundness_bits(challenge_field_bits, 4, 96, 20);
+    assert!(
+        conjectured >= 128.0,
+        "Arm B must reach >= 128-bit (conjectured), got {conjectured}"
+    );
+    let proven = min_soundness_bits_provable(challenge_field_bits, 4, 96, 20);
+    assert!(
+        proven >= 128.0,
+        "Arm B must reach >= 128-bit on the PROVEN Johnson bound, got {proven}"
+    );
+}
+
+/// Positive control: the PROVEN gate must be able to reject a config that clears conjectured-128 but
+/// not proven-128. The superseded Arm B field `GF(q^5)` (~154.5 bits) with the same FRI parameters
+/// passes the conjectured gate (128, hash-bound) yet falls below 128 on the BCIKS-aware proven gate.
+#[test]
+fn min_soundness_bits_provable_rejects_superseded_gf_q5_positive_control() {
+    let q_bits = 2_013_265_921_f64.log2();
+    let challenge_field_bits = 5.0 * q_bits; // GF(q^5): the field Arm B used before this change
+    let conjectured = min_soundness_bits(challenge_field_bits, 4, 96, 20);
+    let proven = min_soundness_bits_provable(challenge_field_bits, 4, 96, 20);
+    assert!(
+        conjectured >= 128.0,
+        "control precondition: GF(q^5) clears the conjectured-only gate, got {conjectured}"
+    );
+    assert!(
+        proven < 128.0,
+        "the proven gate must reject GF(q^5) (BCIKS field term), got {proven}"
     );
 }
 

@@ -58,6 +58,16 @@ nothing. Without the variable, check 5 uses the committed list alone. A variable
 that is present but malformed fails the run. `--make-key-entry` builds entries from names on stdin
 without writing the names anywhere; it uses `INTERNAL_REFS_KEY` if set, else the committed key.
 
+PUBLIC NAMES
+============
+`PUBLIC_NAMES` lists names that are published and therefore are not internal references, however
+a keyed list is configured: "GIP", the protocol libQ implements primitives for, including as the
+first component of a label such as the cipher label `gip.aead.tsd.v1`. Only the name on its own is
+exempt: a longer token that contains it ("<name>-<suffix>", "<name>_<suffix>") is still tested as a
+whole, so the name of a private repository or document built on a public name (a private
+specification repository, for example) is still reported when it is listed. Adding a name here is a
+reviewed decision that the name is public, not a way to silence a finding.
+
 EXEMPTIONS
 ==========
 Only check 4 can be exempted, because only an address can be a legitimate non-reference (a test
@@ -271,6 +281,8 @@ def parse_key(value: str | None):
 _MAC_CACHE: dict[tuple[bytes, str, int], str] = {}
 _MAX_NAME_LEN = 40
 _NOT_A_NAME = re.compile(r"[0-9a-fA-F]{12,}|[0-9]+")
+# Published names (see PUBLIC NAMES in the header). Compared lower-cased, never tested against a list.
+PUBLIC_NAMES = frozenset({"gip"})
 
 
 def _mac(key: bytes, token: str, ver: int = 3) -> str:
@@ -288,6 +300,11 @@ def _mac(key: bytes, token: str, ver: int = 3) -> str:
 def _could_be_name(token: str) -> bool:
     """Internal names are short words: skip long tokens, hex blobs and plain numbers unhashed."""
     return len(token) <= _MAX_NAME_LEN and not _NOT_A_NAME.fullmatch(token)
+
+
+def _is_public_name(token: str) -> bool:
+    """A published name on its own; a longer token that merely contains one is still tested."""
+    return token.lower() in PUBLIC_NAMES
 
 
 def _candidates(word: str) -> set[str]:
@@ -318,7 +335,7 @@ def name_hit(line: str, keyed) -> bool:
     key, entries, ver = keyed
     for m in WORD.finditer(line):
         for cand in _candidates(m.group(0)):
-            if not _could_be_name(cand):
+            if not _could_be_name(cand) or _is_public_name(cand):
                 continue
             if entries.get(_mac(key, cand, ver)) == "s":
                 return True
@@ -523,6 +540,19 @@ def self_test() -> bool:
         expect("internal host or tool name" in f,
                "a canary only in the second line of the list file was not detected")
 
+    # Public names pass on their own and as a label prefix, even when a list holds them; a longer
+    # name built on a public one is still found.
+    pub = "gip"
+    pub_list = parse_key(f"v3:{key.hex()}:i{_mac(key, pub, 3)},s{_mac(key, pub.upper(), 3)},"
+                         f"i{_mac(key, pub + '-' + canary, 3)}")
+    for line in (pub.upper() + " `aead_id = 17`", "b\"" + pub + ".aead.tsd.v1\"", "the " + pub + " protocol",
+                 pub.upper() + "_AEAD_ID"):
+        f, _ = check_line(line, pub_list)
+        expect(not f, f"a public name was flagged {f}: {line!r}")
+    for line in (pub.upper() + "-" + canary.upper() + " `spec/x.md`", "see " + pub + "-" + canary + "/spec"):
+        f, _ = check_line(line, pub_list)
+        expect("internal host or tool name" in f, f"a listed name that starts with a public name was not detected: {line!r}")
+
     # A name at the end of a long hyphenated word is still found.
     long_word = "-".join(["segment"] * 25) + "-" + canary
     expect(len(long_word) > 160, "the long-word fixture is not longer than 160 characters")
@@ -580,6 +610,11 @@ def main(argv: list[str]) -> int:
             if not line:
                 continue
             mode, _, token = line.partition(" ") if line[:2] in ("i ", "s ") else ("i", "", line)
+            if _is_public_name(token):
+                print(f"--make-key-entry: warning: skipped input line {lineno}: the name is in "
+                      "PUBLIC_NAMES, which the scan never tests, so its entry could never match",
+                      file=sys.stderr)
+                continue
             if not _could_be_name(token):
                 print(f"--make-key-entry: warning: skipped input line {lineno}: the scan never tests a "
                       f"name over {_MAX_NAME_LEN} characters, a hex run of 12+ characters or a plain "

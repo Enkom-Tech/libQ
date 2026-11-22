@@ -60,6 +60,16 @@ std = ["alloc", "lib-q-core/std", "lib-q-aead/std"]
 alloc = ["lib-q-core/alloc", "lib-q-kem/alloc"]
 secure-rng = ["lib-q-random/getrandom"]
 
+# Deterministic test-only RNG (`security::test_rng::TestRng`, fixed seed 12345, real `CryptoRng`
+# impl for `HpkeContext::set_rng` in tests). NOT in `default`, and deliberately independent of
+# `std` -- `std` is a normal production feature (lib-q's `hpke` feature turns it on) and must
+# never carry a deterministic RNG into a release build. NEVER enable this feature in a
+# production build. Enabled automatically for this crate's own tests via the self-referencing
+# `[dev-dependencies]` entry below; downstream crates that need it for their own tests should do
+# the same rather than enabling it as an ordinary feature. See
+# scripts/ci-guard-no-test-rng-in-release.sh.
+test-utils = []
+
 # Post-quantum algorithm support
 ml-kem = ["dep:lib-q-ml-kem", "lib-q-kem/ml-kem"]
 hqc = ["lib-q-kem/hqc"]
@@ -97,20 +107,26 @@ name = "hpke_interop_negotiation"
 required-features = ["std"]
 
 [dev-dependencies]
+# Self-reference: enables `test-utils` (gating `security::test_rng::TestRng`) for this crate's
+# own `tests/`/`benches/`/`examples/` builds only. `cargo build`/`cargo build --release` never
+# consult `[dev-dependencies]`, so this cannot leak TestRng into a production artifact -- see the
+# `test-utils` feature doc above and scripts/ci-guard-no-test-rng-in-release.sh.
+lib-q-hpke = { path = ".", features = ["test-utils"] }
 lib-q-random = { path = "../lib-q-random", version = "0.0.12", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+hex = { workspace = true }
 wasm-bindgen-test = { workspace = true }
 
 [[test]]
 name = "auth_encap_validation_tests"
 path = "tests/auth_encap_validation_tests.rs"
-required-features = ["std", "ml-kem", "hash", "secure-rng"]
+required-features = ["std", "ml-kem", "hash", "secure-rng", "test-utils"]
 
 [[test]]
 name = "security_fixes_tests"
 path = "tests/security_fixes_tests.rs"
-required-features = ["std", "ml-kem", "hash", "secure-rng"]
+required-features = ["std", "ml-kem", "hash", "secure-rng", "test-utils"]
 
 [[test]]
 name = "wasm_smoke"

@@ -55,6 +55,11 @@ runs:
       if: inputs.check-only != 'true'
       shell: bash
       run: |
+        # `cargo install` writes to cargo's bin directory, which not every runner image puts on
+        # PATH; add it (here and for the later steps that call wasm-pack) before looking it up.
+        CARGO_BIN_DIR="${CARGO_INSTALL_ROOT:-${CARGO_HOME:-$HOME/.cargo}}/bin"
+        export PATH="$PATH:$CARGO_BIN_DIR"
+        echo "$CARGO_BIN_DIR" >> "$GITHUB_PATH"
         if ! command -v wasm-pack &>/dev/null; then
           cargo install wasm-pack --locked
         fi

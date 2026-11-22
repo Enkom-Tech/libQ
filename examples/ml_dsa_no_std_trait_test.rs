@@ -5,11 +5,12 @@
 //!
 //! For **no_std** targets, disable default features on `lib-q-sig` and enable `alloc` + `ml-dsa`:
 //! `generate_keypair` / `sign` on the trait then return errors; use
-//! [`MlDsa::generate_keypair_with_randomness`] and [`MlDsa::sign_with_randomness`] instead.
+//! [`MlDsa::generate_keypair_with_seed`] and [`MlDsa::sign_with_randomness`] instead.
 //!
 //! Run: `cargo run -p lib-q-examples --example ml_dsa_no_std_trait_test`
 
 use lib_q_core::Signature;
+use lib_q_ml_dsa::Zeroizing;
 use lib_q_ml_dsa::constants::{KEY_GENERATION_RANDOMNESS_SIZE, SIGNING_RANDOMNESS_SIZE};
 use lib_q_sig::ml_dsa::MlDsa;
 
@@ -20,9 +21,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("1. Signature trait with automatic RNG (requires `std` on lib-q-sig)...");
     test_signature_trait_with_std_rng()?;
 
-    println!(
-        "\n2. Explicit randomness (`generate_keypair_with_randomness` / `sign_with_randomness`)..."
-    );
+    println!("\n2. Explicit randomness (`generate_keypair_with_seed` / `sign_with_randomness`)...");
     test_external_randomness_path()?;
 
     println!("\nDone.");
@@ -47,10 +46,10 @@ fn test_signature_trait_with_std_rng() -> Result<(), Box<dyn std::error::Error>>
 fn test_external_randomness_path() -> Result<(), Box<dyn std::error::Error>> {
     let ml_dsa = MlDsa::ml_dsa_65();
 
-    let keypair_randomness = [7u8; KEY_GENERATION_RANDOMNESS_SIZE];
+    let keypair_randomness = Zeroizing::new([7u8; KEY_GENERATION_RANDOMNESS_SIZE]);
     let signing_randomness = [11u8; SIGNING_RANDOMNESS_SIZE];
 
-    let keypair = ml_dsa.generate_keypair_with_randomness(keypair_randomness)?;
+    let keypair = ml_dsa.generate_keypair_with_seed(&keypair_randomness)?;
     let message = b"embedded-style path";
     let signature =
         ml_dsa.sign_with_randomness(keypair.secret_key(), message, signing_randomness)?;

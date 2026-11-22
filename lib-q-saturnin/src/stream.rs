@@ -70,6 +70,28 @@ use crate::core::SaturninCore;
 #[cfg(any(feature = "simd", feature = "simd-avx2", feature = "simd-neon"))]
 use crate::simd::{encrypt_blocks8_dispatch, simd_xor};
 
+/// Domain separator for the Saturnin stream cipher's CTR keystream.
+///
+/// This is deliberately **not** domain 1, which [`crate::aead::SaturninAead`]'s CTR-Cascade mode
+/// uses for its own CTR keystream (`aead.rs`'s `SaturninAeadCores::d1`). Before this constant
+/// existed, both types built `SaturninCore::new(10, 1)` with an identical
+/// `nonce ‖ 0x80 ‖ 0* ‖ counter_be` block layout, so the same `(key, nonce)` fed to both produced
+/// overlapping keystreams: `SaturninStream`'s block at counter `c` equalled `SaturninAead`'s
+/// block at counter `c` (AEAD's counter merely starts at 1 instead of 0) — a one-block shift, not
+/// independence. Domains 1–13 are already claimed by CTR-Cascade (1–5), Saturnin-Short (6),
+/// Saturnin-Hash (7–8) and QCB (9–13; see `docs/HARDWARE.md` §1); this claims domain 14, one of
+/// the two values (14, 15) the crate's domain-allocation accounting had left free, rather than
+/// continuing to borrow the block cipher's/AEAD's domain 1.
+///
+/// **Wire-compatibility impact.** This changes `SaturninStream`'s output: existing stored
+/// ciphertext or keystream produced by the old domain-1 construction will not reproduce under
+/// this version for the same key, nonce and plaintext. `SaturninStream` carries no KAT vectors —
+/// the LWC submission defines no stream-cipher mode, only `SaturninAead`, `SaturninShortAead` and
+/// `SaturninHash` do — so no documented KAT changes. `SaturninAead`, `SaturninShortAead`,
+/// `SaturninHash` and `SaturninQcb` keep their existing domains and KATs unchanged; only this
+/// crate's own, previously-undocumented stream-cipher construction moves.
+const STREAM_DOMAIN: u8 = 14;
+
 /// Saturnin stream cipher implementation
 ///
 /// Provides a stream cipher using the Saturnin block cipher in CTR (Counter) mode.
@@ -81,8 +103,9 @@ pub struct SaturninStream {
 impl SaturninStream {
     /// Create a new Saturnin stream cipher instance
     pub fn new() -> Self {
-        // Use 10 super-rounds and domain 1 for the stream cipher
-        let core = SaturninCore::new(10, 1).expect("Valid parameters");
+        // Domain 14: distinct from every other Saturnin mode in this crate, in particular from
+        // `SaturninAead`'s CTR-Cascade domain 1 — see `STREAM_DOMAIN`.
+        let core = SaturninCore::new(10, STREAM_DOMAIN).expect("Valid parameters");
         Self { core }
     }
 
@@ -178,7 +201,13 @@ impl SaturninStream {
                     block[28..32].copy_from_slice(&c.to_be_bytes());
                 }
 
-                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks, Some(&self.core))?;
+                encrypt_blocks8_dispatch(
+                    10,
+                    STREAM_DOMAIN,
+                    key,
+                    &mut keystream_blocks,
+                    Some(&self.core),
+                )?;
 
                 for (lane, ks) in keystream_blocks.iter().enumerate() {
                     let start = offset + (lane * 32);
@@ -296,7 +325,13 @@ impl SaturninStream {
                     block[28..32].copy_from_slice(&c.to_be_bytes());
                 }
 
-                encrypt_blocks8_dispatch(10, 1, key, &mut keystream_blocks, Some(&self.core))?;
+                encrypt_blocks8_dispatch(
+                    10,
+                    STREAM_DOMAIN,
+                    key,
+                    &mut keystream_blocks,
+                    Some(&self.core),
+                )?;
 
                 for ks in keystream_blocks.iter() {
                     keystream.extend_from_slice(ks);

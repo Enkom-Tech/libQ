@@ -4,6 +4,9 @@
 //! before plaintext duplex steps; the tag is the first 32 bytes of the outer state after
 //! processing.
 //!
+//! [`turboshake`] holds a second, separate mode: the TurboSHAKE duplex AEAD (GIP `aead_id = 17`)
+//! over Keccak-p\[1600, 12\], the permutation K12 and TurboSHAKE use.
+//!
 //! # Security
 //!
 //! This construction follows the duplex-sponge model (Bertoni et al.). The permutation is
@@ -22,6 +25,7 @@ pub use crypto::DuplexCryptoError;
 pub mod params;
 pub mod simd;
 pub mod state;
+pub mod turboshake;
 
 #[cfg(feature = "alloc")]
 mod aead;
@@ -29,3 +33,5 @@ mod aead;
 #[cfg(feature = "alloc")]
 pub use aead::DuplexSpongeAead;
 pub use params::{KEY_BYTES, NONCE_BYTES, RATE_BYTES, TAG_BYTES};
+#[cfg(feature = "alloc")]
+pub use turboshake::TurboShakeDuplexAead;

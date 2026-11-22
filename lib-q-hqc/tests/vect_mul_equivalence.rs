@@ -1,7 +1,11 @@
-//! Equivalence of schoolbook `vect_mul` vs cyclic `sparse_dense_mul` on real HQC parameters.
+//! Equivalence of schoolbook `vect_mul` vs cyclic `sparse_dense_mul` on real HQC parameters,
+//! and of the portable Karatsuba dense multiply (`gf2x_karatsuba`) against the same
+//! schoolbook oracle -- the latter is NOT gated to any architecture: it is the actual
+//! multiply every non-AVX2 target uses in production (`HqcPke::vect_mul`'s fallback).
 
 use std::collections::BTreeSet;
 
+use lib_q_hqc::gf2x_karatsuba::karatsuba_vect_mul_mod_xnm1;
 use lib_q_hqc::hqc_pke::{HqcPke, schoolbook_vect_mul_mod_xnm1};
 use lib_q_hqc::params::{Hqc1Params, Hqc3Params, Hqc5Params, HqcParams};
 #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
@@ -97,7 +101,8 @@ fn run_case<P: HqcParams>(seed: u64) {
     }
 }
 
-/// Dense × dense: schoolbook vs PCLMUL Karatsuba (`gf2x`) on full `u64` vectors (AVX2 path only).
+/// Dense × dense against the schoolbook oracle: the portable `gf2x_karatsuba` multiply
+/// (every target) and, where available, PCLMUL Karatsuba `gf2x` (AVX2 only).
 fn run_dense_case<P: HqcParams>(seed: u64) {
     let n = P::VEC_N_SIZE_64;
     let mask = (1u64 << (P::N & 0x3F)) - 1;
@@ -118,6 +123,18 @@ fn run_dense_case<P: HqcParams>(seed: u64) {
     b[n - 1] &= mask;
 
     schoolbook_vect_mul_mod_xnm1(&mut s, &a, &b, n, P::N).expect("schoolbook dense×dense");
+
+    // Portable Karatsuba path: NOT x86/AVX2-gated -- this is what every non-AVX2 target
+    // runs in production via `HqcPke::vect_mul`'s fallback.
+    let mut k = vec![0u64; n];
+    karatsuba_vect_mul_mod_xnm1(&mut k, &a, &b, n, P::N).expect("karatsuba dense×dense");
+    assert_eq!(
+        s,
+        k,
+        "portable Karatsuba gf2x_karatsuba != schoolbook dense×dense (P={}, seed={})",
+        core::any::type_name::<P>(),
+        seed
+    );
 
     #[cfg(all(feature = "simd-avx2", target_arch = "x86_64", feature = "alloc"))]
     {
