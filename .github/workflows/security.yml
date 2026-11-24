@@ -349,8 +349,14 @@ jobs:
           else
             echo "❌ Security issues detected. Please address before deployment." >> security-report.md
           fi
+          # Also in the log: the artifact upload below is GitHub-only.
+          cat security-report.md
       
+      # upload-artifact v4+ refuses to run on any host other than github.com (it errors with
+      # "not currently supported on GHES"), which failed this job on every run there although
+      # the report was generated. Upload on GitHub only; elsewhere the report is in the log above.
       - name: Upload security report
+        if: github.server_url == 'https://github.com'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: security-report

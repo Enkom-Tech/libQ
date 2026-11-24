@@ -23,6 +23,9 @@ WHAT IT CHECKS (every tracked text file, and every tracked file name)
      not an address, and a number with a fifth component ("10.2.1.3.1") never matches.
   5. internal product, host and tool names, from the committed keyed list and, when configured,
      the INTERNAL_REFS_KEY secret (see KEYED NAME LIST).
+  6. citations of a private specification tree (`SPEC_PATH`): a `spec/<dir>/<file>.md` or
+     `spec/<dir>/<hyphenated-name>` path, whatever surrounds it. The name of the repository that
+     holds the tree is a keyed name (check 5), also when written as two words.
 
 KEYED NAME LIST
 ===============
@@ -45,9 +48,12 @@ Both use this format:
 (`v2`, with entry = KMAC256(key, token, 256 bits, S="lib-q ci_guard_internal_refs v2"), is still
 accepted. v3 exists because the pure-Python KMAC256 is too slow to run over the whole tree on every
 CI run; SHA3-256 has no length extension, so a key-prefixed SHA3-256 is a sound keyed hash.)
-    mode  = "i" (token is compared lower-cased) or "s" (exact spelling only, for a name that is also
-            an ordinary upper-case abbreviation)
+    mode  = "i" (token is compared lower-cased), "s" (exact spelling only, for a name that is also
+            an ordinary upper-case abbreviation) or "n" (a numbered host: the stem, see below)
 
+Entry modes: "i" and "s" as above; "n" lists a stem that is only reported when numbered
+("<stem>-002", "<stem>_12"), for a host family whose bare stem is an ordinary word. Two adjacent
+words are also tested joined with "-", "_" or nothing, so a name written with a space is found.
 Every word of a line is tested, together with its dot-suffixes ("a.b.c" -> "b.c", "c") and its
 hyphen/underscore n-grams ("a-b_c" -> "a-b", "b_c", "a", ...), so a name inside a longer label is
 still found, however long the word is. Candidates longer than 40 characters, hex runs of 12 or more
@@ -128,6 +134,20 @@ _IPV4 = re.compile(
 _LOOPBACK = re.compile(r"\b(?:127\.0\.0\.1|localhost):\d{2,5}\b")
 
 WORD = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
+# Words that are one name written as two ("<name> <suffix>", "<name>_<suffix>"): joined and tested too.
+_WORD_GAP = re.compile(r"[\s`'\"*]+")
+# A numbered host: "<stem>-<digits>" is tested as the stem alone, for entries of mode "n".
+_NUMBERED = re.compile(r"(.+?)[-_]?([0-9]{2,4})")
+
+# A citation of a document in a private specification tree: "spec/<dir>/<file>.md" or
+# "spec/<dir>/<hyphenated-name>", however the name of the repository around it is written.
+_SPEC_PATH = re.compile(
+    r"(?<![A-Za-z0-9_-])specs?/[A-Za-z0-9_-]+/(?:[A-Za-z0-9_.-]*\.md\b|[A-Za-z0-9_.]*-[A-Za-z0-9_.-]*)"
+)
+
+# Published paths: the workflow directory the project's forge reads. Spelled in parts so that this
+# file does not report itself; the directory name is the only part a keyed list holds.
+PUBLIC_PATHS = (re.compile(r"\." + "forge" + "jo" + r"/workflows\b", re.I),)
 
 
 # ---------------------------------------------------------------------------------------------
@@ -270,7 +290,7 @@ def parse_key(value: str | None):
         if not raw:
             continue
         mode, digest = raw[0], raw[1:].lower()
-        if mode not in "is" or not re.fullmatch(r"[0-9a-f]{64}", digest):
+        if mode not in "isn" or not re.fullmatch(r"[0-9a-f]{64}", digest):
             raise KeyConfigError(f"{KEY_ENV}: malformed entry {raw[:8]}...")
         entries[digest] = mode
     if not entries:
@@ -327,20 +347,38 @@ def _candidates(word: str) -> set[str]:
     return {c for c in out if c}
 
 
+def _line_candidates(line: str) -> set[str]:
+    """Every token of a line worth testing: each word's candidates, plus two adjacent words joined
+    as one name ("a b" -> "a-b", "a_b", "ab"), so a name written with a space is still found."""
+    words = list(WORD.finditer(line))
+    out: set[str] = set()
+    for m in words:
+        out |= _candidates(m.group(0))
+    for a, b in zip(words, words[1:]):
+        if _WORD_GAP.fullmatch(line[a.end():b.start()]):
+            for sep in ("-", "_", ""):
+                out |= _candidates(a.group(0) + sep + b.group(0))
+    return out
+
+
 def name_hit(line: str, keyed) -> bool:
     if isinstance(keyed, list):
         return any(name_hit(line, k) for k in keyed)
     if keyed is None:
         return False
     key, entries, ver = keyed
-    for m in WORD.finditer(line):
-        for cand in _candidates(m.group(0)):
-            if not _could_be_name(cand) or _is_public_name(cand):
-                continue
-            if entries.get(_mac(key, cand, ver)) == "s":
-                return True
-            if entries.get(_mac(key, cand.lower(), ver)) == "i":
-                return True
+    for pub in PUBLIC_PATHS:
+        line = pub.sub(" ", line)
+    for cand in _line_candidates(line):
+        if not _could_be_name(cand) or _is_public_name(cand):
+            continue
+        if entries.get(_mac(key, cand, ver)) == "s":
+            return True
+        if entries.get(_mac(key, cand.lower(), ver)) == "i":
+            return True
+        m = _NUMBERED.fullmatch(cand)
+        if m and entries.get(_mac(key, m.group(1).lower(), ver)) == "n":
+            return True
     return False
 
 
@@ -375,6 +413,8 @@ def check_line(line: str, keyed) -> tuple[list[str], bool]:
         found.append("workstation user-profile path")
     if name_hit(line, keyed):
         found.append("internal host or tool name")
+    if _SPEC_PATH.search(line):
+        found.append("private specification path")
     exempted = False
     if _address_hit(line):
         marker = line.find(ALLOW_MARKER)
@@ -553,6 +593,38 @@ def self_test() -> bool:
         f, _ = check_line(line, pub_list)
         expect("internal host or tool name" in f, f"a listed name that starts with a public name was not detected: {line!r}")
 
+    # A name written as two words, a numbered host (mode "n": the stem alone is clean), and a citation
+    # of a private specification tree in any spelling.
+    two = parse_key(f"v3:{key.hex()}:i{_mac(key, canary + '-two', 3)},n{_mac(key, canary, 3)}")
+    for line in ("the " + canary + " two repository", "the " + canary.upper() + "  TWO repo",
+                 "see `" + canary + "` `two`"):
+        f, _ = check_line(line, two)
+        expect("internal host or tool name" in f, f"a name written as two words was not detected: {line!r}")
+    for line in ("ssh " + canary + "-002 uptime", canary + "77", "host " + canary + "_12."):
+        f, _ = check_line(line, two)
+        expect("internal host or tool name" in f, f"a numbered host was not detected: {line!r}")
+    for line in ("the " + canary + " toolchain", canary + "-x", canary + "-12345"):
+        f, _ = check_line(line, two)
+        expect(not f, f"a stem without a short number was flagged {f}: {line!r}")
+    spec = "spec" + "/"
+    for line in ("Normative definition: " + spec + "area/item-name-v0.md.",
+                 "see `" + spec + "area/item-17-...md`",
+                 "in the GIP " + "spec `" + spec + "area/item-17-x`",
+                 "../" + spec + "area/item.md"):
+        f, _ = check_line(line, None)
+        expect("private specification path" in f, f"a private specification path was not detected: {line!r}")
+    for line in ("hac" + "spec/hax issue", "see the spec/ directory", "spec/area is a directory"):
+        f, _ = check_line(line, None)
+        expect(not f, f"a clean line was flagged {f}: {line!r}")
+    # The forge workflow directory is a published path; the same word anywhere else is still a name.
+    forge = "forge" + "jo"
+    forge_list = parse_key(f"v3:{key.hex()}:i{_mac(key, forge, 3)}")
+    for line in ("." + forge + "/workflows/pr.yml", "files under ." + forge + "/workflows/"):
+        f, _ = check_line(line, forge_list)
+        expect(not f, f"the published workflow directory was flagged {f}: {line!r}")
+    for line in ("." + forge + "/other.yml", forge + "-runner", "." + forge + "/workflows-" + forge):
+        f, _ = check_line(line, forge_list)
+        expect("internal host or tool name" in f, f"a listed name outside the workflow path was not detected: {line!r}")
     # A name at the end of a long hyphenated word is still found.
     long_word = "-".join(["segment"] * 25) + "-" + canary
     expect(len(long_word) > 160, "the long-word fixture is not longer than 160 characters")
@@ -609,7 +681,7 @@ def main(argv: list[str]) -> int:
             line = line.strip()
             if not line:
                 continue
-            mode, _, token = line.partition(" ") if line[:2] in ("i ", "s ") else ("i", "", line)
+            mode, _, token = line.partition(" ") if line[:2] in ("i ", "s ", "n ") else ("i", "", line)
             if _is_public_name(token):
                 print(f"--make-key-entry: warning: skipped input line {lineno}: the name is in "
                       "PUBLIC_NAMES, which the scan never tests, so its entry could never match",
@@ -620,7 +692,7 @@ def main(argv: list[str]) -> int:
                       f"name over {_MAX_NAME_LEN} characters, a hex run of 12+ characters or a plain "
                       "number, so its entry could never match", file=sys.stderr)
                 continue
-            out.append(mode + _mac(key, token.lower() if mode == "i" else token, ver))
+            out.append(mode + _mac(key, token if mode == "s" else token.lower(), ver))
         print(",".join(out))
         return 0
 

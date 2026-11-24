@@ -1,0 +1,396 @@
+# Pull-request CI on the project's own forge runners.
+#
+# Pull requests are reviewed and merged on the forge; their branches are not pushed to GitHub before
+# merge, so GitHub CI (.github/workflows) cannot report on them, and it keeps running for main and
+# develop after merge. The forge runs the workflows of the FIRST workflow directory that exists, and
+# this one (.forgejo/workflows) is looked up before .github/workflows, so the GitHub workflows
+# (GitHub-hosted labels, publishing jobs) never run on the forge. GitHub ignores this directory.
+#
+# This workflow mirrors the pull-request gates of .github/workflows/ci.yml and security.yml:
+#   guards   ci.yml "Core Validation" static guards, in the same order (workspace and publish
+#            lists, KAT provenance and its self-test, the internal-references guard, the test-shape
+#            guards, ...), rustfmt, and security.yml "Dependency Security Audit" (cargo audit
+#            --deny warnings with .cargo/audit.toml, dependency-source validation).
+#   lint     the workspace clippy pass (--all-targets --all-features -D warnings), the
+#            feature-combination pass --all-features cannot reach, the AVX-gated Keccak checks, and
+#            a workspace build.
+#   test     `cargo test` for every crate the pull request changes (scripts/ci_pr_changed_crates.py)
+#            and the known-answer suites of the core primitives (ML-KEM, ML-DSA, Keccak, SHA-3, K12).
+# Not mirrored here (they stay on GitHub, after merge): wasm/npm runtime smoke tests, cross-OS and
+# cross-target builds, QEMU execution, benchmarks, coverage and the github.com-only jobs.
+#
+# No secrets: nothing below reads one. The internal-references guard uses only the committed keyed
+# list (scripts/internal-refs-names.txt), the same as GitHub's pre-merge snapshot runs.
+#
+# Runner: `heavy` is the org-scoped heavy CI slot label (a Rust workspace build of this size). Bare
+# labels run in the runner's default image, so the first step installs whatever that image lacks
+# before checkout (actions/checkout needs git to leave a real clone, which the guards read).
+#
+# Every gate step runs even if an earlier one failed (`if: success() || failure()`), so one red
+# step cannot hide the others behind it; the job is still red if any of them is.
+name: PR CI (forge)
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+# One run per pull request: a new push cancels the older run of the same PR.
+concurrency:
+  group: pr-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+  # Same as ci.yml: avoid incremental-cache races (E0460/E0463) in CI builds.
+  CARGO_INCREMENTAL: "0"
+
+jobs:
+  guards:
+    name: Static guards, rustfmt, dependency audit
+    runs-on: heavy
+    timeout-minutes: 60
+    steps:
+      - name: Runner prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUDO=""; [ "$(id -u)" = 0 ] || SUDO=sudo
+          pkgs=""
+          for t in git curl python3 jq gcc make pkg-config xz; do
+            command -v "$t" >/dev/null 2>&1 && continue
+            case "$t" in
+              gcc|make) pkgs="$pkgs build-essential" ;;
+              xz) pkgs="$pkgs xz-utils" ;;
+              *) pkgs="$pkgs $t" ;;
+            esac
+          done
+          if [ -n "$pkgs" ]; then
+            $SUDO apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq --no-install-recommends ca-certificates $pkgs
+          fi
+          git --version; python3 --version; jq --version; gcc --version | head -n 1
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checkout landed on the PR head commit
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          if [ "$(git rev-parse HEAD)" != "${{ github.event.pull_request.head.sha }}" ]; then
+            echo "checked out $(git rev-parse HEAD), expected PR head ${{ github.event.pull_request.head.sha }}" >&2
+            exit 1
+          fi
+
+      - name: Resolve pinned toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHANNEL="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          test -n "$CHANNEL"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: rustfmt, clippy, rust-src
+
+      - name: Setup Node.js (npm guards)
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "24"
+
+      - name: Guard workspace membership, crates.io publish list, and npm packages
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-new-crates-and-npm.sh
+
+      - name: Guard banned terms in new primitive crates
+        if: success() || failure()
+        run: |
+          bash ./scripts/ci-guard-primitive-banned-terms.sh --self-test
+          bash ./scripts/ci-guard-primitive-banned-terms.sh
+
+      - name: Guard the pre-push hook chain is wired and cannot rot
+        if: success() || failure()
+        run: |
+          bash ./scripts/ci-guard-githooks-wired.sh --self-test
+          bash ./scripts/ci-guard-githooks-wired.sh
+
+      - name: Guard publish-order scripts against cd.yml
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-publish-order.sh
+
+      - name: Guard cd.yml publish tiers against the dependency graph
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-publish-dependency-order.sh
+
+      - name: Guard cdylib crates against a non-linking default feature set
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-cdylib-default-link.sh
+
+      - name: Guard against publishing on top of a yanked dependency
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-yanked-deps.sh
+
+      - name: Guard coverage-gate scope (numerator, selection, denominator)
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-coverage-honesty.sh
+
+      - name: Guard against published crates with no coverage floor
+        if: success() || failure()
+        run: |
+          python3 ./scripts/ci_guard_coverage_floors.py --self-test
+          python3 ./scripts/ci_guard_coverage_floors.py .
+
+      - name: Guard against withdrawn crates reappearing
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-withdrawn-crates.sh
+
+      - name: Guard that CI tool installs are version-pinned
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-pinned-ci-tools.sh .
+
+      - name: Guard lib-q-sca-test dev-dependencies opt out of default features
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-sca-test-default-features.sh .
+
+      - name: Guard KAT vector provenance
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-kat-provenance.sh
+
+      - name: Self-test the KAT provenance guard
+        if: success() || failure()
+        run: python3 scripts/selftest_kat_provenance_guard.py
+
+      - name: Guard against internal references and infrastructure names
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-internal-refs.sh
+
+      - name: Guard vacuous-capable cargo test call shapes in .github/
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-vacuous-test-shapes.sh
+
+      - name: Guard against disabled (#[cfg(any())]) test modules
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-no-disabled-test-modules.sh
+
+      - name: Guard against always-false (undefined-feature) cfg gates
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-nonexistent-feature-gates.sh
+
+      - name: "Guard against #[test] fns with no failure mechanism"
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-no-assert-tests.sh .
+
+      - name: Guard against a deterministic RNG type reachable from a production build
+        if: success() || failure()
+        run: bash ./scripts/ci-guard-no-test-rng-in-release.sh
+
+      - name: Check integration test layout
+        if: success() || failure()
+        run: bash ./scripts/check-integration-test-duplicates.sh
+
+      - name: Self-test the changed-crate selector used by the test job
+        if: success() || failure()
+        run: python3 scripts/ci_pr_changed_crates.py --self-test
+
+      - name: Check formatting
+        if: success() || failure()
+        run: cargo fmt --all -- --check
+
+      # security.yml "Dependency Security Audit": cargo audit --deny warnings (ignores are in
+      # .cargo/audit.toml, each with its reason), then the dependency-source check.
+      - name: Install cargo-audit (pinned)
+        if: success() || failure()
+        run: cargo install cargo-audit --locked --version 0.23.0
+
+      - name: Dependency security audit
+        if: success() || failure()
+        run: cargo audit --deny warnings
+
+      - name: Validate dependency sources
+        if: success() || failure()
+        run: |
+          python3 scripts/security_check_dependency_sources.py --self-test
+          python3 scripts/security_check_dependency_sources.py .
+
+  lint:
+    name: Clippy and workspace build
+    runs-on: heavy
+    timeout-minutes: 90
+    steps:
+      - name: Runner prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUDO=""; [ "$(id -u)" = 0 ] || SUDO=sudo
+          pkgs=""
+          for t in git curl python3 jq gcc make pkg-config xz; do
+            command -v "$t" >/dev/null 2>&1 && continue
+            case "$t" in
+              gcc|make) pkgs="$pkgs build-essential" ;;
+              xz) pkgs="$pkgs xz-utils" ;;
+              *) pkgs="$pkgs $t" ;;
+            esac
+          done
+          if [ -n "$pkgs" ]; then
+            $SUDO apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq --no-install-recommends ca-certificates $pkgs
+          fi
+          git --version; python3 --version; jq --version; gcc --version | head -n 1
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checkout landed on the PR head commit
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          if [ "$(git rev-parse HEAD)" != "${{ github.event.pull_request.head.sha }}" ]; then
+            echo "checked out $(git rev-parse HEAD), expected PR head ${{ github.event.pull_request.head.sha }}" >&2
+            exit 1
+          fi
+
+      - name: Resolve pinned toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHANNEL="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          test -n "$CHANNEL"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: rustfmt, clippy, rust-src
+
+      # ci.yml: single workspace clippy pass (all crates, all optional code paths).
+      - name: Clippy (workspace, all targets, all features)
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      # ci.yml: configurations --all-features structurally cannot reach.
+      - name: Clippy (feature combinations excluded by --all-features)
+        if: success() || failure()
+        run: cargo clippy -p lib-q-fn-dsa-comm --all-targets --features shake256x4 -- -D warnings
+
+      - name: Compile AVX-gated Keccak paths
+        if: success() || failure()
+        run: |
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx2" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak -p lib-q-k12 -p lib-q-hash
+          CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS="-C target-feature=+avx512f" \
+            cargo check --target x86_64-unknown-linux-gnu -p lib-q-keccak
+
+      - name: Build (workspace, default features)
+        if: success() || failure()
+        run: cargo build --workspace --locked
+
+  test:
+    name: Tests and known-answer suites
+    runs-on: heavy
+    timeout-minutes: 120
+    steps:
+      - name: Runner prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          SUDO=""; [ "$(id -u)" = 0 ] || SUDO=sudo
+          pkgs=""
+          for t in git curl python3 jq gcc make pkg-config xz; do
+            command -v "$t" >/dev/null 2>&1 && continue
+            case "$t" in
+              gcc|make) pkgs="$pkgs build-essential" ;;
+              xz) pkgs="$pkgs xz-utils" ;;
+              *) pkgs="$pkgs $t" ;;
+            esac
+          done
+          if [ -n "$pkgs" ]; then
+            $SUDO apt-get update -qq
+            DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y -qq --no-install-recommends ca-certificates $pkgs
+          fi
+          git --version; python3 --version; jq --version; gcc --version | head -n 1
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify checkout landed on the PR head commit
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          if [ "$(git rev-parse HEAD)" != "${{ github.event.pull_request.head.sha }}" ]; then
+            echo "checked out $(git rev-parse HEAD), expected PR head ${{ github.event.pull_request.head.sha }}" >&2
+            exit 1
+          fi
+
+      - name: Resolve pinned toolchain
+        id: toolchain
+        shell: bash
+        run: |
+          set -euo pipefail
+          CHANNEL="$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)"
+          test -n "$CHANNEL"
+          echo "channel=$CHANNEL" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@6c977a6ca4077a0ceb28ffbe03f59d46e9ac8772 # master @ 2026-08-05
+        with:
+          toolchain: ${{ steps.toolchain.outputs.channel }}
+          components: rustfmt, clippy, rust-src
+
+      # Every crate the pull request changes, default features, release-ci profile (the profile
+      # ci.yml uses for its heavy test runs). On workflow_dispatch there is no base: nothing is
+      # selected and only the fixed suites below run.
+      #
+      # `--skip performance` (here and below) leaves out the tests named *performance*: they assert
+      # wall-clock ratios (lib-q-k12 test_customization_performance: "<= 5x slower"), which a shared
+      # runner building other jobs cannot hold reliably (observed: 5.3x on a 2-CPU VM building). They
+      # are measurements, not correctness or known-answer checks. GitHub still runs them.
+      - name: Tests of the crates this pull request changes
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          crates="$(python3 scripts/ci_pr_changed_crates.py "$BASE_SHA")"
+          if [ -z "$crates" ]; then
+            echo "No workspace crate changed; the known-answer suites below still run."
+            exit 0
+          fi
+          echo "Changed crates:"; printf '  %s\n' $crates
+          failed=""
+          for c in $crates; do
+            echo "::group::cargo test -p $c"
+            cargo test -p "$c" --profile release-ci --locked -- --skip performance || failed="$failed $c"
+            echo "::endgroup::"
+          done
+          if [ -n "$failed" ]; then
+            echo "Tests failed in:$failed" >&2
+            exit 1
+          fi
+
+      # The known-answer suites of the primitives most of the workspace is built on, run on every
+      # pull request whatever it changes (ci.yml "ML-KEM Tests", "ML-DSA Compliance" and the
+      # Keccak/SHA-3/K12 rows of "Algorithm Tests").
+      - name: ML-KEM tests and KATs
+        if: success() || failure()
+        run: cargo test -p lib-q-ml-kem --profile release-ci --locked
+
+      - name: ML-DSA NIST KATs (FIPS mode, ACVP vectors)
+        if: success() || failure()
+        run: cargo test -p lib-q-ml-dsa --profile release-ci --locked --features "fips-mode,acvp" --test nistkats
+
+      - name: Keccak, SHA-3 and K12 tests and KATs
+        if: success() || failure()
+        run: cargo test -p lib-q-keccak -p lib-q-sha3 -p lib-q-k12 --profile release-ci --locked -- --skip performance

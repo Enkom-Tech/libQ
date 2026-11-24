@@ -18,6 +18,17 @@ targets a self-hosted macOS runner. A merge needs the GitHub review and check ga
 being merged; a green run for a different revision is not evidence for the
 proposed change.
 
+Pull requests are reviewed and merged on the project's own forge, and their branches are not
+pushed to GitHub before merge, so GitHub CI cannot report on them. They are checked by
+`.forgejo/workflows/pr.yml` on the project's own runners instead: the static guards of `ci.yml`'s
+core validation (including the internal-references and KAT provenance guards), rustfmt,
+`cargo audit`, the workspace clippy pass, a workspace build, the tests of every crate the pull
+request changes (`scripts/ci_pr_changed_crates.py`) and the ML-KEM, ML-DSA, Keccak, SHA-3 and K12
+known-answer suites. It reads no secrets. The forge runs the first workflow directory that exists
+and looks up `.forgejo/workflows` before `.github/workflows`, so the GitHub workflows do not also run
+there; GitHub ignores that directory. The jobs that need GitHub-hosted runners (cross-OS builds, wasm
+runtime smoke tests, benchmarks, coverage) report after merge, on GitHub.
+
 This covers libQ's own CI only. It does **not** stop downstream Cargo consumers
 from compiling libQ Rust path dependencies. A released JS/WASM package or native
 shared library is not a replacement for those Rust dependencies. Prebuilt Rust
