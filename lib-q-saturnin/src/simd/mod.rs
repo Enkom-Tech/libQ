@@ -104,7 +104,8 @@ pub fn encrypt_block_dispatch(
 /// Encrypts eight independent blocks with runtime SIMD dispatch when available.
 ///
 /// When `reuse_scalar_core` is `Some(core)`, it must match `num_super_rounds` and `domain`;
-/// the non–bs32 scalar fallback uses that core instead of allocating a new one.
+/// the non–bs32 paths (the AVX2 core-equivalent kernel and the scalar fallback) then use that
+/// core instead of allocating a new one.
 pub fn encrypt_blocks8_dispatch(
     num_super_rounds: usize,
     domain: u8,
@@ -159,9 +160,14 @@ pub fn encrypt_blocks8_dispatch(
         #[cfg(all(feature = "simd-avx2", target_arch = "x86_64"))]
         {
             if runtime::has_avx2() {
-                // SAFETY: runtime::has_avx2() verified before calling AVX2 core-equivalent kernel.
-                unsafe {
-                    avx2::encrypt_blocks8_core(num_super_rounds, domain, &key32, blocks)?;
+                match reuse_scalar_core {
+                    // Reuse the caller's core (its round constants) so the batch does not allocate.
+                    // SAFETY: runtime::has_avx2() verified before calling AVX2 core-equivalent kernel.
+                    Some(core) => unsafe { avx2::encrypt_blocks8_with_core(core, &key32, blocks) },
+                    // SAFETY: runtime::has_avx2() verified before calling AVX2 core-equivalent kernel.
+                    None => unsafe {
+                        avx2::encrypt_blocks8_core(num_super_rounds, domain, &key32, blocks)?;
+                    },
                 }
                 return Ok(());
             }

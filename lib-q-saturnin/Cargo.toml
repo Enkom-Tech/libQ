@@ -102,6 +102,11 @@ path = "tests/qcb_ctx_spec.rs"
 required-features = ["alloc", "qcb"]
 
 [[test]]
+name = "in_place_no_alloc"
+path = "tests/in_place_no_alloc.rs"
+required-features = ["alloc", "aead"]
+
+[[test]]
 name = "aead_kat_pin"
 path = "tests/aead_kat_pin.rs"
 required-features = ["alloc", "aead"]

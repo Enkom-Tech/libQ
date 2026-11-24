@@ -6,6 +6,28 @@ crate in more detail than the root file carries.
 
 ## Unreleased
 
+### Added — allocation-free in-place detached API on `SaturninAead` (2026-11-23)
+
+`SaturninAead::encrypt_in_place_detached(&self, key: &[u8; 32], nonce: &[u8; 16], ad, buf) ->
+Result<[u8; 32]>` and `decrypt_in_place_detached(&self, key, nonce, ad, buf, tag: &[u8; 32]) ->
+Result<()>`, the same shape as `lib_q_aegis`'s detached functions plus `&self` (the instance holds
+the round-constant tables, and rebuilding them per call is what would allocate). Per-record callers
+no longer need a ciphertext `Vec` per record.
+
+- **Wire format unchanged.** `encrypt_bytes(..)` is exactly `buf || tag` from the in-place call; the
+  1089 official LWC vectors (`tests/kat_tests.rs`) and the frozen pins (`tests/aead_kat_pin.rs`) are
+  now checked through both paths.
+- **No heap allocation on success**, measured by a counting global allocator in
+  `tests/in_place_no_alloc.rs` (with a negative control). On authentication failure the buffer is
+  zeroed and `Error::VerificationFailed` is returned; building that error allocates its `String`,
+  because `lib_q_core::Error` carries one under `alloc`.
+- **SIMD fix:** with `simd-avx2` on an AVX2 CPU, every 8-block CTR batch used to build a fresh
+  `SaturninCore` (a heap `Vec` of round constants). `encrypt_blocks8_dispatch` now hands the
+  caller's pre-built core to a new `avx2::encrypt_blocks8_with_core`. Same output bytes; the
+  allocation test fails without this change (2 allocations at 256 bytes).
+- `encrypt_bytes` / `decrypt_core` now delegate to the same private `seal_in_place` /
+  `open_in_place` cores (separate no-behaviour-change commit).
+
 ### CORRECTION — QCB hardware status and two stale statements (2026-09-14)
 
 Documentation only; no code, no wire format, no test changed. This entry records two questions

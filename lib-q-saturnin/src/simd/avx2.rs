@@ -749,6 +749,28 @@ pub unsafe fn encrypt_blocks8_core(
     }
 
     let core = crate::core::SaturninCore::new(num_rounds, domain)?;
+    encrypt_blocks8_with_core(&core, key, blocks);
+    Ok(())
+}
+
+/// [`encrypt_blocks8_core`] over a pre-built [`crate::core::SaturninCore`].
+///
+/// Takes the round count and round constants from `core` instead of building a new core per
+/// call, so it does not touch the heap: this is what keeps
+/// [`crate::SaturninAead::encrypt_in_place_detached`]'s CTR batches allocation-free. The core's
+/// constructor already range-checked its `(num_rounds, domain)`, so there is nothing to validate.
+///
+/// # Safety
+///
+/// Caller must ensure AVX2 is available on the executing CPU before calling.
+#[target_feature(enable = "avx2")]
+#[allow(unsafe_op_in_unsafe_fn)]
+pub(crate) unsafe fn encrypt_blocks8_with_core(
+    core: &crate::core::SaturninCore,
+    key: &[u8; 32],
+    blocks: &mut [[u8; 32]; 8],
+) {
+    let num_rounds = core.num_rounds();
     let rc = core.round_constants();
     let mut key_vec = [_mm256_set1_epi16(0); 16];
     let mut key_rot_vec = [_mm256_set1_epi16(0); 16];
@@ -790,5 +812,4 @@ pub unsafe fn encrypt_blocks8_core(
     }
 
     encode_blocks8_core(&q, blocks);
-    Ok(())
 }

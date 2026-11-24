@@ -240,6 +240,28 @@ fn test_aead_kat_full_official_vectors() -> Result<()> {
             "decrypt mismatch at official KAT Count={}",
             count + 1
         );
+
+        // In-place detached path: must produce byte-identical output to the Vec path above,
+        // i.e. `encrypt_bytes(..) == buf || tag`, and decrypt back to the same plaintext.
+        let key32: [u8; 32] = key.as_bytes().try_into().expect("32-byte KAT key");
+        let nonce16: [u8; 16] = nonce.as_bytes().try_into().expect("16-byte KAT nonce");
+        let mut buf = pt.clone();
+        let tag = aead.encrypt_in_place_detached(&key32, &nonce16, &ad, &mut buf)?;
+        let mut in_place_ct = buf.clone();
+        in_place_ct.extend_from_slice(&tag);
+        assert_eq!(
+            in_place_ct,
+            ciphertext,
+            "in-place encrypt differs from the Vec path at official KAT Count={}",
+            count + 1
+        );
+        aead.decrypt_in_place_detached(&key32, &nonce16, &ad, &mut buf, &tag)?;
+        assert_eq!(
+            buf,
+            pt,
+            "in-place decrypt mismatch at official KAT Count={}",
+            count + 1
+        );
     }
 
     Ok(())

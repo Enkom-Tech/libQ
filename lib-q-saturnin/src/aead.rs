@@ -36,6 +36,30 @@
 //! assert_eq!(decrypted, plaintext);
 //! ```
 //!
+//! ## Allocation-free detached API
+//!
+//! For per-record sealing, [`SaturninAead::encrypt_in_place_detached`] and
+//! [`SaturninAead::decrypt_in_place_detached`] work on a caller-owned buffer and a detached
+//! 32-byte tag, with the same signature shape as `lib_q_aegis` (plus `&self`, which carries the
+//! pre-built round constants). They produce exactly the bytes of the `Vec` paths
+//! (`encrypt_bytes(..) == buf || tag`) and do not touch the heap on success
+//! (`tests/in_place_no_alloc.rs`).
+//!
+//! ```rust
+//! use lib_q_saturnin::SaturninAead;
+//!
+//! let aead = SaturninAead::new();
+//! let key = [0x42u8; 32];
+//! let nonce = [0x24u8; 16];
+//! let mut buf = *b"datagram payload";
+//! let tag = aead
+//!     .encrypt_in_place_detached(&key, &nonce, b"header", &mut buf)
+//!     .unwrap();
+//! aead.decrypt_in_place_detached(&key, &nonce, b"header", &mut buf, &tag)
+//!     .unwrap();
+//! assert_eq!(&buf, b"datagram payload");
+//! ```
+//!
 //! ## Performance Notes
 //!
 //! - **Key size**: 256 bits (32 bytes)
@@ -244,8 +268,8 @@ impl SaturninAead {
     /// interleaved with the CTR pass, in [`Self::encrypt_bytes`]. It exists so
     /// [`crate::aead_ctx::SaturninAeadCtx`] can recompute `T` on its decrypt path without
     /// duplicating the cascade construction. Adding this method changes no production bytes of
-    /// `SaturninAead` itself — `decrypt_core`/`encrypt_bytes` are left untouched, and
-    /// `tests/aead_kat_pin.rs` pins that `SaturninAead`'s own output is unaffected.
+    /// `SaturninAead` itself, and `tests/aead_kat_pin.rs` pins that `SaturninAead`'s own output is
+    /// unaffected.
     ///
     /// Gated on `hash`: `aead_ctx` (the sole caller) is `all(aead, hash)`, and this method lives
     /// inside the `aead`-gated module, so `#[cfg(feature = "hash")]` here is exactly
@@ -446,24 +470,139 @@ impl SaturninAead {
         let kb = key_staged.as_slice();
         let nb = nonce_staged.as_slice();
 
-        let mut tag = self.cascade_init(kb, nb)?;
+        let mut plaintext = ciphertext_data.to_vec();
+        if self.open_in_place(kb, nb, ad, &mut plaintext, received_tag)? {
+            Ok(DecryptSemanticOutcome::Success(Zeroizing::new(plaintext)))
+        } else {
+            Ok(DecryptSemanticOutcome::AuthenticationFailed)
+        }
+    }
+
+    /// Message-body length limit shared by every encrypt path and the detached decrypt (about
+    /// 137.4 GB): the CTR counter starts at 1 and must not reach the end of its `u32` range.
+    /// `decrypt_core`'s own check, `(ct_body + tag) >> 5 >= 0xFFFFFFFE`, accepts exactly the same
+    /// bodies, since the tag is one 32-byte block.
+    fn check_body_len(len: usize) -> Result<()> {
+        if (len >> 5) >= 0xFFFFFFFD {
+            return Err(Error::InvalidMessageSize {
+                max: 0xFFFFFFFD << 5,
+                actual: len,
+            });
+        }
+        Ok(())
+    }
+
+    /// Error for a failed tag check (Layer A).
+    ///
+    /// `lib_q_core::Error::VerificationFailed` carries a `String` under `alloc`, which this crate
+    /// always enables, so building this error is the one heap allocation on the detached decrypt
+    /// path, and it happens only on authentication failure.
+    #[cold]
+    fn auth_failed() -> Error {
+        Error::VerificationFailed {
+            operation: "AEAD tag verification".to_string(),
+        }
+    }
+
+    /// Encrypt `buf` in place and return the detached 32-byte tag.
+    ///
+    /// Same output as [`Self::encrypt_bytes`]: that function returns exactly `buf || tag`. This
+    /// path does not touch the heap. The shape matches `lib_q_aegis`'s
+    /// `encrypt_in_place_detached` (fixed-size key and nonce, detached tag) except that it takes
+    /// `&self`: a [`SaturninAead`] holds the round-constant tables it builds once in
+    /// [`Self::new`], and rebuilding them per call is what would allocate.
+    ///
+    /// Fails only if `buf` exceeds the mode's length limit (about 137.4 GB), in which case `buf`
+    /// is left untouched. Nonces MUST be unique per key.
+    pub fn encrypt_in_place_detached(
+        &self,
+        key: &[u8; 32],
+        nonce: &[u8; 16],
+        ad: &[u8],
+        buf: &mut [u8],
+    ) -> Result<[u8; 32]> {
+        Self::check_body_len(buf.len())?;
+        let tag = self.seal_in_place(key, nonce, ad, buf)?;
+        Ok(*tag)
+    }
+
+    /// Decrypt `buf` (the ciphertext body, without the tag) in place and verify `tag` in
+    /// constant time.
+    ///
+    /// Same schedule as [`Self::decrypt_bytes`]: the expected tag is compared before CTR, and CTR
+    /// always runs over the whole body. On failure `buf` is zeroed and
+    /// [`Error::VerificationFailed`] is returned, so unverified plaintext is never left in the
+    /// caller's buffer. The success path does not touch the heap; the failure path allocates
+    /// only the error's `String` (see `lib_q_core::Error`).
+    pub fn decrypt_in_place_detached(
+        &self,
+        key: &[u8; 32],
+        nonce: &[u8; 16],
+        ad: &[u8],
+        buf: &mut [u8],
+        tag: &[u8; 32],
+    ) -> Result<()> {
+        Self::check_body_len(buf.len())?;
+        if self.open_in_place(key, nonce, ad, buf, tag)? {
+            Ok(())
+        } else {
+            Err(Self::auth_failed())
+        }
+    }
+
+    /// CTR-Cascade seal core: encrypts `buf` in place and returns the tag.
+    ///
+    /// Schedule: `cascade_init`, cascade over `ad` (domains 2/3), CTR over `buf` (domain 1),
+    /// cascade over the resulting ciphertext (domains 4/5). Key/nonce sizes and the message-length
+    /// limit are the caller's to check. On a CTR error `buf` is zeroized before returning.
+    fn seal_in_place(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        ad: &[u8],
+        buf: &mut [u8],
+    ) -> Result<Zeroizing<[u8; 32]>> {
+        let mut tag = self.cascade_init(key, nonce)?;
         self.cascade(&mut tag, 2, 3, ad)?;
-        self.cascade(&mut tag, 4, 5, ciphertext_data)?;
+        if let Err(e) = self.ctr_encrypt(key, nonce, buf) {
+            buf.zeroize();
+            return Err(e);
+        }
+        self.cascade(&mut tag, 4, 5, buf)?;
+        Ok(tag)
+    }
+
+    /// CTR-Cascade open core: decrypts `buf` (ciphertext body) in place and reports whether
+    /// `received_tag` verified.
+    ///
+    /// The expected tag is computed over `ad` and the ciphertext and compared in constant time
+    /// *before* CTR; CTR then always runs over the whole body, whatever the comparison said (see
+    /// the module docs, "Verification timing"). On a tag mismatch or a CTR error `buf` is zeroized,
+    /// so unverified plaintext never survives. Key/nonce sizes and the message-length limit are the
+    /// caller's to check.
+    fn open_in_place(
+        &self,
+        key: &[u8],
+        nonce: &[u8],
+        ad: &[u8],
+        buf: &mut [u8],
+        received_tag: &[u8],
+    ) -> Result<bool> {
+        let mut tag = self.cascade_init(key, nonce)?;
+        self.cascade(&mut tag, 2, 3, ad)?;
+        self.cascade(&mut tag, 4, 5, buf)?;
 
         let tag_valid = lib_q_core::Utils::constant_time_compare(&*tag, received_tag);
 
-        let mut plaintext = ciphertext_data.to_vec();
-        if let Err(e) = self.ctr_encrypt(kb, nb, &mut plaintext) {
-            plaintext.zeroize();
+        if let Err(e) = self.ctr_encrypt(key, nonce, buf) {
+            buf.zeroize();
             return Err(e);
         }
 
-        if tag_valid {
-            Ok(DecryptSemanticOutcome::Success(Zeroizing::new(plaintext)))
-        } else {
-            plaintext.zeroize();
-            Ok(DecryptSemanticOutcome::AuthenticationFailed)
+        if !tag_valid {
+            buf.zeroize();
         }
+        Ok(tag_valid)
     }
 
     /// Allocation-free encrypt: takes key/nonce as byte slices, avoiding the `AeadKey`/`Nonce`
@@ -490,13 +629,7 @@ impl SaturninAead {
             });
         }
 
-        // Check length limits (about 137.4 GB)
-        if (plaintext.len() >> 5) >= 0xFFFFFFFD {
-            return Err(Error::InvalidMessageSize {
-                max: 0xFFFFFFFD << 5,
-                actual: plaintext.len(),
-            });
-        }
+        Self::check_body_len(plaintext.len())?;
 
         let ad = associated_data.unwrap_or(&[]);
 
@@ -507,21 +640,8 @@ impl SaturninAead {
         let kb = key_staged.as_slice();
         let nb = nonce_staged.as_slice();
 
-        // Initialize cascade state
-        let mut tag = self.cascade_init(kb, nb)?;
-
-        // Process associated data
-        self.cascade(&mut tag, 2, 3, ad)?;
-
-        // Encrypt plaintext with CTR
         let mut ciphertext = plaintext.to_vec();
-        if let Err(e) = self.ctr_encrypt(kb, nb, &mut ciphertext) {
-            ciphertext.zeroize();
-            return Err(e);
-        }
-
-        // Continue cascade on ciphertext
-        self.cascade(&mut tag, 4, 5, &ciphertext)?;
+        let tag = self.seal_in_place(kb, nb, ad, &mut ciphertext)?;
 
         // Append tag
         ciphertext.extend_from_slice(&*tag);
@@ -540,9 +660,7 @@ impl SaturninAead {
     ) -> Result<Vec<u8>> {
         match self.decrypt_core(key, nonce, ciphertext, associated_data) {
             Ok(DecryptSemanticOutcome::Success(p)) => Ok(Vec::clone(&*p)),
-            Ok(DecryptSemanticOutcome::AuthenticationFailed) => Err(Error::VerificationFailed {
-                operation: "AEAD tag verification".to_string(),
-            }),
+            Ok(DecryptSemanticOutcome::AuthenticationFailed) => Err(Self::auth_failed()),
             Err(e) => Err(e),
         }
     }
@@ -803,6 +921,63 @@ mod tests {
         assert_eq!(ct.len(), plaintext.len() + 32);
         let pt = aead.decrypt(&key, &nonce, &ct, Some(&ad))?;
         assert_eq!(pt, plaintext);
+        Ok(())
+    }
+
+    #[test]
+    fn in_place_detached_matches_vec_path_across_sizes() -> Result<()> {
+        // Covers the cascade/CTR block boundaries and, at 600 bytes, the 8-lane CTR batch.
+        let aead = SaturninAead::new();
+        let key = [0x71u8; 32];
+        let nonce = [0x62u8; 16];
+        for len in [0usize, 1, 31, 32, 33, 255, 256, 257, 600] {
+            for ad_len in [0usize, 17, 32] {
+                let pt: Vec<u8> = (0..len).map(|i| (i * 7) as u8).collect();
+                let ad = vec![0x5Au8; ad_len];
+                let expected = aead.encrypt_bytes(&key, &nonce, &pt, Some(&ad))?;
+
+                let mut buf = pt.clone();
+                let tag = aead.encrypt_in_place_detached(&key, &nonce, &ad, &mut buf)?;
+                assert_eq!(&expected[..len], &buf[..], "body len={len} ad_len={ad_len}");
+                assert_eq!(&expected[len..], &tag[..], "tag len={len} ad_len={ad_len}");
+
+                aead.decrypt_in_place_detached(&key, &nonce, &ad, &mut buf, &tag)?;
+                assert_eq!(buf, pt, "round trip len={len} ad_len={ad_len}");
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn decrypt_in_place_detached_zeroes_buf_on_any_tamper() -> Result<()> {
+        let aead = SaturninAead::new();
+        let key = [7u8; 32];
+        let nonce = [8u8; 16];
+        let ad = b"header";
+        let pt = [0xA5u8; 70];
+        let mut ct = pt;
+        let tag = aead.encrypt_in_place_detached(&key, &nonce, ad, &mut ct)?;
+
+        // Flipped tag bit, flipped body bit, wrong AD, wrong nonce: each must fail with
+        // `VerificationFailed` and leave no plaintext (nor ciphertext) in the buffer.
+        let mut bad_tag = tag;
+        bad_tag[31] ^= 0x01;
+        let mut bad_body = ct;
+        bad_body[69] ^= 0x80;
+        let check = |case: &str, ad: &[u8], nonce: &[u8; 16], mut buf: [u8; 70], tag: &[u8; 32]| {
+            let err = aead
+                .decrypt_in_place_detached(&key, nonce, ad, &mut buf, tag)
+                .expect_err("tampered input must not verify");
+            assert!(
+                matches!(err, Error::VerificationFailed { .. }),
+                "{case}: {err:?}"
+            );
+            assert!(buf.iter().all(|&b| b == 0), "{case}: buffer not zeroed");
+        };
+        check("tag bit", ad, &nonce, ct, &bad_tag);
+        check("body bit", ad, &nonce, bad_body, &tag);
+        check("ad", b"headeR", &nonce, ct, &tag);
+        check("nonce", ad, &[9u8; 16], ct, &tag);
         Ok(())
     }
 

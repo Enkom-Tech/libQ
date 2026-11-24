@@ -99,3 +99,35 @@ fn plain_saturnin_aead_wire_format_is_frozen() {
         assert_eq!(dec, pt, "round-trip mismatch for pt={pt_hex} ad={ad_hex}");
     }
 }
+
+/// The allocation-free detached API must hit the same frozen bytes: `buf || tag` from
+/// `encrypt_in_place_detached` is exactly the pinned ciphertext, and the detached decrypt
+/// restores the plaintext in place.
+#[test]
+fn in_place_detached_matches_frozen_wire_format() {
+    let aead = SaturninAead::new();
+    let k: [u8; 32] = core::array::from_fn(|i| i as u8);
+    let n: [u8; 16] = core::array::from_fn(|i| i as u8);
+    for (pt_hex, ad_hex, ct_hex) in CASES {
+        let pt = from_hex(pt_hex);
+        let ad = from_hex(ad_hex);
+        let mut buf = pt.clone();
+        let tag = aead
+            .encrypt_in_place_detached(&k, &n, &ad, &mut buf)
+            .unwrap();
+        let mut ct = buf.clone();
+        ct.extend_from_slice(&tag);
+        assert_eq!(
+            ct,
+            from_hex(ct_hex),
+            "in-place SaturninAead output differs from the frozen wire format for pt={pt_hex} \
+             ad={ad_hex}"
+        );
+        aead.decrypt_in_place_detached(&k, &n, &ad, &mut buf, &tag)
+            .unwrap();
+        assert_eq!(
+            buf, pt,
+            "in-place round trip mismatch for pt={pt_hex} ad={ad_hex}"
+        );
+    }
+}
