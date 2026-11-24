@@ -28,5 +28,5 @@ postcard = { workspace = true, features = ["alloc"] }
 [target.'cfg(target_os = "macos")'.dependencies]
 # Safe wrapper over getrusage(2); the crate itself contains no `unsafe` (the workspace
 # security validator forbids it outside the reviewed SIMD/FFI allowlist).
-nix = { version = "0.31.3", default-features = false, features = ["resource"] }
+nix = { version = "0.32.0", default-features = false, features = ["resource"] }
 
