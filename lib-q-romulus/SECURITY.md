@@ -97,7 +97,11 @@ and context commitment, above.
 
 ### Romulus specifics
 
+Every Romulus mode (Romulus-N, Romulus-M) uses a 128-bit key, nonce and tag (~2^64 post-quantum margin); it is below the 256-bit-key floor our protocols negotiate, so GIP never offers it; use it only for constrained local use where that margin is accepted.
+
 Romulus-N and Romulus-M carry a **128-bit** tag (`AeadCore::TagSize = U16`), where every other
 libQ AEAD carries 256 bits. The generic cost of a CMT-1 collision is therefore ~2^64, not ~2^128.
 If you are choosing Romulus-M for its nonce-misuse resistance, be aware you are simultaneously
 choosing the weakest key-commitment margin in the suite, and bind the key into the associated data.
+For misuse resistance at a 256-bit key, use `SaturninSiv` (`lib-q-aead`, feature `saturnin-siv`)
+instead; Romulus-M is not the recommendation for file encryption or re-encryption.

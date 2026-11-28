@@ -120,6 +120,10 @@ pub mod ml_kem;
 #[cfg(feature = "hqc")]
 pub mod hqc;
 
+// ML-KEM-1024 + HQC-256 dual-family combiner
+#[cfg(feature = "combiner")]
+pub mod combiner;
+
 // Re-export provider
 #[cfg(feature = "alloc")]
 pub use provider::LibQKemProvider;

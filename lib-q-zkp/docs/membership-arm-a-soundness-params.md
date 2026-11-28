@@ -6,7 +6,7 @@ the AIR, and NOT a discharge of Arm A's Poseidon-over-GF(p²) obligation (O1). S
 
 > **Headline:** the Arm A membership config (`stark::membership_config` / `membership_zk_config_*`)
 > delivers **≈128-bit post-quantum** soundness (and ≈128-bit classical, conjectured AND
-> provable-Johnson), binding on the SHAKE256 Merkle commitment (256-bit → 128-bit collision, NIST
+> proven per BCIKS20 Thm 8.3), binding on the SHAKE256 Merkle commitment (256-bit → 128-bit collision, NIST
 > Category 2). Every other term sits at or above 128.
 
 ## History (why the params changed)
@@ -42,19 +42,38 @@ width. **The other Arm A proof types are therefore NOT 128-bit and are out of sc
 | term | classical | post-quantum |
 |------|----------:|-------------:|
 | challenge field `GF(p⁶)` | 186.0 | — |
-| constraint/DEEP Schwartz–Zippel | 175.7 | 175.7 |
+| constraint/DEEP Schwartz–Zippel (at the verifier's max domain; zk) | 174.7 (173.7) | 174.7 (173.7) |
+| BCGM Lemma 9.3 `eps_MCA`, alpha batching `d = l − 1` (proven; zk) | 137.4 (135.4) | — |
+| BCIKS20 Lemma 8.2 `eps_C` (proven; zk) | 151.8 (149.8) | — |
+| BCIKS20 Thm 8.3 query term, `m = 3` (proven) | 142.7 | 132.7 (grinding Grover-halved) |
+| `eps_FRI = eps_MCA + eps_C +` query term (proven; zk) | 137.3 (135.4) | — |
 | FRI query+PoW — unique-decoding (provable) | 100 | — |
-| FRI query+PoW — Johnson (provable) | 164 | — |
+| FRI query+PoW — Johnson, `m → ∞` limit (not a strict bound) | 164 | — |
 | FRI query+PoW — capacity (conjectured) | 308 | 298 (grinding Grover-halved) |
 | SHAKE256 Merkle collision | 128 | 128 (NIST Cat-2) |
-| **OVERALL** | **128 (conj & Johnson)** | **128 (binding: SHAKE256)** |
+| **OVERALL** | **128 (conj & proven)** | **128 (binding: SHAKE256)** |
+
+The proven rows are cited theorems at `m = 3`, priced at the largest LDE domain the verifier
+accepts. Both Arm A verifiers pin the trace height to the padded declared depth, at most
+`MAX_DEPTH` = 64 rows, doubled under the hiding PCS, so `n = 2^9` (zk `2^10`). The PCS folds all
+`l` opened (column, point) quotients into one word with powers of one alpha (the powers generator
+of degree `d = l − 1`; `l = 34316`, zk `34431`, measured from real proofs by
+`tests/soundness_gate_shape_tests.rs`, which also checks that every committed matrix has the same
+LDE height, so FRI runs on that one word). The batching is priced by Bordage–Chiesa–Guan–Manzur
+(ePrint 2025/2051, version of May 19, 2026) Lemma 9.3 / Def 9.1, MCA for Reed–Solomon codes up to
+`1 − (1 + 1/2m)√ρ`: `(m+½)^7 d n^2 / (3ρ^{3/2}|F|)`. FRI on the batched word is priced by BCIKS20
+(ePrint 2020/654, version of July 3, 2021) Thm 8.3 with `eps_C` from Lemma 8.2 eq (8.5). Arm A opens
+about 17k trace columns at two points, so the batching term binds. **The proven FRI margin over the
+128-bit floor is ≈ 7.4 bits (zk)**: the field term, not the hash, would bind first if Arm A ever
+got wider or taller. The CI gate is `tests/security_parameter_tests.rs` (formulas in
+`tests/soundness_gate/mod.rs`); `tools/fri_soundness.py` prints the same numbers.
 
 ## Arm A vs Arm B (both 128-bit PQ, hash-bound)
 
 | | Arm A | Arm B |
 |--|------|------|
 | value field | `Complex<Mersenne31>` (~62 b) | BabyBear (~31 b) |
-| challenge field | `GF(p⁶)` deg-3 over complex (~186 b) | `GF(q⁵)` deg-5 (~155 b) |
+| challenge field | `GF(p⁶)` deg-3 over complex (~186 b) | `GF(q⁸)` deg-8 (~247 b) |
 | FRI | log_blowup 3 / q 96 / PoW 20 | log_blowup 4 / q 96 / PoW 20 |
 | AIR degree (S-box) | 5 (x⁵) | 7 (x⁷) |
 | OVERALL PQ | **128** (hash-bound) | **128** (hash-bound) |

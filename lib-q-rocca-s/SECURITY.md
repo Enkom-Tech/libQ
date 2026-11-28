@@ -17,8 +17,8 @@ cross-generated vectors covering non-zero keys/nonces and partial blocks
 Rocca-S is **nonce-respecting**, not nonce-misuse-resistant. Reusing a
 (key, nonce) pair for two different messages breaks confidentiality and
 authenticity. Callers must guarantee unique nonces per key (random 128-bit
-nonces, or a counter). For a misuse-resistant AEAD, use a Romulus-M or
-SIV-style construction instead.
+nonces, or a counter). For a misuse-resistant AEAD, use Saturnin-SIV
+(`lib-q-aead`, feature `saturnin-siv`; 256-bit key) instead of Romulus-M, which is 128-bit.
 
 ## Constant-time behavior
 

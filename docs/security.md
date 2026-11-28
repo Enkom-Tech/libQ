@@ -162,14 +162,15 @@ Our post-quantum asymmetric primitives are drawn from NIST's Post-Quantum Crypto
     (CTR-Cascade/Short) are nonce-respecting only. Prefer it for file encryption or any scenario
     where nonce reuse across re-encryptions is plausible and 256-bit margin is required.
 - **Romulus** (`lib-q-romulus`, NIST Lightweight Cryptography finalist, SKINNY-based AEAD):
-  **128-bit key/nonce/tag**, unlike the 256-bit key/tag used by Saturnin, Rocca-S, and
-  duplex-sponge elsewhere in this document — under Grover's algorithm that is a **~2^64**
+  **Every Romulus mode (Romulus-N, Romulus-M) uses a 128-bit key, nonce and tag (~2^64 post-quantum margin); it is below the 256-bit-key floor our protocols negotiate, so GIP never offers it; use it only for constrained local use where that margin is accepted.** Unlike the 256-bit key/tag used by Saturnin, Rocca-S, and
+  duplex-sponge elsewhere in this document, under Grover's algorithm that is a **~2^64**
   post-quantum margin. The 256-bit modes are materially stronger, but do NOT quote
   ~2^128 for them either: Saturnin's designers claim **224-bit, not 256** (LWC spec section 1.2),
   and its hash-level claim is 2^112 classical collision. Two modes:
   **Romulus-N** (nonce-respecting; nonce reuse breaks confidentiality) and **Romulus-M**
   (nonce-misuse-resistant, SIV-style — reusing a nonce does not enable forgery, though it remains
-  128-bit). See [lib-q-romulus/SECURITY.md](../lib-q-romulus/SECURITY.md) and
+  128-bit, so it is not the misuse-resistant choice for protocols or file re-encryption: use
+  Saturnin-SIV above). See [lib-q-romulus/SECURITY.md](../lib-q-romulus/SECURITY.md) and
   [lib-q-aead README § Key commitment](../lib-q-aead/README.md#key-commitment-cmt-1).
 ### Forbidden Classical Algorithms
 The following classical algorithms are explicitly forbidden in lib-Q:

@@ -14,8 +14,10 @@
 #   lint     the workspace clippy pass (--all-targets --all-features -D warnings), the
 #            feature-combination pass --all-features cannot reach, the AVX-gated Keccak checks, and
 #            a workspace build.
-#   test     `cargo test` for every crate the pull request changes (scripts/ci_pr_changed_crates.py)
-#            and the known-answer suites of the core primitives (ML-KEM, ML-DSA, Keccak, SHA-3, K12).
+#   test     `cargo test` for every crate the pull request changes (scripts/ci_pr_changed_crates.py),
+#            plus each opt-in feature set a changed crate declares for its feature-gated tests
+#            ([package.metadata.libq-ci] pr-test-features), and the known-answer suites of the core
+#            primitives (ML-KEM, ML-DSA, Keccak, SHA-3, K12).
 # Not mirrored here (they stay on GitHub, after merge): wasm/npm runtime smoke tests, cross-OS and
 # cross-target builds, QEMU execution, benchmarks, coverage and the github.com-only jobs.
 #
@@ -349,8 +351,12 @@ jobs:
           components: rustfmt, clippy, rust-src
 
       # Every crate the pull request changes, default features, release-ci profile (the profile
-      # ci.yml uses for its heavy test runs). On workflow_dispatch there is no base: nothing is
-      # selected and only the fixed suites below run.
+      # ci.yml uses for its heavy test runs), then once more per feature set the crate declares in
+      # [package.metadata.libq-ci] pr-test-features: test targets with `required-features` off by
+      # default (lib-q-lattice-zkp's LaZer KATs behind `lazer-compat`) run only that way. The
+      # feature runs go through ci-guard-no-vacuous-tests.sh, so a declared set that no longer
+      # enables any test fails instead of reporting "0 passed". On workflow_dispatch there is no
+      # base: nothing is selected and only the fixed suites below run.
       #
       # `--skip performance` (here and below) leaves out the tests named *performance*: they assert
       # wall-clock ratios (lib-q-k12 test_customization_performance: "<= 5x slower"), which a shared
@@ -363,18 +369,26 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
           set -euo pipefail
-          crates="$(python3 scripts/ci_pr_changed_crates.py "$BASE_SHA")"
-          if [ -z "$crates" ]; then
+          runs="$(python3 scripts/ci_pr_changed_crates.py --test-runs "$BASE_SHA")"
+          if [ -z "$runs" ]; then
             echo "No workspace crate changed; the known-answer suites below still run."
             exit 0
           fi
-          echo "Changed crates:"; printf '  %s\n' $crates
+          echo "Test runs (crate [features]):"; sed 's/^/  /' <<< "$runs"
           failed=""
-          for c in $crates; do
-            echo "::group::cargo test -p $c"
-            cargo test -p "$c" --profile release-ci --locked -- --skip performance || failed="$failed $c"
+          # stdin of every cargo call is /dev/null: the loop reads its run list from stdin.
+          while read -r c f; do
+            if [ -z "$f" ]; then
+              echo "::group::cargo test -p $c"
+              cargo test -p "$c" --profile release-ci --locked -- --skip performance </dev/null || failed="$failed $c"
+            else
+              echo "::group::cargo test -p $c --features $f"
+              bash scripts/ci-guard-no-vacuous-tests.sh -- \
+                cargo test -p "$c" --features "$f" --profile release-ci --locked -- --skip performance </dev/null \
+                || failed="$failed $c[$f]"
+            fi
             echo "::endgroup::"
-          done
+          done <<< "$runs"
           if [ -n "$failed" ]; then
             echo "Tests failed in:$failed" >&2
             exit 1

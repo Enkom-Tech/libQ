@@ -16,6 +16,13 @@ ignored = [
     "lib-q-core",
     "proptest",
 ]
+
+# Extra `cargo test --features <entry>` runs the forge PR job does when this crate changes
+# (scripts/ci_pr_changed_crates.py --test-runs). `lazer-compat` carries the LaZer byte-equality KATs
+# (`required-features`), which a default-feature `cargo test` never executes.
+[package.metadata.libq-ci]
+pr-test-features = ["lazer-compat"]
+
 [dependencies]
 lib-q-core = { path = "../lib-q-core", version = "0.0.12", default-features = false, optional = true }
 # NOTE: no `features = ["std"]` here. It was unconditional, which forced lib-q-ring's std even
@@ -32,6 +39,8 @@ lib-q-random = { path = "../lib-q-random", version = "0.0.12", optional = true, 
 zeroize = { workspace = true, default-features = false, features = ["derive", "alloc"] }
 subtle = { workspace = true }
 rand_core = { workspace = true }
+# LaZer interop only (`lazer-compat`): LaZer's generator is AES-256-CTR (src/lazer/mod.rs).
+aes = { workspace = true, optional = true }
 hex = { workspace = true, optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
@@ -42,6 +51,11 @@ wasm-bindgen-test = { workspace = true }
 name = "hardened_dudect_smoke"
 path = "tests/hardened_dudect_smoke.rs"
 required-features = ["hardened"]
+
+[[test]]
+name = "lazer_anon_cred_pp_kat"
+path = "tests/lazer_anon_cred_pp_kat.rs"
+required-features = ["lazer-compat"]
 
 [[test]]
 name = "hardened_masked_witness"
@@ -67,6 +81,9 @@ std = ["alloc", "lib-q-ring/std", "lib-q-random/std", "lib-q-random/secure"]
 # `--no-default-features --features no_std` to actually get no_std.
 no_std = ["alloc", "lib-q-ring/no_std"]
 random = ["dep:lib-q-random", "lib-q-random/secure", "lib-q-random/getrandom"]
+# Byte-exact LaZer building blocks (BLNS presentation L4, first slice). Opt-in: pulls AES-256, which
+# libQ admits only where interoperability requires it (docs/security.md).
+lazer-compat = ["alloc", "dep:aes"]
 # Attested builds: structured prover loops + workspace CSPRNG (`lib-q-random` via `random`).
 hardened = ["random"]
 # Browser / wasm32-unknown-unknown: use JS-backed RNG when `random` is enabled.
@@ -98,5 +115,5 @@ harness = false
 [lints.rust]
 unexpected_cfgs = { level = "warn", check-cfg = [
     'cfg(lattice_zkp_docs)',
-    'cfg(feature, values("alloc", "std", "no_std", "random", "wasm", "hardened"))',
+    'cfg(feature, values("alloc", "std", "no_std", "random", "wasm", "hardened", "lazer-compat"))',
 ] }

@@ -6,7 +6,7 @@ characterization* of the PCS/commitment layer, not a soundness proof of the AIR.
 discharge the cryptographer obligations (AIR completeness, Poseidon2 algebraic security).
 
 > **Headline:** the default config delivers **≈128-bit post-quantum** soundness (and ≈128-bit
-> classical, both conjectured and provable-Johnson), binding on the SHAKE256 Merkle commitment
+> classical, both conjectured and proven per BCIKS20 Thm 8.3), binding on the SHAKE256 Merkle commitment
 > (256-bit → 128-bit collision, NIST Category 2). Every other term sits comfortably above 128.
 
 ## History (why the params changed)
@@ -44,19 +44,48 @@ generator script `gen_quintic_constants.py` is kept for reference.
 | term | classical | post-quantum (mainstream model) |
 |------|----------:|--------------------------------:|
 | challenge field \|F_{p⁸}\| | 247.3 | — |
-| constraint/DEEP Schwartz–Zippel | 235.4 | 235.4 (FS preserved in QROM) |
-| BCIKS proximity-gap field term (Johnson, proven; approximate — see note) | 212.2 | — |
+| constraint/DEEP Schwartz–Zippel (at the verifier's max domain) | 217.4 | 217.4 (FS preserved in QROM) |
+| BCGM Lemma 9.3 `eps_MCA`, alpha batching `d = l − 1` (proven; zk) | 164.5 (164.4) | — |
+| BCIKS20 Lemma 8.2 `eps_C` (proven; zk) | 175.6 (175.6) | — |
+| BCIKS20 Thm 8.3 query term, `m = 3` (proven) | 190.7 | 180.7 (grinding Grover-halved) |
+| `eps_FRI = eps_MCA + eps_C +` query term (proven; zk) | 164.5 (164.4) | — |
 | FRI query+PoW — unique-decoding (provable) | 108 | — |
-| FRI query+PoW — Johnson (provable) | 212 | — |
+| FRI query+PoW — Johnson, `m → ∞` limit (not a strict bound) | 212 | — |
 | FRI query+PoW — capacity (conjectured) | 404 | 394 (grinding Grover-halved) |
 | SHAKE256 Merkle collision | 128 | 128 (NIST Cat-2) |
 | sponge capacity (9 cells) collision | 139 | 139 |
-| **OVERALL** | **128 (conj & Johnson)** | **128 (binding: SHAKE256)** |
+| **OVERALL** | **128 (conj & proven)** | **128 (binding: SHAKE256)** |
 
-Note on the BCIKS row: it uses the BCIKS20 Thm 1.5 form `(m+1/2)^7 n^2 / (3 ρ^{3/2} |F|)` with
-`m = 3`, `n` = LDE domain size. The constant was written from the paper's statement and has **not**
-been independently re-derived or reviewed — it is the cryptographer-review item for the proven
-accounting. For reference the same formula gives ≈119 bits for the superseded `GF(q^5)` field.
+Note on the proven rows: every term is a cited theorem, with one `m = 3` throughout:
+`eps_FRI = eps_MCA + eps_C + (sqrt(ρ)(1 + 1/(2m)))^s`.
+- **Batching, `eps_MCA`.** libQ's PCS folds all `l` opened (column, point) quotients into one word
+  with powers of ONE alpha: the univariate powers generator `(1, x, …, x^d)`, `d = l − 1`. It is
+  priced by Bordage–Chiesa–Guan–Manzur, "All Polynomial Generators Preserve Distance with Mutual
+  Correlated Agreement" (ePrint 2025/2051, version of May 19, 2026), Lemma 9.3 / Def 9.1, MCA for
+  Reed–Solomon codes up to `1 − (1 + 1/2m)√ρ`: `(m+½)^7 d |D|^2 / (3ρ^{3/2}|F|)`. For Arm B,
+  `l = 3386` (zk `3534`), measured from real proofs by `tests/soundness_gate_shape_tests.rs`, which
+  also checks that every committed matrix has the same LDE height (no `β²` roll-in).
+- **FRI on the batched word, `eps_C` and the query term.** BCIKS20 (ePrint 2020/654, version of
+  July 3, 2021) Thm 8.3 applied to that one word, `eps_C` from Lemma 8.2 eq (8.5):
+  `(m+½)^7 |D|^2 / (2ρ^{3/2}|F|) + (2m+1)(|D|+1) Σ l^(i) / (sqrt(ρ)|F|)`, `l^(i) = 2` per fold.
+  The two combine by a union bound over alpha: unless the opened quotients have correlated
+  agreement of density `(1 + 1/2m)√ρ`, the batched word reaches that agreement with probability at
+  most `eps_MCA` (BCGM Def 3.14), and below it Thm 8.3 applies.
+- **Domain.** `|D|` is the largest LDE domain the verifier accepts. `verify_membership_bb` does
+  **not** bind the trace height to a depth: a 128-row proof (2 × `MAX_DEPTH`) verifies (same test
+  file). So only the FRI verifier's two-adicity check bounds it, giving `|D| ≤ 2^27`.
+- **Not used: Manzur, ePrint 2026/2617** (MCA of the powers generator for any linear code). Its
+  radius is the generalized Johnson radius `J_{d+2}(δ) = 1 − (1 − δ)^{1/(d+2)}`, which at
+  `d = 3385`, `δ = 1 − ρ` is `8.2·10^-4`; 96 queries at that distance give about 0.1 bit. The
+  RS-specific BCGM theorem is the one that applies.
+
+The previous round of this change multiplied Lemma 8.2's first term by `l` and added `l` to
+`Σ l^(i)` (163.9 bits here; our own composition of BCIKS20's curve theorems with Lemma 8.2, with no
+theorem stating it). The cited form above is 0.585 bits tighter.
+An earlier version used the Thm 5.1 eq (5.3) line form `(m+½)^7 n^2 / (3ρ^{3/2}|F|)` at
+`n = 32 · 16` without `l`, and cited it as "Thm 1.5". That gave 212.2 bits here and ≈119 for
+`GF(q^5)`. Under the form above, `GF(q^5)` gives 71.7 and is still rejected. The CI gate is
+`tests/security_parameter_tests.rs` (formulas in `tests/soundness_gate/mod.rs`).
 
 ### Post-quantum model
 

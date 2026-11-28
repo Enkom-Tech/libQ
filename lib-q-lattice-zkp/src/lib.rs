@@ -40,6 +40,8 @@ pub mod budget;
 pub mod challenge;
 pub mod commitment;
 pub mod error;
+#[cfg(feature = "lazer-compat")]
+pub mod lazer;
 pub mod params;
 pub mod profile;
 pub mod serialize;

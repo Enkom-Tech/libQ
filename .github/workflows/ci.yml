@@ -442,6 +442,11 @@ jobs:
           - name: "lib-q-kem"
             features: "std,ml-kem"
             package: "lib-q-kem"
+          # The ML-KEM-1024 + HQC-256 combiner's tests and KATs are [[test]] targets with
+          # required-features = ["combiner-kat"], so no other row builds or runs them.
+          - name: "lib-q-kem combiner"
+            features: "std,combiner-kat"
+            package: "lib-q-kem"
           - name: "lib-q-ml-kem"
             features: "std"
             package: "lib-q-ml-kem"
@@ -586,6 +591,9 @@ jobs:
           - name: "ml-dsa-hardened"
             features: "std,hardened,mldsa44,mldsa65,mldsa87,dudect-smoke-tests"
             package: "lib-q-ml-dsa"
+          - name: "lib-q-kem combiner"
+            features: "std,combiner-kat"
+            package: "lib-q-kem"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -2403,6 +2411,14 @@ jobs:
         run: |
           cd lib-q-lattice-zkp
           cargo test --features hardened --test hardened_dudect_smoke --test hardened_masked_witness --verbose
+
+      - name: lib-q-lattice-zkp LaZer interop (lazer-compat KATs)
+        run: |
+          # The LaZer byte-equality KATs are `required-features = ["lazer-compat"]`, which no other
+          # row enables: the --all-features clippy pass compiles them but nothing executes them.
+          # Same feature set the forge PR job runs (lib-q-lattice-zkp [package.metadata.libq-ci]).
+          GUARD="${GITHUB_WORKSPACE:-$(git rev-parse --show-toplevel)}/scripts/ci-guard-no-vacuous-tests.sh"
+          bash "$GUARD" -- cargo test -p lib-q-lattice-zkp --features lazer-compat --verbose
 
       - name: SCA test harness crate
         run: cargo test -p lib-q-sca-test --verbose

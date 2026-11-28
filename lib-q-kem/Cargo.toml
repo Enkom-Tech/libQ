@@ -35,6 +35,9 @@ lib-q-sha3 = { path = "../lib-q-sha3", version = "0.0.12", optional = true, defa
 # Random dependencies for the ml-kem feature
 lib-q-random = { path = "../lib-q-random", version = "0.0.12", optional = true, default-features = false }
 
+# Combiner: wipes intermediate component secrets (`combiner` feature).
+zeroize = { workspace = true, optional = true, features = ["alloc"] }
+
 # WASM bindings
 wasm-bindgen = { workspace = true, optional = true }
 
@@ -91,6 +94,34 @@ wasm = [
 
 cb-kem = ["dep:lib-q-cb-kem", "lib-q-cb-kem/alloc"]
 hqc = ["dep:lib-q-hqc", "lib-q-hqc/hqc", "lib-q-hqc/alloc", "alloc"]
+# ML-KEM-1024 + HQC-256 dual-family combiner, `lib_q_kem::combiner`. Its entry points draw their
+# randomness from the OS-seeded libQ CSPRNG. Does NOT turn on `lib-q-ml-kem/deterministic`.
+combiner = [
+    "ml-kem",
+    "hqc",
+    "lib-q-random/alloc",
+    "dep:zeroize",
+]
+# TEST / KAT ONLY. Adds the combiner's explicit-seed and explicit-coins entry points
+# (`generate_keypair_from_seed`, `encapsulate_with_coins`) and turns on
+# `lib-q-ml-kem/deterministic` for them. NOT in `default` and implied by no other feature; never
+# enable it in a production build (reused coins give away the shared secret). The combiner's
+# tests and KATs need it: cargo test -p lib-q-kem --features combiner-kat
+combiner-kat = ["combiner", "lib-q-ml-kem/deterministic"]
+
+[[example]]
+name = "combiner_timing"
+required-features = ["combiner", "std"]
+
+[[test]]
+name = "combiner_tests"
+path = "tests/combiner_tests.rs"
+required-features = ["combiner-kat"]
+
+[[test]]
+name = "combiner_kat"
+path = "tests/combiner_kat.rs"
+required-features = ["combiner-kat"]
 
 [lib]
 name = "lib_q_kem"
